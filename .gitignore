@@ -33,6 +33,3 @@ Thumbs.db
 # Misc
 *.local
 .cache/
-
-# PM 이슈 초안
-pm/draft-issues/

@@ -3,9 +3,11 @@ name: mission
 description: >-
   Write a high-quality PM mission (roadmap work-item) assigning work to a team
   (디자인/프론트/백엔드/인프라). Use when the PM(김우진) wants to assign work, draft or
-  throw a roadmap issue, or says "미션 만들어 / 이슈 만들어 / 일 줘 / 일감". Produces the
-  4-section body 무엇(산출물) / 왜 / 완료기준 / 경계 — NO step-by-step task list (steps
-  are the team's, that is their learning) — and ENFORCES a concrete, checkable 완료기준.
+  throw a roadmap issue, or says "미션 만들어 / 이슈 만들어 / 일 줘 / 일감". Also manages the
+  mission's whole lifecycle in its box (pm/missions/<n>-<slug>/): "던져"(throw), "로그
+  남겨"(log progress), "결과 정리 / 미션 닫아"(write result). Produces the 4-section body
+  무엇(산출물) / 왜 / 완료기준 / 경계 — NO step-by-step task list (steps are the team's,
+  that is their learning) — and ENFORCES a concrete, checkable 완료기준.
   Author/요청자 is 김우진. Not for escalation (team→PM) — that is the ask-pm skill.
 ---
 
@@ -51,13 +53,65 @@ PM이 한 팀에 줄 일을 *미션*으로 쓴다. 단계 지시가 아니라 **
 - 어사인: 해당 팀원 · **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`프론트`/`백엔드`/`인프라`)
 - Team · 목표일: GitHub Projects 필드(생성 후 설정)
 
-## 만들기
-1. PM 설명을 받아 위 형식으로 초안 작성 → 루브릭 자가검증.
-2. **기본 = 초안 저장**: `pm/draft-issues/<팀>.md` (나중에 던질 스테이징). 필드 줄(⚙️) + 본문(📋) 분리.
-3. **"던져"라고 하면** 현재 레포에 즉시 생성:
-   ```
-   gh issue create --assignee <팀원핸들> --label roadmap --label <팀> \
-     --title "[팀] … (~목표일)" --body "<본문>"
-   ```
-   (Team·목표일 Projects 필드는 생성 후 보드/`gh project`로. 요청자는 작성자=PM이라 자동.)
+---
+
+# 미션 박스 — 한 미션의 전 생애 맥락
+
+미션은 *던지고 끝*이 아니다. 미션 하나 = **상자(`pm/missions/<번호>-<슬러그>/`)**. 그 안에 제안→진행→결과의 일련 맥락이 쌓인다. 이게 다음 세션의 AI가 먹을 맥락이다.
+
+```
+pm/missions/<n>-<slug>/
+  proposal.md   ← 던진 미션 (필드 ⚙️ + 본문). 던진 뒤엔 동결.
+  log.md        ← 진행 맥락. PM이 판단·결정한 것만 시간순.
+  result.md     ← 맺은 결과 + 배운 것.
+```
+
+> **불변식(역할 분담):** GitHub 이슈 = 팀의 *실시간 협업*(코멘트·PR·체크박스). 박스 = PM쪽 *정제된 맥락 아카이브*. 박스는 GitHub 복붙이 **아니다** — 안 그러면 이중관리로 죽는다.
+
+`<slug>` = 제목을 영문 케밥으로 짧게(예: `backend-stack-setup`). `<n>` = GitHub 이슈 번호(던진 뒤 확정).
+
+## 라이프사이클 — 무슨 말에 무엇을
+
+### 1) 새 미션 작성 (아직 안 던짐)
+1. PM 설명을 받아 위 본문 형식으로 작성 → 루브릭 자가검증.
+2. `pm/missions/<slug>/proposal.md` 생성 (**번호 없이** 슬러그만). 필드 줄(⚙️) + `---` + 본문. → PM 검토 게이트.
+
+### 2) "던져"
+GitHub이 번호의 단일 진실 → **던진 뒤 번호를 붙인다**(미리 추측 금지, 레이스).
+```
+gh issue create --assignee <팀원핸들> --label roadmap --label <팀> \
+  --title "[팀] … (~목표일)" --body-file pm/missions/<slug>/proposal.md
+```
+던지고 나면:
+1. 반환된 이슈 번호 #n으로 폴더 rename: `pm/missions/<slug>/` → `pm/missions/<n>-<slug>/`.
+2. proposal.md 맨 위에 이슈 URL 한 줄 박기.
+3. `log.md`·`result.md` 스텁 생성(아래 템플릿).
+4. 보드 올리기 + Team·목표일 설정은 **project-board 스킬**.
 - 전제: 레포가 origin에 push됨 + `gh` 인증.
+
+### 3) "로그 남겨 / 이거 기록해"
+해당 박스 `log.md`에 시간순 추가. `## YYYY-MM-DD` 아래 일어난 일 / 결정 / **왜**. PM이 판단·결정한 것만 — GitHub 코멘트 받아쓰기 아님.
+
+### 4) "결과 정리 / 회고 / 미션 닫아"
+`result.md`에 산출물·결정·배운 것. 다음에도 쓸 통찰은 `pm/docs/learnings.md`로 **졸업**시킨다(박스엔 이 미션 고유 결과만). 보드 Status는 project-board 스킬로 Done.
+
+## 스텁 템플릿 (던질 때 생성)
+`log.md`:
+```
+# 진행 로그 — #<n> <팀> · <미션 한 줄>
+
+> PM이 판단·결정한 것만 시간순. GitHub 코멘트 복붙 아님.
+> 형식: `## YYYY-MM-DD` 아래 일어난 일 / 결정 / 왜.
+
+<!-- 아직 없음 -->
+```
+`result.md`:
+```
+# 결과 — #<n> <팀> · <미션 한 줄>
+
+> 미션이 닫힐 때 채운다. 재사용할 통찰은 pm/docs/learnings.md로 졸업.
+
+## 산출물
+## 결정
+## 배운 것
+```
