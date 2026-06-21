@@ -14,7 +14,7 @@ pm/         기획·운영 (brief · learnings · 팀 온보딩)
 
 ## 어디서 시작하나
 
-- **팀원** → 자기 팀 온보딩부터: [`pm/onboarding/`](pm/onboarding/)
-- **이 프로젝트가 뭔지** → [`pm/docs/brief.md`](pm/docs/brief.md)
+- **새로 왔다면** → [**프로젝트 소개**](pm/onboarding/about.md)부터, 그다음 자기 팀 온보딩: [`pm/onboarding/`](pm/onboarding/)
+- **정확한 제품 정의** → [`pm/docs/brief.md`](pm/docs/brief.md)
 
 > 전원 Claude Code로 일합니다 — 각 디렉터리의 `CLAUDE.md`가 그 역할의 컨텍스트입니다.
