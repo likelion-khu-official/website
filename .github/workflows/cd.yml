@@ -1,0 +1,121 @@
+name: CD
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 환경 설정
+        id: config
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "env=prod"         >> $GITHUB_OUTPUT
+            echo "tag_prefix=prod"  >> $GITHUB_OUTPUT
+            echo "compose=docker-compose.prod.yml" >> $GITHUB_OUTPUT
+            echo "port=8080"        >> $GITHUB_OUTPUT
+          else
+            echo "env=test"         >> $GITHUB_OUTPUT
+            echo "tag_prefix=test"  >> $GITHUB_OUTPUT
+            echo "compose=docker-compose.test.yml" >> $GITHUB_OUTPUT
+            echo "port=8081"        >> $GITHUB_OUTPUT
+          fi
+
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: GHCR 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 이미지 빌드 & 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}
+            ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-latest
+
+      - name: 현재 태그 저장
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            PREV_TAG=$(docker compose -f ${{ secrets.OCI_DEPLOY_PATH }}/${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
+              | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
+              | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
+            echo $PREV_TAG > ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
+            echo "현재 태그: $PREV_TAG"
+
+      - name: OCI 배포
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
+            docker compose -f ${{ steps.config.outputs.compose }} pull
+            docker compose -f ${{ steps.config.outputs.compose }} up -d
+
+      - name: 헬스체크
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            echo "=== 헬스체크 시작 ==="
+            ELAPSED=0
+            until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
+              sleep 3
+              ELAPSED=$((ELAPSED + 3))
+              if [ $ELAPSED -ge 60 ]; then
+                echo "❌ 헬스체크 실패"
+                exit 1
+              fi
+            done
+            echo "✅ 헬스체크 통과"
+
+      - name: 스모크 테스트
+        run: |
+          BASE_URL="http://${{ secrets.OCI_HOST }}:${{ steps.config.outputs.port }}"
+          echo "=== 스모크 테스트 시작 ==="
+          # 엔드포인트 구현 후 아래에 추가
+          # curl -sf "$BASE_URL/api/..." && echo "✅ [엔드포인트]" || { echo "❌ [엔드포인트]"; exit 1; }
+          echo "=== 스모크 테스트 완료 ==="
+
+      - name: 롤백
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            PREV_TAG=$(cat ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }})
+            echo "❌ 배포 실패 — $PREV_TAG 로 롤백"
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
+            docker compose -f ${{ steps.config.outputs.compose }} down
+            BACKEND_TAG=$PREV_TAG docker compose -f ${{ steps.config.outputs.compose }} up -d
+            rm -f ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
+            echo "✅ 롤백 완료: $PREV_TAG"
