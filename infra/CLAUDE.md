@@ -30,3 +30,5 @@
 - Block Volume 200GB 초과 · Reserved Public IP 2개 이상
 
 **1차 방어:** 예산 알림이 걸려 있으나(과금 시 메일), 체험 크레딧 소진 전엔 안 울릴 수 있다. → **한도 초과 자체를 안 하는 게** 가장 확실한 방어. `oci compute compute-capacity-report`로 가용성은 확인하되 무료 경계와 혼동하지 말 것.
+
+**capacity 운영 팁:** Ampere가 `OUT_OF_HOST_CAPACITY`면 오라클 재고 부족(우리 탓 아님)이고 수시로 풀린다. → 작은 shape(1 OCPU)로 **자리부터 선점**한 뒤, 풀리면 `oci compute instance update --shape-config`로 한도(2/12)까지 **resize**(재생성 없이 재부팅만). 무료계정은 capacity 우선순위가 낮아 인기 리전 Ampere가 잘 안 잡히니 **PAYG가 사실상 필수**(한도 내 0원 유지).
