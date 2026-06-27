@@ -47,7 +47,7 @@ jobs:
       - name: 이미지 빌드 & 푸시
         uses: docker/build-push-action@v6
         with:
-          # [변경사항 1] context를 'backend'에서 루트('.')로 변경했습니다. 
+          # context를 'backend'에서 루트('.')로 변경했습니다. 
           # 트리거 조건에 있는 'shared/**' 공통 모듈 폴더를 Docker 빌드 시 참조할 수 있도록 하기 위함입니다.
           # 이에 맞춰 backend/Dockerfile 내부의 COPY 경로도 프로젝트 루트 기준(e.g., COPY backend/ .)으로 작성되어야 합니다.
           context: .
@@ -59,7 +59,7 @@ jobs:
 
       - name: OCI 배포 및 헬스체크 (SSH 통합)
         uses: appleboy/ssh-action@v1
-        # [변경사항 2] 리눅스 스크립트 내부에서 사용하기 위해 새로 빌드된 고유 태그를 환경 변수로 넘겨줍니다.
+        # 리눅스 스크립트 내부에서 사용하기 위해 새로 빌드된 고유 태그를 환경 변수로 넘겨줍니다.
         env:
           NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
         with:
@@ -87,14 +87,14 @@ jobs:
             echo $PREV_TAG > .prev_backend_tag_${{ steps.config.outputs.env }}
             echo "백업된 이전 태그: $PREV_TAG"
             
-            # [변경사항 6] 도커 컴포즈 파일 내부에서 바라볼 백엔드 이미지 태그를 새로 빌드된 버전으로 고정합니다.
+            # 도커 컴포즈 파일 내부에서 바라볼 백엔드 이미지 태그를 새로 빌드된 버전으로 고정합니다.
             # 서버에 기존 저장되어 있을 .env.${env} 파일을 새로 덮어쓰거나 동적 생성하여 버전을 주입합니다.
             export BACKEND_TAG=$NEW_TAG
             echo "BACKEND_TAG=$NEW_TAG" > .env.${{ steps.config.outputs.env }}
             
-            # [변경사항 7] 배포 대상을 지정하여 풀(pull)하고 컨테이너를 재시작합니다.
-            docker compose -f ${{ steps.config.outputs.compose }} pull backend
-            docker compose -f ${{ steps.config.outputs.compose }} up -d backend
+            # 배포 대상을 지정하여 풀(pull)하고 컨테이너를 재시작합니다.
+            docker compose -f ${{ steps.config.outputs.compose }} --env-file .env.${{ steps.config.outputs.env }} pull backend
+            docker compose -f ${{ steps.config.outputs.compose }} --env-file .env.${{ steps.config.outputs.env }} up -d backend
             
             # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
