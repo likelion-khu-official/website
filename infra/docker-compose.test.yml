@@ -2,13 +2,21 @@ version: '3.8'
 
 services:
   backend:
-    # 깃허브 액션즈가 주입해 줄 변수를 지정해 둡니다.
+    # 깃허브 액션즈가 빌드 시점에 주입해 줄 변수($BACKEND_TAG)를 바라봅니다.
+    # 만약 변수가 비어있다면 test-latest를 기본값으로 사용합니다.
     image: ghcr.io/likelion-khu-official/website/backend:${BACKEND_TAG:-test-latest}
+    
+    # [변경사항 1] 포트 포워딩 수정
+    # 스프링 부트 내장 톰캣의 기본 포트인 8080을 외부 배포 포트(테스트 서버: 8081)와 연결합니다.
     ports:
-      - "8081:80" # 외부 포트 8081을 임시 컨테이너 내부 포트로 연결
+      - "8081:8080"
+      
+    # [변경사항 2] 스프링 프로필 분기 추가
+    # 애플리케이션 내부에서 테스트(dev/test) 환경 설정을 읽을 수 있도록 프로필 설정을 주입합니다.
     environment:
-      - DB_PASSWORD=${DB_PASSWORD} # 아직 정해지지 않은 비번 변수
-      - JWT_SECRET=${JWT_SECRET}     # 아직 정해지지 않은 JWT 키 변수
-    # 중요: 아직 실제 /actuator/health 엔드포인트가 없으므로 임시로 헬스체크 통과를 유도하는 명령어
-    # (실제 백엔드가 나오면 아래 command나 image는 진짜 백엔드로 교체하셔야 합니다)
-    image: nginx:alpine
+      - SPRING_PROFILES_ACTIVE=test
+      - DB_PASSWORD=${DB_PASSWORD} # 서버의 .env.test 파일에서 값을 읽어옵니다.
+      - JWT_SECRET=${JWT_SECRET}     # 서버의 .env.test 파일에서 값을 읽어옵니다.
+      
+    # [변경사항 3] 컨테이너가 예기치 않게 종료되었을 때의 재시작 정책입니다.
+    restart: always
