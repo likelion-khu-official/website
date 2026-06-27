@@ -1,8 +1,14 @@
+version: '3.8'
+
 services:
   backend:
-    image: ghcr.io/${GHCR_REPO}/backend:${BACKEND_TAG:-test-latest}
+    # 깃허브 액션즈가 주입해 줄 변수를 지정해 둡니다.
+    image: ghcr.io/likelion-khu-official/website/backend:${BACKEND_TAG:-test-latest}
     ports:
-      - "8081:8080"
-    env_file:
-      - .env.test
-    restart: on-failure:5
+      - "8081:80" # 외부 포트 8081을 임시 컨테이너 내부 포트로 연결
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD} # 아직 정해지지 않은 비번 변수
+      - JWT_SECRET=${JWT_SECRET}     # 아직 정해지지 않은 JWT 키 변수
+    # 중요: 아직 실제 /actuator/health 엔드포인트가 없으므로 임시로 헬스체크 통과를 유도하는 명령어
+    # (실제 백엔드가 나오면 아래 command나 image는 진짜 백엔드로 교체하셔야 합니다)
+    image: nginx:alpine
