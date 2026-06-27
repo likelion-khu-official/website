@@ -47,43 +47,54 @@ jobs:
       - name: 이미지 빌드 & 푸시
         uses: docker/build-push-action@v6
         with:
-          context: backend
+          # [변경사항 1] context를 'backend'에서 루트('.')로 변경했습니다. 
+          # 트리거 조건에 있는 'shared/**' 공통 모듈 폴더를 Docker 빌드 시 참조할 수 있도록 하기 위함입니다.
+          # 이에 맞춰 backend/Dockerfile 내부의 COPY 경로도 프로젝트 루트 기준(e.g., COPY backend/ .)으로 작성되어야 합니다.
+          context: .
+          file: backend/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-latest
 
-      - name: 현재 태그 저장
+      - name: OCI 배포 및 헬스체크 (SSH 통합)
         uses: appleboy/ssh-action@v1
+        # [변경사항 2] 리눅스 스크립트 내부에서 사용하기 위해 새로 빌드된 고유 태그를 환경 변수로 넘겨줍니다.
+        env:
+          NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
+          envs: NEW_TAG
           script: |
-            PREV_TAG=$(docker compose -f ${{ secrets.OCI_DEPLOY_PATH }}/${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
+            # [변경사항 3] 등록하신 secrets.OCI_DEPLOY_PATH 경로로 진입합니다. (예: /home/ubuntu/website)
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
+            
+            # [변경사항 4] 인스턴스가 현재 무슨 브랜치에 있든 상관없이, 푸시가 일어난 브랜치(dev 또는 main)로 강제 원격 전환 및 최신 코드를 다운로드합니다.
+            TARGET_BRANCH="${{ github.ref_name }}"
+            git fetch origin
+            git checkout -f $TARGET_BRANCH
+            git pull origin $TARGET_BRANCH
+            
+            # [변경사항 5] 기존에 실행 중이던 컨테이너의 '실제 이미지 태그'를 조회하여 백업해 둡니다. 
+            # 만약 기존 구동 컨테이너가 없다면 기본값(tag_prefix-latest)을 임시 저장합니다.
+            PREV_TAG=$(docker compose -f ${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
               | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
               | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
-            echo $PREV_TAG > ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
-            echo "현재 태그: $PREV_TAG"
-
-      - name: OCI 배포
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
-          script: |
-            cd ${{ secrets.OCI_DEPLOY_PATH }}
-            docker compose -f ${{ steps.config.outputs.compose }} pull
-            docker compose -f ${{ steps.config.outputs.compose }} up -d
-
-      - name: 헬스체크
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
-          script: |
+            echo $PREV_TAG > .prev_backend_tag_${{ steps.config.outputs.env }}
+            echo "백업된 이전 태그: $PREV_TAG"
+            
+            # [변경사항 6] 도커 컴포즈 파일 내부에서 바라볼 백엔드 이미지 태그를 새로 빌드된 버전으로 고정합니다.
+            # 서버에 기존 저장되어 있을 .env.${env} 파일을 새로 덮어쓰거나 동적 생성하여 버전을 주입합니다.
+            export BACKEND_TAG=$NEW_TAG
+            echo "BACKEND_TAG=$NEW_TAG" > .env.${{ steps.config.outputs.env }}
+            
+            # [변경사항 7] 배포 대상을 지정하여 풀(pull)하고 컨테이너를 재시작합니다.
+            docker compose -f ${{ steps.config.outputs.compose }} pull backend
+            docker compose -f ${{ steps.config.outputs.compose }} up -d backend
+            
+            # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
             until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
@@ -95,6 +106,9 @@ jobs:
               fi
             done
             echo "✅ 헬스체크 통과"
+            
+            # [변경사항 8] 배포와 헬스체크가 모두 성공했다면, 임시 백업해 두었던 이전 태그 파일을 청소합니다.
+            rm -f .prev_backend_tag_${{ secrets.OCI_DEPLOY_PATH }}
 
       - name: 스모크 테스트
         run: |
@@ -112,10 +126,19 @@ jobs:
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
-            PREV_TAG=$(cat ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }})
-            echo "❌ 배포 실패 — $PREV_TAG 로 롤백"
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            docker compose -f ${{ steps.config.outputs.compose }} down
-            BACKEND_TAG=$PREV_TAG docker compose -f ${{ steps.config.outputs.compose }} up -d
-            rm -f ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
-            echo "✅ 롤백 완료: $PREV_TAG"
+            # [변경사항 9] 배포 과정 중 에러가 났을 때 실행되는 확실한 롤백 루틴입니다.
+            # 백업 파일이 있는지 먼저 검사하고, 존재한다면 실패한 태그 대신 이전 성공 태그 버전을 .env에 기입한 후 컨테이너를 복구시킵니다.
+            if [ -f .prev_backend_tag_${{ steps.config.outputs.env }} ]; then
+              PREV_TAG=$(cat .prev_backend_tag_${{ steps.config.outputs.env }})
+              echo "❌ 배포 실패 — 기존 버전($PREV_TAG)으로 롤백을 시작합니다."
+              
+              export BACKEND_TAG=$PREV_TAG
+              echo "BACKEND_TAG=$PREV_TAG" > .env.${{ steps.config.outputs.env }}
+              
+              docker compose -f ${{ steps.config.outputs.compose }} up -d backend
+              rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
+              echo "✅ 롤백 완료: $PREV_TAG"
+            else
+              echo "⚠ 백업된 이전 태그 정보가 없어 롤백을 건너뜁니다."
+            fi
