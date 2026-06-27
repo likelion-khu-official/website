@@ -68,17 +68,19 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           envs: NEW_TAG
           script: |
-            # [변경사항 3] 등록하신 secrets.OCI_DEPLOY_PATH 경로로 진입합니다. (예: /home/ubuntu/website)
             cd ${{ secrets.OCI_DEPLOY_PATH }}
+            cd ..
             
-            # [변경사항 4] 인스턴스가 현재 무슨 브랜치에 있든 상관없이, 푸시가 일어난 브랜치(dev 또는 main)로 강제 원격 전환 및 최신 코드를 다운로드합니다.
+            # 인스턴스가 현재 무슨 브랜치에 있든 상관없이, 푸시가 일어난 브랜치(dev 또는 main)로 강제 원격 전환 및 최신 코드를 다운로드합니다.
             TARGET_BRANCH="${{ github.ref_name }}"
             git fetch origin
             git checkout -f $TARGET_BRANCH
             git pull origin $TARGET_BRANCH
+
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
             
-            # [변경사항 5] 기존에 실행 중이던 컨테이너의 '실제 이미지 태그'를 조회하여 백업해 둡니다. 
-            # 만약 기존 구동 컨테이너가 없다면 기본값(tag_prefix-latest)을 임시 저장합니다.
+            # 기존에 실행 중이던 컨테이너의 '실제 이미지 태그'를 조회하여 백업
+            # 만약 기존 구동 컨테이너가 없다면 기본값(tag_prefix-latest)을 임시 저장
             PREV_TAG=$(docker compose -f ${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
               | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
               | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
@@ -107,8 +109,8 @@ jobs:
             done
             echo "✅ 헬스체크 통과"
             
-            # [변경사항 8] 배포와 헬스체크가 모두 성공했다면, 임시 백업해 두었던 이전 태그 파일을 청소합니다.
-            rm -f .prev_backend_tag_${{ secrets.OCI_DEPLOY_PATH }}
+            # 배포와 헬스체크가 모두 성공했다면, 임시 백업해 두었던 이전 태그 파일을 청소합니다.
+            rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
 
       - name: 스모크 테스트
         run: |
@@ -127,7 +129,8 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            # [변경사항 9] 배포 과정 중 에러가 났을 때 실행되는 확실한 롤백 루틴입니다.
+            
+            # 배포 과정 중 에러가 났을 때 실행되는 확실한 롤백 루틴입니다.
             # 백업 파일이 있는지 먼저 검사하고, 존재한다면 실패한 태그 대신 이전 성공 태그 버전을 .env에 기입한 후 컨테이너를 복구시킵니다.
             if [ -f .prev_backend_tag_${{ steps.config.outputs.env }} ]; then
               PREV_TAG=$(cat .prev_backend_tag_${{ steps.config.outputs.env }})
