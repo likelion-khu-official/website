@@ -61,12 +61,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: QEMU 설정 (arm64 크로스 빌드용)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
       - name: 이미지 빌드 & 푸시
         uses: docker/build-push-action@v6
         with:
           # context를 루트('.')로 설정 — shared/** 공통 모듈을 Docker 빌드 시 참조하기 위함
           context: .
           file: backend/Dockerfile
+          platforms: linux/arm64
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}
