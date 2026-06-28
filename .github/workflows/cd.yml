@@ -23,15 +23,15 @@ jobs:
         id: config
         run: |
           if [ "${{ github.ref_name }}" == "main" ]; then
-            echo "env=prod"         >> $GITHUB_OUTPUT
-            echo "tag_prefix=prod"  >> $GITHUB_OUTPUT
-            echo "compose=docker-compose.prod.yml" >> $GITHUB_OUTPUT
-            echo "port=8080"        >> $GITHUB_OUTPUT
+            echo "env=prod"              >> $GITHUB_OUTPUT
+            echo "tag_prefix=prod"       >> $GITHUB_OUTPUT
+            echo "service=backend-prod"  >> $GITHUB_OUTPUT
+            echo "port=8080"             >> $GITHUB_OUTPUT
           else
-            echo "env=test"         >> $GITHUB_OUTPUT
-            echo "tag_prefix=test"  >> $GITHUB_OUTPUT
-            echo "compose=docker-compose.test.yml" >> $GITHUB_OUTPUT
-            echo "port=8081"        >> $GITHUB_OUTPUT
+            echo "env=stage"             >> $GITHUB_OUTPUT
+            echo "tag_prefix=stage"      >> $GITHUB_OUTPUT
+            echo "service=backend-stage" >> $GITHUB_OUTPUT
+            echo "port=8081"             >> $GITHUB_OUTPUT
           fi
 
       - name: 소스코드 체크아웃
@@ -47,43 +47,49 @@ jobs:
       - name: 이미지 빌드 & 푸시
         uses: docker/build-push-action@v6
         with:
-          context: backend
+          # context를 루트('.')로 설정 — shared/** 공통 모듈을 Docker 빌드 시 참조하기 위함
+          context: .
+          file: backend/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-latest
 
-      - name: 현재 태그 저장
+      - name: OCI 배포 및 헬스체크 (SSH 통합)
         uses: appleboy/ssh-action@v1
+        env:
+          NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
-          script: |
-            PREV_TAG=$(docker compose -f ${{ secrets.OCI_DEPLOY_PATH }}/${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
-              | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
-              | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
-            echo $PREV_TAG > ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
-            echo "현재 태그: $PREV_TAG"
-
-      - name: OCI 배포
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
+          envs: NEW_TAG
           script: |
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            docker compose -f ${{ steps.config.outputs.compose }} pull
-            docker compose -f ${{ steps.config.outputs.compose }} up -d
+            cd ..
 
-      - name: 헬스체크
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
-          script: |
+            # 푸시가 일어난 브랜치로 강제 전환 및 최신 코드 다운로드
+            TARGET_BRANCH="${{ github.ref_name }}"
+            git fetch origin
+            git checkout -f $TARGET_BRANCH
+            git pull origin $TARGET_BRANCH
+
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
+
+            # 기존 실행 중인 컨테이너의 이미지 태그 백업
+            PREV_TAG=$(docker compose -f docker-compose.yml ps -q ${{ steps.config.outputs.service }} 2>/dev/null \
+              | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
+              | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
+            echo $PREV_TAG > .prev_backend_tag_${{ steps.config.outputs.env }}
+            echo "백업된 이전 태그: $PREV_TAG"
+
+            # 새 태그로 이미지 풀 및 서비스 재시작
+            # BACKEND_TAG는 docker-compose.yml의 ${BACKEND_TAG:-...} 변수 치환에만 사용 (.env 파일 덮어쓰지 않음)
+            export BACKEND_TAG=$NEW_TAG
+            docker compose -f docker-compose.yml pull ${{ steps.config.outputs.service }}
+            docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
+
+            # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
             until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
@@ -95,6 +101,8 @@ jobs:
               fi
             done
             echo "✅ 헬스체크 통과"
+
+            rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
 
       - name: 스모크 테스트
         run: |
@@ -112,10 +120,16 @@ jobs:
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
-            PREV_TAG=$(cat ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }})
-            echo "❌ 배포 실패 — $PREV_TAG 로 롤백"
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            docker compose -f ${{ steps.config.outputs.compose }} down
-            BACKEND_TAG=$PREV_TAG docker compose -f ${{ steps.config.outputs.compose }} up -d
-            rm -f ${{ secrets.OCI_DEPLOY_PATH }}/.prev_backend_tag_${{ steps.config.outputs.env }}
-            echo "✅ 롤백 완료: $PREV_TAG"
+
+            if [ -f .prev_backend_tag_${{ steps.config.outputs.env }} ]; then
+              PREV_TAG=$(cat .prev_backend_tag_${{ steps.config.outputs.env }})
+              echo "❌ 배포 실패 — 기존 버전($PREV_TAG)으로 롤백을 시작합니다."
+
+              export BACKEND_TAG=$PREV_TAG
+              docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
+              rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
+              echo "✅ 롤백 완료: $PREV_TAG"
+            else
+              echo "⚠ 백업된 이전 태그 정보가 없어 롤백을 건너뜁니다."
+            fi
