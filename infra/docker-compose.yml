@@ -6,9 +6,6 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - backend-stage
-      - backend-prod
     restart: unless-stopped
 
   backend-stage:

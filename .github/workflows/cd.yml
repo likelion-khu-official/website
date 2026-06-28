@@ -120,6 +120,12 @@ jobs:
             docker compose -f docker-compose.yml pull ${{ steps.config.outputs.service }}
             docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
 
+            # nginx가 실행 중이 아니면 시작 (--no-recreate: 백엔드 컨테이너 재생성 방지)
+            if ! docker compose -f docker-compose.yml ps nginx | grep -q "Up"; then
+              echo "nginx 미실행 — 시작합니다"
+              docker compose -f docker-compose.yml up -d --no-recreate nginx
+            fi
+
             # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
