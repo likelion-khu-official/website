@@ -1,5 +1,5 @@
 > 🔗 이슈: https://github.com/likelion-khu-official/website/issues/18
-> ⚙️ 필드: 제목 `[BE] 모집 알림을 받아내기 — 프론트와 한 줄로 (~7/1)` · 어사인 신선우(@sunwoo)·안시현(@xihxxn) — *GitHub 자동 어사인 실패, 핸들 확인 필요* · 요청자 김우진 · 라벨 백엔드, roadmap · Team 백엔드
+> ⚙️ 필드: 제목 `[BE] 모집 알림을 받아내기 — 프론트와 한 줄로 (~7/1)` · 어사인 신선우(@sunwoo1256)·안시현(@xihxxn) · 요청자 김우진 · 라벨 백엔드, roadmap · Team 백엔드
 > 아래가 이슈 본문입니다.
 
 ---

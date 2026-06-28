@@ -148,12 +148,12 @@ pages: <페이지 수>
 3. **새 공유 이슈를 만들고, FE·BE 팀원을 매번 어사인한다.** 이 알림은 *주기적으로* 돌린다 — 그래서 제목에 **날짜**를 박아 회차를 구분하고, 어사인은 **매 회차 빠짐없이** 한다(수동 의존 금지).
    - 제목: `[디자인 공유] <파일명> — <날짜(last_read)> 시안 스냅샷`
    - 라벨: `프론트`·`백엔드`만 (roadmap·보드 ✕).
-   - 어사인: **프론트·백엔드 팀원 전원**(핸들은 루트 `CLAUDE.md` 팀 섹션 기준 — FE `ParkIlha`·`hjdd0309`, BE `sunwoo`·`xihxxn`).
+   - 어사인: **프론트·백엔드 팀원 전원**(핸들은 루트 `CLAUDE.md` 팀 섹션 기준 — FE `ParkIlha`·`hjdd0309`, BE `sunwoo1256`·`xihxxn`).
    - 인증 prefix(`GH_HOST`/`GH_TOKEN`)는 프로젝트 로컬 설정. **어사인은 생성과 분리해 개별 추가**한다 — 무효 핸들(레포 협업자 아님)이 섞여도 이슈 생성이 통째로 실패하지 않게:
    ```
    N=$(gh issue create --repo likelion-khu-official/website --label 프론트 --label 백엔드 \
         --title "[디자인 공유] <파일명> — <날짜> 시안 스냅샷" --body-file <채운 임시파일> | grep -o '[0-9]*$')
-   for u in ParkIlha hjdd0309 sunwoo xihxxn; do
+   for u in ParkIlha hjdd0309 sunwoo1256 xihxxn; do
      gh issue edit "$N" --repo likelion-khu-official/website --add-assignee "$u" || echo "어사인 실패(무효 핸들?): $u"
    done
    ```

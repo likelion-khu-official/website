@@ -1,5 +1,5 @@
 > 🔗 이슈: https://github.com/likelion-khu-official/website/issues/2
-> ⚙️ 필드: 제목 `[BE] 백엔드 스택 선정 + 초기 셋업 (~목표일)` · 어사인 신선우(@sunwoo)·안시현(@xihxxn) · 요청자 김우진 · 라벨 roadmap, 백엔드 · Team 백엔드
+> ⚙️ 필드: 제목 `[BE] 백엔드 스택 선정 + 초기 셋업 (~목표일)` · 어사인 신선우(@sunwoo1256)·안시현(@xihxxn) · 요청자 김우진 · 라벨 roadmap, 백엔드 · Team 백엔드
 > 아래가 이슈 본문입니다.
 
 ---
