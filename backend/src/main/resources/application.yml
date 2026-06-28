@@ -28,3 +28,15 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}   # 7일 (ms)
+
+# === Actuator ===
+# /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이
+# 자동으로 permitAll() 처리. SecurityConfig 추가 시 아래 주석 참고.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
