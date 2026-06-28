@@ -16,12 +16,12 @@ spring:
   # === JPA (Java Persistence API) ===
   # Java 엔티티 클래스 ↔ DB 테이블 자동 매핑
   jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
     properties:
       hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
     show-sql: true
 
