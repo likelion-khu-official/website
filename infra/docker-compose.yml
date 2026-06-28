@@ -18,7 +18,7 @@ services:
     env_file:
       - .env.stage
     volumes:
-      - ./data/stage.db:/app/data/stage.db
+      - ./data:/app/data
     restart: on-failure:5
 
   backend-prod:
@@ -28,5 +28,5 @@ services:
     env_file:
       - .env.prod
     volumes:
-      - ./data/prod.db:/app/data/prod.db
+      - ./data:/app/data
     restart: on-failure:5
