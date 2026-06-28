@@ -62,9 +62,11 @@ curl -s -H "X-Figma-Token: <PAT>" \
 
 특정 프레임을 PNG로 뽑아 **눈으로** 본다:
 ```
-# 1) 렌더 URL 받기 (scale 2 = 선명)
+# 1) 렌더 URL 받기 — 기본 scale=4(최대 래스터). format=png.
 curl -s -H "X-Figma-Token: <PAT>" \
-  "https://api.figma.com/v1/images/<FILE_KEY>?ids=12:345&format=png&scale=2" | jq -r '.images'
+  "https://api.figma.com/v1/images/<FILE_KEY>?ids=12:345&format=png&scale=4" | jq -r '.images'
+# ⚠️ scale=4로 여러 장·큰 프레임을 한 번에 요청하면 "Render timeout"이 난다 → 한 장씩 요청.
+#    개별 장도 거부되면 그 장만 scale 3→2로 낮춰 폴백(키 큰 프레임 대비).
 # 2) 보관 폴더(시점별)로 바로 내려받는다 — /tmp 아님. 파일명은 <프레임이름>__<nodeid>(콜론→하이픈).
 TS=$(date +%Y-%m-%d_%H%M); DIR=designs/<FILE_KEY>/frames/$TS; mkdir -p "$DIR"
 curl -s -o "$DIR/Recruitment__23-521.png" "<위에서 받은 URL>"
