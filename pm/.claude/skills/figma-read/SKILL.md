@@ -145,12 +145,19 @@ pages: <페이지 수>
    - 폴더(frames 시점폴더): `https://github.com/likelion-khu-official/website/tree/main/<레포상대경로>`
    - `<레포상대경로>`는 레포 루트 기준(예: `pm/.claude/skills/figma-read/designs/<KEY>/digest.md`). 기본 브랜치가 main이 아니면 그 브랜치명으로.
    이 글은 *담백한 추출 보고*다: FE·BE에게 "뭘 하라"는 첨언·평가·권고는 넣지 않는다(있는 그대로만). 레제 첫 인사는 템플릿에 이미 있으니 유지. 채운 결과를 임시 파일로 저장.
-3. **새 공유 이슈를 만든다.** 제목 `[디자인 공유] <파일명> — 긁은 결과·경로`, 팀 라벨(`프론트`·`백엔드`)만. roadmap 라벨·보드 추가는 **안 한다.**
-   - 인증 prefix(`GH_HOST`/`GH_TOKEN`)는 프로젝트 로컬 설정. 예:
+3. **새 공유 이슈를 만들고, FE·BE 팀원을 매번 어사인한다.** 이 알림은 *주기적으로* 돌린다 — 그래서 제목에 **날짜**를 박아 회차를 구분하고, 어사인은 **매 회차 빠짐없이** 한다(수동 의존 금지).
+   - 제목: `[디자인 공유] <파일명> — <날짜(last_read)> 시안 스냅샷`
+   - 라벨: `프론트`·`백엔드`만 (roadmap·보드 ✕).
+   - 어사인: **프론트·백엔드 팀원 전원**(핸들은 루트 `CLAUDE.md` 팀 섹션 기준 — FE `ParkIlha`·`hjdd0309`, BE `sunwoo`·`xihxxn`).
+   - 인증 prefix(`GH_HOST`/`GH_TOKEN`)는 프로젝트 로컬 설정. **어사인은 생성과 분리해 개별 추가**한다 — 무효 핸들(레포 협업자 아님)이 섞여도 이슈 생성이 통째로 실패하지 않게:
    ```
-   gh issue create --repo likelion-khu-official/website --label 프론트 --label 백엔드 \
-     --title "[디자인 공유] <파일명> — 긁은 결과·경로" --body-file <채운 임시파일>
+   N=$(gh issue create --repo likelion-khu-official/website --label 프론트 --label 백엔드 \
+        --title "[디자인 공유] <파일명> — <날짜> 시안 스냅샷" --body-file <채운 임시파일> | grep -o '[0-9]*$')
+   for u in ParkIlha hjdd0309 sunwoo xihxxn; do
+     gh issue edit "$N" --repo likelion-khu-official/website --add-assignee "$u" || echo "어사인 실패(무효 핸들?): $u"
+   done
    ```
+   - 무효 핸들로 실패하면 **그 사람만 건너뛰고** 나머지는 어사인한다(이슈 본문엔 다 보이니 전달은 됨). 어느 핸들이 무효인지 PM에게 한 줄 보고.
    - (선택) 관련 미션 이슈에 **한 줄 포인터 코멘트**만 남겨 연결: `gh issue comment <미션n> --body "디자인 공유: #<새이슈>"`. 내용 본체는 공유 이슈에 둔다.
 4. **전제: 경로가 유효하려면 digest·frames가 git에 커밋(push)돼 있어야 한다.** 아직이면 먼저 올리고(또는 PM에게 올려달라 하고) 알린다 — 안 그러면 팀이 죽은 링크를 받는다.
 - 인증·라벨 좌표는 `project-board`·`mission` 스킬과 동일. **단 이 알림 이슈는 그 스킬들의 라이프사이클(보드·박스)을 타지 않는다.**
