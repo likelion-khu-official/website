@@ -5,23 +5,24 @@ spring:
     time-zone: Asia/Seoul
 
   # === 데이터베이스 연결 ===
-  # 접속 정보는 프로젝트 루트의 .env 파일에서 읽어옴 (spring-dotenv)
-  # .env 파일은 .gitignore에 포함되어 레포에 올라가지 않음
+  # DB_PATH는 docker-compose env_file(.env.stage / .env.prod)로 주입
+  # 컨테이너 볼륨: ./data/stage.db → /app/data/stage.db (compose에서 마운트)
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:sqlite:${DB_PATH}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1        # SQLite는 single-writer — 풀 크기 1 고정
 
   # === JPA (Java Persistence API) ===
   # Java 엔티티 클래스 ↔ DB 테이블 자동 매핑
   jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true         # SQL을 보기 좋게 줄바꿈 (한 줄 쿼리 → 포맷팅)
+        format_sql: true
     show-sql: true
 
 jwt:
