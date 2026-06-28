@@ -23,15 +23,15 @@ jobs:
         id: config
         run: |
           if [ "${{ github.ref_name }}" == "main" ]; then
-            echo "env=prod"         >> $GITHUB_OUTPUT
-            echo "tag_prefix=prod"  >> $GITHUB_OUTPUT
-            echo "compose=docker-compose.prod.yml" >> $GITHUB_OUTPUT
-            echo "port=8080"        >> $GITHUB_OUTPUT
+            echo "env=prod"              >> $GITHUB_OUTPUT
+            echo "tag_prefix=prod"       >> $GITHUB_OUTPUT
+            echo "service=backend-prod"  >> $GITHUB_OUTPUT
+            echo "port=8080"             >> $GITHUB_OUTPUT
           else
-            echo "env=test"         >> $GITHUB_OUTPUT
-            echo "tag_prefix=test"  >> $GITHUB_OUTPUT
-            echo "compose=docker-compose.test.yml" >> $GITHUB_OUTPUT
-            echo "port=8081"        >> $GITHUB_OUTPUT
+            echo "env=stage"             >> $GITHUB_OUTPUT
+            echo "tag_prefix=stage"      >> $GITHUB_OUTPUT
+            echo "service=backend-stage" >> $GITHUB_OUTPUT
+            echo "port=8081"             >> $GITHUB_OUTPUT
           fi
 
       - name: 소스코드 체크아웃
@@ -47,9 +47,7 @@ jobs:
       - name: 이미지 빌드 & 푸시
         uses: docker/build-push-action@v6
         with:
-          # context를 'backend'에서 루트('.')로 변경했습니다. 
-          # 트리거 조건에 있는 'shared/**' 공통 모듈 폴더를 Docker 빌드 시 참조할 수 있도록 하기 위함입니다.
-          # 이에 맞춰 backend/Dockerfile 내부의 COPY 경로도 프로젝트 루트 기준(e.g., COPY backend/ .)으로 작성되어야 합니다.
+          # context를 루트('.')로 설정 — shared/** 공통 모듈을 Docker 빌드 시 참조하기 위함
           context: .
           file: backend/Dockerfile
           push: true
@@ -59,7 +57,6 @@ jobs:
 
       - name: OCI 배포 및 헬스체크 (SSH 통합)
         uses: appleboy/ssh-action@v1
-        # 리눅스 스크립트 내부에서 사용하기 위해 새로 빌드된 고유 태그를 환경 변수로 넘겨줍니다.
         env:
           NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
         with:
@@ -70,32 +67,28 @@ jobs:
           script: |
             cd ${{ secrets.OCI_DEPLOY_PATH }}
             cd ..
-            
-            # 인스턴스가 현재 무슨 브랜치에 있든 상관없이, 푸시가 일어난 브랜치(dev 또는 main)로 강제 원격 전환 및 최신 코드를 다운로드합니다.
+
+            # 푸시가 일어난 브랜치로 강제 전환 및 최신 코드 다운로드
             TARGET_BRANCH="${{ github.ref_name }}"
             git fetch origin
             git checkout -f $TARGET_BRANCH
             git pull origin $TARGET_BRANCH
 
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            
-            # 기존에 실행 중이던 컨테이너의 '실제 이미지 태그'를 조회하여 백업
-            # 만약 기존 구동 컨테이너가 없다면 기본값(tag_prefix-latest)을 임시 저장
-            PREV_TAG=$(docker compose -f ${{ steps.config.outputs.compose }} ps -q backend 2>/dev/null \
+
+            # 기존 실행 중인 컨테이너의 이미지 태그 백업
+            PREV_TAG=$(docker compose -f docker-compose.yml ps -q ${{ steps.config.outputs.service }} 2>/dev/null \
               | xargs -I{} docker inspect --format='{{index .Config.Image}}' {} 2>/dev/null \
               | grep -oP '(?<=:)[^:]+$' || echo "${{ steps.config.outputs.tag_prefix }}-latest")
             echo $PREV_TAG > .prev_backend_tag_${{ steps.config.outputs.env }}
             echo "백업된 이전 태그: $PREV_TAG"
-            
-            # 도커 컴포즈 파일 내부에서 바라볼 백엔드 이미지 태그를 새로 빌드된 버전으로 고정합니다.
-            # 서버에 기존 저장되어 있을 .env.${env} 파일을 새로 덮어쓰거나 동적 생성하여 버전을 주입합니다.
+
+            # 새 태그로 이미지 풀 및 서비스 재시작
+            # BACKEND_TAG는 docker-compose.yml의 ${BACKEND_TAG:-...} 변수 치환에만 사용 (.env 파일 덮어쓰지 않음)
             export BACKEND_TAG=$NEW_TAG
-            echo "BACKEND_TAG=$NEW_TAG" > .env.${{ steps.config.outputs.env }}
-            
-            # 배포 대상을 지정하여 풀(pull)하고 컨테이너를 재시작합니다.
-            docker compose -f ${{ steps.config.outputs.compose }} --env-file .env.${{ steps.config.outputs.env }} pull backend
-            docker compose -f ${{ steps.config.outputs.compose }} --env-file .env.${{ steps.config.outputs.env }} up -d backend
-            
+            docker compose -f docker-compose.yml pull ${{ steps.config.outputs.service }}
+            docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
+
             # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
@@ -108,8 +101,7 @@ jobs:
               fi
             done
             echo "✅ 헬스체크 통과"
-            
-            # 배포와 헬스체크가 모두 성공했다면, 임시 백업해 두었던 이전 태그 파일을 청소합니다.
+
             rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
 
       - name: 스모크 테스트
@@ -129,17 +121,13 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
             cd ${{ secrets.OCI_DEPLOY_PATH }}
-            
-            # 배포 과정 중 에러가 났을 때 실행되는 확실한 롤백 루틴입니다.
-            # 백업 파일이 있는지 먼저 검사하고, 존재한다면 실패한 태그 대신 이전 성공 태그 버전을 .env에 기입한 후 컨테이너를 복구시킵니다.
+
             if [ -f .prev_backend_tag_${{ steps.config.outputs.env }} ]; then
               PREV_TAG=$(cat .prev_backend_tag_${{ steps.config.outputs.env }})
               echo "❌ 배포 실패 — 기존 버전($PREV_TAG)으로 롤백을 시작합니다."
-              
+
               export BACKEND_TAG=$PREV_TAG
-              echo "BACKEND_TAG=$PREV_TAG" > .env.${{ steps.config.outputs.env }}
-              
-              docker compose -f ${{ steps.config.outputs.compose }} up -d backend
+              docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
               rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
               echo "✅ 롤백 완료: $PREV_TAG"
             else

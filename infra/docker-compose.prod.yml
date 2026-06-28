@@ -1,8 +1,0 @@
-services:
-  backend:
-    image: ghcr.io/${GHCR_REPO}/backend:${BACKEND_TAG:-prod-latest}
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env.prod
-    restart: on-failure:5
