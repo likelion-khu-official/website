@@ -59,12 +59,17 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
+          GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GHCR_USER: "${{ github.actor }}"
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
-          envs: NEW_TAG
+          envs: NEW_TAG,GHCR_TOKEN,GHCR_USER
           script: |
+            # GHCR 인증 — 서버에서 private 이미지 pull 권한 획득
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
             cd ${{ secrets.OCI_DEPLOY_PATH }}
             cd ..
 
