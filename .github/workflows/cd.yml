@@ -78,6 +78,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}
             ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: OCI 배포 및 헬스체크 (SSH 통합)
         uses: appleboy/ssh-action@v1
@@ -124,7 +126,7 @@ jobs:
             until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
               sleep 3
               ELAPSED=$((ELAPSED + 3))
-              if [ $ELAPSED -ge 60 ]; then
+              if [ $ELAPSED -ge 120 ]; then
                 echo "❌ 헬스체크 실패"
                 exit 1
               fi
