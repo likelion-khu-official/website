@@ -6,6 +6,14 @@ on:
     paths:
       - 'backend/**'
       - 'shared/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포 환경 (stage / prod)'
+        required: true
+        default: 'stage'
+        type: choice
+        options: [stage, prod]
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -22,7 +30,16 @@ jobs:
       - name: 환경 설정
         id: config
         run: |
-          if [ "${{ github.ref_name }}" == "main" ]; then
+          # workflow_dispatch 수동 실행 시 input 우선, push 시 브랜치로 판별
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            ENV="prod"
+          else
+            ENV="stage"
+          fi
+
+          if [ "$ENV" == "prod" ]; then
             echo "env=prod"              >> $GITHUB_OUTPUT
             echo "tag_prefix=prod"       >> $GITHUB_OUTPUT
             echo "service=backend-prod"  >> $GITHUB_OUTPUT
@@ -59,12 +76,17 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           NEW_TAG: "${{ steps.config.outputs.tag_prefix }}-${{ github.sha }}"
+          GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GHCR_USER: "${{ github.actor }}"
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
-          envs: NEW_TAG
+          envs: NEW_TAG,GHCR_TOKEN,GHCR_USER
           script: |
+            # GHCR 인증 — 서버에서 private 이미지 pull 권한 획득
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
             cd ${{ secrets.OCI_DEPLOY_PATH }}
             cd ..
 
