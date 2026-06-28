@@ -42,12 +42,14 @@ GitHub Actions
   PR to dev/main → CI (테스트)
   dev 머지 → CD → stage 이미지 빌드 → OCI backend-stage 서비스 재시작
   main 머지 → CD → prod 이미지 빌드 → OCI backend-prod 서비스 재시작
+  ※ CD 트리거 paths 필터: backend/**, shared/** — infra/ 변경만으로는 CD 안 돌아감
 
-OCI 인스턴스
+OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   docker compose (단일 파일: infra/docker-compose.yml)
-    ├── nginx (80/443)       → backend-stage:8080 / backend-prod:8080 (내부 네트워크)
-    ├── backend-stage        → backend:stage-latest  (host:8081 → container:8080)
-    └── backend-prod         → backend:prod-latest   (host:8080 → container:8080)
+    ├── nginx (80/443)       → backend-stage:8080 / backend-prod:8080 (Docker 내부 네트워크)
+    ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
+    └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
+  ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest
@@ -104,7 +106,9 @@ Vercel → 프론트엔드 (인프라 무관)
 
 **보안 리스트 인바운드 오픈 포트**: 22(SSH), 80(HTTP), 443(HTTPS)
 
-**인스턴스**: 아직 없음 — 네트워크 뼈대만 완성된 상태
+**인스턴스**: `168.138.202.82` (ubuntu@, arm64 Ampere A1, 2 OCPU/12GB) — 운영 중
+- `OCI_DEPLOY_PATH` = `/home/ubuntu/website/infra`
+- `~/.ssh/oci_server.pem` (장찬욱 로컬, SSH 접속용) / `ssh likelion-oci`로 접속
 
 > OCID 등 민감 정보는 `~/.oci/config` 또는 OCI 콘솔에서 확인
 
@@ -125,7 +129,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | Secret | 내용 |
 |---|---|
 | `OCI_HOST` | 인스턴스 IP |
-| `OCI_USER` | SSH 유저 (기본: `opc`) |
+| `OCI_USER` | SSH 유저 (`ubuntu`) |
 | `OCI_SSH_KEY` | SSH 프라이빗 키 |
 | `OCI_DEPLOY_PATH` | compose 파일 위치 (예: `/home/opc/app`) |
 
@@ -136,14 +140,13 @@ Vercel → 프론트엔드 (인프라 무관)
 CD 실패 시 자동 롤백. 수동 롤백이 필요하면:
 ```bash
 # stage
-BACKEND_TAG=stage-abc1234 docker compose -f docker-compose.yml up -d backend-stage
+STAGE_TAG=stage-abc1234 docker compose -f docker-compose.yml up -d backend-stage
 
 # prod
-BACKEND_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
+PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 ```
 
 ## 미결 사항
-- DB 종류 미정 (백엔드 결정) → `.env.prod/.env.test` 완성 후 compose에 반영
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- nginx conf 도메인 (도메인 구매 후 작성)
-- Spring Boot Actuator 의존성 (백엔드가 `build.gradle`에 추가해야 헬스체크 작동)
+- nginx server_name + SSL (도메인 구매 후 — 현재 IP 직접 접속만 가능, 80포트 전부 prod로 감)
+- SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험)

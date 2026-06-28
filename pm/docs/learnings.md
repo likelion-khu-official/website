@@ -6,6 +6,8 @@
 ---
 
 ## 인프라 · CI/CD
+- **compose `depends_on`이 있으면 named service 기동 시 dependency 이미지 태그도 재평가된다.** `docker compose up -d nginx`가 nginx의 `depends_on`인 backend-stage/prod의 이미지 태그가 바뀌었는지 확인하고, 달라졌으면 재생성한다. 동적 리졸버를 쓰는 nginx처럼 실제로 의존성이 없는 경우엔 `depends_on`을 아예 빼는 게 낫다.
+- **compose에서 여러 서비스가 같은 변수를 공유하면 하나의 배포가 다른 환경을 오염시킨다.** `${BACKEND_TAG:-stage-latest}` / `${BACKEND_TAG:-prod-latest}` 처럼 fallback만 다르고 변수는 같으면, BACKEND_TAG가 세팅된 순간 fallback이 무시되고 두 서비스 모두 같은 값을 쓴다. 서비스마다 독립 변수(`STAGE_TAG` / `PROD_TAG`)를 써야 한 배포가 다른 쪽 컨테이너를 건드리지 않는다.
 - **nginx를 compose에 넣으면 동시 운영 시 포트 충돌로 결국 앞단 레이어가 필요해진다.** 두 스택을 동시에 띄우는 게 기본이라면 native nginx가 더 단순하다.
 - **롤백용 이전 태그를 `/tmp`에 두면 재부팅 시 유실된다.** deploy path 안에 두어야 영속성이 보장된다.
 - **이미지 태그에 환경 prefix(`test-`/`prod-`)를 붙이면 하나의 레지스트리에서 두 환경이 독립적으로 관리된다.** `latest`만 쓰면 롤백 포인트가 없다.
