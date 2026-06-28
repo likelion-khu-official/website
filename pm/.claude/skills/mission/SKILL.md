@@ -82,11 +82,19 @@ GitHub이 번호의 단일 진실 → **던진 뒤 번호를 붙인다**(미리 
 gh issue create --assignee <팀원핸들> --label roadmap --label <팀> \
   --title "[팀] … (~목표일)" --body-file pm/missions/<slug>/proposal.md
 ```
-던지고 나면:
+던지고 나면 — **아래 5개는 한 묶음. 4를 빼먹으면 미션이 보드 밖에 떠서 칸반에 안 보인다(실제로 한 번 났다).**
 1. 반환된 이슈 번호 #n으로 폴더 rename: `pm/missions/<slug>/` → `pm/missions/<n>-<slug>/`.
 2. proposal.md 맨 위에 이슈 URL 한 줄 박기.
 3. `log.md`·`result.md` 스텁 생성(아래 템플릿).
-4. 보드 올리기 + Team·목표일 설정은 **project-board 스킬**.
+4. **보드에 올린다 — 던지기의 일부지 "그다음 할 일"이 아니다.** `gh issue create`는 이슈만 만들고 Project엔 자동 연결하지 않는다. 곧바로 이어서:
+   ```
+   gh project item-add 1 --owner likelion-khu-official --url <반환된 이슈 URL>
+   ```
+   그다음 Team·Status(Todo)·시작일·목표일 필드 세팅은 **project-board 스킬**의 좌표·field-id로.
+5. **검증(누락 방지):** 던진 직후 카드가 실제로 붙었는지 확인. `0`이면 4를 안 한 것 — 다시 올린다.
+   ```
+   gh issue view <n> --repo likelion-khu-official/website --json projectItems --jq '.projectItems|length'
+   ```
 - 전제: 레포가 origin에 push됨 + `gh` 인증.
 
 ### 3) "로그 남겨 / 이거 기록해"
