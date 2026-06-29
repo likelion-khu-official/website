@@ -6,6 +6,8 @@
 ---
 
 ## 인프라 · CI/CD
+- **compose `depends_on`이 있으면 named service 기동 시 dependency 이미지 태그도 재평가된다.** `docker compose up -d nginx`가 nginx의 `depends_on`인 backend-stage/prod의 이미지 태그가 바뀌었는지 확인하고, 달라졌으면 재생성한다. 동적 리졸버를 쓰는 nginx처럼 실제로 의존성이 없는 경우엔 `depends_on`을 아예 빼는 게 낫다.
+- **compose에서 여러 서비스가 같은 변수를 공유하면 하나의 배포가 다른 환경을 오염시킨다.** `${BACKEND_TAG:-stage-latest}` / `${BACKEND_TAG:-prod-latest}` 처럼 fallback만 다르고 변수는 같으면, BACKEND_TAG가 세팅된 순간 fallback이 무시되고 두 서비스 모두 같은 값을 쓴다. 서비스마다 독립 변수(`STAGE_TAG` / `PROD_TAG`)를 써야 한 배포가 다른 쪽 컨테이너를 건드리지 않는다.
 - **nginx를 compose에 넣으면 동시 운영 시 포트 충돌로 결국 앞단 레이어가 필요해진다.** 두 스택을 동시에 띄우는 게 기본이라면 native nginx가 더 단순하다.
 - **롤백용 이전 태그를 `/tmp`에 두면 재부팅 시 유실된다.** deploy path 안에 두어야 영속성이 보장된다.
 - **이미지 태그에 환경 prefix(`test-`/`prod-`)를 붙이면 하나의 레지스트리에서 두 환경이 독립적으로 관리된다.** `latest`만 쓰면 롤백 포인트가 없다.
@@ -27,6 +29,9 @@
 - **BE는 비주얼을 안 보지만 거친 흐름은 본다.** 데이터는 브리프에서, 세부 기능은 와이어/IA에서.
 
 ## 기술 · 인프라
+- **Docker 파일 마운트는 대상 경로가 컨테이너에 없으면 디렉터리를 만든다.** `./data/app.db:/app/data/app.db`처럼 파일 단위 마운트 시, 컨테이너 이미지에 `/app/data/` 디렉터리가 없으면 Docker가 마운트 포인트를 파일이 아닌 디렉터리로 생성한다 — SQLite가 열려는 경로가 디렉터리가 돼 CANTOPEN. 파일 하나를 마운트하려면 디렉터리 단위로 올리고(`./data:/app/data`) 파일명은 앱에서 결정하게 하는 게 안전하다.
+- **Hibernate 6.x에서 `spring.jpa.database-platform`은 dialect로 전달되지 않는다.** `spring.jpa.properties.hibernate.dialect`로 직접 설정해야 한다. `database-platform`은 Spring Boot 자동 구성이 처리하던 방식인데 Hibernate 6.6.x에서 동작이 바뀌었다.
+- **Walking skeleton의 버그는 순서대로 숨는다.** 앞 레이어 에러가 뒤 레이어를 가린다 — 플랫폼 불일치(arm64), 엔드포인트 없음(actuator), 앱 기동 실패(DB env), 볼륨 버그, Dialect 설정 순으로 5개가 차례로 드러났다. 파이프라인 첫 성공까지는 각 단계가 독립 실패 포인트다.
 - **왜 SQLite인가 — DB 선택은 트래픽 규모가 아니라 읽기/쓰기 비율로 먼저 가른다.** 우리 홈피는 정적 콘텐츠(소개·멤버·활동·블로그) 위주라 *읽기가 대부분, 쓰기는 드물다*. 그래서 DB 역할 자체가 작고, SQLite의 single-writer 제한이 안 아프다 — 거기에 단일 무료 노드에 별도 DB를 안 늘려 운영이 단순해지는 이득까지. 유일한 경계는 *쓰기 폭주 한 곳*(모집 신청 버스트), 그것도 동아리 규모면 SQLite가 가볍게 처리. "규모 작으니까"가 아니라 "성격이 읽기 위주니까"가 진짜 이유다.
 - **SQLite의 "한 번에 한 쓰기"는 직렬이지 저속이 아니다 — 그리고 앱 인스턴스 1개를 전제한다.** 병목은 창구 수가 아니라 트랜잭션 길이(작은 INSERT는 1ms라 직렬이어도 초당 수백). 단 한 `.db`를 여러 프로세스가 공유하면 깨지므로 *BE 앱 인스턴스는 1개*가 불변식 — 수평 확장(replica)이 필요해지는 순간이 곧 Postgres로 옮길 신호.
 - **무료 클라우드 티어는 예고 없이 깎인다.** 오라클이 2026-06-15 Always Free 한도를 공지 없이 절반(4 OCPU/24GB→2 OCPU/12GB)으로 줄인 게 실증 — "현재 무료"이지 "영구 무료"가 아니다. 무료티어 위에 올릴 땐 한도의 절반만 써 여유를 두고, 깨졌을 때의 fallback(유료 전환 비용)을 미리 숫자로 알아둔다.

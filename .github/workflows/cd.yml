@@ -114,11 +114,20 @@ jobs:
             echo $PREV_TAG > .prev_backend_tag_${{ steps.config.outputs.env }}
             echo "백업된 이전 태그: $PREV_TAG"
 
-            # 새 태그로 이미지 풀 및 서비스 재시작
-            # BACKEND_TAG는 docker-compose.yml의 ${BACKEND_TAG:-...} 변수 치환에만 사용 (.env 파일 덮어쓰지 않음)
-            export BACKEND_TAG=$NEW_TAG
+            # 배포 환경에 맞는 compose 변수만 세팅 — 다른 환경 컨테이너는 건드리지 않음
+            if [ "${{ steps.config.outputs.env }}" == "stage" ]; then
+              export STAGE_TAG=$NEW_TAG
+            else
+              export PROD_TAG=$NEW_TAG
+            fi
             docker compose -f docker-compose.yml pull ${{ steps.config.outputs.service }}
             docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
+
+            # nginx가 실행 중이 아니면 시작 (--no-recreate: 백엔드 컨테이너 재생성 방지)
+            if ! docker compose -f docker-compose.yml ps nginx | grep -q "Up"; then
+              echo "nginx 미실행 — 시작합니다"
+              docker compose -f docker-compose.yml up -d --no-recreate nginx
+            fi
 
             # 헬스체크 로직
             echo "=== 헬스체크 시작 ==="
@@ -157,7 +166,11 @@ jobs:
               PREV_TAG=$(cat .prev_backend_tag_${{ steps.config.outputs.env }})
               echo "❌ 배포 실패 — 기존 버전($PREV_TAG)으로 롤백을 시작합니다."
 
-              export BACKEND_TAG=$PREV_TAG
+              if [ "${{ steps.config.outputs.env }}" == "stage" ]; then
+                export STAGE_TAG=$PREV_TAG
+              else
+                export PROD_TAG=$PREV_TAG
+              fi
               docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
               rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
               echo "✅ 롤백 완료: $PREV_TAG"
