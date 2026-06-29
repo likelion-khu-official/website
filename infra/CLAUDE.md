@@ -111,6 +111,8 @@ Vercel → 프론트엔드 (인프라 무관)
 **인스턴스**: `168.138.202.82` (ubuntu@, arm64 Ampere A1, 2 OCPU/12GB) — 운영 중
 - `OCI_DEPLOY_PATH` = `/home/ubuntu/website/infra`
 - `~/.ssh/oci_server.pem` (장찬욱 로컬, SSH 접속용) / `ssh likelion-oci`로 접속
+- **자동 보안 업데이트**: `unattended-upgrades` 기본 활성화 — 보안 패치만 자동 적용, 전체 업그레이드는 수동
+- **SSL 인증서**: `/etc/letsencrypt/live/likelion-khu.com/` — certbot이 자동 갱신 등록함 (만료 2026-09-27)
 
 > OCID 등 민감 정보는 `~/.oci/config` 또는 OCI 콘솔에서 확인
 
@@ -119,7 +121,7 @@ Vercel → 프론트엔드 (인프라 무관)
 ## OCI 초기 세팅 (한 번만)
 
 1. `OCI_DEPLOY_PATH` 디렉터리 생성 + git clone
-2. `infra/nginx.conf` 작성 (도메인 확정 후 — Let's Encrypt SSL 설정 포함)
+2. `infra/nginx.conf` 작성 ✅ 완료 — SSL + 도메인 라우팅 설정됨
 3. `infra/.env.stage`, `infra/.env.prod` 작성 (`.env.stage.example` 참고, 백엔드가 확정하는 환경변수)
 4. `mkdir -p infra/data/` — SQLite DB 디렉터리 생성
 5. `docker login ghcr.io` — GHCR pull 권한
