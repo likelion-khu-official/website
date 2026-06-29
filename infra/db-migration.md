@@ -102,6 +102,17 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 
 ---
 
+## 진행 상황 (2026-06-29)
+
+백엔드(신선우)·인프라(장찬욱) 싱크 완료. 결론:
+
+- **Flyway 사용 확정** — SQLite 지원 확인, 수동/Liquibase 대비 우리 규모에 맞음
+- **경로 확인**: `backend/src/main/resources/db/migration/` (`classpath:db/migration`)
+- **CI/CD paths 필터**: 기존 `backend/**`가 migration 폴더를 이미 포함 — 별도 추가 불필요
+- **인프라 대기 중**: 백엔드 Flyway PR 머지 타이밍에 맞춰 `.env.stage` / `.env.prod` 수정 예정
+
+---
+
 ## 백엔드가 할 일
 
 ```gradle
