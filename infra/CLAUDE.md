@@ -46,7 +46,9 @@ GitHub Actions
 
 OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   docker compose (단일 파일: infra/docker-compose.yml)
-    ├── nginx (80/443)       → backend-stage:8080 / backend-prod:8080 (Docker 내부 네트워크)
+    ├── nginx (80/443)       → HTTP→HTTPS 리다이렉트 + SSL 종단 (Let's Encrypt, 만료 2026-09-27)
+    │     likelion-khu.com  → backend-prod:8080
+    │     stage 서브도메인   → backend-stage:8080 (URL은 서버 nginx.conf 참고)
     ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
     └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
@@ -76,7 +78,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | `.github/workflows/ci.yml` | PR 시 백엔드 테스트 실행 + PR 코멘트 |
 | `.github/workflows/cd.yml` | 이미지 빌드·푸시 → OCI 배포 → 헬스체크 → 스모크 테스트 → 실패 시 롤백 |
 | `infra/docker-compose.yml` | OCI 전체 스택 (nginx + backend-stage:8081 + backend-prod:8080) |
-| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore), 도메인 확정 후 작성 |
+| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore). SSL + 도메인 라우팅 설정 완료 |
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
@@ -148,5 +150,4 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 
 ## 미결 사항
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- nginx server_name + SSL (도메인 구매 후 — 현재 IP 직접 접속만 가능, 80포트 전부 prod로 감)
 - SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험)
