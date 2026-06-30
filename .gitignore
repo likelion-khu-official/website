@@ -20,6 +20,9 @@ coverage/
 infra/nginx.conf
 infra/data/
 
+# Backend — 로컬 SQLite DB
+backend/data/
+
 # Logs
 *.log
 npm-debug.log*
