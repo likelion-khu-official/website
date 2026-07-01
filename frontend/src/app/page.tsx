@@ -55,7 +55,7 @@ export default function Home() {
       <footer className="border-t border-gray-100">
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center">
           <p className="text-xs text-gray-400">
-            © 2025 멋쟁이사자처럼 at 경희대
+            © 2026 멋쟁이사자처럼 at 경희대
           </p>
         </div>
       </footer>
