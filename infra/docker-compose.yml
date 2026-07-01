@@ -17,7 +17,7 @@ services:
       - .env.stage
     volumes:
       - ./data:/app/data
-    restart: on-failure:5
+    restart: unless-stopped
 
   backend-prod:
     image: ghcr.io/likelion-khu-official/website/backend:${PROD_TAG:-prod-latest}
@@ -27,4 +27,4 @@ services:
       - .env.prod
     volumes:
       - ./data:/app/data
-    restart: on-failure:5
+    restart: unless-stopped

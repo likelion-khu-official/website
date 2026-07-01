@@ -47,8 +47,8 @@ GitHub Actions
 OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   docker compose (단일 파일: infra/docker-compose.yml)
     ├── nginx (80/443)       → HTTP→HTTPS 리다이렉트 + SSL 종단 (Let's Encrypt, 만료 2026-09-27)
-    │     likelion-khu.com  → backend-prod:8080
-    │     stage 서브도메인   → backend-stage:8080 (URL은 서버 nginx.conf 참고)
+    │     api.prod.likelion-khu.com  → backend-prod:8080
+    │     api.stage.likelion-khu.com → backend-stage:8080
     ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
     └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음

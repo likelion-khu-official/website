@@ -32,17 +32,11 @@ jobs:
       - name: Gradle 세팅
         uses: gradle/actions/setup-gradle@v4
 
-      - name: 빌드 + 테스트 (임시 생략)
+      - name: 빌드 + 테스트
+        working-directory: backend
         run: |
-          echo "현재 백엔드/프론트엔드 개발 코드가 없어 빌드를 임시 통과시킵니다."
-          echo "개발 및 테스트 코드 작성 후 이 단계를 원상복구 하세요."
-
-      # 개발이 완료되면 위의 '임시 생략' Step을 지우고, 아래 블록의 맨 앞 '#'만 모두 지워서 활성화하세요.
-      # - name: 빌드 + 테스트
-      #   working-directory: backend
-      #   run: |
-      #     chmod +x gradlew
-      #     ./gradlew compileJava test
+          chmod +x gradlew
+          ./gradlew compileJava test
 
       - name: PR 코멘트
         if: always() && github.event_name == 'pull_request'
