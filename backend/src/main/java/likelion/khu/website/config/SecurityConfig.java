@@ -31,6 +31,10 @@ public class SecurityConfig {
                     "/swagger-ui.html",
                     "/v3/api-docs/**"
                 ).permitAll()
+                // 모집 알림 구독 — 비인증 공개
+                .requestMatchers("/api/notifications/subscribe").permitAll()
+                // @Valid 실패 시 Tomcat이 /error로 포워드 — 여기도 열어야 403 안 남
+                .requestMatchers("/error").permitAll()
                 // TODO: 인증 엔드포인트 추가 시 여기에 .requestMatchers("/api/auth/**").permitAll()
                 .anyRequest().authenticated()
             );
