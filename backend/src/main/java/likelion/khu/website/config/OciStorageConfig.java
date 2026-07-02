@@ -7,28 +7,37 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 
 @Configuration
-public class R2Config {
+public class OciStorageConfig {
 
-    @Value("${r2.endpoint}")
+    @Value("${oci-storage.endpoint}")
     private String endpoint;
 
-    @Value("${r2.access-key}")
+    @Value("${oci-storage.region}")
+    private String region;
+
+    @Value("${oci-storage.access-key}")
     private String accessKey;
 
-    @Value("${r2.secret-key}")
+    @Value("${oci-storage.secret-key}")
     private String secretKey;
 
     @Bean
-    public S3Client r2Client() {
+    public S3Client ociStorageClient() {
         return S3Client.builder()
                 .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))
-                .region(Region.of("auto"))
+                .region(Region.of(region))
+                // OCI S3 호환 엔드포인트는 namespace가 이미 호스트에 고정돼 있어
+                // virtual-hosted-style(bucket.namespace...)이 아니라 path-style이 필요함
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(true)
+                        .build())
                 .build();
     }
 }
