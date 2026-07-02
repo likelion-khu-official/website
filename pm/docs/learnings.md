@@ -33,6 +33,7 @@
 - **BE는 비주얼을 안 보지만 거친 흐름은 본다.** 데이터는 브리프에서, 세부 기능은 와이어/IA에서.
 
 ## 기술 · 인프라
+- **AWS CLI v2.23+의 기본 체크섬(Default Integrity Protections)이 OCI S3 호환 API의 고수준(`aws s3`) 명령을 깨뜨린다.** `aws s3 cp`/`aws s3 ls`가 자격증명·리전 다 멀쩡해도 `SignatureDoesNotMatch`("secret key required... could not be found")를 낸다 — 원인은 권한이 아니라, AWS CLI 2.23+가 Put/Get에 기본으로 체크섬 헤더를 얹는데 OCI가 이걸 지원 안 해서 서명이 깨지는 것. `AWS_REQUEST_CHECKSUM_CALCULATION=when_required` 환경변수로 끄면 되는데, 저수준 `aws s3api`(put-object/list-objects-v2)엔 바로 먹히지만 고수준 `aws s3 cp`/`aws s3 ls`엔 안 먹힐 수 있다(내부 transfer 경로가 달라서). → OCI 같은 S3 호환 스토리지를 로컬에서 권한 검증할 땐 처음부터 `s3api`로 하면 이 삽질을 건너뛴다.
 - **Docker 파일 마운트는 대상 경로가 컨테이너에 없으면 디렉터리를 만든다.** `./data/app.db:/app/data/app.db`처럼 파일 단위 마운트 시, 컨테이너 이미지에 `/app/data/` 디렉터리가 없으면 Docker가 마운트 포인트를 파일이 아닌 디렉터리로 생성한다 — SQLite가 열려는 경로가 디렉터리가 돼 CANTOPEN. 파일 하나를 마운트하려면 디렉터리 단위로 올리고(`./data:/app/data`) 파일명은 앱에서 결정하게 하는 게 안전하다.
 - **Hibernate 6.x에서 `spring.jpa.database-platform`은 dialect로 전달되지 않는다.** `spring.jpa.properties.hibernate.dialect`로 직접 설정해야 한다. `database-platform`은 Spring Boot 자동 구성이 처리하던 방식인데 Hibernate 6.6.x에서 동작이 바뀌었다.
 - **Walking skeleton의 버그는 순서대로 숨는다.** 앞 레이어 에러가 뒤 레이어를 가린다 — 플랫폼 불일치(arm64), 엔드포인트 없음(actuator), 앱 기동 실패(DB env), 볼륨 버그, Dialect 설정 순으로 5개가 차례로 드러났다. 파이프라인 첫 성공까지는 각 단계가 독립 실패 포인트다.
