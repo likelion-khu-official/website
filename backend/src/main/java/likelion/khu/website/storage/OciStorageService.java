@@ -14,14 +14,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class R2StorageService {
+public class OciStorageService {
 
-    private final S3Client r2Client;
+    private final S3Client ociStorageClient;
 
-    @Value("${r2.bucket}")
+    @Value("${oci-storage.bucket}")
     private String bucket;
 
-    @Value("${r2.public-url}")
+    @Value("${oci-storage.public-url}")
     private String publicUrl;
 
     /**
@@ -30,7 +30,7 @@ public class R2StorageService {
      */
     public String upload(MultipartFile file, String prefix) throws IOException {
         String key = prefix + "/" + UUID.randomUUID() + extractExtension(file.getOriginalFilename());
-        r2Client.putObject(
+        ociStorageClient.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
@@ -42,7 +42,7 @@ public class R2StorageService {
     }
 
     public void delete(String key) {
-        r2Client.deleteObject(DeleteObjectRequest.builder()
+        ociStorageClient.deleteObject(DeleteObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
                 .build());
