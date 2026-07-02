@@ -6,6 +6,7 @@
 ---
 
 ## 인프라 · CI/CD
+- **살아있는 브랜치(dev↔main) 간 squash·rebase 머지는 히스토리를 단절시킨다.** squash·rebase는 기존 커밋과 다른 새 SHA를 만들어 넣기 때문에 git이 공통 조상을 앞으로 이동시키지 못한다 — 다음 dev→main PR마다 충돌이 반복된다. 버려지는 feature 브랜치는 다시 참조할 일이 없어 squash 가능하지만, GitHub 설정이 레포 단위라 전체를 일반 머지로만 제한하는 것이 추적 가능성 면에서 낫다.
 - **certbot standalone 발급 시 Docker nginx를 먼저 내려야 한다.** certbot이 80 포트로 인증하는데 nginx 컨테이너가 잡고 있으면 실패 — `docker compose stop nginx` 후 발급, 완료 후 재기동. 두 도메인을 한 cert에 묶으려면 `-d domain1 -d domain2`로 한 번에 발급하면 첫 번째 도메인 경로에 저장된다.
 - **서버 로컬 DNS 캐시가 느려도 글로벌 전파는 이미 됐을 수 있다.** `nslookup`이 실패해도 `dig @8.8.8.8`로 확인하면 실제 전파 여부를 알 수 있다 — certbot은 글로벌 DNS 기준으로 검증하므로 로컬 캐시와 무관하게 발급 가능.
 - **compose `depends_on`이 있으면 named service 기동 시 dependency 이미지 태그도 재평가된다.** `docker compose up -d nginx`가 nginx의 `depends_on`인 backend-stage/prod의 이미지 태그가 바뀌었는지 확인하고, 달라졌으면 재생성한다. 동적 리졸버를 쓰는 nginx처럼 실제로 의존성이 없는 경우엔 `depends_on`을 아예 빼는 게 낫다.
