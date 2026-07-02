@@ -18,6 +18,13 @@ jwt:
   access-expiration: 900000
   refresh-expiration: 604800000
 
+r2:
+  endpoint: https://test.r2.cloudflarestorage.com
+  access-key: test-key
+  secret-key: test-secret
+  bucket: test-bucket
+  public-url: https://test.r2.dev
+
 management:
   endpoints:
     web:
