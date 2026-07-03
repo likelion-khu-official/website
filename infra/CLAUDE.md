@@ -82,6 +82,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
+| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 |
 
 ---
 
@@ -152,4 +153,7 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 
 ## 미결 사항
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험)
+- SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험) — 전략은 [`db-access.md`](./db-access.md)에 설계함, 자동화(cron + 프라이빗 버킷)는 아직 미구현
+- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbviewer` 생성 완료 — 2026-07-03). 팀원 공개키는 아직 등록 안 됨, 실제 요청 오면 추가
+- **다음 세션 할 일: sqlite 접속 가이드 스킬 제작.** `db-access.md` 내용(접속 방법·Flyway 허용선·백업 전략) 기반으로 팀원이 직접 물어보지 않고 셀프서비스할 수 있는 Claude skill 작성 예정 — 아직 미착수.
+- **다음 세션 할 일: 팀원 공개키 등록.** `dbviewer` 계정에 실제 등록된 공개키가 아직 없음 — 팀원이 본인 기기에서 키페어 생성 후 공개키(`.pub`)만 전달하면 `db-access.md`의 온보딩 절차대로 `authorized_keys`에 `command=` 강제 명령과 함께 등록.
