@@ -19,3 +19,11 @@ export interface MagicLinkTokenStatusResponse {
   valid: boolean;
   reason: "USED" | "EXPIRED" | null;
 }
+
+/**
+ * POST /api/feed/images — 피드 이미지 업로드
+ * multipart/form-data, key="file". jpg·png·webp·gif만 허용, 최대 5MB.
+ */
+export interface FeedImageUploadResponse {
+  url: string;
+}
