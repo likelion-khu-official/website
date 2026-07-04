@@ -29,9 +29,9 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 
 **계정 체계:**
 - `ubuntu` — 인프라 오너(장찬욱) 전용, sudo 있음(서버 전체 관리). 다른 팀원에게 이 계정 키를 나눠주지 않는다 — 키 하나 유출 시 블라스트 반경이 서버 전체라서.
-- `dbviewer` — DB 접근 전용 제한 계정. **sudo 없음**, `dbaccess` 그룹만 소속. DB 파일 밖에는(비밀번호 로그인 자체가 잠겨 있고 `.env.*`는 소유자만 읽기라 dbviewer는 접근 불가) 만질 게 없음.
+- `dbclient` — DB 접근 전용 제한 계정. **sudo 없음**, `dbaccess` 그룹만 소속. DB 파일 밖에는(비밀번호 로그인 자체가 잠겨 있고 `.env.*`는 소유자만 읽기라 dbclient는 접근 불가) 만질 게 없음.
 
-**팀원 온보딩 (dbviewer에 공개키 추가):**
+**팀원 온보딩 (dbclient에 공개키 추가):**
 
 키페어는 **팀원 본인이 자기 기기에서 생성**한다. 개인키는 만든 기기를 벗어나면 안 되므로 장찬욱이 대신 만들어주지 않는다.
 
@@ -44,12 +44,12 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 3. 장찬욱이 서버에서:
    ```bash
    echo 'command="sqlite3 /home/ubuntu/website/infra/data/stage.db",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding,no-user-rc ssh-ed25519 AAAA...받은공개키... 이름' \
-     | sudo tee -a /home/dbviewer/.ssh/authorized_keys
+     | sudo tee -a /home/dbclient/.ssh/authorized_keys
    ```
 
 `command=`로 접속하자마자 그 명령 하나만 실행되고 끝난다 — 셸을 못 얻으므로 다른 파일을 보거나 컨테이너를 건드릴 수 없다. prod 조회가 필요한 사람은 `command`의 `stage.db`를 `prod.db`로 바꿔서 별도 줄로 추가(계정당 여러 줄 가능, 목적별로 나눠 등록 권장).
 
-지금은 `dbviewer` 계정만 만들어뒀고 등록된 공개키는 없다 — 실제 팀원 키가 오면 위 방식으로 추가.
+지금은 `dbclient` 계정만 만들어뒀고 등록된 공개키는 없다 — 실제 팀원 키가 오면 위 방식으로 추가.
 
 ---
 
