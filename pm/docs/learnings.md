@@ -6,8 +6,7 @@
 ---
 
 ## 인프라 · CI/CD
-- **`docker-compose.yml`에서 `image: ...${STAGE_TAG:-stage-latest}` 패턴을 쓰면, 태그 없이 수동으로 `docker compose up -d`를 실행하는 순간 조용히 `stage-latest`로 떨어진다.** CD는 매번 커밋 SHA 태그(`STAGE_TAG=<sha>`)로 정확히 배포하지만, `stage-latest`라는 태그 자체는 CD가 갱신한 적이 없어서 맨 처음 박힌 옛날 이미지로 로컬에 얼어붙어 있다. 이 상태에서 사람이 SSH로 들어가 태그 없이 재기동하면 CD가 쌓아온 최신 배포가 아니라 그 얼어붙은 옛날 이미지로 되돌아가며, 헬스체크가 실패할 수도 있다(예: 스키마 마이그레이션 이전 이미지). 수동 재기동 시 반드시 `STAGE_TAG=<원하는 태그>`/`PROD_TAG=<원하는 태그>`를 명시할 것.
-- **살아있는 브랜치(dev↔main) 간 squash·rebase 머지는 히스토리를 단절시킨다.** squash·rebase는 기존 커밋과 다른 새 SHA를 만들어 넣기 때문에 git이 공통 조상을 앞으로 이동시키지 못한다 — 다음 dev→main PR마다 충돌이 반복된다. 버려지는 feature 브랜치는 다시 참조할 일이 없어 squash 가능하지만, GitHub 설정이 레포 단위라 전체를 일반 머지로만 제한하는 것이 추적 가능성 면에서 낫다.
+- **`docker-compose.yml`에서 `image: ...${STAGE_TAG:-stage-latest}` 패턴을 쓰면, 태그 없이 수동으로 `docker compose up -d`를 실행하는 순간 조용히 `stage-latest`로 떨어진다.** CD는 매번 커밋 SHA 태그(`STAGE_TAG=<sha>`)로 정확히 배포하고, 레지스트리의 `stage-latest` 태그 자체도 매 배포마다 함께 갱신한다 — 문제는 태그가 아니라 **서버 로컬 이미지 캐시**다. CD가 SHA 태그로만 pull/기동하기 때문에 서버에 로컬로 캐시된 `stage-latest` 이미지는 그동안 최신으로 pull된 적이 없다. 이 상태에서 사람이 SSH로 들어가 태그 없이 재기동하면 레지스트리의 최신 이미지가 아니라 로컬에 얼어붙은 옛날 이미지를 재사용하게 되며, 헬스체크가 실패할 수도 있다(예: 스키마 마이그레이션 이전 이미지). 수동 재기동 시 반드시 `STAGE_TAG=<원하는 태그>`/`PROD_TAG=<원하는 태그>`를 명시할 것.
 - **certbot standalone 발급 시 Docker nginx를 먼저 내려야 한다.** certbot이 80 포트로 인증하는데 nginx 컨테이너가 잡고 있으면 실패 — `docker compose stop nginx` 후 발급, 완료 후 재기동. 두 도메인을 한 cert에 묶으려면 `-d domain1 -d domain2`로 한 번에 발급하면 첫 번째 도메인 경로에 저장된다.
 - **서버 로컬 DNS 캐시가 느려도 글로벌 전파는 이미 됐을 수 있다.** `nslookup`이 실패해도 `dig @8.8.8.8`로 확인하면 실제 전파 여부를 알 수 있다 — certbot은 글로벌 DNS 기준으로 검증하므로 로컬 캐시와 무관하게 발급 가능.
 - **compose `depends_on`이 있으면 named service 기동 시 dependency 이미지 태그도 재평가된다.** `docker compose up -d nginx`가 nginx의 `depends_on`인 backend-stage/prod의 이미지 태그가 바뀌었는지 확인하고, 달라졌으면 재생성한다. 동적 리졸버를 쓰는 nginx처럼 실제로 의존성이 없는 경우엔 `depends_on`을 아예 빼는 게 낫다.
