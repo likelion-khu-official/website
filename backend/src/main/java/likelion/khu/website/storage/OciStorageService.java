@@ -29,14 +29,14 @@ public class OciStorageService {
      * @return 퍼블릭 접근 URL
      */
     public String upload(MultipartFile file, String prefix) throws IOException {
-        String key = prefix + "/" + UUID.randomUUID() + extractExtension(file.getOriginalFilename());
+        String key = normalizePrefix(prefix) + UUID.randomUUID() + extractExtension(file.getOriginalFilename());
         ociStorageClient.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
                         .contentType(file.getContentType())
                         .build(),
-                RequestBody.fromBytes(file.getBytes())
+                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
         );
         return publicUrl + "/" + key;
     }
@@ -46,6 +46,17 @@ public class OciStorageService {
                 .bucket(bucket)
                 .key(key)
                 .build());
+    }
+
+    private String normalizePrefix(String prefix) {
+        if (prefix == null || prefix.isBlank()) return "";
+        String trimmed = prefix.strip();
+        int start = 0;
+        int end = trimmed.length();
+        while (start < end && trimmed.charAt(start) == '/') start++;
+        while (end > start && trimmed.charAt(end - 1) == '/') end--;
+        String normalized = trimmed.substring(start, end);
+        return normalized.isEmpty() ? "" : normalized + "/";
     }
 
     private String extractExtension(String filename) {
