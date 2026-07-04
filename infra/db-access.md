@@ -71,6 +71,8 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 | 데이터 조작 (`INSERT`/`UPDATE`/`DELETE`) | ✅ 테스트용으로 가능 | ⚠️ 가능하나 비권장 — 아래 참고 |
 | 스키마 변경 (`ALTER`/`CREATE`/`DROP`) | ❌ | ❌ |
 
+**❌는 문서상 금지가 아니라 [`dbclient-sqlite-guard.sh`](./dbclient-sqlite-guard.sh)가 기술적으로 차단한다** — `ubuntu` 계정(인프라 오너)은 이 제약이 없으니 필요하면 직접 sqlite3로 가능하지만, `dbclient`로는 세미콜론으로 이어 붙여도(`SELECT 1; DROP TABLE x;`) 우회 안 됨(2026-07-04 검증 완료).
+
 **스키마 변경이 금지인 이유:** Flyway는 `db/migration/` 파일 이력만 보고 스키마를 추적한다. sqlite3로 직접 `ALTER TABLE` 등을 실행하면 Flyway 이력에는 안 잡히는 "숨은 변경"이 생긴다 — 다음에 진짜 마이그레이션 파일을 추가할 때 전제(현재 스키마)가 어긋나서 충돌하거나, stage가 리셋될 때(아래) 그 변경이 통째로 사라진다. 스키마 변경은 **반드시 새 `V{n}__설명.sql` 파일 + PR**로.
 
 **stage에서 수동으로 넣은 건 영구적이지 않다:** `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR=true`라서, 머지된 마이그레이션 파일의 체크섬이 어긋나는 순간(그 파일을 누군가 사후 수정) Flyway가 stage DB를 통째로 지우고 처음부터 재적용한다. 이건 마이그레이션 파일 쪽 이벤트지 수동 SQL 실행 자체가 트리거는 아니지만, 결과적으로 "수동으로 넣어둔 데이터/스키마가 예고 없이 날아갈 수 있다"는 뜻 — stage에 뭘 심어두고 오래 의존하지 말 것.
