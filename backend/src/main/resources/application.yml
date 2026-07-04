@@ -30,6 +30,15 @@ jwt:
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}   # 7일 (ms)
 
+# === OCI Object Storage (S3 호환 API) ===
+oci-storage:
+  endpoint: ${OCI_STORAGE_ENDPOINT}
+  region: ${OCI_STORAGE_REGION}
+  access-key: ${OCI_STORAGE_ACCESS_KEY}
+  secret-key: ${OCI_STORAGE_SECRET_KEY}
+  bucket: ${OCI_STORAGE_BUCKET}
+  public-url: ${OCI_STORAGE_PUBLIC_URL}
+
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이
 # 자동으로 permitAll() 처리. SecurityConfig 추가 시 아래 주석 참고.
