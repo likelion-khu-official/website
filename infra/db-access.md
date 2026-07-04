@@ -63,6 +63,8 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 
 ## Flyway 기준 — 해도 되는 것 / 하면 안 되는 것
 
+**현재 상태(2026-07-04 확인): 아직 Flyway 아니고 `ddl-auto: update`다.** 백엔드가 Flyway PR을 머지하기 전까지는, 앱이 재기동될 때마다 Hibernate가 엔티티 클래스를 보고 그때그때 스키마를 자동으로 맞춘다 — "머지된 마이그레이션만 한 번 적용"이 아니라 **재기동마다 매번** 일어난다(수동 재기동 포함). 아래 표·이유는 Flyway가 실제로 붙은 뒤를 기준으로 쓴 것이고, 진행 상황은 [`db-migration.md`](./db-migration.md)의 "진행 상황" 참고 — 인프라는 백엔드 Flyway PR 머지 타이밍에 맞춰 `.env.stage`/`.env.prod`를 수정할 예정으로 대기 중이다.
+
 마이그레이션 파일 자체의 규칙은 [`db-migration.md`](./db-migration.md) 참고(`V{n}__설명.sql`, 머지된 파일 수정 금지). 여기는 **sqlite3로 직접 SQL 실행할 때** 기준.
 
 | 작업 | stage | prod |
