@@ -154,6 +154,6 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 ## 미결 사항
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
 - SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험) — 전략은 [`db-access.md`](./db-access.md)에 설계함, 자동화(cron + 프라이빗 버킷)는 아직 미구현
-- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbviewer` 생성 완료 — 2026-07-03). 팀원 공개키는 아직 등록 안 됨, 실제 요청 오면 추가
-- **다음 세션 할 일: sqlite 접속 가이드 스킬 제작.** `db-access.md` 내용(접속 방법·Flyway 허용선·백업 전략) 기반으로 팀원이 직접 물어보지 않고 셀프서비스할 수 있는 Claude skill 작성 예정 — 아직 미착수.
-- **다음 세션 할 일: 팀원 공개키 등록.** `dbviewer` 계정에 실제 등록된 공개키가 아직 없음 — 팀원이 본인 기기에서 키페어 생성 후 공개키(`.pub`)만 전달하면 `db-access.md`의 온보딩 절차대로 `authorized_keys`에 `command=` 강제 명령과 함께 등록.
+- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03). 팀원 공개키는 아직 등록 안 됨, 실제 요청 오면 추가
+- ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
+- **다음 할 일: 팀원 공개키 등록.** `dbclient` 계정에 실제 등록된 공개키가 아직 없음 — 팀원이 본인 기기에서 키페어 생성 후 공개키(`.pub`)만 전달하면 위 `db-access` 스킬이 `db-access.md`의 온보딩 절차대로 `authorized_keys`에 `command=` 강제 명령과 함께 등록. 실제 키가 와야 진행 가능(선행 조건 없음, 대기 중).
