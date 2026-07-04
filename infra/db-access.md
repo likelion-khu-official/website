@@ -12,10 +12,18 @@ DB가 SQLite 파일이라 **원격 DB 서버·포트가 없다.** TablePlus·DBe
 
 ## 접속 방법
 
+**인프라 오너(`ubuntu`):**
 ```bash
 ssh likelion-oci                                    # 로컬 ~/.ssh/config에 등록돼 있으면
 sqlite3 /home/ubuntu/website/infra/data/stage.db    # 또는 prod.db — dbaccess 그룹이면 sudo 불필요
 ```
+
+**제한 계정(`dbclient`) — 팀원용:**
+```bash
+ssh dbclient@호스트 stage    # stage.db로 접속
+ssh dbclient@호스트 prod     # prod.db로 접속
+```
+`stage`/`prod` 외의 값이나 인자 없이 접속하면 사용법 안내만 나오고 끝난다(아래 "온보딩" 참고).
 
 **파일 소유권 (2026-07-03 정리함):** DB 파일은 `root:dbaccess`, 권한 `660`(그룹 rw, other 없음). `data/` 디렉터리는 `2770`(setgid — 컨테이너가 파일을 새로 만들어도 그룹은 `dbaccess`로 상속). `dbaccess` 그룹 멤버면 `sudo` 없이 읽기·쓰기 둘 다 가능 — **읽기/쓰기 그룹을 분리하진 않았다** (지금 인원 규모에 ACL까지 나누는 건 과설계로 판단, 필요해지면 `setfacl`로 추가).
 
@@ -41,23 +49,22 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 
 **팀원 온보딩 (dbclient에 공개키 추가):**
 
-키페어는 **팀원 본인이 자기 기기에서 생성**한다. 개인키는 만든 기기를 벗어나면 안 되므로 장찬욱이 대신 만들어주지 않는다.
+키페어는 **팀원 본인 소유**여야 한다(개인키는 만든 기기를 벗어나면 안 됨). 두 경로 중 하나:
+- **이미 GitHub에 SSH 키를 등록해 쓰고 있으면 그걸 재활용** — `https://github.com/{아이디}.keys`로 공개키만 가져오면 된다(공개키는 원래 공개해도 안전한 값). 매번 새로 키를 만들 필요 없이 이 경로가 마찰이 적다. 재활용 전 본인에게 "이 키 db 접근에도 같이 써도 되냐"만 확인.
+- 없으면 팀원이 본인 기기에서 새로 생성: `ssh-keygen -t ed25519 -C "이름@likelion"` → `.pub` 내용만 장찬욱에게 전달(카톡 등).
 
-1. 팀원이 본인 기기에서:
-   ```bash
-   ssh-keygen -t ed25519 -C "이름@likelion"
-   ```
-   `~/.ssh/id_ed25519`(개인키, 보관만) / `~/.ssh/id_ed25519.pub`(공개키, 이것만 전달) 생성됨.
-2. 팀원이 `.pub` 파일 내용을 장찬욱에게 전달(카톡 등).
-3. 장찬욱이 서버에서:
-   ```bash
-   echo 'command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh /home/ubuntu/website/infra/data/stage.db",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding,no-user-rc ssh-ed25519 AAAA...받은공개키... 이름' \
-     | sudo tee -a /home/dbclient/.ssh/authorized_keys
-   ```
+장찬욱이 서버에서 등록:
+```bash
+echo 'command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding,no-user-rc ssh-ed25519 AAAA...받은공개키... 이름' \
+  | sudo tee -a /home/dbclient/.ssh/authorized_keys
+```
+`command=`에 db 경로를 안 박아두면, 접속할 때 `ssh dbclient@호스트 stage`/`prod`로 그때그때 골라서 stage+prod 둘 다 한 줄로 접근 가능(아래 "주의" 참고). 특정 사람을 stage 전용으로 못박고 싶으면 `dbclient-sqlite-guard.sh stage`처럼 인자를 명시.
 
-**주의 — bare `sqlite3`를 forced command로 쓰지 않는다:** `command="sqlite3 /path/db"`처럼 sqlite3를 직접 지정하면, sqlite3 CLI가 stdin으로 `.shell`/`.system` 같은 dot-command를 받아 임의 OS 명령을 실행할 수 있다 — `no-pty`는 pty 할당만 막을 뿐 이 입력 자체는 막지 못해서, 그 순간 dbclient 키를 가진 사람이 셸을 얻는다(2026-07-04 보안 점검에서 발견, 등록된 키가 아직 없어 실제 악용 전에 수정). 그래서 forced command는 sqlite3가 아니라 [`dbclient-sqlite-guard.sh`](./dbclient-sqlite-guard.sh)를 가리켜야 한다 — dot-command와 `ATTACH DATABASE`를 걸러낸 뒤에만 sqlite3로 넘기는 래퍼다. prod 조회가 필요한 사람은 `stage.db`를 `prod.db`로 바꿔서 별도 줄로 추가(계정당 여러 줄 가능, 목적별로 나눠 등록 권장).
+**주의 — bare `sqlite3`를 forced command로 쓰지 않는다:** `command="sqlite3 /path/db"`처럼 sqlite3를 직접 지정하면, sqlite3 CLI가 stdin으로 `.shell`/`.system` 같은 dot-command를 받아 임의 OS 명령을 실행할 수 있다 — `no-pty`는 pty 할당만 막을 뿐 이 입력 자체는 막지 못해서, 그 순간 dbclient 키를 가진 사람이 셸을 얻는다(2026-07-04 보안 점검에서 발견, 등록된 키가 아직 없어 실제 악용 전에 수정). 그래서 forced command는 sqlite3가 아니라 [`dbclient-sqlite-guard.sh`](./dbclient-sqlite-guard.sh)를 가리켜야 한다 — dot-command·`ATTACH DATABASE`·스키마 변경을 걸러낸 뒤에만 sqlite3로 넘기는 래퍼다.
 
-지금은 `dbclient` 계정만 만들어뒀고 등록된 공개키는 없다 — 실제 팀원 키가 오면 위 방식으로 추가.
+**주의 — 같은 공개키를 여러 줄(stage용 한 줄, prod용 한 줄) 등록해서 둘 다 주려던 이전 방식은 실제로 동작 안 한다:** OpenSSH는 같은 공개키가 `authorized_keys`에 여러 줄이면 처음 매치되는 한 줄만 적용하고 나머지는 무시한다(2026-07-04 실측 확인). 그래서 지금은 `command=`에 db 경로를 고정하지 않고, 스크립트가 `SSH_ORIGINAL_COMMAND`(클라이언트가 `ssh dbclient@host stage`처럼 요청한 값)로 stage/prod를 선택한다 — 한 줄로 충분.
+
+**현재 등록 상태(2026-07-04):** 안시현(키 2개 모두 등록), 김우진(PM) — stage+prod 조회+작성 등록 완료. 신선우는 GitHub에 등록된 SSH 키가 없어 아직 미등록(본인이 키 생성 후 `.pub` 전달 대기 중).
 
 ---
 

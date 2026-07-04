@@ -14,9 +14,30 @@
 # 알려진 한계: 세미콜론 분리는 단순 split이라 문자열 리터럴 안의 세미콜론(예:
 # INSERT INTO t VALUES ('a;b'))은 문 경계로 오인될 수 있다. 이 스크립트는 SQL 파서가
 # 아니라 dbclient 계정(신뢰된 팀원)을 위한 가드레일이라 이 정도 한계는 감수한다.
+#
+# stage/prod 선택: 같은 공개키를 authorized_keys에 두 줄(각각 command="...stage.db",
+# command="...prod.db")로 등록해서 stage+prod를 동시에 주려던 이전 설계는 실제로 동작하지
+# 않는다 — OpenSSH는 같은 공개키가 여러 줄이면 처음 매치된 한 줄만 적용하고 나머지는
+# 무시한다(2026-07-04 실측 확인, pm/docs/learnings.md 참고). 그래서 이 스크립트는 인자로
+# db를 고정하는 대신(고정하고 싶으면 여전히 가능 — 아래 참고), 기본은 SSH_ORIGINAL_COMMAND
+# (클라이언트가 `ssh dbclient@host stage` 처럼 요청한 값)로 stage/prod를 그때그때 고른다.
+# 한 줄로 stage+prod 둘 다 접근 가능.
+#
+# 특정 사람을 stage 전용으로 못박고 싶으면: command=".../dbclient-sqlite-guard.sh stage"
+# 처럼 인자를 명시하면 SSH_ORIGINAL_COMMAND와 무관하게 그 값으로 고정된다.
 set -euo pipefail
 
-DB_FILE="${1:?사용법: dbclient-sqlite-guard.sh <db경로>}"
+DATA_DIR="/home/ubuntu/website/infra/data"
+ENV_NAME="${1:-${SSH_ORIGINAL_COMMAND:-}}"
+
+case "$ENV_NAME" in
+    stage) DB_FILE="$DATA_DIR/stage.db" ;;
+    prod)  DB_FILE="$DATA_DIR/prod.db" ;;
+    *)
+        echo "사용법: ssh dbclient@호스트 stage   또는   ssh dbclient@호스트 prod" >&2
+        exit 1
+        ;;
+esac
 
 is_blocked_statement() {
     local stmt="$1"
