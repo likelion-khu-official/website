@@ -82,6 +82,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
+| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 |
 
 ---
 
@@ -152,4 +153,7 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 
 ## 미결 사항
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험)
+- ~~SQLite 백업 자동화~~ → 완료(2026-07-04). 매일 cron으로 prod·stage 스냅샷 → 프라이빗 버킷 `likelion-backups` 업로드, 복원 검증까지 실측 완료. 상세는 [`db-access.md`](./db-access.md#백업-전략-구현검증-완료--2026-07-04).
+- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03).
+- ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
+- ~~팀원 공개키 등록~~ → 안시현·김우진(PM) 등록 완료(2026-07-04, stage+prod 조회+작성, GitHub 등록 키 재활용). **다음 할 일: 신선우.** GitHub에 등록된 SSH 키가 없어 본인이 새로 생성 후 `.pub` 전달 대기 중.
