@@ -45,6 +45,7 @@ class OciStorageServiceTest {
 
         PutObjectRequest request = requestCaptor.getValue();
         assertThat(request.bucket()).isEqualTo(BUCKET);
+        assertThat(request.contentType()).isEqualTo("image/png");
         assertThat(request.key()).startsWith("feed/images/");
         assertThat(request.key()).doesNotContain("//");
         assertThat(request.key()).endsWith(".png");
@@ -76,6 +77,20 @@ class OciStorageServiceTest {
 
         String key = requestCaptor.getValue().key();
         assertThat(key).doesNotStartWith("/");
+    }
+
+    @Test
+    void upload_NullPrefix_DoesNotProduceLeadingSlash() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+
+        ociStorageService.upload(file, null);
+
+        ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(ociStorageClient).putObject(requestCaptor.capture(), any(RequestBody.class));
+
+        String key = requestCaptor.getValue().key();
+        assertThat(key).doesNotStartWith("/");
+        assertThat(key).doesNotContain("//");
     }
 
     @Test
