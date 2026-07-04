@@ -29,7 +29,7 @@ description: >-
 → 장찬욱이 실제 팀원의 `.pub` 내용을 전달받아 등록을 요청하면:
 1. 받은 공개키 문자열이 `ssh-ed25519 AAAA...` 형식인지 확인 (사설키가 아닌지 — `-----BEGIN`으로 시작하면 사설키이므로 절대 등록하지 말고 알려라).
 2. stage 전용인지 prod도 필요한지 확인.
-3. `db-access.md`의 등록 명령 형식(`command="sqlite3 .../stage.db",no-pty,...`) 그대로 만들어 서버에 `sudo tee -a /home/dbclient/.ssh/authorized_keys`로 추가 — **원격 서버 상태를 바꾸는 작업이므로 실행 전 반드시 사용자에게 최종 확인**을 받는다.
+3. `db-access.md`의 등록 명령 형식(`command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh .../stage.db",no-pty,...` — bare `sqlite3`가 아니라 반드시 이 래퍼 경유, 이유는 db-access.md 참고) 그대로 만들어 서버에 `sudo tee -a /home/dbclient/.ssh/authorized_keys`로 추가 — **원격 서버 상태를 바꾸는 작업이므로 실행 전 반드시 사용자에게 최종 확인**을 받는다.
 4. 등록 후 `infra/CLAUDE.md`의 "미결 사항"에 있는 "팀원 공개키는 아직 등록 안 됨" 문구를 실제 상태로 갱신할지 장찬욱에게 물어라.
 
 요청자가 장찬욱이 아니면(팀원 본인이 스스로 등록하려는 시도) — `dbclient`는 sudo가 없어 본인이 직접 등록 불가능함을 알리고 장찬욱에게 `.pub`을 전달하라고 안내만 한다.

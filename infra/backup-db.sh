@@ -20,6 +20,7 @@ LOCAL_BACKUP_DIR="$HOME/backups"
 DATE="$(date +%F)"
 
 mkdir -p "$LOCAL_BACKUP_DIR"
+chmod 700 "$LOCAL_BACKUP_DIR"
 
 backup_one() {
     local db_name="$1"
@@ -33,6 +34,7 @@ backup_one() {
 
     # SQLite 내장 .backup — 쓰기 중에도 일관된 스냅샷을 뜬다(cp와 달리 안전)
     sqlite3 "$db_file" ".backup '$snapshot'"
+    chmod 600 "$snapshot"
 
     local check
     check="$(sqlite3 "$snapshot" 'PRAGMA integrity_check;')"

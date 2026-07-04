@@ -43,11 +43,11 @@ sudo chmod 660 /home/ubuntu/website/infra/data/*.db
 2. 팀원이 `.pub` 파일 내용을 장찬욱에게 전달(카톡 등).
 3. 장찬욱이 서버에서:
    ```bash
-   echo 'command="sqlite3 /home/ubuntu/website/infra/data/stage.db",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding,no-user-rc ssh-ed25519 AAAA...받은공개키... 이름' \
+   echo 'command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh /home/ubuntu/website/infra/data/stage.db",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding,no-user-rc ssh-ed25519 AAAA...받은공개키... 이름' \
      | sudo tee -a /home/dbclient/.ssh/authorized_keys
    ```
 
-`command=`로 접속하자마자 그 명령 하나만 실행되고 끝난다 — 셸을 못 얻으므로 다른 파일을 보거나 컨테이너를 건드릴 수 없다. prod 조회가 필요한 사람은 `command`의 `stage.db`를 `prod.db`로 바꿔서 별도 줄로 추가(계정당 여러 줄 가능, 목적별로 나눠 등록 권장).
+**주의 — bare `sqlite3`를 forced command로 쓰지 않는다:** `command="sqlite3 /path/db"`처럼 sqlite3를 직접 지정하면, sqlite3 CLI가 stdin으로 `.shell`/`.system` 같은 dot-command를 받아 임의 OS 명령을 실행할 수 있다 — `no-pty`는 pty 할당만 막을 뿐 이 입력 자체는 막지 못해서, 그 순간 dbclient 키를 가진 사람이 셸을 얻는다(2026-07-04 보안 점검에서 발견, 등록된 키가 아직 없어 실제 악용 전에 수정). 그래서 forced command는 sqlite3가 아니라 [`dbclient-sqlite-guard.sh`](./dbclient-sqlite-guard.sh)를 가리켜야 한다 — dot-command와 `ATTACH DATABASE`를 걸러낸 뒤에만 sqlite3로 넘기는 래퍼다. prod 조회가 필요한 사람은 `stage.db`를 `prod.db`로 바꿔서 별도 줄로 추가(계정당 여러 줄 가능, 목적별로 나눠 등록 권장).
 
 지금은 `dbclient` 계정만 만들어뒀고 등록된 공개키는 없다 — 실제 팀원 키가 오면 위 방식으로 추가.
 
