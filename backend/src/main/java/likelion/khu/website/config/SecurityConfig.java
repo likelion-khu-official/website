@@ -33,6 +33,12 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                // 매직링크 토큰 — 운영진 인증 붙기 전까지 임시 공개
+                // TODO: 운영진 인증 도입되면 발급(POST)은 운영진 전용으로 좁히기
+                .requestMatchers("/api/feed/tokens/**").permitAll()
+                // 피드 이미지 업로드 — 매직링크 글쓰기 흐름 자체가 비인증이라 임시 공개
+                // TODO: 남용 방지용 인증/레이트리밋 필요해지면 여기에 추가
+                .requestMatchers("/api/feed/images/**").permitAll()
                 // @Valid 실패 시 Tomcat이 /error로 포워드 — 여기도 열어야 403 안 남
                 .requestMatchers("/error").permitAll()
                 // TODO: 인증 엔드포인트 추가 시 여기에 .requestMatchers("/api/auth/**").permitAll()
