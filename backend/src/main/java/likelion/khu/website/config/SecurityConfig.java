@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/feed/images/**").permitAll()
                 // 피드 글 — 공개 읽기 + 매직링크 제출
                 .requestMatchers("/api/posts/**").permitAll()
-                // 피드 댓글 — 공개 읽기·작성
+                // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
                 .requestMatchers("/api/posts/*/comments/**").permitAll()
                 // 어드민 피드 API — TODO: 운영진 인증 도입 시 좁히기
                 .requestMatchers("/api/admin/posts/**", "/api/admin/comments/**").permitAll()

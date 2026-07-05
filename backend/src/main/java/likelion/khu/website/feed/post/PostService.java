@@ -1,6 +1,7 @@
 package likelion.khu.website.feed.post;
 
 import likelion.khu.website.feed.MagicLinkTokenService;
+import likelion.khu.website.feed.comment.CommentRepository;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
 import likelion.khu.website.feed.post.dto.PostSummaryResponse;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final MagicLinkTokenService magicLinkTokenService;
 
     @Transactional
@@ -41,7 +43,8 @@ public class PostService {
     public PostDetailResponse getPublishedPost(String slug) {
         Post post = postRepository.findBySlugAndStatus(slug, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "글을 찾을 수 없어요."));
-        return PostDetailResponse.from(post, 0);
+        long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
+        return PostDetailResponse.from(post, commentCount);
     }
 
     @Transactional(readOnly = true)
