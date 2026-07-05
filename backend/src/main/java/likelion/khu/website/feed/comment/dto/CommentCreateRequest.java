@@ -3,8 +3,10 @@ package likelion.khu.website.feed.comment.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 public class CommentCreateRequest {
 
     @Size(max = 50)
