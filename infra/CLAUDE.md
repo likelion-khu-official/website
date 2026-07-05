@@ -78,7 +78,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | `.github/workflows/ci.yml` | PR 시 백엔드 테스트 실행 + PR 코멘트 |
 | `.github/workflows/cd.yml` | 이미지 빌드·푸시 → OCI 배포 → 헬스체크 → 스모크 테스트 → 실패 시 롤백 |
 | `infra/docker-compose.yml` | OCI 전체 스택 (nginx + backend-stage:8081 + backend-prod:8080) |
-| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore). SSL + 도메인 라우팅 설정 완료 |
+| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore). SSL + 도메인 라우팅 + `client_max_body_size 6m`(백엔드 멀티파트 한도 5MB보다 살짝 크게 — 백엔드가 자기 한도 초과 시 친절한 JSON 에러를 낼 수 있도록. 자세한 경위는 아래 참고) 설정 완료 |
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
