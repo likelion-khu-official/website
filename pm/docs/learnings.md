@@ -6,6 +6,8 @@
 ---
 
 ## 인프라 · CI/CD
+- **커밋에 개인정보·내부식별자가 이미 들어간 뒤 발견했다면, dev(스쿼시 금지 브랜치) 정책을 지키면서도 정리할 수 있다.** 방법: 문제 커밋이 있는 기능 브랜치를 로컬에서 `git reset --soft <merge-base>` + 재커밋으로 깨끗한 커밋 하나로 압축 → `force-push`로 그 브랜치 자체를 덮어씀 → dev엔 평소처럼 일반 머지(스쿼시 아님, dev 정책 그대로 준수) → 머지 직후 브랜치 삭제. 결과: dev 히스토리엔 마스킹된 최종 상태 커밋 하나만 남고, 문제됐던 중간 커밋들은 어떤 브랜치·태그에서도 도달 불가능해져 일반적인 열람·검색·clone으론 안 보인다. 완전 물리적 삭제(`git filter-repo`+강제푸시)는 SHA가 다 바뀌고 기존 clone이 깨지는 파괴적 작업이라, 새어나간 게 자격증명이 아니라 개인 이메일·OCID 같은 낮은 심각도라면 이 정도가 비용 대비 적정선.
+- **`gitleaks-action@v2`는 조직(organization) 소유 레포에 유료 라이선스를 요구한다** — 개인 계정 공개 레포만 무료. 조직 레포에선 액션 대신 오픈소스 CLI를 Docker로 직접 돌리면 라이선스 없이 동일 기능(`docker run zricethezav/gitleaks:latest detect ...`). 스캔 범위도 전체 히스토리(`git log -p ALL`)가 아니라 `--log-opts="origin/<base>..<head-sha>"`로 **PR이 새로 추가하는 커밋만** 좁혀야 한다 — 안 그러면 이미 병합된 과거 히스토리의 기존 항목 때문에 완전히 무관한 미래 PR까지 영원히 막힐 수 있다.
 - **`docker-compose.yml`에서 `image: ...${STAGE_TAG:-stage-latest}` 패턴을 쓰면, 태그 없이 수동으로 `docker compose up -d`를 실행하는 순간 조용히 `stage-latest`로 떨어진다.** CD는 매번 커밋 SHA 태그(`STAGE_TAG=<sha>`)로 정확히 배포하고, 레지스트리의 `stage-latest` 태그 자체도 매 배포마다 함께 갱신한다 — 문제는 태그가 아니라 **서버 로컬 이미지 캐시**다. CD가 SHA 태그로만 pull/기동하기 때문에 서버에 로컬로 캐시된 `stage-latest` 이미지는 그동안 최신으로 pull된 적이 없다. 이 상태에서 사람이 SSH로 들어가 태그 없이 재기동하면 레지스트리의 최신 이미지가 아니라 로컬에 얼어붙은 옛날 이미지를 재사용하게 되며, 헬스체크가 실패할 수도 있다(예: 스키마 마이그레이션 이전 이미지). 수동 재기동 시 반드시 `STAGE_TAG=<원하는 태그>`/`PROD_TAG=<원하는 태그>`를 명시할 것.
 - **certbot standalone 발급 시 Docker nginx를 먼저 내려야 한다.** certbot이 80 포트로 인증하는데 nginx 컨테이너가 잡고 있으면 실패 — `docker compose stop nginx` 후 발급, 완료 후 재기동. 두 도메인을 한 cert에 묶으려면 `-d domain1 -d domain2`로 한 번에 발급하면 첫 번째 도메인 경로에 저장된다.
 - **서버 로컬 DNS 캐시가 느려도 글로벌 전파는 이미 됐을 수 있다.** `nslookup`이 실패해도 `dig @8.8.8.8`로 확인하면 실제 전파 여부를 알 수 있다 — certbot은 글로벌 DNS 기준으로 검증하므로 로컬 캐시와 무관하게 발급 가능.
