@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 public class NotificationSubscribeRequest {
-    @NotBlank
-    @Email
+    @NotBlank(message = "이메일을 입력해주세요.")
+    @Email(message = "유효하지 않은 이메일 형식이에요.")
     private String email;
 }
