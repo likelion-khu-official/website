@@ -23,6 +23,7 @@
 - 스토리지: 부트+블록 **합계 200GB 이하** (부트볼륨 최소 50GB)
 - 리전: **홈 리전(도쿄 `ap-tokyo-1`)에서만** 무료 — 다른 리전 리소스는 유료
 - 공인 IP: Reserved 1개 + Ephemeral 무료 / LB: Flexible 1개(10Mbps) / egress: 10TB월 / Object Storage: 20GB
+- Email Delivery: **월 3,000통** — 이것도 홈 리전(`ap-tokyo-1`)에서 만든 Email Domain/DKIM/Approved Sender에만 적용. 다른 리전에서 만들면 과금 시작.
 
 **조용히 과금되니 절대 만들지 말 것:**
 - 🚨 **NAT Gateway** (Always Free 아님) → 퍼블릭 서브넷 + **Internet Gateway**(무료)로 해결
@@ -157,3 +158,4 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 - DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03).
 - ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
 - ~~팀원 공개키 등록~~ → 안시현·김우진(PM) 등록 완료(2026-07-04, stage+prod 조회+작성, GitHub 등록 키 재활용). **다음 할 일: 신선우.** GitHub에 등록된 SSH 키가 없어 본인이 새로 생성 후 `.pub` 전달 대기 중.
+- **이메일 발송 기반 (#75, ~7/6, #74 선행)** — Email Domain·DKIM·Approved Sender·전용 IAM 유저(`smtp-mailer`)·SMTP 자격증명 생성, 호스팅케이알에 SPF·DKIM·DMARC 등록, 테스트 발송까지 전부 완료 — **SPF·DKIM·DMARC 전부 PASS 확인**(2026-07-06). **다음 할 일: `.env.email.local` 자격증명을 신선우·안시현에게 안전한 채널로 전달**(GitHub엔 평문 금지) → 완료되면 이슈 닫기. 브랜치 `infra/#75-email-delivery`. 상세는 [`email-delivery.md`](./email-delivery.md).

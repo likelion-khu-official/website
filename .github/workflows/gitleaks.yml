@@ -1,0 +1,28 @@
+name: Gitleaks
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 소스코드 체크아웃 (전체 히스토리)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # gitleaks-action(공식 액션)은 v2부터 조직 소유 레포에 유료 라이선스를 요구해서
+      # 대신 오픈소스 CLI(Docker 이미지)를 직접 돌린다. 스캔 범위는 이 PR이 base 브랜치
+      # 대비 새로 추가하는 커밋만 — 안 그러면 과거 히스토리의 기존 항목 때문에 무관한
+      # PR까지 영원히 막힐 수 있다.
+      - name: gitleaks 스캔 (이 PR이 추가하는 커밋만)
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source /repo --config /repo/.gitleaks.toml \
+            --log-opts="origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }}" \
+            --redact -v --exit-code 1
