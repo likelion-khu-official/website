@@ -29,3 +29,13 @@
 - 이 도메인 발송은 나중 **외부 모집알림**에도 그대로 쓰여, "외부 발송 전 도메인 확보" 스텝도 미리 해소됨.
 - DNS(호스팅케이알) 접근은 찬욱이 보유 → 별도 핸드오프 불필요.
 - provider 최종 선택·셋업 방식은 찬욱(인프라) 몫으로 둠 — PM은 무엇을·왜·기한까지.
+
+## 2026-07-06 — #75 완료·클로즈 (선행 해소)
+
+메일 발송 선행(#75) 완료. #74의 초대·재설정이 얹힐 발송 기반이 준비됨.
+
+- **산출물(PR #81):** OCI Email Delivery(`ap-tokyo-1`), Approved Sender `noreply@likelion-khu.com`, DKIM selector `mail-tokyo-20260706`. 발송 계정은 사람 계정 재사용 안 하고 **전용 IAM 유저 `smtp-mailer` + 그룹 `email-senders` + 최소권한(`use email-family`)** 으로 분리 — `dbclient`와 같은 블라스트 반경 축소 패턴.
+- **검증:** Gmail 원본 헤더에서 **SPF·DKIM·DMARC 3개 전부 PASS**, 받은편지함(스팸 아님) 도착. DKIM은 생성 후 ~65분 만에 ACTIVE, `_dmarc`(`p=none`) 추가 등록.
+- **BE 핸드오프:** SMTP 자격증명은 레포에 안 올리고 안전 채널로 BE(선우·시현)에 전달 — 완료 전제로 클로즈(PM 확인).
+- **learnings 졸업:** 대행 발신자 구조(SPF `include:`)·SPF/DKIM 재확인 주기 차·DMARC 부재=FAIL — 인프라팀이 이미 반영.
+- **승계:** BE는 이 SMTP 자격증명으로 #74의 초대·재설정 메일을 실제 발송. #74 진행 시 발송 연동은 준비 완료 상태에서 시작.
