@@ -55,4 +55,11 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(Map.of("success", false, "message", "이미지 용량이 너무 커요 (최대 5MB)."));
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("success", false, "message", ex.getMessage()));
+    }
 }

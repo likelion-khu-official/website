@@ -39,6 +39,12 @@ public class SecurityConfig {
                 // 피드 이미지 업로드 — 매직링크 글쓰기 흐름 자체가 비인증이라 임시 공개
                 // TODO: 남용 방지용 인증/레이트리밋 필요해지면 여기에 추가
                 .requestMatchers("/api/feed/images/**").permitAll()
+                // 피드 글 — 공개 읽기 + 매직링크 제출
+                .requestMatchers("/api/posts/**").permitAll()
+                // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
+                .requestMatchers("/api/posts/*/comments/**").permitAll()
+                // 어드민 피드 API — TODO: 운영진 인증 도입 시 좁히기
+                .requestMatchers("/api/admin/posts/**", "/api/admin/comments/**").permitAll()
                 // @Valid 실패 시 Tomcat이 /error로 포워드 — 여기도 열어야 403 안 남
                 .requestMatchers("/error").permitAll()
                 // TODO: 인증 엔드포인트 추가 시 여기에 .requestMatchers("/api/auth/**").permitAll()
