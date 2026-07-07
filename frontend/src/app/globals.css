@@ -1,26 +1,286 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #131313;
+  --foreground: #ffffff;
+  --muted: #9aa5b0;
+  --accent: #ff5000;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --font-sans: "Pretendard Variable", var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+.hero-glow {
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    #ffe9c5 0%,
+    #b02210 22%,
+    transparent 55%
+  );
+}
+
+/* 히어로 썸네일 배경 — Figma 프레임 3종을 각각 독립 레이어로 만들어 서로 완전히 크로스페이드한다.
+   (base를 항상 켜두지 않음 — 각 상태가 이전 상태를 덮어 교체)
+   State1(106:82): 위 살짝 + 아래 크게 / State2(Frame25=86:11): 검정 + 왼쪽아래
+   State3(Frame26=93:76): 왼쪽위(93:80, 수직 flip) + 하단 밴드(93:79) */
+.hero-thumbnail-bg {
+  position: relative;
+  background-color: #131313;
+}
+
+.hero-glow-layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+/* State1 — 106:82 (위 살짝 + 아래 크게) */
+.hero-glow-layer--1 {
+  background-color: #131313;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg viewBox='0 0 1729 1098' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.4'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-5.372e-14 194.57 -267.96 6.5845e-15 773.77 -542.94)'><stop stop-color='rgba(255,233,197,1)' offset='0.20878'/><stop stop-color='rgba(235,183,151,1)' offset='0.23471'/><stop stop-color='rgba(216,133,105,1)' offset='0.26064'/><stop stop-color='rgba(206,109,81,1)' offset='0.27361'/><stop stop-color='rgba(196,84,58,1)' offset='0.28657'/><stop stop-color='rgba(186,59,35,1)' offset='0.29953'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.825)' offset='0.36239'/><stop stop-color='rgba(88,17,6,0.65)' offset='0.41228'/><stop stop-color='rgba(44,9,3,0.475)' offset='0.46217'/><stop stop-color='rgba(0,0,0,0.3)' offset='0.51206'/><stop stop-color='rgba(0,0,0,0.2)' offset='1'/></radialGradient></defs></svg>"),
+    url("data:image/svg+xml;utf8,<svg viewBox='0 0 1729 1098' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='1'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-0.000010274 -147.65 512.62 -0.000034923 865 1390.5)'><stop stop-color='rgba(255,233,197,1)' offset='0.20387'/><stop stop-color='rgba(235,183,151,1)' offset='0.23103'/><stop stop-color='rgba(216,133,105,1)' offset='0.25818'/><stop stop-color='rgba(206,109,81,1)' offset='0.27176'/><stop stop-color='rgba(196,84,58,1)' offset='0.28534'/><stop stop-color='rgba(186,59,35,1)' offset='0.29892'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36239'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.41228'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.46217'/><stop stop-color='rgba(0,0,0,0)' offset='0.51206'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+  animation: hero-glow-1 21s ease-in-out infinite;
+}
+
+/* State2 — Frame25 (검정 + 왼쪽아래 87:26) */
+.hero-glow-layer--2 {
+  background-color: #000000;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='1'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(326.76 -278.28 438.18 514.32 -177.48 2384.7)'><stop stop-color='rgba(255,246,232,1)' offset='0.23771'/><stop stop-color='rgba(235,193,177,1)' offset='0.25641'/><stop stop-color='rgba(216,140,122,1)' offset='0.2751'/><stop stop-color='rgba(206,114,95,1)' offset='0.28445'/><stop stop-color='rgba(196,87,67,1)' offset='0.2938'/><stop stop-color='rgba(186,61,40,1)' offset='0.30315'/><stop stop-color='rgba(181,47,26,1)' offset='0.30782'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+  opacity: 0;
+  animation: hero-glow-2 21s ease-in-out infinite;
+}
+
+/* State2 위에 겹치는 오른쪽아래 글로우 (87:25, 수평 flip) */
+.hero-glow-layer--2-right {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform: scaleX(-1);
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='1'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(265.65 -309.5 487.35 418.13 414.54 2807.2)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+}
+
+/* State3 — Frame26 (하단 밴드 93:79) */
+.hero-glow-layer--3 {
+  background-color: #131313;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='1'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.464e-14 -138.71 329.91 4.907e-13 1005.5 1387.1)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+  opacity: 0;
+  animation: hero-glow-3 21s ease-in-out infinite;
+}
+
+/* State3 위에 겹치는 왼쪽위 글로우 (93:80, 수직 flip) */
+.hero-glow-layer--3-topleft {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform: scaleY(-1);
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='1'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(224.63 -234.78 369.69 353.56 378.54 2258.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+}
+
+/* 3-상태 크로스페이드 (각 상태가 이전을 완전히 덮음) */
+@keyframes hero-glow-1 {
+  0% { opacity: 1; }
+  25% { opacity: 1; }
+  35% { opacity: 0; }
+  92% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes hero-glow-2 {
+  0% { opacity: 0; }
+  25% { opacity: 0; }
+  35% { opacity: 1; }
+  58% { opacity: 1; }
+  68% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes hero-glow-3 {
+  0% { opacity: 0; }
+  58% { opacity: 0; }
+  68% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-glow-layer {
+    animation: none !important;
+  }
+  .hero-glow-layer--2,
+  .hero-glow-layer--3 {
+    display: none;
+  }
+}
+
+/* Introduce 섹션 배경 — Figma 115:27 그라디언트(좌하단 붉은 글로우, opacity 0.3) */
+.introduce-bg {
+  background-color: #131313;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1727 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.3'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-23.724 117.01 -173.69 -47.731 1010.1 117.54)'><stop stop-color='rgba(0,0,0,1)' offset='0'/><stop stop-color='rgba(0,0,0,1)' offset='0.48794'/><stop stop-color='rgba(11,2,1,1)' offset='0.50202'/><stop stop-color='rgba(22,4,2,1)' offset='0.5161'/><stop stop-color='rgba(44,9,3,1)' offset='0.54425'/><stop stop-color='rgba(88,17,6,1)' offset='0.60056'/><stop stop-color='rgba(132,26,9,1)' offset='0.65687'/><stop stop-color='rgba(176,34,12,1)' offset='0.71319'/><stop stop-color='rgba(186,59,35,1)' offset='0.74904'/><stop stop-color='rgba(196,84,58,1)' offset='0.78489'/><stop stop-color='rgba(206,109,81,1)' offset='0.82074'/><stop stop-color='rgba(216,133,105,1)' offset='0.85659'/><stop stop-color='rgba(235,183,151,1)' offset='0.9283'/><stop stop-color='rgba(255,233,197,1)' offset='1'/></radialGradient></defs></svg>");
+}
+
+/* 세션소개(107:359) 섹션 배경 — 정확한 Figma 값 2겹 */
+.session-intro-bg {
+  background-color: #131313;
+}
+
+/* Project(101:10) 섹션 배경 — 상단 warm 글로우는 컴포넌트 내 GLOW_SVG 요소로 렌더(107:609 원본) */
+.project-bg {
+  background-color: #131313;
+}
+
+/* Plan(107:573) 섹션 배경 — 하단 중앙에서 피어오르는 강한 오렌지 글로우 */
+.plan-bg {
+  background-color: #131313;
+  background-repeat: no-repeat;
+  background-image: radial-gradient(
+    72% 58% at 38% 118%,
+    rgba(255, 80, 0, 0.5) 0%,
+    rgba(176, 34, 12, 0.32) 32%,
+    rgba(19, 19, 19, 0) 66%
+  );
+}
+
+/* Footer(116:557) 배경 — 따뜻한 톤의 어두운 배경 */
+.footer-bg {
+  background-color: #171310;
+}
+
+/* Recruit(116:532) 섹션 배경 — 상단에서 강하게 번지는 레드 글로우 (위→아래로 소멸) */
+.recruit-bg {
+  background-color: #131313;
+  background-repeat: no-repeat;
+  background-image: radial-gradient(
+    130% 95% at 50% -12%,
+    rgba(255, 80, 0, 0.9) 0%,
+    rgba(176, 34, 12, 0.78) 16%,
+    rgba(90, 18, 7, 0.5) 36%,
+    rgba(19, 19, 19, 0) 62%
+  );
+}
+
+/* Blog(114:139) 섹션 배경 — 좌우 가장자리 은은한 다크레드 글로우 */
+.blog-bg {
+  background-color: #131313;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(40% 45% at 0% 55%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
+    radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
+}
+
+/* Blog 카드 세로 무한 슬라이드 — 사본 2벌을 -50%↔0 으로 이동해 이음매 없이 반복(아래로 흐름) */
+.blog-track {
+  animation-name: blog-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.blog-viewport:hover .blog-track {
+  animation-play-state: paused;
+}
+@keyframes blog-marquee {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blog-track {
+    animation: none;
+  }
+}
+
+/* Members(115:60) 섹션 배경 — 좌상단·우하단 은은한 다크레드 글로우 */
+.members-bg {
+  background-color: #131313;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(60% 55% at 0% 0%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
+    radial-gradient(55% 50% at 100% 100%, rgba(176, 34, 12, 0.3) 0%, rgba(19, 19, 19, 0) 60%);
+}
+
+.session-glow-top-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1730px;
+  height: 935px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.session-glow-top {
+  flex-shrink: 0;
+  width: 935px;
+  height: 1730px;
+  transform: rotate(90deg);
+  background: radial-gradient(354.5% 236.79% at -21.87% 166.56%, rgba(255, 246, 232, 0.3) 23.77%, rgba(176, 34, 12, 0.3) 31.25%, rgba(0, 0, 0, 0) 53.64%, rgba(0, 0, 0, 0) 100%);
+}
+
+.session-glow-bottom-wrap {
+  position: absolute;
+  left: 0;
+  top: 325px;
+  width: 1727px;
+  height: 935px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.session-glow-bottom {
+  flex-shrink: 0;
+  width: 935px;
+  height: 1727px;
+  transform: rotate(-90deg);
+  background: radial-gradient(355.1% 247.75% at -39.79% 164.19%, rgba(255, 246, 232, 0.33) 23.77%, rgba(176, 34, 12, 0.33) 31.25%, rgba(0, 0, 0, 0) 53.64%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* Introduce 헤드라인 — 두 문구 크로스페이드 (a: 코딩이 처음이더라도... / b: 아이디어를...) */
+.headline-swap {
+  position: absolute;
+  inset: 0;
+  animation: headline-swap-cycle 10s ease-in-out infinite;
+}
+.headline-swap--a {
+  animation-delay: 0s;
+}
+.headline-swap--b {
+  animation-delay: -5s;
+}
+@keyframes headline-swap-cycle {
+  0% { opacity: 1; }
+  40% { opacity: 1; }
+  50% { opacity: 0; }
+  90% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .headline-swap {
+    animation: none !important;
+  }
+  .headline-swap--b {
+    display: none;
+  }
 }
