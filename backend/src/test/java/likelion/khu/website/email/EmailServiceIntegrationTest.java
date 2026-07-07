@@ -1,0 +1,148 @@
+package likelion.khu.website.email;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.LocalDateTime;
+import java.time.Month;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Testcontainers로 실제 SMTP 서버(Mailpit)를 띄워 EmailService의 전체 경로
+ * (Thymeleaf 렌더링 → JavaMailSender 실전송 → SMTP 프로토콜 → 수신함 도착)를 목 없이 검증한다.
+ * OCI SMTP는 대상이 아님 — 우리 코드가 표준 SMTP 스펙대로 정확히 동작하는지가 검증 대상.
+ * prod 프로파일을 명시해 "제목에 stage 접두어가 안 붙는다"도 실제 배포 조건 그대로 함께 검증한다.
+ */
+@Testcontainers
+@SpringBootTest
+@ActiveProfiles("prod")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+class EmailServiceIntegrationTest {
+
+    @Container
+    static final GenericContainer<?> mailpit =
+            new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.21"))
+                    .withExposedPorts(1025, 8025);
+
+    @DynamicPropertySource
+    static void mailProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.mail.host", mailpit::getHost);
+        registry.add("spring.mail.port", () -> mailpit.getMappedPort(1025));
+        registry.add("spring.mail.username", () -> "");
+        registry.add("spring.mail.password", () -> "");
+        // Mailpit 기본 SMTP 리스너는 AUTH/STARTTLS를 요구하지 않음 — 앱 기본값(true)을 여기서만 끔
+        registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
+        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "false");
+    }
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private EmailLogRepository emailLogRepository;
+
+    @Test
+    void sendInviteEmail_RealSmtpRoundTrip_ArrivesWithCorrectContentAndIsLogged() throws Exception {
+        String to = "new-admin@khu.ac.kr";
+        String inviteUrl = "https://admin.likelion-khu.com/invite?token=it-invite-abc123";
+        LocalDateTime expiresAt = LocalDateTime.of(2026, Month.JULY, 10, 12, 0);
+
+        emailService.sendInviteEmail(to, inviteUrl, expiresAt);
+
+        JsonNode received = awaitMessageTo(to);
+        assertThat(received.get("Subject").asText()).isEqualTo(EmailType.INVITE.getSubject());
+        assertThat(received.get("From").get("Address").asText()).isEqualTo("noreply@likelion-khu.com");
+
+        JsonNode detail = fetchMessageDetail(received.get("ID").asText());
+        assertThat(detail.get("HTML").asText())
+                .contains(inviteUrl)
+                .contains("2026.07.10 12:00");
+
+        List<EmailLog> logs = emailLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getRecipient()).isEqualTo(to);
+        assertThat(logs.get(0).getType()).isEqualTo(EmailType.INVITE);
+        assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
+        assertThat(logs.get(0).getSubject()).isEqualTo(EmailType.INVITE.getSubject());
+        assertThat(logs.get(0).getSentAt()).isNotNull();
+        // 실제 JavaMailSender가 SMTP 전송 직전 saveChanges()로 생성한 진짜 Message-ID.
+        // 우리 쪽 저장값은 RFC 5322 형식 그대로(<...> 포함), Mailpit API는 꺾쇠를 벗겨서 돌려줌 — 같은 값인지 벗겨서 비교.
+        assertThat(logs.get(0).getMessageId()).isNotBlank().startsWith("<").endsWith(">");
+        String strippedMessageId = logs.get(0).getMessageId().replaceAll("[<>]", "");
+        assertThat(detail.get("MessageID").asText()).isEqualTo(strippedMessageId);
+    }
+
+    @Test
+    void sendPasswordResetEmail_RealSmtpRoundTrip_ArrivesWithCorrectContentAndIsLogged() throws Exception {
+        String to = "existing-admin@khu.ac.kr";
+        String resetUrl = "https://admin.likelion-khu.com/reset-password?token=it-reset-xyz789";
+        LocalDateTime expiresAt = LocalDateTime.of(2026, Month.JULY, 11, 9, 30);
+
+        emailService.sendPasswordResetEmail(to, resetUrl, expiresAt);
+
+        JsonNode received = awaitMessageTo(to);
+        assertThat(received.get("Subject").asText()).isEqualTo(EmailType.PASSWORD_RESET.getSubject());
+
+        JsonNode detail = fetchMessageDetail(received.get("ID").asText());
+        assertThat(detail.get("HTML").asText())
+                .contains(resetUrl)
+                .contains("2026.07.11 09:30");
+
+        List<EmailLog> logs = emailLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getType()).isEqualTo(EmailType.PASSWORD_RESET);
+        assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
+        assertThat(logs.get(0).getMessageId()).isNotBlank();
+        assertThat(detail.get("MessageID").asText())
+                .isEqualTo(logs.get(0).getMessageId().replaceAll("[<>]", ""));
+    }
+
+    /** Mailpit이 SMTP로 받은 메일을 API에 반영하기까지의 짧은 지연을 흡수하기 위한 폴링. */
+    private JsonNode awaitMessageTo(String to) throws Exception {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            JsonNode messages = fetchMessages();
+            for (JsonNode message : messages.get("messages")) {
+                if (message.get("To").get(0).get("Address").asText().equals(to)) {
+                    return message;
+                }
+            }
+            Thread.sleep(150);
+        }
+        throw new AssertionError("Mailpit에서 " + to + " 수신 메일을 찾지 못했어요 (타임아웃)");
+    }
+
+    private JsonNode fetchMessages() throws Exception {
+        return getJson("/api/v1/messages");
+    }
+
+    private JsonNode fetchMessageDetail(String id) throws Exception {
+        return getJson("/api/v1/message/" + id);
+    }
+
+    private JsonNode getJson(String path) throws Exception {
+        String baseUrl = "http://" + mailpit.getHost() + ":" + mailpit.getMappedPort(8025);
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path)).GET().build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        return OBJECT_MAPPER.readTree(response.body());
+    }
+}

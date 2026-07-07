@@ -31,6 +31,21 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
+  # === 메일 발송 (OCI Email Delivery, SMTP) — 환경변수명은 infra/email-delivery.md #75 전달값과 일치시킴 ===
+  mail:
+    host: ${MAIL_SMTP_HOST}
+    port: ${MAIL_SMTP_PORT}
+    username: ${MAIL_SMTP_USERNAME}
+    password: ${MAIL_SMTP_PASSWORD}
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
@@ -45,6 +60,9 @@ oci-storage:
   bucket: ${OCI_STORAGE_BUCKET}
   public-url: ${OCI_STORAGE_PUBLIC_URL}
 
+mail-sender:
+  from: ${MAIL_FROM_ADDRESS:noreply@likelion-khu.com}
+
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이
 # 자동으로 permitAll() 처리. SecurityConfig 추가 시 아래 주석 참고.
@@ -56,3 +74,7 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # OCI 쪽 SMTP 일시 장애가 앱 헬스체크(=배포 롤백 트리거)를 같이 끌고 내려가지 않도록 분리
+    mail:
+      enabled: false
