@@ -47,6 +47,23 @@
 - GitHub Actions `ubuntu-latest`는 Docker가 기본 설치돼 있어 `ci.yml` 추가 설정 없이 그대로 동작
 - 통합테스트 3개로 분리: `EmailServiceIntegrationTest`(성공 경로, `@ActiveProfiles("prod")`) · `EmailServiceStageProfileIntegrationTest`(`@ActiveProfiles("stage")`, 접두어 확인) · `EmailServiceFailureIntegrationTest`(컨테이너를 실제로 내려서 연결 실패 유발) — 각자 프로파일·컨테이너 상태가 달라 한 클래스에 억지로 합치지 않음
 
+### Mailpit이 "실제 OCI와 같은 형식"인지 — 처음엔 증명 안 돼 있었음
+
+리뷰 중 지적받아 확인한 내용. 최초 버전은 `spring.mail.properties.mail.smtp.auth=false`, `starttls.enable=false`로 Mailpit을 띄웠는데, **이건 실제 OCI에 쓰는 설정(`application.yml`: `auth: true`, `starttls.enable: true`)과 다른 조건**이었다 — AUTH LOGIN·STARTTLS 협상 코드 경로 자체가 통합테스트에서 한 번도 실행된 적이 없었다는 뜻.
+
+Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원하는 걸 확인하고, 자체서명 TLS 인증서(`src/test/resources/mailpit-tls/{cert,key}.pem`, 테스트 전용 fixture, 10년 유효)를 컨테이너에 물려서 **실제로 STARTTLS+AUTH LOGIN을 거치도록** 고쳤다. `mail.smtp.ssl.trust=*`로 자체서명 인증서를 신뢰하도록 설정(테스트 전용이라 문제없음).
+
+**그래도 증명되는 것과 안 되는 것은 구분해야 한다:**
+
+| | Mailpit(고친 뒤)로 증명됨 | 여전히 증명 불가 |
+|---|---|---|
+| MIME 구조·헤더·제목 인코딩 | ✅ | |
+| AUTH LOGIN + STARTTLS 협상 코드 경로 | ✅ (2026-07-07 수정 후) | |
+| OCI Approved Sender 정책(미등록 발신주소 거부) | | ❌ OCI 고유 비즈니스 규칙, 로컬 도구로 재현 불가 |
+| SPF/DKIM/DMARC | | ❌ 수신 서버·DNS 영역, SMTP 프로토콜 밖 — Mailpit은 이걸 검사 안 함 |
+
+뒤의 두 개는 이 프로젝트에서 로컬 테스트로 영원히 못 잡고, 실제 OCI를 때린 1회성 수동 검증(위 9·10번, 그리고 인프라가 별도로 한 SPF/DKIM/DMARC 확인)이 유일한 증거다.
+
 ## 아직 못 메꾼 빈틈
 
 | 항목 | 이유 |
@@ -55,3 +72,18 @@
 | `management.health.mail.enabled=false` 동작 확인 | 설정 자체는 있으나 `/actuator/health`에서 실제로 mail 상태가 빠지는지 검증하는 테스트는 없음 (낮은 리스크) |
 | Naver 등 Gmail 외 실제 수신함 스팸 판정 | 이번엔 Gmail만 확인 (요청 범위) |
 | PROD 자격증명으로 **실제 발송**(AUTH 아님) | 실사용자 오발송 방지를 위해 의도적으로 미수행 — `#74` 배포 후 첫 실제 초대 때 `email_log` 확인으로 대체 예정 |
+
+## 코드 리뷰 진행 상황 (직접 리뷰 중)
+
+읽는 순서와 진행 상태. 다음 세션(다른 기기 포함)은 여기서부터 이어가면 됨.
+
+- [x] 1. `EmailLog.java` — `success()`/`failure()`가 생성자가 아니라 정적 팩토리 메서드라는 것, `private` 생성자로 밖에서 임의 생성 못 막은 것, `sentAt` 자동 채움, static vs 동적 바인딩까지 논의 완료
+- [ ] 2. `EmailLogRepository.java`
+- [ ] 3. `templates/email/invite.html`, `password-reset.html`
+- [ ] 4. `EmailService.java` 전체(검증·messageId·stage접두어가 `send()` 안에서 어떻게 이어지는지)
+- [ ] 5. `exception/EmailSendException.java`
+- [ ] 6. `EmailServiceTest.java` 전체(7개 테스트, `createService(String... activeProfiles)` 헬퍼)
+- [ ] 7. 통합테스트 3개 — `EmailServiceIntegrationTest` → `EmailServiceStageProfileIntegrationTest` → `EmailServiceFailureIntegrationTest` (AUTH/STARTTLS 강제하도록 고친 최신 버전 기준)
+- [ ] 8. `application.yml`(메인) → `application.yml`(test) → `.env.example` — 환경변수 흐름 추적
+- [ ] 9. `build.gradle` — mail/thymeleaf/testcontainers 의존성
+- [ ] 10. 이 문서의 "구현 항목별 입출력 예시 × 검증 테스트" 표 전체와 읽은 코드 대조

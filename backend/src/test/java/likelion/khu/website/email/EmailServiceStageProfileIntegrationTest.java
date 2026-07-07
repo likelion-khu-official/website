@@ -12,6 +12,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -32,19 +33,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("stage")
 class EmailServiceStageProfileIntegrationTest {
 
+    // 실제 OCI는 AUTH LOGIN + STARTTLS를 요구함 — 같은 협상을 강제하도록 자체서명 인증서를 물림
     @Container
     static final GenericContainer<?> mailpit =
             new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.21"))
-                    .withExposedPorts(1025, 8025);
+                    .withExposedPorts(1025, 8025)
+                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/cert.pem"), "/mailpit-tls/cert.pem")
+                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/key.pem"), "/mailpit-tls/key.pem")
+                    .withCommand(
+                            "--smtp-tls-cert", "/mailpit-tls/cert.pem",
+                            "--smtp-tls-key", "/mailpit-tls/key.pem",
+                            "--smtp-require-starttls",
+                            "--smtp-auth-accept-any"
+                    );
 
     @DynamicPropertySource
     static void mailProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.mail.host", mailpit::getHost);
         registry.add("spring.mail.port", () -> mailpit.getMappedPort(1025));
-        registry.add("spring.mail.username", () -> "");
-        registry.add("spring.mail.password", () -> "");
-        registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
-        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "false");
+        registry.add("spring.mail.username", () -> "mailpit-test-user");
+        registry.add("spring.mail.password", () -> "mailpit-test-pass");
+        registry.add("spring.mail.properties.mail.smtp.auth", () -> "true");
+        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
+        registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
     }
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
