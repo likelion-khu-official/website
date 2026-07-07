@@ -137,9 +137,57 @@ body {
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1727 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.3'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-23.724 117.01 -173.69 -47.731 1010.1 117.54)'><stop stop-color='rgba(0,0,0,1)' offset='0'/><stop stop-color='rgba(0,0,0,1)' offset='0.48794'/><stop stop-color='rgba(11,2,1,1)' offset='0.50202'/><stop stop-color='rgba(22,4,2,1)' offset='0.5161'/><stop stop-color='rgba(44,9,3,1)' offset='0.54425'/><stop stop-color='rgba(88,17,6,1)' offset='0.60056'/><stop stop-color='rgba(132,26,9,1)' offset='0.65687'/><stop stop-color='rgba(176,34,12,1)' offset='0.71319'/><stop stop-color='rgba(186,59,35,1)' offset='0.74904'/><stop stop-color='rgba(196,84,58,1)' offset='0.78489'/><stop stop-color='rgba(206,109,81,1)' offset='0.82074'/><stop stop-color='rgba(216,133,105,1)' offset='0.85659'/><stop stop-color='rgba(235,183,151,1)' offset='0.9283'/><stop stop-color='rgba(255,233,197,1)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* 세션소개(107:359) 섹션 배경 — 정확한 Figma 값 2겹 */
+/* 세션소개(107:359) 섹션 배경 — Figma 글로우 2겹(107:567·107:568)을 회전 트릭 그대로,
+   단 고정 px → %/aspect-ratio 로 바꿔 뷰포트에 스케일되게 함 */
 .session-intro-bg {
   background-color: #131313;
+}
+
+/* 상단 글로우 (107:567) — 935×1730 세로 박스를 rotate(90deg)해 1730×935 밴드로.
+   wrap: 폭 100% + aspect 1730/935, inner: 935/1730=54.046% × 1730/935=185.027% */
+.session-glow-top-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  aspect-ratio: 1730 / 935;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+.session-glow-top {
+  flex-shrink: 0;
+  width: 54.046%;
+  height: 185.027%;
+  transform: rotate(90deg);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 935 1730' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(151.4 -298.9 72.429 598.47 -204.5 2881.5)'><stop stop-color='rgba(255,246,232,1)' offset='0.23771'/><stop stop-color='rgba(235,193,177,1)' offset='0.25641'/><stop stop-color='rgba(216,140,122,1)' offset='0.2751'/><stop stop-color='rgba(206,114,95,1)' offset='0.28445'/><stop stop-color='rgba(196,87,67,1)' offset='0.2938'/><stop stop-color='rgba(186,61,40,1)' offset='0.30315'/><stop stop-color='rgba(181,47,26,1)' offset='0.30782'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+}
+
+/* 하단 글로우 (107:568) — 935×1727 세로 박스를 rotate(-90deg)해 1727×935 밴드로, 섹션 하단 앵커 */
+.session-glow-bottom-wrap {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  aspect-ratio: 1727 / 935;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+.session-glow-bottom {
+  flex-shrink: 0;
+  width: 54.14%;
+  height: 184.71%;
+  transform: rotate(-90deg);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 935 1727' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.33'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(168.15 -294.29 43.275 608.03 -372 2835.6)'><stop stop-color='rgba(255,246,232,1)' offset='0.23771'/><stop stop-color='rgba(235,193,177,1)' offset='0.25641'/><stop stop-color='rgba(216,140,122,1)' offset='0.2751'/><stop stop-color='rgba(206,114,95,1)' offset='0.28445'/><stop stop-color='rgba(196,87,67,1)' offset='0.2938'/><stop stop-color='rgba(186,61,40,1)' offset='0.30315'/><stop stop-color='rgba(181,47,26,1)' offset='0.30782'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
 /* Project(101:10) 섹션 배경 — 상단 warm 글로우는 컴포넌트 내 GLOW_SVG 요소로 렌더(107:609 원본) */
@@ -210,51 +258,33 @@ body {
   }
 }
 
-/* Members(115:60) 섹션 배경 — 좌상단·우하단 은은한 다크레드 글로우 */
+/* Members(115:60) 섹션 배경 — Figma 글로우 2겹(115:62 베이스 하단우측 + 115:61 하단좌측 액센트) */
 .members-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-image:
-    radial-gradient(60% 55% at 0% 0%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
-    radial-gradient(55% 50% at 100% 100%, rgba(176, 34, 12, 0.3) 0%, rgba(19, 19, 19, 0) 60%);
 }
-
-.session-glow-top-wrap {
+/* 115:62 — 2011×1117, 프레임 대비 x=-284 (좌측으로 확장). left -16.44%, width 116.44% */
+.members-glow-base {
   position: absolute;
-  left: 0;
   top: 0;
-  width: 1730px;
-  height: 935px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  left: -16.44%;
+  width: 116.44%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-139.8 -105.45 164.89 -218.86 2076 1034)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(137,30,14,1)' offset='0.36846'/><stop stop-color='rgba(98,27,16,1)' offset='0.42443'/><stop stop-color='rgba(58,23,17,1)' offset='0.48039'/><stop stop-color='rgba(39,21,18,1)' offset='0.50837'/><stop stop-color='rgba(19,19,19,1)' offset='0.53636'/><stop stop-color='rgba(19,19,19,1)' offset='1'/></radialGradient></defs></svg>");
 }
-.session-glow-top {
-  flex-shrink: 0;
-  width: 935px;
-  height: 1730px;
-  transform: rotate(90deg);
-  background: radial-gradient(354.5% 236.79% at -21.87% 166.56%, rgba(255, 246, 232, 0.3) 23.77%, rgba(176, 34, 12, 0.3) 31.25%, rgba(0, 0, 0, 0) 53.64%, rgba(0, 0, 0, 0) 100%);
-}
-
-.session-glow-bottom-wrap {
+/* 115:61 — 1440×800, 프레임 대비 (0,800). left 0, top 71.62%, width 83.38%, height 71.62% */
+.members-glow-accent {
   position: absolute;
   left: 0;
-  top: 325px;
-  width: 1727px;
-  height: 935px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 71.62%;
+  width: 83.38%;
+  height: 71.62%;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   pointer-events: none;
-}
-.session-glow-bottom {
-  flex-shrink: 0;
-  width: 935px;
-  height: 1727px;
-  transform: rotate(-90deg);
-  background: radial-gradient(355.1% 247.75% at -39.79% 164.19%, rgba(255, 246, 232, 0.33) 23.77%, rgba(176, 34, 12, 0.33) 31.25%, rgba(0, 0, 0, 0) 53.64%, rgba(0, 0, 0, 0) 100%);
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
 /* Introduce 헤드라인 — 두 문구 크로스페이드 (a: 코딩이 처음이더라도... / b: 아이디어를...) */

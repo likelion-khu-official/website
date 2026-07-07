@@ -1,23 +1,8 @@
-type Lead = {
-  role: string;
-  name: string;
-  dept: string;
-  desc: string;
-  photo?: string;
-};
+// Figma 115:60 규격 그대로. 상단 그리드 1390 기준 컬럼 580:380:390, gap 20.
+// 카드 높이 221 고정, 리드 사진 240×188(가로), 세션 사진 174×188(세로), 홍보 180×128.
 
-type Session = {
-  role: string;
-  name: string;
-  dept: string;
-  photo?: string;
-};
-
-type Promo = {
-  role: string;
-  name: string;
-  dept: string;
-};
+type Lead = { role: string; name: string; dept: string; desc: string };
+type Session = { role: string; name: string; dept: string };
 
 const leads: Lead[] = [
   {
@@ -34,58 +19,104 @@ const leads: Lead[] = [
   },
 ];
 
-const sessions: Session[] = [
+// 그리드 배치 순서(행 우선): [회장, 프론트, 백엔드] / [부회장, 기획, AI]
+const sessionsRow1: Session[] = [
   { role: '프론트 세션장', name: '이름', dept: '학과 / 학번' },
-  { role: '기획/디자인 세션장', name: '이름', dept: '학과 / 학번' },
   { role: '백엔드 세션장', name: '이름', dept: '학과 / 학번' },
+];
+const sessionsRow2: Session[] = [
+  { role: '기획/디자인 세션장', name: '이름', dept: '학과 / 학번' },
   { role: 'AI 세션장', name: '이름', dept: '학과 / 학번' },
 ];
 
-const promos: Promo[] = Array.from({ length: 7 }, () => ({
-  role: '홍보부장',
-  name: '이름',
-  dept: '학과 / 학번',
-}));
+const promoCount = 7;
 
 const CARD =
-  'rounded-[20px] border border-[rgba(255,80,0,0.22)] bg-[rgba(18,18,18,0.72)] backdrop-blur-[6px]';
+  'relative rounded-[20px] border border-[rgba(255,80,0,0.22)] bg-[rgba(18,18,18,0.55)] backdrop-blur-[6px]';
+const PHOTO = 'absolute rounded-[12px] bg-gradient-to-br from-[#4a4a4a] to-[#2c2c2c]';
 
-const PHOTO = 'rounded-[14px] bg-gradient-to-br from-[#4a4a4a] to-[#2c2c2c] shrink-0';
-
-function Photo({ className = '' }: { className?: string }) {
-  return <div className={`${PHOTO} ${className}`} aria-hidden />;
-}
-
-function Role({ children }: { children: React.ReactNode }) {
+function LeadCard({ role, name, dept, desc }: Lead) {
   return (
-    <p
-      className="text-accent font-medium"
-      style={{ fontSize: 'clamp(12px, 0.85vw, 16px)', letterSpacing: '-0.4px' }}
-    >
-      {children}
-    </p>
+    <div className={CARD}>
+      {/* 사진 240×188, inset 18 (of 580×221) */}
+      <div className={PHOTO} style={{ left: '3.103%', top: '8.14%', width: '41.379%', height: '85.068%' }} />
+      <p
+        className="absolute text-accent font-medium"
+        style={{ left: '50.69%', top: '12.22%', fontSize: 'clamp(11px, 0.95vw, 16px)', letterSpacing: '-0.4px' }}
+      >
+        {role}
+      </p>
+      <p
+        className="absolute text-white font-bold leading-none"
+        style={{ left: '50.69%', top: '26.24%', fontSize: 'clamp(18px, 1.55vw, 26px)', letterSpacing: '-0.8px' }}
+      >
+        {name}
+      </p>
+      <p
+        className="absolute text-[#8b8b8b]"
+        style={{ left: '50.69%', top: '47.06%', fontSize: 'clamp(10px, 0.8vw, 12px)', letterSpacing: '-0.4px' }}
+      >
+        {dept}
+      </p>
+      <p
+        className="absolute text-[#5c5c5c] leading-relaxed"
+        style={{ left: '50.69%', top: '64.71%', width: '39.828%', fontSize: 'clamp(11px, 0.85vw, 14px)', letterSpacing: '-0.3px' }}
+      >
+        {desc}
+      </p>
+    </div>
   );
 }
 
-function Name({ children }: { children: React.ReactNode }) {
+function SessionCard({ role, name, dept }: Session) {
   return (
-    <p
-      className="text-white font-bold leading-none"
-      style={{ fontSize: 'clamp(18px, 1.5vw, 28px)', letterSpacing: '-0.8px' }}
-    >
-      {children}
-    </p>
+    <div className={CARD}>
+      {/* 사진 174×188 (of ~380×221) */}
+      <div className={PHOTO} style={{ left: '4.9%', top: '8.14%', width: '45%', height: '85.068%' }} />
+      <p
+        className="absolute text-accent font-medium"
+        style={{ left: '56.5%', top: '13.1%', fontSize: 'clamp(10px, 0.85vw, 15px)', letterSpacing: '-0.4px' }}
+      >
+        {role}
+      </p>
+      <p
+        className="absolute text-white font-bold leading-none"
+        style={{ left: '56.5%', top: '23.9%', fontSize: 'clamp(15px, 1.2vw, 20px)', letterSpacing: '-0.6px' }}
+      >
+        {name}
+      </p>
+      <p
+        className="absolute text-[#8b8b8b]"
+        style={{ left: '56.5%', top: '38.9%', fontSize: 'clamp(10px, 0.8vw, 12px)', letterSpacing: '-0.4px' }}
+      >
+        {dept}
+      </p>
+    </div>
   );
 }
 
-function Dept({ children }: { children: React.ReactNode }) {
+function PromoCard() {
   return (
-    <p
-      className="text-[#8b8b8b]"
-      style={{ fontSize: 'clamp(12px, 0.85vw, 16px)', letterSpacing: '-0.4px' }}
-    >
-      {children}
-    </p>
+    <div className={CARD} style={{ aspectRatio: '180 / 128' }}>
+      <p
+        className="absolute text-accent font-medium"
+        style={{ left: '9.83%', top: '16.4%', fontSize: 'clamp(10px, 0.8vw, 13px)', letterSpacing: '-0.3px' }}
+      >
+        홍보부장
+      </p>
+      <p
+        className="absolute text-white font-bold leading-none"
+        style={{ left: '9.83%', top: '37.5%', fontSize: 'clamp(14px, 1.15vw, 20px)', letterSpacing: '-0.6px' }}
+      >
+        이름
+      </p>
+      <p
+        className="absolute text-[#8b8b8b]"
+        style={{ left: '9.83%', top: '63.3%', fontSize: 'clamp(9px, 0.72vw, 11px)', letterSpacing: '-0.3px' }}
+      >
+        학과 / 학번
+      </p>
+    </div>
   );
 }
 
@@ -93,14 +124,15 @@ export default function Members() {
   return (
     <section
       id="members"
-      className="members-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-14 px-6 py-24 overflow-hidden"
+      className="members-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-16 px-6 py-24 overflow-hidden"
     >
+      {/* Figma 글로우 2겹 */}
+      <div className="members-glow-base" />
+      <div className="members-glow-accent" />
+
       {/* 헤더 */}
-      <div className="relative flex flex-col items-center gap-4 text-center">
-        <p
-          className="text-white"
-          style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
-        >
+      <div className="relative z-[1] flex flex-col items-center gap-4 text-center">
+        <p className="text-white" style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}>
           운영진 소개
         </p>
         <p
@@ -111,54 +143,30 @@ export default function Members() {
         </p>
       </div>
 
-      <div className="relative w-[82%] max-w-[1417px] flex flex-col gap-5">
-        {/* 상단: 회장/부회장(넓은 카드) + 세션장 4카드 */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_1fr_1fr]">
-          {/* 회장 · 부회장 */}
-          <div className="flex flex-col gap-5">
-            {leads.map((m) => (
-              <div key={m.role} className={`${CARD} flex gap-5 p-5`}>
-                <Photo className="w-[42%] aspect-[4/3] self-start" />
-                <div className="flex flex-col gap-3 py-1">
-                  <Role>{m.role}</Role>
-                  <Name>{m.name}</Name>
-                  <Dept>{m.dept}</Dept>
-                  <p
-                    className="text-[#5c5c5c] leading-relaxed"
-                    style={{ fontSize: 'clamp(12px, 0.85vw, 16px)', letterSpacing: '-0.4px' }}
-                  >
-                    {m.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* 세션장 4카드 — 2열 x 2행 (좌: 프론트/기획, 우: 백엔드/AI) */}
-          {[0, 2].map((colStart) => (
-            <div key={colStart} className="flex flex-col gap-5">
-              {[sessions[colStart], sessions[colStart + 1]].map((m) => (
-                <div key={m.role} className={`${CARD} flex gap-4 p-5`}>
-                  <Photo className="w-[45%] aspect-square self-start" />
-                  <div className="flex flex-col gap-2.5 py-1">
-                    <Role>{m.role}</Role>
-                    <Name>{m.name}</Name>
-                    <Dept>{m.dept}</Dept>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+      <div className="relative z-[1] w-[82%] max-w-[1390px]">
+        {/* 상단: 회장/부회장(580) · 세션장(380·390), 2행. gap 20(=1.4388% of 1390) */}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: '41.727% 27.338% 28.058%',
+            gridTemplateRows: '1fr 1fr',
+            columnGap: '1.4388%',
+            rowGap: '4.329%',
+            aspectRatio: '1390 / 462',
+          }}
+        >
+          <LeadCard {...leads[0]} />
+          <SessionCard {...sessionsRow1[0]} />
+          <SessionCard {...sessionsRow1[1]} />
+          <LeadCard {...leads[1]} />
+          <SessionCard {...sessionsRow2[0]} />
+          <SessionCard {...sessionsRow2[1]} />
         </div>
 
-        {/* 하단: 홍보부장 7카드 */}
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-7">
-          {promos.map((m, i) => (
-            <div key={i} className={`${CARD} flex flex-col gap-2.5 p-5`}>
-              <Role>{m.role}</Role>
-              <Name>{m.name}</Name>
-              <Dept>{m.dept}</Dept>
-            </div>
+        {/* 하단: 홍보부장 180×128 ×7, gap 20 */}
+        <div className="grid grid-cols-7" style={{ columnGap: '1.4388%', marginTop: '1.4388%' }}>
+          {Array.from({ length: promoCount }).map((_, i) => (
+            <PromoCard key={i} />
           ))}
         </div>
       </div>
