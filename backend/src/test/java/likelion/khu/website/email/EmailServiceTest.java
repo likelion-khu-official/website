@@ -12,6 +12,9 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.IContext;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -22,11 +25,15 @@ import java.time.Month;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// mailSender·emailLogRepository만 목(mock) 처리하고 templateEngine은 진짜 SpringTemplateEngine을 씀
+// — 렌더링된 본문에 실제 값이 들어갔는지까지 검증하려면 템플릿 엔진이 진짜여야 함(목이면 process()가 빈 값 반환).
 class EmailServiceTest {
 
     private static final String FROM = "noreply@likelion-khu.com";
@@ -42,8 +49,12 @@ class EmailServiceTest {
 
     @BeforeEach
     void setUp() {
+        // @ExtendWith(MockitoExtension.class) 대신 수동으로 @Mock 필드를 초기화하는 방식(효과는 동일).
         MockitoAnnotations.openMocks(this);
 
+        // 스프링 컨테이너를 안 띄우는 단위 테스트라 Thymeleaf 자동설정이 없음 — application.yml에
+        // 커스텀 thymeleaf 설정이 없어 Spring Boot 기본값(classpath:/templates/, .html)을 손으로 재현.
+        // (나중에 application.yml에 thymeleaf 설정이 추가되면 여기도 같이 맞춰야 함 — 자동 동기화 안 됨)
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix("templates/");
         resolver.setSuffix(".html");
@@ -54,9 +65,14 @@ class EmailServiceTest {
 
         emailService = createService("prod");
 
+        // createMimeMessage()가 Mockito 목이 아니라 진짜 MimeMessage를 반환하게 함 — 목이면 helper.setSubject() 등이
+        // 아무 상태도 안 바꾸는 빈 껍데기라, 나중에 sent.getSubject()로 값을 다시 꺼내는 검증이 불가능해짐.
+        // Session은 null이어도 무방 — mailSender.send() 자체가 목이라 실제 세션 연결이 일어나지 않음.
         when(mailSender.createMimeMessage()).thenAnswer(invocation -> new MimeMessage((jakarta.mail.Session) null));
     }
 
+    // final 필드(mailSender 등) 4개는 생성자로 바로 주입 가능하지만, from은 @Value 필드 주입이라
+    // 생성자 파라미터가 아님 — 리플렉션(ReflectionTestUtils)으로 private 필드에 강제로 값을 넣어야 함.
     private EmailService createService(String... activeProfiles) {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles(activeProfiles);
@@ -73,6 +89,8 @@ class EmailServiceTest {
 
         emailService.sendInviteEmail(to, inviteUrl, expiresAt);
 
+        // sent: mailSender.send(...)에 실제 인자로 넘어갔던(=전송 시도된) MimeMessage를 캡처해온 것.
+        // send()는 EmailService/JavaMailSender의 "보내라" 동작(메서드)이고, sent는 그 결과물(변수 이름)일 뿐 — 서로 무관.
         ArgumentCaptor<MimeMessage> messageCaptor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(messageCaptor.capture());
         MimeMessage sent = messageCaptor.getValue();
@@ -88,7 +106,7 @@ class EmailServiceTest {
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
         assertThat(log.getRecipient()).isEqualTo(to);
-        assertThat(log.getType()).isEqualTo(EmailType.INVITE);
+        assertThat(log.getEmailType()).isEqualTo(EmailType.INVITE);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
         assertThat(log.getSubject()).isEqualTo(EmailType.INVITE.getSubject());
         assertThat(log.getErrorMessage()).isNull();
@@ -117,7 +135,7 @@ class EmailServiceTest {
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
-        assertThat(log.getType()).isEqualTo(EmailType.PASSWORD_RESET);
+        assertThat(log.getEmailType()).isEqualTo(EmailType.PASSWORD_RESET);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
     }
 
@@ -135,12 +153,14 @@ class EmailServiceTest {
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
         assertThat(log.getRecipient()).isEqualTo(to);
-        assertThat(log.getType()).isEqualTo(EmailType.INVITE);
+        assertThat(log.getEmailType()).isEqualTo(EmailType.INVITE);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("SMTP 서버에 연결할 수 없어요");
         assertThat(log.getMessageId()).isNull();
     }
 
+    // 서로 다른 두 형식 오류(@ 없음 / 꺾쇠 안 닫힘)를 각각 테스트로 남긴 이유는 email-module.md 39번 줄 참고 —
+    // InternetAddress.validate()가 실제로 걸러주는지 확인하다 발견된 실제 버그(검증 누락)를 고친 지점.
     @Test
     void sendInviteEmail_AddressWithNoAtSign_FailsBeforeSendAttemptAndLogsFailureWithoutMessageId() {
         assertMalformedAddressRejected("not-an-email-address");
@@ -169,6 +189,8 @@ class EmailServiceTest {
         assertThat(log.getMessageId()).isNull();
     }
 
+    // setUp()의 기본 emailService(prod)와 별개로 stage용 인스턴스를 하나 더 만듦 — createService가
+    // 매번 새 EmailService를 반환하지만 mailSender/emailLogRepository 목은 그대로 재사용(필드 공유).
     @Test
     void sendInviteEmail_StageProfile_PrefixesSubjectAndLogsPrefixedSubject() throws Exception {
         EmailService stageEmailService = createService("stage");
@@ -180,12 +202,12 @@ class EmailServiceTest {
         ArgumentCaptor<MimeMessage> messageCaptor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(messageCaptor.capture());
         assertThat(messageCaptor.getValue().getSubject())
-                .isEqualTo("[STAGE 테스트] " + EmailType.INVITE.getSubject());
+                .isEqualTo("[stage] " + EmailType.INVITE.getSubject());
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());
         assertThat(logCaptor.getValue().getSubject())
-                .isEqualTo("[STAGE 테스트] " + EmailType.INVITE.getSubject());
+                .isEqualTo("[stage] " + EmailType.INVITE.getSubject());
     }
 
     @Test
@@ -196,5 +218,52 @@ class EmailServiceTest {
         ArgumentCaptor<MimeMessage> messageCaptor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(messageCaptor.capture());
         assertThat(messageCaptor.getValue().getSubject()).isEqualTo(EmailType.INVITE.getSubject());
+    }
+
+    // send()의 catch를 (MessagingException | MailException)에서 Exception으로 넓히기 전엔, InternetAddress가
+    // to=null에서 MessagingException이 아닌 예외(NPE 등)를 던지면 이 catch를 통과해 로그도 안 남고
+    // EmailSendException도 아닌 원본 예외가 그대로 새어나갔다 — 그 회귀를 막기 위한 테스트.
+    @Test
+    void sendInviteEmail_NullRecipient_LogsFailureAndThrowsEmailSendException() {
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                null, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        EmailLog log = logCaptor.getValue();
+        assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
+        assertThat(log.getMessageId()).isNull();
+    }
+
+    // send()가 템플릿 렌더링(try 밖에 있던 시절)에서 던져지는 예외까지 email_log에 반드시 남기고
+    // EmailSendException으로 통일해 던지는지 확인 — templateEngine만 이 테스트 한정으로 별도 목으로 교체.
+    @Test
+    void sendInviteEmail_TemplateRenderingFails_LogsFailureAndThrowsEmailSendException() {
+        TemplateEngine brokenTemplateEngine = mock(TemplateEngine.class);
+        when(brokenTemplateEngine.process(anyString(), any(IContext.class)))
+                .thenThrow(new TemplateProcessingException("템플릿이 깨졌어요"));
+
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("prod");
+        EmailService serviceWithBrokenTemplate =
+                new EmailService(mailSender, brokenTemplateEngine, emailLogRepository, environment);
+        ReflectionTestUtils.setField(serviceWithBrokenTemplate, "from", FROM);
+
+        assertThatThrownBy(() -> serviceWithBrokenTemplate.sendInviteEmail(
+                "invitee@khu.ac.kr", "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        // 템플릿 렌더링 단계에서 이미 터져서 실제 send() 시도까지 가지도 않음
+        verify(mailSender, never()).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        EmailLog log = logCaptor.getValue();
+        assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
+        assertThat(log.getErrorMessage()).contains("템플릿이 깨졌어요");
+        assertThat(log.getMessageId()).isNull();
     }
 }

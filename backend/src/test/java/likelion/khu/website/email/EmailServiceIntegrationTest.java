@@ -31,6 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * OCI SMTP는 대상이 아님 — 우리 코드가 표준 SMTP 스펙대로 정확히 동작하는지가 검증 대상.
  * prod 프로파일을 명시해 "제목에 stage 접두어가 안 붙는다"도 실제 배포 조건 그대로 함께 검증한다.
  */
+// @DirtiesContext 필수 — test application.yml이 인메모리 SQLite(jdbc:sqlite::memory:)라
+// 컨텍스트를 재사용하면 커넥션도 재사용돼서, 이 클래스의 테스트 2개가 email_log를 공유해버림
+// (두 번째 테스트 실행 시 첫 번째가 저장한 row가 남아있어 hasSize(1) 검증이 깨짐).
+// 테스트마다 컨텍스트를 통째로 새로 띄워 매번 빈 DB로 시작하게 강제.
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("prod")
@@ -53,6 +57,8 @@ class EmailServiceIntegrationTest {
                             "--smtp-auth-accept-any"
                     );
 
+    // 컨테이너가 뜨는 host·port는 Docker가 실행 시점에 랜덤 배정 — test/resources/application.yml의
+    // 고정값(localhost:3025)으론 못 맞추니, 컨텍스트가 뜨기 직전에 실제 값으로 덮어씀.
     @DynamicPropertySource
     static void mailProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.mail.host", mailpit::getHost);
@@ -95,10 +101,12 @@ class EmailServiceIntegrationTest {
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
         assertThat(logs.get(0).getRecipient()).isEqualTo(to);
-        assertThat(logs.get(0).getType()).isEqualTo(EmailType.INVITE);
+        assertThat(logs.get(0).getEmailType()).isEqualTo(EmailType.INVITE);
         assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
         assertThat(logs.get(0).getSubject()).isEqualTo(EmailType.INVITE.getSubject());
         assertThat(logs.get(0).getSentAt()).isNotNull();
+        // status는 messageId와 무관하게 EmailLog.failure()/success()에서 직접 세팅되는 별개 컬럼 —
+        // 여기 SUCCESS 케이스는 messageId도 채워지는지까지 같이 보는 것뿐, 실패 여부 판단에 messageId가 필요한 건 아님.
         // 실제 JavaMailSender가 SMTP 전송 직전 saveChanges()로 생성한 진짜 Message-ID.
         // 우리 쪽 저장값은 RFC 5322 형식 그대로(<...> 포함), Mailpit API는 꺾쇠를 벗겨서 돌려줌 — 같은 값인지 벗겨서 비교.
         assertThat(logs.get(0).getMessageId()).isNotBlank().startsWith("<").endsWith(">");
@@ -124,7 +132,7 @@ class EmailServiceIntegrationTest {
 
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getType()).isEqualTo(EmailType.PASSWORD_RESET);
+        assertThat(logs.get(0).getEmailType()).isEqualTo(EmailType.PASSWORD_RESET);
         assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
         assertThat(logs.get(0).getMessageId()).isNotBlank();
         assertThat(detail.get("MessageID").asText())

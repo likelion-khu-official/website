@@ -51,7 +51,9 @@ class EmailServiceFailureIntegrationTest {
         registry.add("spring.mail.properties.mail.smtp.auth", () -> "true");
         registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
         registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
-        // 컨테이너를 끈 뒤 연결 실패를 빠르게 확인하기 위해 타임아웃을 짧게 둠
+        // 컨테이너를 끈 뒤 연결 실패를 빠르게 확인하기 위해 타임아웃을 짧게 둠.
+        // 주의: 이 타임아웃은 이 테스트 클래스에만 적용됨 — 실제 application.yml(main)엔
+        // connectiontimeout/timeout이 전혀 설정돼 있지 않아 prod/stage는 기본값(사실상 무한 대기)으로 동작함.
         registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
         registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
     }
@@ -74,6 +76,7 @@ class EmailServiceFailureIntegrationTest {
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
         assertThat(logs.get(0).getRecipient()).isEqualTo(to);
+        // status는 messageId와 무관한 별개 컬럼 — 실제 조회 시에도 FAILURE 여부는 이 값 하나로 바로 드러남
         assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(logs.get(0).getErrorMessage()).isNotBlank();
         // 연결 자체가 실패하는 경우 Spring이 Transport 연결을 saveChanges()보다 먼저 시도하다 터짐

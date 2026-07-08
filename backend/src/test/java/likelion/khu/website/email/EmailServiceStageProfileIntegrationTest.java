@@ -24,10 +24,12 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * stage 프로파일에서 실제로 나가는 메일 제목에 [STAGE 테스트] 접두어가 붙는지,
+ * stage 프로파일에서 실제로 나가는 메일 제목에 [stage] 접두어가 붙는지,
  * email_log에도 접두어 포함 제목이 남는지를 실제 SMTP+DB로 검증한다.
  * (EmailServiceTest#sendInviteEmail_StageProfile_... 의 통합 버전 — 목이 아닌 실경로)
  */
+// 테스트가 1개뿐이라 @DirtiesContext 없이도 인메모리 SQLite 컨텍스트 재사용 문제가 없음
+// (EmailServiceIntegrationTest는 테스트 2개라 필수 — 그쪽 주석 참고).
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("stage")
@@ -76,12 +78,12 @@ class EmailServiceStageProfileIntegrationTest {
 
         JsonNode received = awaitMessageTo(to);
         assertThat(received.get("Subject").asText())
-                .isEqualTo("[STAGE 테스트] " + EmailType.INVITE.getSubject());
+                .isEqualTo("[stage] " + EmailType.INVITE.getSubject());
 
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
         assertThat(logs.get(0).getSubject())
-                .isEqualTo("[STAGE 테스트] " + EmailType.INVITE.getSubject());
+                .isEqualTo("[stage] " + EmailType.INVITE.getSubject());
         assertThat(logs.get(0).getMessageId()).isNotBlank();
     }
 

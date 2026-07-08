@@ -28,7 +28,7 @@ public class EmailLog {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private EmailType type;
+    private EmailType emailType;
 
     @Column(nullable = false)
     private String subject;
@@ -49,10 +49,12 @@ public class EmailLog {
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
-    private EmailLog(String recipient, EmailType type, String subject, EmailStatus status,
+    // private — 외부에서 new EmailLog(...)로 임의 생성 못 하게 막고, 아래 success()/failure()로만 생성 강제.
+    // 그래서 "성공인데 errorMessage가 들어있는" 같은 불일치 상태가 애초에 만들어질 수 없음.
+    private EmailLog(String recipient, EmailType emailType, String subject, EmailStatus status,
                       String errorMessage, String messageId) {
         this.recipient = recipient;
-        this.type = type;
+        this.emailType = emailType;
         this.subject = subject;
         this.status = status;
         this.errorMessage = errorMessage;
@@ -60,12 +62,14 @@ public class EmailLog {
         this.sentAt = LocalDateTime.now();
     }
 
-    public static EmailLog success(String recipient, EmailType type, String subject, String messageId) {
-        return new EmailLog(recipient, type, subject, EmailStatus.SUCCESS, null, messageId);
+    // success/failure 두 팩토리로 나눠서, 성공 로그엔 애초에 errorMessage를 넘길 파라미터 자리 자체가 없게 함
+    // (하나의 of(...)로 합쳤다면 status=SUCCESS인데 errorMessage를 실수로 채워 넘기는 걸 막을 방법이 없었을 것).
+    public static EmailLog success(String recipient, EmailType emailType, String subject, String messageId) {
+        return new EmailLog(recipient, emailType, subject, EmailStatus.SUCCESS, null, messageId);
     }
 
-    public static EmailLog failure(String recipient, EmailType type, String subject,
+    public static EmailLog failure(String recipient, EmailType emailType, String subject,
                                     String errorMessage, String messageId) {
-        return new EmailLog(recipient, type, subject, EmailStatus.FAILURE, errorMessage, messageId);
+        return new EmailLog(recipient, emailType, subject, EmailStatus.FAILURE, errorMessage, messageId);
     }
 }

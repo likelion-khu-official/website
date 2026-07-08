@@ -45,6 +45,11 @@ spring:
           auth: true
           starttls:
             enable: true
+          # OCI가 응답 없이 멈추는 경우에도 요청 스레드가 무한정 잡히지 않도록 상한선을 둠(ms).
+          # 미설정 시 기본값이 사실상 무한 대기라, 컨트롤러가 붙어 동기 호출되면 톰캣 스레드 풀 고갈로 이어질 수 있음.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 jwt:
   secret: ${JWT_SECRET}
