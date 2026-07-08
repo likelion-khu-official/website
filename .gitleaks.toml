@@ -22,3 +22,7 @@ regexes = [
   '''noreply@likelion-khu\.com''',
   '''@likelion-khu\.com''',
 ]
+paths = [
+  # Mailpit 통합테스트 전용 자체서명 TLS 키 — 실제 비밀키 아님(email-module.md에 fixture로 문서화됨)
+  '''backend/src/test/resources/mailpit-tls/key\.pem''',
+]

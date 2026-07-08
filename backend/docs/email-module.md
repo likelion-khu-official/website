@@ -31,7 +31,7 @@
 | 7 | `email_log` 실제 DB 저장 | 1번과 동일 호출, **목이 아닌 진짜 `EmailLogRepository`** (SQLite) | `emailLogRepository.findAll()`에 실제 row 1건 — recipient·emailType·status·subject·sentAt 전부 채워짐 | `EmailServiceIntegrationTest`·`EmailServiceStageProfileIntegrationTest`·`EmailServiceFailureIntegrationTest` 전부 (Spring이 실제로 주입한 리포지토리 빈 사용) — 성격상 "통합"에만 속하는 항목 |
 | 8 | 실제 SMTP 프로토콜 왕복 (Thymeleaf 렌더링 → `JavaMailSender` → SMTP → 수신함) | `EmailService` 실빈 + Testcontainers로 띄운 Mailpit(실제 SMTP 서버)에 발송 | Mailpit API로 조회한 수신 메일의 제목·발신자·수신자·HTML 본문이 입력값과 정확히 일치 | `EmailServiceIntegrationTest#sendInviteEmail_RealSmtpRoundTrip_...`, `#sendPasswordResetEmail_RealSmtpRoundTrip_...` — 성격상 "통합"에만 속하는 항목 |
 | 8-1 | 발송 성공 시 `messageId` 캡처(OCI Logging 연동 대비 조인키) | 8번과 동일 발송 | `email_log.messageId`가 `<...>` 형식으로 채워지고, 그 값(꺾쇠 제거)이 Mailpit이 실제로 받은 메일의 `MessageID`와 정확히 일치 | `EmailServiceIntegrationTest` 두 테스트 모두 — `saveChanges()`가 실제로 실행돼야 생기는 값이라 목으로는 검증 불가, 통합에만 속하는 항목 |
-| 9 | OCI STAGE 자격증명으로 실제 발송 (수동, 1회) | STAGE SMTP 자격증명, 수신자 `cjang6199@gmail.com` | Gmail 수신함 도착 확인(사용자 보고) | ⚠️ 자동화 테스트 아님 — 이 개발 세션에서 임시 테스트 클래스로 1회 실행 후 삭제. 재현하려면 실제 자격증명 필요 |
+| 9 | OCI STAGE 자격증명으로 실제 발송 (수동, 1회) | STAGE SMTP 자격증명, 수신자 인프라 오너 개인 Gmail 메일함 | Gmail 수신함 도착 확인(사용자 보고) | ⚠️ 자동화 테스트 아님 — 이 개발 세션에서 임시 테스트 클래스로 1회 실행 후 삭제. 재현하려면 실제 자격증명 필요 |
 | 10 | OCI PROD 자격증명 AUTH 확인 (수동, 1회) | PROD SMTP 자격증명, STARTTLS+AUTH LOGIN만 (메일 미발송) | `AUTH_OK` | ⚠️ 자동화 테스트 아님 — 스크립트 실행 후 즉시 삭제 |
 
 **1:1 매칭 원칙**: 4·5·6번처럼 "우리 코드의 조건 분기"를 검증하는 항목은 단위(빠른 피드백, 목으로 경우의 수 다양화)와 통합(실제 SMTP·DB로 그 분기가 실환경에서도 똑같이 동작하는지) 둘 다 필요해서 1:1로 맞췄다. 7·8번은 애초에 "진짜 인프라를 쓰는가"가 검증 대상이라 목으로 만드는 순간 의미가 없어져 통합에만 존재한다.
