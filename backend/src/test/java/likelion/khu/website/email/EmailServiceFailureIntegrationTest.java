@@ -52,8 +52,8 @@ class EmailServiceFailureIntegrationTest {
         registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
         registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
         // 컨테이너를 끈 뒤 연결 실패를 빠르게 확인하기 위해 타임아웃을 짧게 둠.
-        // 주의: 이 타임아웃은 이 테스트 클래스에만 적용됨 — 실제 application.yml(main)엔
-        // connectiontimeout/timeout이 전혀 설정돼 있지 않아 prod/stage는 기본값(사실상 무한 대기)으로 동작함.
+        // 주의: 이 타임아웃은 이 테스트 클래스에만 적용됨 — main application.yml에서도 타임아웃(5초)을 두지만,
+        // 여기선 실패 케이스를 빠르게 끝내기 위해 더 짧게(3초) 오버라이드한다.
         registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
         registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
     }
