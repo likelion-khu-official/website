@@ -45,8 +45,8 @@ export default function NotificationForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm">
-      <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm mx-auto items-center">
+      <div className="flex gap-2 w-full">
         <input
           type="email"
           value={email}
@@ -54,18 +54,18 @@ export default function NotificationForm() {
           placeholder="이메일 주소를 입력해 주세요"
           required
           disabled={state === 'loading' || state === 'success'}
-          className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-400"
+          className="flex-1 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm text-white placeholder:text-muted outline-none focus:border-white/40 disabled:opacity-40"
         />
         <button
           type="submit"
           disabled={state === 'loading' || state === 'success'}
-          className="rounded-lg bg-black px-5 py-2.5 text-sm text-white disabled:opacity-40"
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white whitespace-nowrap hover:bg-white/20 transition-colors disabled:opacity-40"
         >
-          {state === 'loading' ? '신청 중…' : state === 'success' ? '완료' : '신청하기'}
+          {state === 'loading' ? '신청 중…' : state === 'success' ? '완료' : '지원기간 신청 알림 받기'}
         </button>
       </div>
       {(state === 'success' || state === 'error') && (
-        <p className={`text-sm ${state === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+        <p className={`text-sm ${state === 'success' ? 'text-accent' : 'text-red-400'}`}>
           {message}
         </p>
       )}
