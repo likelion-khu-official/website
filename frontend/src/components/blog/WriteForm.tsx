@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getTokenStatus, createPost, FeedApiError } from '@/lib/feedApi';
-import type { PostCreateRequest } from '@/types/feed';
+import type { PostCreateRequest } from '@shared/types/feed';
 import ImageUploader from './ImageUploader';
 
 type TokenState = 'checking' | 'no-token' | 'valid' | 'expired' | 'used' | 'error';

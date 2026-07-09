@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Comment } from '@/types/feed';
+import type { Comment } from '@shared/types/feed';
 import { getComments, createComment, FeedApiError } from '@/lib/feedApi';
 import { formatDate } from '@/lib/formatDate';
 

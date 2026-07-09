@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { PostSummary } from '@/types/feed';
+import type { PostSummary } from '@shared/types/feed';
 import { formatDate } from '@/lib/formatDate';
 
 export default function PostCard({ post }: { post: PostSummary }) {

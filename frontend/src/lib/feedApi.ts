@@ -7,7 +7,7 @@ import type {
   CommentCreateRequest,
   MagicLinkTokenStatusResponse,
   FeedImageUploadResponse,
-} from '@/types/feed';
+} from '@shared/types/feed';
 
 /**
  * 모든 호출은 /api/* 상대경로 — 서버 컴포넌트에서 쓸 땐 baseUrl(getBaseUrl())을
