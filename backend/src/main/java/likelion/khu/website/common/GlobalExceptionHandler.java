@@ -1,5 +1,19 @@
 package likelion.khu.website.common;
 
+import likelion.khu.website.admin.exception.AccountLockedException;
+import likelion.khu.website.admin.exception.AdminAlreadyMemberException;
+import likelion.khu.website.admin.exception.AdminInvitationAlreadyProcessedException;
+import likelion.khu.website.admin.exception.AdminInvitationExpiredException;
+import likelion.khu.website.admin.exception.AdminInvitationIdNotFoundException;
+import likelion.khu.website.admin.exception.AdminInvitationNotFoundException;
+import likelion.khu.website.admin.exception.AdminNotFoundException;
+import likelion.khu.website.admin.exception.InvalidCredentialsException;
+import likelion.khu.website.admin.exception.InvalidEmailDomainException;
+import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
+import likelion.khu.website.admin.exception.LastSuperAdminException;
+import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
+import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
+import likelion.khu.website.admin.exception.WeakPasswordException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
 import likelion.khu.website.feed.exception.MagicLinkTokenExpiredException;
@@ -61,5 +75,67 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("success", false, "message", ex.getMessage()));
+    }
+
+    // ── 어드민 인증(#90) — 이 모듈만 기존 success/message 2키에 code(FE가 분기할 짧은 문자열)를 얹는다 ──
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(ex.getMessage(), "INVALID_CREDENTIALS"));
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountLocked(AccountLockedException ex) {
+        return ResponseEntity.status(HttpStatus.LOCKED).body(errorBody(ex.getMessage(), "ACCOUNT_LOCKED"));
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(ex.getMessage(), "INVALID_REFRESH_TOKEN"));
+    }
+
+    @ExceptionHandler(InvalidEmailDomainException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidEmailDomain(InvalidEmailDomainException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "INVALID_EMAIL_DOMAIN"));
+    }
+
+    @ExceptionHandler(AdminAlreadyMemberException.class)
+    public ResponseEntity<Map<String, Object>> handleAdminAlreadyMember(AdminAlreadyMemberException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "ALREADY_MEMBER"));
+    }
+
+    @ExceptionHandler({AdminInvitationNotFoundException.class, AdminInvitationAlreadyProcessedException.class,
+            PasswordResetTokenNotFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleAdminTokenInvalid(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "INVALID_TOKEN"));
+    }
+
+    @ExceptionHandler({AdminInvitationExpiredException.class, PasswordResetTokenExpiredException.class})
+    public ResponseEntity<Map<String, Object>> handleAdminTokenExpired(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.GONE).body(errorBody(ex.getMessage(), "EXPIRED_TOKEN"));
+    }
+
+    @ExceptionHandler(WeakPasswordException.class)
+    public ResponseEntity<Map<String, Object>> handleWeakPassword(WeakPasswordException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "WEAK_PASSWORD"));
+    }
+
+    @ExceptionHandler(LastSuperAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleLastSuperAdmin(LastSuperAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "LAST_SUPER_ADMIN"));
+    }
+
+    @ExceptionHandler(AdminNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAdminNotFound(AdminNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    @ExceptionHandler(AdminInvitationIdNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAdminInvitationIdNotFound(AdminInvitationIdNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    private Map<String, Object> errorBody(String message, String code) {
+        return Map.of("success", false, "message", message, "code", code);
     }
 }

@@ -32,6 +32,17 @@ jwt:
   access-expiration: 900000
   refresh-expiration: 604800000
 
+admin:
+  lockout:
+    max-attempts: 5
+    duration-minutes: 15
+  seed:
+    super-admins:
+
+app:
+  frontend-base-url: https://admin.likelion-khu.com
+  cookie-secure: true
+
 oci-storage:
   endpoint: https://test.compat.objectstorage.ap-tokyo-1.oraclecloud.com
   region: ap-tokyo-1
