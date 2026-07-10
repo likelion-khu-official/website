@@ -24,6 +24,7 @@ import java.time.Month;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Testcontainers로 실제 SMTP 서버(Mailpit)를 띄워 EmailService의 전체 경로
@@ -81,6 +82,9 @@ class EmailServiceIntegrationTest {
     @Autowired
     private EmailLogRepository emailLogRepository;
 
+    @Autowired
+    private TransactionalEmailInviter transactionalEmailInviter;
+
     @Test
     void sendInviteEmail_RealSmtpRoundTrip_ArrivesWithCorrectContentAndIsLogged() throws Exception {
         String to = "new-admin@khu.ac.kr";
@@ -137,6 +141,40 @@ class EmailServiceIntegrationTest {
         assertThat(logs.get(0).getMessageId()).isNotBlank();
         assertThat(detail.get("MessageID").asText())
                 .isEqualTo(logs.get(0).getMessageId().replaceAll("[<>]", ""));
+    }
+
+    /**
+     * #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 발송 자체는 성공해도, 호출자의 @Transactional
+     * 메서드가 이후 다른 이유로 실패해 롤백되면 성공 로그가 살아남아야 한다. EmailLogEventListener가
+     * 트랜잭션 완료 후 별도 스레드에서 저장하므로(왜 그런 구조인지는 EmailService.recordSuccess() 주석
+     * 참고), 저장이 끝날 때까지 짧게 폴링해서 확인한다.
+     */
+    @Test
+    void sendInviteEmail_SucceedsButOuterTransactionLaterRollsBackForUnrelatedReason_SuccessLogEventuallySurvivesRollback()
+            throws Exception {
+        String to = "rollback-success-target@khu.ac.kr";
+
+        assertThatThrownBy(() -> transactionalEmailInviter.inviteThenFailForUnrelatedReason(
+                to, "https://admin.likelion-khu.com/invite?token=it-tx-rollback-success", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(IllegalStateException.class);
+
+        List<EmailLog> logs = awaitEmailLogFor(to);
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
+    }
+
+    /** EmailLogEventListener가 별도 스레드(@Async)에서 저장을 마칠 때까지 짧게 폴링. */
+    private List<EmailLog> awaitEmailLogFor(String to) throws InterruptedException {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            List<EmailLog> logs = emailLogRepository.findAll().stream()
+                    .filter(log -> log.getRecipient().equals(to))
+                    .toList();
+            if (!logs.isEmpty()) {
+                return logs;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError(to + " 앞으로 온 email_log 기록을 찾지 못했어요 (타임아웃)");
     }
 
     /** Mailpit이 SMTP로 받은 메일을 API에 반영하기까지의 짧은 지연을 흡수하기 위한 폴링. */

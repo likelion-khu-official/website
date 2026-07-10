@@ -6,6 +6,7 @@ import jakarta.mail.internet.MimeMessage;
 import likelion.khu.website.email.exception.EmailSendException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -27,11 +28,12 @@ public class EmailService {
     private static final String STAGE_SUBJECT_PREFIX = "[stage] ";
 
     // final + private: 생성자 주입 이후 재할당 불가(불변) + 외부에 노출 안 하는 내부 협력 객체.
-    // @RequiredArgsConstructor(Lombok)가 이 네 final 필드만 받는 생성자를 자동 생성 — 직접 안 써도 됨.
+    // @RequiredArgsConstructor(Lombok)가 이 다섯 final 필드만 받는 생성자를 자동 생성 — 직접 안 써도 됨.
     // 스프링이 타입으로 매칭해 각 빈을 주입(지금은 타입별 후보가 1개씩이라 @Qualifier 불필요).
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
     private final EmailLogRepository emailLogRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final Environment environment;
 
     // final이 아니라 필드 주입 — @Value는 빈이 아니라 프로퍼티 값이라 생성자 파라미터로 묶기 번거로워 예외적으로 이 방식 사용.
@@ -60,23 +62,7 @@ public class EmailService {
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
     // catch (Exception e)로 넓게 잡는 이유: MessagingException/MailException뿐 아니라 Thymeleaf 렌더링 예외,
     // to가 null일 때 InternetAddress가 던질 수 있는 NullPointerException까지 전부 이 불변식 아래 두기 위한 의도적 선택.
-    //
-    // 활성 트랜잭션 안에서 호출하면 안 되는 이유(#85 리뷰, 신선우 + SQLite 커넥션 풀 실측): 호출자가
-    // @Transactional 메서드 안에서 이 메서드를 부르면, SMTP 실패로 남긴 email_log 실패 기록이 그
-    // 트랜잭션의 롤백에 함께 휩쓸려 사라질 수 있다. REQUIRES_NEW로 email_log 저장만 별도 트랜잭션으로
-    // 분리해 이 문제를 막으려 했으나, 이 프로젝트는 SQLite 특성상 HikariCP 커넥션 풀이 1개로 고정돼
-    // 있어서(application.yml 참고) REQUIRES_NEW가 새 커넥션을 못 받아 타임아웃 나는 걸 CI에서 실측함
-    // (풀을 늘려도 SQLite 자체가 동시 쓰기 트랜잭션 2개를 못 버텨 데드락 — 근본적으로 막힌 경로).
-    // 그래서 "조용히 로그가 사라지는 것"보다 "호출 즉시 크게 실패하는 것"을 택함 — #74가 이 메서드를
-    // @Transactional 메서드 안에서 부르는 순간 바로 알아채도록.
     private void send(String to, EmailType type, Context context) {
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException(
-                    "EmailService.send()는 활성 트랜잭션 안에서 호출할 수 없습니다 — SQLite 커넥션 풀이 1개라 "
-                            + "email_log 기록을 별도 트랜잭션으로 격리할 수 없고, 호출자 트랜잭션이 롤백되면 "
-                            + "발송 기록이 함께 사라집니다. 이 메서드는 반드시 트랜잭션 밖에서 호출하세요.");
-        }
-
         String subject = subjectFor(type);
         MimeMessage message = null;
         try {
@@ -95,19 +81,44 @@ public class EmailService {
             helper.setText(html, true);
 
             mailSender.send(message);
-            emailLogRepository.save(EmailLog.success(to, type, subject, messageIdOf(message)));
+            recordSuccess(to, type, subject, messageIdOf(message));
         } catch (Exception e) {
-            logFailureSafely(to, type, subject, message, e);
+            recordFailureSafely(to, type, subject, message, e);
             throw new EmailSendException(type, to, e);
+        }
+    }
+
+    // 활성 트랜잭션 여부로 저장 경로를 나누는 이유(#85 리뷰, 신선우 + SQLite 커넥션 풀 실측):
+    // 호출자가 @Transactional 메서드 안에서 이 메서드를 부르면(예: 미래의 #74가 토큰 저장과 한
+    // 트랜잭션으로 묶는 경우), email_log 기록이 그 트랜잭션의 롤백에 함께 휩쓸려 사라질 수 있다.
+    // REQUIRES_NEW로 별도 트랜잭션을 열어 이 문제를 막으려 했으나, 이 프로젝트는 SQLite 특성상
+    // HikariCP 커넥션 풀이 1개로 고정돼 있어(application.yml) 바깥 트랜잭션이 그 하나를 붙잡은 채
+    // REQUIRES_NEW가 같은 스레드에서 새 커넥션을 요청하면 서로를 기다리다 데드락/타임아웃 나는 걸
+    // CI에서 실측했다(풀을 늘려도 SQLite 자체가 동시 쓰기 2개를 못 버텨 근본 해결 안 됨).
+    //
+    // 대신 이벤트 발행 후 별도 스레드(@Async)에서 트랜잭션 완료 뒤에 저장하는 방식(EmailLogEventListener)으로
+    // 우회한다 — 원래 스레드는 우리를 기다리지 않고 바로 커넥션을 반납하므로 순환 대기가 안 생긴다.
+    // 활성 트랜잭션이 없을 때(지금까지의 모든 호출 경로)는 예전처럼 그 자리에서 즉시 저장 — 굳이
+    // 비동기로 돌릴 이유가 없고, 기존 동작(테스트 포함)을 그대로 유지한다.
+    private void recordSuccess(String to, EmailType type, String subject, String messageId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            eventPublisher.publishEvent(EmailLogEvent.success(to, type, subject, messageId));
+        } else {
+            emailLogRepository.save(EmailLog.success(to, type, subject, messageId));
         }
     }
 
     // 실패 로그 저장 자체가 또 실패하는 경우(예: DB 커넥션 자체가 죽음)를 대비 — 여기서 예외를 삼켜서
     // send()의 catch가 원래 원인(cause)을 담은 EmailSendException을 반드시 던지도록 보장.
     // (이 로그 저장을 못 하면 email_log엔 안 남지만, 호출자에게 실패를 알리는 것 자체는 절대 놓치지 않음)
-    private void logFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
+    private void recordFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
         try {
-            emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageIdOf(message)));
+            String messageId = messageIdOf(message);
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                eventPublisher.publishEvent(EmailLogEvent.failure(to, type, subject, cause.getMessage(), messageId));
+            } else {
+                emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageId));
+            }
         } catch (Exception loggingFailure) {
             // 의도적으로 무시 — 로깅 실패로 원래 예외 전파(EmailSendException)가 막히면 안 됨
         }

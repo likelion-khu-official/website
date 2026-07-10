@@ -3,12 +3,12 @@ package likelion.khu.website.email;
 import jakarta.mail.Message;
 import jakarta.mail.internet.MimeMessage;
 import likelion.khu.website.email.exception.EmailSendException;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.env.MockEnvironment;
@@ -46,6 +46,9 @@ class EmailServiceTest {
     @Mock
     private EmailLogRepository emailLogRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private SpringTemplateEngine templateEngine;
     private EmailService emailService;
 
@@ -73,12 +76,12 @@ class EmailServiceTest {
         when(mailSender.createMimeMessage()).thenAnswer(invocation -> new MimeMessage((jakarta.mail.Session) null));
     }
 
-    // final 필드(mailSender 등) 4개는 생성자로 바로 주입 가능하지만, from은 @Value 필드 주입이라
+    // final 필드(mailSender 등) 5개는 생성자로 바로 주입 가능하지만, from은 @Value 필드 주입이라
     // 생성자 파라미터가 아님 — 리플렉션(ReflectionTestUtils)으로 private 필드에 강제로 값을 넣어야 함.
     private EmailService createService(String... activeProfiles) {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles(activeProfiles);
-        EmailService service = new EmailService(mailSender, templateEngine, emailLogRepository, environment);
+        EmailService service = new EmailService(mailSender, templateEngine, emailLogRepository, eventPublisher, environment);
         ReflectionTestUtils.setField(service, "from", FROM);
         return service;
     }
@@ -251,7 +254,7 @@ class EmailServiceTest {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("prod");
         EmailService serviceWithBrokenTemplate =
-                new EmailService(mailSender, brokenTemplateEngine, emailLogRepository, environment);
+                new EmailService(mailSender, brokenTemplateEngine, emailLogRepository, eventPublisher, environment);
         ReflectionTestUtils.setField(serviceWithBrokenTemplate, "from", FROM);
 
         assertThatThrownBy(() -> serviceWithBrokenTemplate.sendInviteEmail(
@@ -269,22 +272,28 @@ class EmailServiceTest {
         assertThat(log.getMessageId()).isNull();
     }
 
-    // #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 활성 트랜잭션 안에서 부르면 아예 시도조차 안 하고
-    // 즉시 실패해야 한다(왜 이 가드가 필요한지는 EmailService.send() 코드 주석 참고).
+    // #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 활성 트랜잭션 안에서 부르면 email_log를 직접
+    // save()하지 않고 EmailLogEvent를 발행해야 한다(왜 그런지는 EmailService.recordSuccess() 주석 참고).
     // TransactionSynchronizationManager를 직접 조작해서 실제 DB·Spring 컨텍스트 없이도 "트랜잭션이
-    // 활성 상태"라는 조건만 순수 단위테스트로 재현한다 — 통합 버전은 EmailServiceTransactionGuardIntegrationTest.
+    // 활성 상태"라는 조건만 순수 단위테스트로 재현한다 — 통합 버전은 EmailServiceTransactionBoundaryIntegrationTest.
     @Test
-    void send_CalledWithActiveTransaction_ThrowsImmediatelyWithoutAttemptingSendOrLog() {
+    void send_CalledWithActiveTransaction_PublishesEventInsteadOfSavingDirectly() {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         try {
-            assertThatThrownBy(() -> emailService.sendInviteEmail(
-                    "invitee@khu.ac.kr", "https://admin.likelion-khu.com/invite?token=abc123",
-                    LocalDateTime.now().plusDays(1)))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("트랜잭션");
+            String to = "invitee@khu.ac.kr";
+            emailService.sendInviteEmail(
+                    to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1));
 
-            verify(mailSender, never()).send(any(MimeMessage.class));
+            verify(mailSender).send(any(MimeMessage.class));
             verify(emailLogRepository, never()).save(any());
+
+            ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            assertThat(eventCaptor.getValue()).isInstanceOf(EmailLogEvent.class);
+            EmailLogEvent event = (EmailLogEvent) eventCaptor.getValue();
+            assertThat(event.recipient()).isEqualTo(to);
+            assertThat(event.emailType()).isEqualTo(EmailType.INVITE);
+            assertThat(event.status()).isEqualTo(EmailStatus.SUCCESS);
         } finally {
             // 이 테스트 이후에도 ThreadLocal이 true로 남아 다른 테스트를 오염시키면 안 됨
             TransactionSynchronizationManager.setActualTransactionActive(false);
