@@ -30,7 +30,9 @@ public class EmailService {
     // 스프링이 타입으로 매칭해 각 빈을 주입(지금은 타입별 후보가 1개씩이라 @Qualifier 불필요).
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
-    private final EmailLogRepository emailLogRepository;
+    // EmailLogRepository를 직접 안 쓰고 이 recorder를 거치는 이유는 EmailLogRecorder 클래스 주석 참고
+    // — 호출자 트랜잭션이 롤백돼도 email_log 기록은 살아남아야 해서 REQUIRES_NEW로 분리된 별도 빈.
+    private final EmailLogRecorder emailLogRecorder;
     private final Environment environment;
 
     // final이 아니라 필드 주입 — @Value는 빈이 아니라 프로퍼티 값이라 생성자 파라미터로 묶기 번거로워 예외적으로 이 방식 사용.
@@ -78,7 +80,7 @@ public class EmailService {
             helper.setText(html, true);
 
             mailSender.send(message);
-            emailLogRepository.save(EmailLog.success(to, type, subject, messageIdOf(message)));
+            emailLogRecorder.recordSuccess(to, type, subject, messageIdOf(message));
         } catch (Exception e) {
             logFailureSafely(to, type, subject, message, e);
             throw new EmailSendException(type, to, e);
@@ -90,7 +92,7 @@ public class EmailService {
     // (이 로그 저장을 못 하면 email_log엔 안 남지만, 호출자에게 실패를 알리는 것 자체는 절대 놓치지 않음)
     private void logFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
         try {
-            emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageIdOf(message)));
+            emailLogRecorder.recordFailure(to, type, subject, cause.getMessage(), messageIdOf(message));
         } catch (Exception loggingFailure) {
             // 의도적으로 무시 — 로깅 실패로 원래 예외 전파(EmailSendException)가 막히면 안 됨
         }
