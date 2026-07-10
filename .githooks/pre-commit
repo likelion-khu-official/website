@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# 스테이징된 변경분에 시크릿(키·토큰 등)이 있으면 커밋 자체를 막는다.
+# CI(.github/workflows/gitleaks.yml)는 "이미 푸시된 뒤"에야 걸러주는데, 이 훅은 그보다 앞단(로컬 커밋 시점)에서 막는다.
+# 같은 설정(.gitleaks.toml)을 그대로 씀 — CI와 로컬이 다른 기준으로 걸러지는 걸 방지.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --config "$REPO_ROOT/.gitleaks.toml" --redact -v
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  docker run --rm -v "$REPO_ROOT:/repo" zricethezav/gitleaks:latest \
+    protect --source /repo --staged --config /repo/.gitleaks.toml --redact -v
+else
+  # gitleaks 바이너리도 없고, docker는 없거나 데몬이 안 떠 있음 — 도구를 못 쓰는 상황에서
+  # 커밋 자체를 막으면 안 되므로(도구 문제 ≠ 시크릿 발견) 경고만 하고 통과시킴.
+  echo "⚠️  gitleaks도 docker(데몬 포함)도 로컬에서 못 써서 pre-commit 시크릿 검사를 건너뜁니다." >&2
+  echo "   (CI에서 다시 걸러지긴 하지만, 그땐 이미 푸시된 뒤입니다 — gitleaks 설치를 권장합니다: https://github.com/gitleaks/gitleaks#installing)" >&2
+fi

@@ -13,6 +13,20 @@ spring:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
 
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 jwt:
   secret: test-secret-key-for-ci-must-be-at-least-32-characters-long
   access-expiration: 900000
@@ -26,8 +40,14 @@ oci-storage:
   bucket: test-bucket
   public-url: https://test.objectstorage.ap-tokyo-1.oraclecloud.com/n/test/b/test-bucket/o
 
+mail-sender:
+  from: noreply@likelion-khu.com
+
 management:
   endpoints:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false

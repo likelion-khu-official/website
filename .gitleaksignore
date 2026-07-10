@@ -1,0 +1,7 @@
+# 이미 히스토리에 남은 finding 중, 확인 후 위험 없다고 판단해 무시 처리한 것들.
+# 새 커밋으로 내용은 고쳤지만 예전 커밋의 diff 자체엔 여전히 남아있어 gitleaks가 계속 잡음 —
+# 히스토리 rewrite(rebase) 대신 fingerprint 단위로 무시.
+
+# backend/docs/email-module.md:34 — 인프라 오너 개인 Gmail(수동 테스트 수신자 기록).
+# 이후 커밋(f5e5ce6)에서 문서 내용은 마스킹 완료.
+979726a7924be7fb2114a403f07756d70262e95e:backend/docs/email-module.md:personal-email:34
