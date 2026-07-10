@@ -60,7 +60,7 @@ class AdminInvitationControllerTest {
     void invite_NonKhuEmail_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"someone@gmail.com\"}"))
+                        .content("{\"email\":\"someone@example.com\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_EMAIL_DOMAIN"));
     }
