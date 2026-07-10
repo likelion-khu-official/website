@@ -275,7 +275,8 @@ class EmailServiceTest {
     // #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 활성 트랜잭션 안에서 부르면 email_log를 직접
     // save()하지 않고 EmailLogEvent를 발행해야 한다(왜 그런지는 EmailService.recordSuccess() 주석 참고).
     // TransactionSynchronizationManager를 직접 조작해서 실제 DB·Spring 컨텍스트 없이도 "트랜잭션이
-    // 활성 상태"라는 조건만 순수 단위테스트로 재현한다 — 통합 버전은 EmailServiceTransactionBoundaryIntegrationTest.
+    // 활성 상태"라는 조건만 순수 단위테스트로 재현한다 — 통합 버전은
+    // EmailServiceFailureTransactionBoundaryIntegrationTest / EmailServiceIntegrationTest.
     @Test
     void send_CalledWithActiveTransaction_PublishesEventInsteadOfSavingDirectly() {
         TransactionSynchronizationManager.setActualTransactionActive(true);
@@ -296,6 +297,33 @@ class EmailServiceTest {
             assertThat(event.status()).isEqualTo(EmailStatus.SUCCESS);
         } finally {
             // 이 테스트 이후에도 ThreadLocal이 true로 남아 다른 테스트를 오염시키면 안 됨
+            TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
+    }
+
+    // 위 테스트의 실패 경로 버전 — 성공만 이벤트로 가고 실패는 예전처럼 직접 save()하는 식으로
+    // 갈라져 있으면 안 되므로, 실패 쪽도 똑같이 이벤트를 타는지 별도로 확인해야 함.
+    @Test
+    void send_MailServerRejectsWithActiveTransaction_PublishesFailureEventInsteadOfSavingDirectly() {
+        doThrow(new MailSendException("SMTP 서버에 연결할 수 없어요"))
+                .when(mailSender).send(any(MimeMessage.class));
+
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            String to = "invitee@khu.ac.kr";
+            assertThatThrownBy(() -> emailService.sendInviteEmail(
+                    to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                    .isInstanceOf(EmailSendException.class);
+
+            verify(emailLogRepository, never()).save(any());
+
+            ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            EmailLogEvent event = (EmailLogEvent) eventCaptor.getValue();
+            assertThat(event.recipient()).isEqualTo(to);
+            assertThat(event.status()).isEqualTo(EmailStatus.FAILURE);
+            assertThat(event.errorMessage()).contains("SMTP 서버에 연결할 수 없어요");
+        } finally {
             TransactionSynchronizationManager.setActualTransactionActive(false);
         }
     }

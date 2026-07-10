@@ -144,6 +144,22 @@ class EmailServiceIntegrationTest {
     }
 
     /**
+     * `#74`가 실제로 배포되면 가장 흔할 경로 — 롤백 없이 정상적으로 커밋되는 케이스도 이벤트
+     * 경로를 제대로 타는지 확인한다(지금까지의 롤백 재현 테스트들은 전부 "실패하는" 경로만 다뤘음).
+     */
+    @Test
+    void sendInviteEmail_CalledInsideTransactionThatCommitsNormally_SuccessLogEventuallyPersists() throws Exception {
+        String to = "commit-success-target@khu.ac.kr";
+
+        transactionalEmailInviter.inviteAndCommit(
+                to, "https://admin.likelion-khu.com/invite?token=it-tx-commit", LocalDateTime.now().plusDays(1));
+
+        List<EmailLog> logs = awaitEmailLogFor(to);
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
+    }
+
+    /**
      * #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 발송 자체는 성공해도, 호출자의 @Transactional
      * 메서드가 이후 다른 이유로 실패해 롤백되면 성공 로그가 살아남아야 한다. EmailLogEventListener가
      * 트랜잭션 완료 후 별도 스레드에서 저장하므로(왜 그런 구조인지는 EmailService.recordSuccess() 주석
