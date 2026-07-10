@@ -24,7 +24,6 @@ import java.time.Month;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Testcontainers로 실제 SMTP 서버(Mailpit)를 띄워 EmailService의 전체 경로
@@ -82,9 +81,6 @@ class EmailServiceIntegrationTest {
     @Autowired
     private EmailLogRepository emailLogRepository;
 
-    @Autowired
-    private TransactionalEmailInviter transactionalEmailInviter;
-
     @Test
     void sendInviteEmail_RealSmtpRoundTrip_ArrivesWithCorrectContentAndIsLogged() throws Exception {
         String to = "new-admin@khu.ac.kr";
@@ -141,26 +137,6 @@ class EmailServiceIntegrationTest {
         assertThat(logs.get(0).getMessageId()).isNotBlank();
         assertThat(detail.get("MessageID").asText())
                 .isEqualTo(logs.get(0).getMessageId().replaceAll("[<>]", ""));
-    }
-
-    /**
-     * #85 리뷰(신선우) 재현 — 발송 자체는 성공해도, 호출자의 @Transactional 메서드가 이후
-     * 다른 이유로 실패해 롤백되면 예전 구현(email_log를 emailLogRepository에 직접 save)에선
-     * 성공 로그까지 함께 사라졌을 것이다. EmailLogRecorder가 REQUIRES_NEW로 별도 트랜잭션에
-     * 커밋하므로, 바깥 트랜잭션의 롤백과 무관하게 이 성공 기록은 살아남아야 한다.
-     */
-    @Test
-    void sendInviteEmail_SucceedsButOuterTransactionLaterRollsBackForUnrelatedReason_SuccessLogSurvivesRollback() {
-        String to = "rollback-success-target@khu.ac.kr";
-
-        assertThatThrownBy(() -> transactionalEmailInviter.inviteThenFailForUnrelatedReason(
-                to, "https://admin.likelion-khu.com/invite?token=it-tx-rollback-success", LocalDateTime.now().plusDays(1)))
-                .isInstanceOf(IllegalStateException.class);
-
-        List<EmailLog> logs = emailLogRepository.findAll();
-        assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getRecipient()).isEqualTo(to);
-        assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.SUCCESS);
     }
 
     /** Mailpit이 SMTP로 받은 메일을 API에 반영하기까지의 짧은 지연을 흡수하기 위한 폴링. */

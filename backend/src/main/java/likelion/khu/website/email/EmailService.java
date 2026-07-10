@@ -11,6 +11,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -30,9 +31,7 @@ public class EmailService {
     // 스프링이 타입으로 매칭해 각 빈을 주입(지금은 타입별 후보가 1개씩이라 @Qualifier 불필요).
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
-    // EmailLogRepository를 직접 안 쓰고 이 recorder를 거치는 이유는 EmailLogRecorder 클래스 주석 참고
-    // — 호출자 트랜잭션이 롤백돼도 email_log 기록은 살아남아야 해서 REQUIRES_NEW로 분리된 별도 빈.
-    private final EmailLogRecorder emailLogRecorder;
+    private final EmailLogRepository emailLogRepository;
     private final Environment environment;
 
     // final이 아니라 필드 주입 — @Value는 빈이 아니라 프로퍼티 값이라 생성자 파라미터로 묶기 번거로워 예외적으로 이 방식 사용.
@@ -61,7 +60,23 @@ public class EmailService {
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
     // catch (Exception e)로 넓게 잡는 이유: MessagingException/MailException뿐 아니라 Thymeleaf 렌더링 예외,
     // to가 null일 때 InternetAddress가 던질 수 있는 NullPointerException까지 전부 이 불변식 아래 두기 위한 의도적 선택.
+    //
+    // 활성 트랜잭션 안에서 호출하면 안 되는 이유(#85 리뷰, 신선우 + SQLite 커넥션 풀 실측): 호출자가
+    // @Transactional 메서드 안에서 이 메서드를 부르면, SMTP 실패로 남긴 email_log 실패 기록이 그
+    // 트랜잭션의 롤백에 함께 휩쓸려 사라질 수 있다. REQUIRES_NEW로 email_log 저장만 별도 트랜잭션으로
+    // 분리해 이 문제를 막으려 했으나, 이 프로젝트는 SQLite 특성상 HikariCP 커넥션 풀이 1개로 고정돼
+    // 있어서(application.yml 참고) REQUIRES_NEW가 새 커넥션을 못 받아 타임아웃 나는 걸 CI에서 실측함
+    // (풀을 늘려도 SQLite 자체가 동시 쓰기 트랜잭션 2개를 못 버텨 데드락 — 근본적으로 막힌 경로).
+    // 그래서 "조용히 로그가 사라지는 것"보다 "호출 즉시 크게 실패하는 것"을 택함 — #74가 이 메서드를
+    // @Transactional 메서드 안에서 부르는 순간 바로 알아채도록.
     private void send(String to, EmailType type, Context context) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException(
+                    "EmailService.send()는 활성 트랜잭션 안에서 호출할 수 없습니다 — SQLite 커넥션 풀이 1개라 "
+                            + "email_log 기록을 별도 트랜잭션으로 격리할 수 없고, 호출자 트랜잭션이 롤백되면 "
+                            + "발송 기록이 함께 사라집니다. 이 메서드는 반드시 트랜잭션 밖에서 호출하세요.");
+        }
+
         String subject = subjectFor(type);
         MimeMessage message = null;
         try {
@@ -80,7 +95,7 @@ public class EmailService {
             helper.setText(html, true);
 
             mailSender.send(message);
-            emailLogRecorder.recordSuccess(to, type, subject, messageIdOf(message));
+            emailLogRepository.save(EmailLog.success(to, type, subject, messageIdOf(message)));
         } catch (Exception e) {
             logFailureSafely(to, type, subject, message, e);
             throw new EmailSendException(type, to, e);
@@ -92,7 +107,7 @@ public class EmailService {
     // (이 로그 저장을 못 하면 email_log엔 안 남지만, 호출자에게 실패를 알리는 것 자체는 절대 놓치지 않음)
     private void logFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
         try {
-            emailLogRecorder.recordFailure(to, type, subject, cause.getMessage(), messageIdOf(message));
+            emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageIdOf(message)));
         } catch (Exception loggingFailure) {
             // 의도적으로 무시 — 로깅 실패로 원래 예외 전파(EmailSendException)가 막히면 안 됨
         }
