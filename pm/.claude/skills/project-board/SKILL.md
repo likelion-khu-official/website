@@ -62,5 +62,5 @@ gh project item-list 1 --owner $O --format json --jq '.items[] | .e=(to_entries|
 - **뷰 레이아웃(Board/Roadmap)·Group by는 웹 UI 전용** — CLI/이 스킬로 못 바꾼다. (보드: 웹에서 Board + Group by Status 추천)
 - `item-list` JSON의 **한글 필드 키(시작일·목표일)**는 jq 직접 매칭이 깨질 수 있다 → `to_entries`/`ascii_downcase`로 우회(위 4번처럼).
 - `gh project create`는 이 gh 버전(2.87)에서 버그 → 새 프로젝트는 GraphQL `createProjectV2`. (단 보드는 이미 #1로 존재, 재생성 불필요.)
-- **라이프사이클은 PM만.** 팀원은 보기만 — 카드 이동(Status)도 PM이 한다.
+- **라이프사이클은 PM만.** 팀원은 보기만 — 카드 이동(Status)도 PM이 한다. **단 예외:** `claim-mission`으로 미션을 채간 팀원은 **착수 시 Todo→In Progress**, **IQ 게이트 통과 후 In Progress→Done + 이슈 close**를 스스로 한다(미션은 연 사람이 닫는다 — human-on-the-loop). PM은 발주·방향만.
 - 미션 이슈 *생성*과 **보드 추가(`item-add`)는 둘 다 `mission` 스킬의 "던져" 절차 안**(보드 추가는 별도 단계 아님 — 거기서 카드 붙음까지 검증). 이 스킬은 그 위에서 *필드 세팅·Status 이동·날짜·현황*을 다룬다.

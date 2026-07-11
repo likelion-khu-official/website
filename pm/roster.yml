@@ -1,0 +1,37 @@
+# 멋사 경희 로스터 — 미션 발주·클레임의 단일 진실
+#
+# 왜 여기 있나: 발주(mission 스킬)는 "누구에게" 쏠지 여기서 handle을 찾고,
+#   클레임(claim-mission 스킬)은 로컬 신원(/.identity.local.yml)의 handle이
+#   이 명부의 누구인지 대조해 이름·팀을 파생한다. 이름·팀은 여기 한 곳에만 둔다(drift 방지).
+#
+# 비밀 없음 — 커밋된다. 개인 PAT는 여기 없다: 각자 레포 루트 /.identity.local.yml (gitignore).
+# handle: null = GitHub 계정 없음(디자인). claim-mission은 GitHub 기반이라 이들은 대상이 아니다
+#   — 디자인 작업은 카톡/Figma 링크로 공유(mission 스킬의 레포 밖 팀 경로).
+#
+# team 값은 project 보드 Team 필드와 동일 enum: 디자인 | 프론트 | 백엔드 | 인프라 | PM
+
+members:
+  - name: 김우진
+    handle: xhae123
+    team: PM
+  - name: 김영웅
+    handle: null
+    team: 디자인
+  - name: 유한솔
+    handle: null
+    team: 디자인
+  - name: 박일하
+    handle: ParkIlha
+    team: 프론트
+  - name: 김현정
+    handle: hjdd0309
+    team: 프론트
+  - name: 신선우
+    handle: sunwoo1256
+    team: 백엔드
+  - name: 안시현
+    handle: xihxxn
+    team: 백엔드
+  - name: 장찬욱
+    handle: cjang3285
+    team: 인프라
