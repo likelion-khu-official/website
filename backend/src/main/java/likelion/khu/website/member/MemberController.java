@@ -1,6 +1,7 @@
 package likelion.khu.website.member;
 
 import jakarta.validation.Valid;
+import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
@@ -29,8 +30,9 @@ public class MemberController {
     public ResponseEntity<MemberResponse> create(
             @Valid @RequestBody MemberCreateRequest request,
             Authentication authentication) {
+        AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(memberService.create(request, authentication.getName()));
+                .body(memberService.create(request, admin.getEmail()));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -39,6 +41,7 @@ public class MemberController {
             @PathVariable Long id,
             @Valid @RequestBody MemberUpdateRequest request,
             Authentication authentication) {
-        return memberService.update(id, request, authentication.getName());
+        AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
+        return memberService.update(id, request, admin.getEmail());
     }
 }
