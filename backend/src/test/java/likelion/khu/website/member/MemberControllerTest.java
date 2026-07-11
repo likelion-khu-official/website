@@ -1,5 +1,6 @@
 package likelion.khu.website.member;
 
+import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import org.junit.jupiter.api.Test;
