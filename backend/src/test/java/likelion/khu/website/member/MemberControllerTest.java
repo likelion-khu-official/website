@@ -60,7 +60,7 @@ class MemberControllerTest {
 
     // ── POST /api/admin/members ───────────────────────────────────────
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockAdminUser
     @Test
     void createMember_SuperAdmin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -119,7 +119,7 @@ class MemberControllerTest {
 
     // ── PATCH /api/admin/members/{id} ────────────────────────────────
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockAdminUser
     @Test
     void updateMember_SuperAdmin_Returns200() throws Exception {
         Long id = createMember();
@@ -164,7 +164,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockAdminUser
     @Test
     void updateMember_EmptyPhotoUrl_ClearsPhoto() throws Exception {
         Long id = createMember();
@@ -176,7 +176,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.photoUrl").doesNotExist());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockAdminUser
     @Test
     void updateMember_NonExistentId_Returns404() throws Exception {
         mockMvc.perform(patch("/api/admin/members/{id}", 9999L)
