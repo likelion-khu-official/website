@@ -15,6 +15,16 @@ description: >-
 
 PM이 한 팀에 줄 일을 *미션*으로 쓴다. 단계 지시가 아니라 **무엇·왜·완료기준·경계**. 받는 사람이 *"뭘 내놓고, 뭐가 되면 끝"*을 즉시 알게 하는 게 목표.
 
+## 실행 앵커 헤더 (claim-mission 대상 팀은 본문 맨 위 필수)
+
+claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는 **맨 위 첫 줄**에 이 헤더를 넣는다. 미션을 받은 팀원이 뭘 할지 즉시 알게 하는 실행 앵커다.
+
+```
+> 🦁 **이 미션 수행** — Claude Code에게 **"나한테 할당된 미션 수행하자"**라고 하면 신원 확인 후 이 미션을 받아 R→P→I→Q로 진행합니다.
+```
+
+**디자인처럼 claim-mission 대상이 아닌 팀**(레포 밖·`handle: null`)엔 이 헤더 대신 기존 방식(카톡·Figma 링크 공유)을 쓴다. 헤더 아래로는 그대로 아래 본문 형식(인트로 + 네 부분).
+
 ## 본문 형식 (이것만 이슈에 붙여넣음)
 
 이 미션이 뭔지 한두 문장으로 연 뒤, 네 부분으로 쓴다. **소제목은 영문, 내용은 한국어.**
@@ -50,8 +60,14 @@ PM이 한 팀에 줄 일을 *미션*으로 쓴다. 단계 지시가 아니라 **
 
 ## 필드 (GitHub 사이드바 / gh 플래그)
 - 제목: `[팀] <미션 한 줄> (~목표일)`   (팀 = 디자인/FE/BE/인프라)
-- 어사인: 해당 팀원 · **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`프론트`/`백엔드`/`인프라`)
+- **어사인 = 특정 1인의 handle.** "해당 팀"이 아니라 *그 미션을 실제로 할 한 사람*을 지목한다. 이 assignee가 라우팅의 전부다 — 클레임(claim-mission)이 `assignee == 내 handle`인 이슈만 가져가기 때문에, 팀만 맞고 사람이 비면 아무도 못 받는다.
+  - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[백엔드]` 미션이면 assignee의 team이 `백엔드`).
+  - **디자인 예외**(`handle: null`): GitHub 계정이 없어 assignee를 못 건다. 이슈에 assignee 없이 두거나 GitHub 이슈 자체를 만들지 않고, 미션 본문을 카톡·Figma 링크로 공유한다(아래 "레포 밖 팀" 경로). 이 경로는 claim-mission 대상이 아니다 — 깨지 말 것.
+- **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`프론트`/`백엔드`/`인프라`)
+  - 이 두 라벨이 **미션 뱃지**다. 클레임은 `roadmap` 라벨로 "이건 미션 이슈"임을 식별한다 — 유지 필수.
 - Team · 목표일: GitHub Projects 필드(생성 후 설정)
+
+> **발주 ↔ 클레임 계약 (요약):** 팀원은 Claude Code에서 `claim-mission`을 돌려, 로컬 신원(`/.identity.local.yml`)의 handle이 `roster.yml`의 누구인지 대조한 뒤 `assignee == 내 handle` + `roadmap` 라벨인 이슈를 자기 미션으로 가져간다. 그래서 발주가 (1) assignee를 **정확한 1인 handle**로, (2) `roadmap`+팀 라벨을, (3) 본문 맨 위에 **실행 앵커 헤더**(위 "실행 앵커 헤더" 참고)를 심어야 클레임이 미션을 찾고 바로 실행에 들어간다. 발주자(PM)는 개인 `/.identity.local.yml`에 관여하지 않는다.
 
 ---
 
@@ -74,12 +90,14 @@ pm/missions/<n>-<slug>/
 
 ### 1) 새 미션 작성 (아직 안 던짐)
 1. PM 설명을 받아 위 본문 형식으로 작성 → 루브릭 자가검증.
-2. `pm/missions/<slug>/proposal.md` 생성 (**번호 없이** 슬러그만). 필드 줄(⚙️) + `---` + 본문. → PM 검토 게이트.
+2. `pm/missions/<slug>/proposal.md` 생성 (**번호 없이** 슬러그만). 필드 줄(⚙️) + `---` + **실행 앵커 헤더**(claim-mission 대상 팀이면) + 본문. → PM 검토 게이트.
 
 ### 2) "던져"
 GitHub이 번호의 단일 진실 → **던진 뒤 번호를 붙인다**(미리 추측 금지, 레이스).
+
+던지기 전 **assignee를 roster에서 확정**한다: `pm/roster.yml`에서 대상자의 `handle`을 찾고, 그 사람의 `team`이 미션 팀과 일치하는지 확인(불일치·미지정이면 PM에게 누구인지 1개 질문). `handle: null`(디자인)이면 assignee를 걸지 않고 레포 밖 경로(카톡·Figma)로 공유 — `gh issue create`를 돌리지 않는다.
 ```
-gh issue create --assignee <팀원핸들> --label roadmap --label <팀> \
+gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --label <팀> \
   --title "[팀] … (~목표일)" --body-file pm/missions/<slug>/proposal.md
 ```
 던지고 나면 — **아래 5개는 한 묶음. 4를 빼먹으면 미션이 보드 밖에 떠서 칸반에 안 보인다(실제로 한 번 났다).**
