@@ -5,3 +5,12 @@
 # backend/docs/email-module.md:34 — 인프라 오너 개인 Gmail(수동 테스트 수신자 기록).
 # 이후 커밋(f5e5ce6)에서 문서 내용은 마스킹 완료.
 979726a7924be7fb2114a403f07756d70262e95e:backend/docs/email-module.md:personal-email:34
+
+# AdminInvitationControllerTest.java:63 — 실제 개인정보 아님, "khu.ac.kr 아닌 도메인" 검증용
+# placeholder 문자열(gmail 도메인 예시)이 도메인 패턴만으로 오탐. 이후 커밋(13fa23e)에서
+# example.com으로 교체 완료.
+19f2fb3d2a15132dbbd3e71878445ef354499ea8:backend/src/test/java/likelion/khu/website/admin/invitation/AdminInvitationControllerTest.java:personal-email:63
+
+# .gitleaksignore 자체:10 — 위 finding을 설명하던 주석이 그 예시 문자열을 그대로 적어
+# 재귀적으로 다시 잡힌 것(실제 시크릿 아님). 이후 커밋에서 주석 표현을 도메인 형태가 아니게 수정.
+0c2a0062cbcce46737318854d3f2aa75f809121c:.gitleaksignore:personal-email:10

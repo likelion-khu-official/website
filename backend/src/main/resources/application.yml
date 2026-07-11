@@ -56,6 +56,22 @@ jwt:
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}   # 7일 (ms)
 
+# === 어드민 인증(#90) ===
+admin:
+  lockout:
+    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:5}
+    duration-minutes: ${ADMIN_LOCKOUT_DURATION_MINUTES:15}
+  # 포맷: "email:name,email2:name2" — 실제 이메일은 여기(커밋되는 파일)에 절대 넣지 않고
+  # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상)
+  seed:
+    super-admins: ${ADMIN_SEED_SUPER_ADMINS:}
+
+app:
+  # 초대·재설정 메일 링크의 베이스 URL — FE 라우트 경로 확정 전 placeholder
+  frontend-base-url: ${FRONTEND_BASE_URL:https://admin.likelion-khu.com}
+  # 로컬 개발(HTTP)에서만 false — stage/prod는 반드시 true(HTTPS 전제)
+  cookie-secure: ${COOKIE_SECURE:true}
+
 # === OCI Object Storage (S3 호환 API) ===
 oci-storage:
   endpoint: ${OCI_STORAGE_ENDPOINT}
