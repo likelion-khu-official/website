@@ -44,10 +44,45 @@ OCI Notifications (ONS)
 | likelion-prod 메모리 85% 초과 | `oci_computeagent`(네이티브) | `MemoryUtilization[5m]{resourceId="..."}.mean() > 85` | 5분 지속 시 | CRITICAL |
 | likelion-prod DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessProd[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
 | likelion-stage DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessStage[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
+| likelion-prod 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
 
 **백업 알람이 dead man's switch인 이유**: 백업 자체(`backup-db.sh`)는 2026-07-04부터 이미 매일 잘 돌고 있었음(cron+버킷 실측 확인됨, #83 조사 과정에서 재확인). 근데 "잘 되고 있다"를 사람이 매번 SSH로 들어가 확인해야 아는 상태였음 — 이 알람은 그 확인을 자동화한 것. 값 자체(`=1`)엔 의미가 없고, 신호가 26시간 동안 **안 들어오는 것** 자체가 이상 신호. cron이 안 돌았든, 서버가 죽었든, 백업 스크립트가 중간에 실패했든 원인 불문하고 다 잡힘. 26시간 = 매일 18:00 UTC 실행 주기(24h) + 2시간 버퍼.
 
 **디스크 사용률이 custom metric인 이유**: OCI의 Compute Instance Monitoring 플러그인은 CPU/메모리/디스크 I/O(바이트·IOPS)는 기본 제공하지만 "디스크가 몇 % 찼는가"는 제공하지 않음(공식 문서로 확인 — 하이퍼바이저/블록스토리지 레벨에선 파일시스템 내부를 모름, OS 안에서만 알 수 있는 정보). 그래서 서버 위 스크립트가 직접 `df` 값을 계산해서 채워 넣음.
+
+**git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) `git pull`이 조용히 실패해 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복). `infra/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
+
+### 알람 튜닝 사고 모델 — 쿼리 윈도우 · pending-duration · cron 주기의 관계
+
+커스텀 메트릭 알람을 튜닝할 때 서로 얽혀 있는 변수 4개:
+
+| 변수 | 의미 |
+|---|---|
+| **C** (cron 주기) | 메트릭이 실제로 몇 분마다 새로 찍히는가 |
+| **W** (쿼리 윈도우) | 알람 쿼리 `[Xm]` — 매 평가 시점에 최근 몇 분을 뭉쳐서 보는가 |
+| **R** (resolution) | 알람이 몇 분마다 재평가하는가 (보통 1분 고정) |
+| **P** (pending-duration) | breaching이 몇 분 연속돼야 실제 FIRING으로 전환되는가 |
+
+**관계 ① — W는 C 이상이어야 한다.** 메트릭이 C분에 한 번만 찍히므로 W < C면 두 push 사이에 윈도우 안에 데이터가 아예 없는 구간(no data)이 생겨 breaching 카운트가 끊긴다. 실전 제약: `W ≥ C` (지터 감안해 여유를 좀 둠).
+
+**관계 ② — 스미어링.** `[Xm].max()` 같은 쿼리는 "최근 X분 안에 나쁜 값이 있었나"만 보므로, 값이 단 한 틱만 나빴어도 그 뒤로 W분 동안은 계속 "나쁨"으로 보인다 — 실제 지속시간과 무관하게 **관측 breaching 지속시간 = W분**(단일 blip 기준). 한 점을 찍어서 그 뒤로 쭉 문질러(smear) 놓은 것과 같다.
+
+**관계 ③ — 파이어에 필요한 최소 연속 tick 수.** 실제로 나쁜 상태가 k번 연속 cron tick(=`(k-1)×C`분 실제 지속) 동안 찍혔다면, 알람이 관측하는 총 breaching 시간은 `(k-1)×C + W`. 이게 P 이상이어야 FIRING:
+
+```
+k_min = ceil( (P - W) / C ) + 1
+```
+
+**W ≥ P**면 k=1(단 한 번의 blip)만으로 이미 파이어. **W < P**여야 비로소 k≥2(실제 2번 이상 연속된 진짜 상태)가 필요해진다. 그런데 관계①(W≥C)과 동시에 만족하려면 `C ≤ W < P`, 즉 **P가 C보다 확실히 커야만** "blip 한 번은 무시하고 진짜 지속만 잡는" 설계가 가능하다 — **P ≤ C면 W를 아무리 조정해도 구조적으로 단일 blip을 못 피한다.**
+
+**관계 ④ — OK 복귀 속도는 P와 무관하게 W만 결정한다.** 문제가 실제로 사라지면 마지막 나쁜 push가 윈도우에서 밀려나는 순간(=W분 후) 바로 OK로 돌아간다. P가 커도 복귀가 늦어지진 않는다.
+
+| 하고 싶은 것 | 조절할 변수 |
+|---|---|
+| 순간적 blip 무시하고 "진짜 지속"만 잡기 | **P를 C보다 확실히 크게** |
+| 문제 해소 후 OK 복귀를 빠르게 | **W를 줄이기** (단 W≥C 유지) |
+
+**실제 사례(2026-07-12)**: 배포 스크립트가 정상적으로 만들었다 지우는 롤백 마커 파일(`infra/.prev_backend_tag_stage`)이 gitignore 누락으로 드리프트로 잡혀, `C=5분, W=10분, P=5분`(이후 3분으로 낮췄다가) 조합에서 1분짜리 정상 상태가 오탐 FIRING을 일으킴. 근본 수정(gitignore 추가)과 별개로, `P=3분`(≤C=5분) 상태에서는 어떤 W를 골라도 구조적으로 단일 blip을 못 피한다는 걸 확인 → **P=8분(>C=5분)으로 조정**해 앞으로 순간적 상태 한 번으로는 안 뜨고, 최소 2번 연속 cron tick 동안 실제로 더러워야 파이어하도록 변경.
 
 ## 파일
 
@@ -56,6 +91,7 @@ OCI Notifications (ONS)
 | `infra/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
 | `infra/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
+| `infra/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
 
 서버의 `~/oci-monitor-venv`(venv, oci SDK만 설치)는 레포에 없음 — 최초 세팅 시 아래로 재현:
 ```bash
