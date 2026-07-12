@@ -19,6 +19,7 @@ coverage/
 # Infra — 서버 전용 파일 (gitignore:수동)
 infra/nginx.conf
 infra/data/
+infra/.prev_backend_tag_*
 
 # Backend — 로컬 SQLite DB
 backend/data/
