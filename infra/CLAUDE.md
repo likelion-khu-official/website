@@ -87,6 +87,8 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
 | `infra/push-disk-metric.py` / `infra/push-backup-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
+| `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
+| `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
 
 ---
 

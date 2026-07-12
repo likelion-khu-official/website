@@ -111,6 +111,13 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 - **CI/CD paths 필터**: 기존 `backend/**`가 migration 폴더를 이미 포함 — 별도 추가 불필요
 - **인프라 대기 중**: 백엔드 Flyway PR 머지 타이밍에 맞춰 `.env.stage` / `.env.prod` 수정 예정
 
+## 진행 상황 (2026-07-07)
+
+이메일 모듈(`email_log`) 작업 중 실제 서버 상태 확인:
+- **prod엔 아직 아무 테이블도 없음** — prod가 8일 전 커밋(#40, feed·comment·post·notification 이전)에 멈춰있어서, `main` 머지가 안 된 만큼 `ddl-auto`가 만든 것도 없음(`prod.db` 0바이트). stage는 4개 테이블(`comments`, `notification_subscriptions`, `magic_link_tokens`, `posts`) 이미 존재.
+- `flyway_schema_history` 테이블 stage·prod 둘 다 없음 — Flyway 미도입 재확인.
+- **도입 시점 판단**: 지금(개발 중) 말고 **실제 운영 시작 전**으로 미루기로 함. prod가 사실상 비어있는 지금이 베이스라인 부담이 제일 적은 타이밍이라, 이 창을 넘기지 않는 게 중요 — `main` 머지로 prod에 실데이터가 쌓이기 시작하면 그때부턴 stage처럼 베이스라인 처리가 필요해짐.
+
 ---
 
 ## 백엔드가 할 일

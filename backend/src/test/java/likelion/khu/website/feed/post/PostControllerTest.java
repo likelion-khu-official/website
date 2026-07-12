@@ -1,5 +1,6 @@
 package likelion.khu.website.feed.post;
 
+import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.feed.MagicLinkToken;
 import likelion.khu.website.feed.MagicLinkTokenRepository;
 import likelion.khu.website.feed.MagicLinkTokenService;
@@ -130,6 +131,7 @@ class PostControllerTest {
     }
 
     @Test
+    @WithMockAdminUser(role = "SUPER_ADMIN")
     void updateStatus_DraftToPublished_Returns200() throws Exception {
         String token = issueToken();
         PostCreateRequest req = new PostCreateRequest();
@@ -146,6 +148,7 @@ class PostControllerTest {
     }
 
     @Test
+    @WithMockAdminUser(role = "SUPER_ADMIN")
     void updateStatus_InvalidTransition_Returns400() throws Exception {
         String token = issueToken();
         PostCreateRequest req = new PostCreateRequest();
