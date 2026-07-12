@@ -135,14 +135,19 @@ jobs:
               docker compose -f docker-compose.yml up -d --no-recreate nginx
             fi
 
-            # 헬스체크 로직
+            # 헬스체크 로직 — curl -sf는 완전 침묵이라 대기 중엔 로그에 아무것도 안 찍힘.
+            # 매 시도마다 HTTP 상태를 출력하고, 실패 시 컨테이너 로그까지 남겨서
+            # SSH로 안 들어가도 CD 로그만으로 원인이 보이게 함.
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
-            until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
+            until STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${{ steps.config.outputs.port }}/actuator/health) && [ "$STATUS" == "200" ]; do
+              echo "[${ELAPSED}s] 대기 중 — HTTP ${STATUS:-연결 실패}"
               sleep 3
               ELAPSED=$((ELAPSED + 3))
               if [ $ELAPSED -ge 120 ]; then
-                echo "❌ 헬스체크 실패"
+                echo "❌ 헬스체크 실패 — 마지막 응답: HTTP ${STATUS:-연결 실패}"
+                echo "--- ${{ steps.config.outputs.service }} 최근 로그 ---"
+                docker compose -f docker-compose.yml logs --tail=50 ${{ steps.config.outputs.service }}
                 exit 1
               fi
             done
