@@ -45,6 +45,10 @@ backup_one() {
 
     python3 "$SCRIPT_DIR/backup_upload.py" put "${db_name}/${db_name}-${DATE}.db" "$snapshot"
     echo "uploaded: ${db_name}/${db_name}-${DATE}.db"
+
+    # 성공 신호 - OCI Monitoring Absence Alarm이 이게 26시간 이상 안 들어오면 알림
+    # (cron 미실행·서버 다운·스크립트 중도실패 전부 이걸로 잡힘, #83)
+    "$HOME/oci-monitor-venv/bin/python3" "$SCRIPT_DIR/push-backup-metric.py" "$db_name"
 }
 
 backup_one prod

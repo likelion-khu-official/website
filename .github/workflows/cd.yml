@@ -93,6 +93,8 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           envs: NEW_TAG,GHCR_TOKEN,GHCR_USER
           script: |
+            set -euo pipefail
+
             # GHCR 인증 — 서버에서 private 이미지 pull 권한 획득
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
