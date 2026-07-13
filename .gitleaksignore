@@ -6,6 +6,11 @@
 # 이후 커밋(f5e5ce6)에서 문서 내용은 마스킹 완료.
 979726a7924be7fb2114a403f07756d70262e95e:backend/docs/email-module.md:personal-email:34
 
+# backend/src/test/resources/application.yml:17 — CI 테스트 전용 JWT_SECRET 더미 값
+# ("test-secret-key-for-ci-must-be-at-least-32-characters-long"). 실제 시크릿 아님,
+# 무작위처럼 보이는 문자열이라 generic-api-key 규칙에 오탐.
+0f759d0a583172632ef6caa94a449ee843a01391:backend/src/test/resources/application.yml:generic-api-key:17
+
 # AdminInvitationControllerTest.java:63 — 실제 개인정보 아님, "khu.ac.kr 아닌 도메인" 검증용
 # placeholder 문자열(gmail 도메인 예시)이 도메인 패턴만으로 오탐. 이후 커밋(13fa23e)에서
 # example.com으로 교체 완료.
