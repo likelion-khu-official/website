@@ -1,10 +1,11 @@
 ---
 file_key: Bw7LrXlYlVUe77bSi9L0BB
 source_url: https://www.figma.com/design/Bw7LrXlYlVUe77bSi9L0BB/Ll-공식-홈페이지
-last_read: 2026-06-28
-figma_last_modified: 2026-06-27T15:31:50Z
+last_read: 2026-07-01
+figma_last_modified: 2026-07-01T10:21:44Z
 pages: 1
-frames_snapshot: frames/2026-06-28_1414/   # 12장 전부 export·확인
+frames_snapshot: frames/2026-06-28_1414/   # 와이어 12장
+frames_snapshot_visual: frames/2026-07-01_visual/   # 시안(룩앤필) 6장
 ---
 
 # Ll 공식 홈페이지 — 디자인 다이제스트
@@ -63,5 +64,17 @@ frames_snapshot: frames/2026-06-28_1414/   # 12장 전부 export·확인
 ## Export된 이미지 (`frames/2026-06-28_1414/`, 12장)
 Activity__23-449 · Blog__23-483 · Frame-4__9-70 · Introduce__19-35 · iPhone-16-17-Pro-1__9-10 · iPhone-16-17-Pro-2__23-560 · Main-Page-full__20-118 · Main-Page-hero__9-9 · Members-grid__23-385 · Members-zigzag__23-412 · Project__23-335 · Recruitment__23-521
 
+## 🎨 시안(룩앤필) — 2026-07-01 read (미션 #5)
+와이어와 **같은 파일 안 새 섹션 `Main Page`(`79:640`)** 에 시안이 쌓임(별도 파일 아님). 구조는 와이어 유지, 표정만 입힘.
+- **룩앤필:** 다크 배경 + **레드/오렌지 그라디언트**(멋사 브랜드), 컨셉 카피 **"Possibility to Reality"**. 강렬함 + "코딩 처음이어도 괜찮다"는 따뜻함.
+- **데스크탑 풀페이지** (`Main` `86:6`, h9034): 히어로 "Possibility To Reality" → "코딩을 몰라도 기획·디자인부터 개발까지" → 스탯(14년·80+·14,000+·1,800+) → 프로젝트 → 운영진 → 연간 활동 계획 타임라인(Jan~Dec).
+- **모바일** (`온보딩` `112:19`, `Main Page` `116:148` 등, 402×874): "Kyunghee Univ. Like Lions / Possibility to reality" 온보딩 + 메인. → **모바일도 시안화됨**(와이어 땐 메인만이었음).
+- **모집(Recruit `116:532`):** "아이디어를 현실로 만드는 여정… 아기사자를 기다립니다" + CTA **`지원기간 신청 알림 받기`**(평소 모드). navbar는 `COMPONENT`(`86:12`)로 정리, `Dev.memo` 프레임에 프론트 인계 노트.
+- **아직 없음:** 모집 **기간 모드 "지원하기"** 상태 시안(현재 평소 모드 알림 CTA 위주) · 일부 서브 디테일 · 실제 콘텐츠(사진·글).
+- 렌더 6장: `frames/2026-07-01_visual/` (Main-full · Hero-Frame25 · Introduce-session · Recruit · Mobile-onboarding · Mobile-main).
+
+> ⚠️ **주의:** figma-read `designs/` 캐시에 무관한 파일 `YNIN2Enlmk76E5iLkj60dR`("행쇼_행궁동…로커톤" — 멋사 아님)가 섞였던 적 있음(untracked·정리됨). 대상 파일은 이 Bw7 하나.
+
 ## 변경 이력
+- 2026-07-01: **시안(룩앤필) read** (미션 #5). 같은 파일 `Main Page` 섹션에 데스크탑 풀+모바일 시안 확인 — 다크+레드 그라디언트, "Possibility to Reality", 모집 알림 CTA까지. 마감일 준수. 렌더 6장 저장. 무관 캐시(YNIN) 발견·정리.
 - 2026-06-28: 최초 read. **프레임 12장 전부 export·확인.** 전체 IA(메인+6서브)·풀 랜딩 구성·서브별 본문·Members 두 레이아웃 후보 확인. **Frame-4 인터랙션 명세 발견(플로팅 종버튼 hover 확장 = 모집알림 CTA, 네비 hover 카드 변경).** 데스크탑·모바일 풀 랜딩 존재, 서브 모바일 부재. 상태 프레임 부재(와이어라 정상)를 협업 포인트로 기록. 이미지 파일명을 `<프레임이름>__<nodeid>`로 매칭.

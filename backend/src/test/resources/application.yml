@@ -1,0 +1,64 @@
+spring:
+  datasource:
+    url: "jdbc:sqlite::memory:"
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: test-secret-key-for-ci-must-be-at-least-32-characters-long
+  access-expiration: 900000
+  refresh-expiration: 604800000
+
+admin:
+  lockout:
+    max-attempts: 5
+    duration-minutes: 15
+  seed:
+    super-admins:
+
+app:
+  frontend-base-url: https://admin.likelion-khu.com
+  cookie-secure: true
+
+oci-storage:
+  endpoint: https://test.compat.objectstorage.ap-tokyo-1.oraclecloud.com
+  region: ap-tokyo-1
+  access-key: test-key
+  secret-key: test-secret
+  bucket: test-bucket
+  public-url: https://test.objectstorage.ap-tokyo-1.oraclecloud.com/n/test/b/test-bucket/o
+
+mail-sender:
+  from: noreply@likelion-khu.com
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  health:
+    mail:
+      enabled: false

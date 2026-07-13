@@ -19,6 +19,11 @@ coverage/
 # Infra — 서버 전용 파일 (gitignore:수동)
 infra/nginx.conf
 infra/data/
+infra/.prev_backend_tag_*
+
+# Backend — 로컬 SQLite DB
+backend/data/
+*.db
 
 # Logs
 *.log
@@ -37,7 +42,12 @@ Thumbs.db
 
 # Misc
 *.local
+*.local.yml
+*.local.yaml
 .cache/
+
+# 개인 신원 + GitHub PAT (claim-mission Step 0) — 절대 커밋 금지
+/.identity.local.yml
 
 
 HELP.md

@@ -1,0 +1,28 @@
+title = "gitleaks config — 멋쟁이사자처럼 경희대 website"
+
+# 기본 시크릿 탐지 룰(AWS 키·개인키·각종 토큰 등)은 그대로 유지하고, 아래 룰만 추가한다.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "oci-ocid"
+description = "OCI 리소스 OCID — 내부 인프라 식별자 노출 방지"
+regex = '''ocid1\.[a-z0-9]+\.oc1\.[a-z0-9._-]*\.[a-z0-9]{20,}'''
+tags = ["oci", "identifier"]
+
+[[rules]]
+id = "personal-email"
+description = "개인 이메일 주소(gmail/naver/daum/kakao 등) — 팀 문서·코드엔 조직 주소나 플레이스홀더만"
+regex = '''[A-Za-z0-9._%+-]+@(gmail|naver|daum|kakao|hanmail|nate)\.(com|net)'''
+tags = ["pii", "email"]
+
+[allowlist]
+description = "예시/플레이스홀더용으로 흔히 쓰는 문자열은 허용"
+regexes = [
+  '''noreply@likelion-khu\.com''',
+  '''@likelion-khu\.com''',
+]
+paths = [
+  # Mailpit 통합테스트 전용 자체서명 TLS 키 — 실제 비밀키 아님(email-module.md에 fixture로 문서화됨)
+  '''backend/src/test/resources/mailpit-tls/key\.pem''',
+]

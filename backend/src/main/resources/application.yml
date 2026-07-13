@@ -25,10 +25,64 @@ spring:
         format_sql: true
     show-sql: true
 
+  # === 피드 이미지 업로드 용량 제한 ===
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  # === 메일 발송 (OCI Email Delivery, SMTP) — 환경변수명은 infra/email-delivery.md #75 전달값과 일치시킴 ===
+  mail:
+    host: ${MAIL_SMTP_HOST}
+    port: ${MAIL_SMTP_PORT}
+    username: ${MAIL_SMTP_USERNAME}
+    password: ${MAIL_SMTP_PASSWORD}
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          # OCI가 응답 없이 멈추는 경우에도 요청 스레드가 무한정 잡히지 않도록 상한선을 둠(ms).
+          # 미설정 시 기본값이 사실상 무한 대기라, 컨트롤러가 붙어 동기 호출되면 톰캣 스레드 풀 고갈로 이어질 수 있음.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}   # 7일 (ms)
+
+# === 어드민 인증(#90) ===
+admin:
+  lockout:
+    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:5}
+    duration-minutes: ${ADMIN_LOCKOUT_DURATION_MINUTES:15}
+  # 포맷: "email:name,email2:name2" — 실제 이메일은 여기(커밋되는 파일)에 절대 넣지 않고
+  # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상)
+  seed:
+    super-admins: ${ADMIN_SEED_SUPER_ADMINS:}
+
+app:
+  # 초대·재설정 메일 링크의 베이스 URL — FE 라우트 경로 확정 전 placeholder
+  frontend-base-url: ${FRONTEND_BASE_URL:https://admin.likelion-khu.com}
+  # 로컬 개발(HTTP)에서만 false — stage/prod는 반드시 true(HTTPS 전제)
+  cookie-secure: ${COOKIE_SECURE:true}
+
+# === OCI Object Storage (S3 호환 API) ===
+oci-storage:
+  endpoint: ${OCI_STORAGE_ENDPOINT}
+  region: ${OCI_STORAGE_REGION}
+  access-key: ${OCI_STORAGE_ACCESS_KEY}
+  secret-key: ${OCI_STORAGE_SECRET_KEY}
+  bucket: ${OCI_STORAGE_BUCKET}
+  public-url: ${OCI_STORAGE_PUBLIC_URL}
+
+mail-sender:
+  from: ${MAIL_FROM_ADDRESS:noreply@likelion-khu.com}
 
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이
@@ -41,3 +95,7 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # OCI 쪽 SMTP 일시 장애가 앱 헬스체크(=배포 롤백 트리거)를 같이 끌고 내려가지 않도록 분리
+    mail:
+      enabled: false

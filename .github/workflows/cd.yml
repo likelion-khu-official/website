@@ -93,6 +93,8 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           envs: NEW_TAG,GHCR_TOKEN,GHCR_USER
           script: |
+            set -euo pipefail
+
             # GHCR 인증 — 서버에서 private 이미지 pull 권한 획득
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
@@ -123,20 +125,29 @@ jobs:
             docker compose -f docker-compose.yml pull ${{ steps.config.outputs.service }}
             docker compose -f docker-compose.yml up -d ${{ steps.config.outputs.service }}
 
+            # 로컬 -latest 캐시도 레지스트리와 동기화 — 사람이 태그 없이 수동으로
+            # `docker compose up -d`를 실행해도 얼어붙은 옛날 이미지가 아닌 최신을 받도록
+            docker pull ghcr.io/${{ github.repository }}/backend:${{ steps.config.outputs.tag_prefix }}-latest
+
             # nginx가 실행 중이 아니면 시작 (--no-recreate: 백엔드 컨테이너 재생성 방지)
             if ! docker compose -f docker-compose.yml ps nginx | grep -q "Up"; then
               echo "nginx 미실행 — 시작합니다"
               docker compose -f docker-compose.yml up -d --no-recreate nginx
             fi
 
-            # 헬스체크 로직
+            # 헬스체크 로직 — curl -sf는 완전 침묵이라 대기 중엔 로그에 아무것도 안 찍힘.
+            # 매 시도마다 HTTP 상태를 출력하고, 실패 시 컨테이너 로그까지 남겨서
+            # SSH로 안 들어가도 CD 로그만으로 원인이 보이게 함.
             echo "=== 헬스체크 시작 ==="
             ELAPSED=0
-            until curl -sf http://localhost:${{ steps.config.outputs.port }}/actuator/health; do
+            until STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${{ steps.config.outputs.port }}/actuator/health) && [ "$STATUS" == "200" ]; do
+              echo "[${ELAPSED}s] 대기 중 — HTTP ${STATUS:-연결 실패}"
               sleep 3
               ELAPSED=$((ELAPSED + 3))
               if [ $ELAPSED -ge 120 ]; then
-                echo "❌ 헬스체크 실패"
+                echo "❌ 헬스체크 실패 — 마지막 응답: HTTP ${STATUS:-연결 실패}"
+                echo "--- ${{ steps.config.outputs.service }} 최근 로그 ---"
+                docker compose -f docker-compose.yml logs --tail=50 ${{ steps.config.outputs.service }}
                 exit 1
               fi
             done

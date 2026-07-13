@@ -23,6 +23,7 @@
 - 스토리지: 부트+블록 **합계 200GB 이하** (부트볼륨 최소 50GB)
 - 리전: **홈 리전(도쿄 `ap-tokyo-1`)에서만** 무료 — 다른 리전 리소스는 유료
 - 공인 IP: Reserved 1개 + Ephemeral 무료 / LB: Flexible 1개(10Mbps) / egress: 10TB월 / Object Storage: 20GB
+- Email Delivery: **월 3,000통** — 이것도 홈 리전(`ap-tokyo-1`)에서 만든 Email Domain/DKIM/Approved Sender에만 적용. 다른 리전에서 만들면 과금 시작.
 
 **조용히 과금되니 절대 만들지 말 것:**
 - 🚨 **NAT Gateway** (Always Free 아님) → 퍼블릭 서브넷 + **Internet Gateway**(무료)로 해결
@@ -46,7 +47,9 @@ GitHub Actions
 
 OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   docker compose (단일 파일: infra/docker-compose.yml)
-    ├── nginx (80/443)       → backend-stage:8080 / backend-prod:8080 (Docker 내부 네트워크)
+    ├── nginx (80/443)       → HTTP→HTTPS 리다이렉트 + SSL 종단 (Let's Encrypt, 만료 2026-09-27)
+    │     api.prod.likelion-khu.com  → backend-prod:8080
+    │     api.stage.likelion-khu.com → backend-stage:8080
     ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
     └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
@@ -76,10 +79,16 @@ Vercel → 프론트엔드 (인프라 무관)
 | `.github/workflows/ci.yml` | PR 시 백엔드 테스트 실행 + PR 코멘트 |
 | `.github/workflows/cd.yml` | 이미지 빌드·푸시 → OCI 배포 → 헬스체크 → 스모크 테스트 → 실패 시 롤백 |
 | `infra/docker-compose.yml` | OCI 전체 스택 (nginx + backend-stage:8081 + backend-prod:8080) |
-| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore), 도메인 확정 후 작성 |
+| `infra/nginx.conf` | nginx 설정 — 서버에만 존재 (gitignore). SSL + 도메인 라우팅 + `client_max_body_size 6m`(백엔드 멀티파트 한도 5MB보다 살짝 크게 — 백엔드가 자기 한도 초과 시 친절한 JSON 에러를 낼 수 있도록. 자세한 경위는 아래 참고) 설정 완료 |
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
+| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 |
+| `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
+| `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
+| `infra/push-disk-metric.py` / `infra/push-backup-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
+| `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
+| `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
 
 ---
 
@@ -109,6 +118,8 @@ Vercel → 프론트엔드 (인프라 무관)
 **인스턴스**: `168.138.202.82` (ubuntu@, arm64 Ampere A1, 2 OCPU/12GB) — 운영 중
 - `OCI_DEPLOY_PATH` = `/home/ubuntu/website/infra`
 - `~/.ssh/oci_server.pem` (장찬욱 로컬, SSH 접속용) / `ssh likelion-oci`로 접속
+- **자동 보안 업데이트**: `unattended-upgrades` 기본 활성화 — 보안 패치만 자동 적용, 전체 업그레이드는 수동
+- **SSL 인증서**: `/etc/letsencrypt/live/likelion-khu.com/` — certbot이 자동 갱신 등록함 (만료 2026-09-27)
 
 > OCID 등 민감 정보는 `~/.oci/config` 또는 OCI 콘솔에서 확인
 
@@ -117,7 +128,7 @@ Vercel → 프론트엔드 (인프라 무관)
 ## OCI 초기 세팅 (한 번만)
 
 1. `OCI_DEPLOY_PATH` 디렉터리 생성 + git clone
-2. `infra/nginx.conf` 작성 (도메인 확정 후 — Let's Encrypt SSL 설정 포함)
+2. `infra/nginx.conf` 작성 ✅ 완료 — SSL + 도메인 라우팅 설정됨
 3. `infra/.env.stage`, `infra/.env.prod` 작성 (`.env.stage.example` 참고, 백엔드가 확정하는 환경변수)
 4. `mkdir -p infra/data/` — SQLite DB 디렉터리 생성
 5. `docker login ghcr.io` — GHCR pull 권한
@@ -148,5 +159,9 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 
 ## 미결 사항
 - 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- nginx server_name + SSL (도메인 구매 후 — 현재 IP 직접 접속만 가능, 80포트 전부 prod로 감)
-- SQLite 백업 (단일 노드에 DB가 같이 있어서 노드 장애 = 데이터 유실 위험)
+- ~~SQLite 백업 자동화~~ → 완료(2026-07-04). 매일 cron으로 prod·stage 스냅샷 → 프라이빗 버킷 `likelion-backups` 업로드, 복원 검증까지 실측 완료. 상세는 [`db-access.md`](./db-access.md#백업-전략-구현검증-완료--2026-07-04).
+- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03).
+- ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
+- ~~팀원 공개키 등록~~ → 안시현·김우진(PM) 등록 완료(2026-07-04, stage+prod 조회+작성, GitHub 등록 키 재활용). **다음 할 일: 신선우.** GitHub에 등록된 SSH 키가 없어 본인이 새로 생성 후 `.pub` 전달 대기 중.
+- **이메일 발송 기반 (#75, ~7/6, #74 선행)** — Email Domain·DKIM·Approved Sender·전용 IAM 유저(`smtp-mailer`)·SMTP 자격증명 생성, 호스팅케이알에 SPF·DKIM·DMARC 등록, 테스트 발송까지 전부 완료 — **SPF·DKIM·DMARC 전부 PASS 확인**(2026-07-06). **다음 할 일: `.env.email.local` 자격증명을 신선우·안시현에게 안전한 채널로 전달**(GitHub엔 평문 금지) → 완료되면 이슈 닫기. 브랜치 `infra/#75-email-delivery`. 상세는 [`email-delivery.md`](./email-delivery.md).
+- **관측·알림 기반 (#83, ~7/30)** — 외부 가동 감시(UptimeRobot)·OCI Monitoring/Alarms(디스크·메모리·백업)·재시작 정책 드리프트 수정, 그리고 **3개 항목 실발동 검증까지 전부 완료**(2026-07-09). 재부팅 복구력·디스크/메모리 Alarm·백업 Absence Alarm 셋 다 실측 확인 — 상세는 [`observability.md`](./observability.md#실발동-검증-2026-07-09). 이 검증 과정에서 **실제 백업 장애(backup-db.sh CRLF로 07-08~09 이틀간 백업 무중단 실패)를 발견·수정**했고, 알람 이메일 포맷(ONS_OPTIMIZED)·PM 구독자 추가까지 같이 정리. 브랜치 `infra/#83-observability-alerts`에 커밋 완료, **PR은 아직 안 올림**(김우진 지시 대기) — **다음 할 일: PR 생성 지시가 오면 올리고, 머지 후 이슈 닫기.**

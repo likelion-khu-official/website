@@ -6,6 +6,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     restart: unless-stopped
 
   backend-stage:
@@ -16,7 +17,7 @@ services:
       - .env.stage
     volumes:
       - ./data:/app/data
-    restart: on-failure:5
+    restart: unless-stopped
 
   backend-prod:
     image: ghcr.io/likelion-khu-official/website/backend:${PROD_TAG:-prod-latest}
@@ -26,4 +27,4 @@ services:
       - .env.prod
     volumes:
       - ./data:/app/data
-    restart: on-failure:5
+    restart: unless-stopped
