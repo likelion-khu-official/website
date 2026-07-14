@@ -74,6 +74,11 @@ claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는
 - **어사인 = 특정 1인의 handle.** "해당 팀"이 아니라 *그 미션을 실제로 할 한 사람*을 지목한다. 이 assignee가 라우팅의 전부다 — 클레임(claim-mission)이 `assignee == 내 handle`인 이슈만 가져가기 때문에, 팀만 맞고 사람이 비면 아무도 못 받는다.
   - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[백엔드]` 미션이면 assignee의 team이 `백엔드`).
   - **디자인 예외**(`handle: null`): GitHub 계정이 없어 assignee를 못 건다. 이슈에 assignee 없이 두거나 GitHub 이슈 자체를 만들지 않고, 미션 본문을 카톡·Figma 링크로 공유한다(아래 "레포 밖 팀" 경로). 이 경로는 claim-mission 대상이 아니다 — 깨지 말 것.
+- **인당 열린 미션 1개(원칙).** 새로 발주하기 전에 그 사람 앞으로 이미 열린(roadmap 라벨 + open 상태) 미션이 있는지 확인한다:
+  ```
+  gh issue list --repo likelion-khu-official/website --assignee <handle> --label roadmap --state open
+  ```
+  이미 있으면 **PM에게 한 번 확인**한다 — "○○님은 지금 #n을 진행 중이에요. 이것도 같이 맡길까요, 아니면 다른 사람/다음으로 미룰까요?" 겹치기로 확정되면 진행하되, 조용히 겹치게 두지 않는다.
 - **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`프론트`/`백엔드`/`인프라`)
   - 이 두 라벨이 **미션 뱃지**다. 클레임은 `roadmap` 라벨로 "이건 미션 이슈"임을 식별한다 — 유지 필수.
 - Team · 목표일: GitHub Projects 필드(생성 후 설정)
