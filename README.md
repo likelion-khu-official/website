@@ -7,9 +7,9 @@
 │  ├─ <a href="pm/features/랜딩.md">🟢 랜딩</a>
 │  │   ├─ <a href="pm/features/랜딩-히어로소개통계세션.md">🟢 히어로 · 소개 · 통계 · 세션</a>
 │  │   └─ <a href="pm/features/랜딩-연간활동계획.md">🟡 연간 활동계획</a>
-│  ├─ <a href="pm/features/프로젝트-쇼케이스.md">🔵 프로젝트 쇼케이스</a>
-│  │   ├─ <a href="pm/features/프로젝트-목록.md">🔵 목록  /projects</a>
-│  │   └─ <a href="pm/features/프로젝트-상세.md">🔵 상세  /projects/:id</a>
+│  ├─ <a href="pm/features/프로젝트-쇼케이스.md">🟡 프로젝트 쇼케이스</a>
+│  │   ├─ <a href="pm/features/프로젝트-목록.md">🟡 목록  /projects</a>
+│  │   └─ <a href="pm/features/프로젝트-상세.md">🟡 상세  /projects/:id</a>
 │  ├─ <a href="pm/features/멤버-로스터.md">🟡 멤버 로스터</a>  /members
 │  │   ├─ <a href="pm/features/멤버카드.md">🟢 멤버 카드</a>
 │  │   └─ <a href="pm/features/로스터-탭.md">🟡 로스터 탭</a>
@@ -36,7 +36,7 @@
 │  ├─ <a href="pm/features/글쓰기.md">🟡 글쓰기</a>
 │  ├─ <a href="pm/features/내글-수정삭제.md">🟢 내 글 수정 · 삭제</a>
 │  ├─ <a href="pm/features/내프로필-편집.md">🟡 내 프로필 편집</a>
-│  └─ <a href="pm/features/내프로젝트.md">🔵 내 프로젝트</a>
+│  └─ <a href="pm/features/내프로젝트.md">🟡 내 프로젝트</a>
 │
 ├─ <a href="pm/features/어드민.md">어드민</a>  /admin
 │  ├─ <a href="pm/features/멤버-관리.md">🔵 멤버 관리</a>
