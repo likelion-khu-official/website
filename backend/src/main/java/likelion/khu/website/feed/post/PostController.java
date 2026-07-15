@@ -40,7 +40,7 @@ public class PostController {
         return postService.getPublishedPost(slug);
     }
 
-    // ── 어드민 (TODO: 인증 추가) ──────────────────────────────────────
+    // ── 어드민 (인증은 SecurityConfig에서 처리됨, #90/#97) ──────────────────
 
     /** 전체 목록 */
     @GetMapping("/api/admin/posts")
