@@ -13,8 +13,8 @@
 │  ├─ <a href="pm/features/멤버-로스터.md">🟡 멤버 로스터</a>  /members
 │  │   ├─ <a href="pm/features/멤버카드.md">🟢 멤버 카드</a>
 │  │   └─ <a href="pm/features/로스터-탭.md">🟡 로스터 탭</a>
-│  ├─ <a href="pm/features/운영진-소개.md">🔵 운영진 소개</a>
-│  │   └─ <a href="pm/features/운영진-카드.md">🔵 운영진 카드</a>
+│  ├─ <a href="pm/features/운영진-소개.md">🟡 운영진 소개</a>
+│  │   └─ <a href="pm/features/운영진-카드.md">🟡 운영진 카드</a>
 │  ├─ <a href="pm/features/블로그.md">🟡 블로그</a>
 │  │   ├─ <a href="pm/features/블로그-목록.md">🟢 목록  /blog</a>
 │  │   ├─ <a href="pm/features/블로그-글상세.md">🟢 글 상세  /blog/:slug</a>
@@ -40,7 +40,7 @@
 │
 ├─ <a href="pm/features/어드민.md">어드민</a>  /admin
 │  ├─ <a href="pm/features/멤버-관리.md">🔵 멤버 관리</a>
-│  ├─ <a href="pm/features/운영진-소개-관리.md">🔵 운영진 소개 관리</a>
+│  ├─ <a href="pm/features/운영진-소개-관리.md">🟡 운영진 소개 관리</a>
 │  ├─ <a href="pm/features/모니터링-검수.md">🟡 모니터링 · 검수</a>
 │  ├─ <a href="pm/features/명단-열람.md">🔵 명단 열람</a>
 │  └─ <a href="pm/features/모집-관리.md">🟡 모집 관리</a>
