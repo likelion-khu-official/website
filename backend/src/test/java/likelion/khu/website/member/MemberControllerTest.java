@@ -30,6 +30,8 @@ class MemberControllerTest {
         req.setName("시현");
         req.setRoles(Set.of(MemberRole.BE));
         req.setCohort(13);
+        req.setStudentId("2020123456");
+        req.setPhone("01000000000");
         MemberResponse res = memberService.create(req, "admin@likelion.org");
         return res.getId();
     }
@@ -65,7 +67,7 @@ class MemberControllerTest {
     void createMember_SuperAdmin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("선우"))
                 .andExpect(jsonPath("$.cohort").value(13))
@@ -78,7 +80,7 @@ class MemberControllerTest {
     void createMember_NotSuperAdmin_Returns403() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -86,7 +88,7 @@ class MemberControllerTest {
     void createMember_Unauthenticated_Returns4xx() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().is4xxClientError());
     }
 
@@ -95,7 +97,7 @@ class MemberControllerTest {
     void createMember_MissingName_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"roles\":[\"BE\"],\"cohort\":13}"))
+                        .content("{\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -104,7 +106,7 @@ class MemberControllerTest {
     void createMember_MissingRoles_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"cohort\":13}"))
+                        .content("{\"name\":\"선우\",\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -113,8 +115,28 @@ class MemberControllerTest {
     void createMember_MissingCohort_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"]}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @WithMockUser(roles = "SUPER_ADMIN")
+    @Test
+    void createMember_MissingStudentId_Returns400() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"phone\":\"01011112222\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMember_DuplicateStudentId_Returns409() throws Exception {
+        createMember();
+
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"또다른시현\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020123456\",\"phone\":\"01099998888\"}"))
+                .andExpect(status().isConflict());
     }
 
     // ── PATCH /api/admin/members/{id} ────────────────────────────────
@@ -182,6 +204,42 @@ class MemberControllerTest {
         mockMvc.perform(patch("/api/admin/members/{id}", 9999L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"없는사람\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    // ── POST /api/admin/members/{id}/password/reset ─────────────────────
+
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void resetPassword_ByRegularAdmin_Returns200() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/password/reset", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void resetPassword_ByMember_Returns403() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/password/reset", id))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void resetPassword_Unauthenticated_Returns4xx() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/password/reset", id))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void resetPassword_NonExistentId_Returns404() throws Exception {
+        mockMvc.perform(post("/api/admin/members/{id}/password/reset", 9999L))
                 .andExpect(status().isNotFound());
     }
 }

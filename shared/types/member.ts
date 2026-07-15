@@ -14,13 +14,15 @@ export interface Member {
   joinReason: string | null;
 }
 
-/** POST /api/admin/members */
+/** POST /api/admin/members — studentId·phone은 로그인 계정 발급용(#117). 초기 비번=phone을 서버가 해시한다. */
 export interface MemberCreateRequest {
   name: string;
   roles: MemberRole[];
   cohort: number;
   photoUrl?: string;
   joinReason?: string;
+  studentId: string;
+  phone: string;
 }
 
 /** PATCH /api/admin/members/{id} — cohort·emoji는 불변이라 DTO에 없음 */
