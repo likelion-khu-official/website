@@ -58,6 +58,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/members").permitAll()
                 // 피드 글 — 공개 읽기 + 매직링크 제출
                 .requestMatchers("/api/posts/**").permitAll()
+                // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
+                .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*").permitAll()
                 // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
                 .requestMatchers("/api/posts/*/comments/**").permitAll()
                 // 어드민 로그인/로그아웃/리프레시 — SecurityContext가 아니라 refresh_token 쿠키 자체 내용으로
