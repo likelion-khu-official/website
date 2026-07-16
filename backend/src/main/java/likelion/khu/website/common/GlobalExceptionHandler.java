@@ -18,6 +18,7 @@ import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
 import likelion.khu.website.feed.exception.MagicLinkTokenExpiredException;
 import likelion.khu.website.feed.exception.MagicLinkTokenNotFoundException;
+import likelion.khu.website.member.exception.MemberNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -132,6 +133,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AdminInvitationIdNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAdminInvitationIdNotFound(AdminInvitationIdNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    // ── 멤버 인증(#117) ──────────────────────────────────────────────
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMemberNotFound(MemberNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
     }
 

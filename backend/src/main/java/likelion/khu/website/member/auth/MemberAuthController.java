@@ -62,7 +62,8 @@ public class MemberAuthController {
             @Valid @RequestBody MemberChangePasswordRequest request,
             Authentication authentication) {
         AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
-        MemberAuthService.LoginResult result = authService.changePassword(principal.getId(), request.getNewPassword());
+        MemberAuthService.LoginResult result = authService.changePassword(
+                principal.getId(), request.getCurrentPassword(), request.getNewPassword());
         return withTokenCookies(result);
     }
 
