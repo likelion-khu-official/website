@@ -204,8 +204,8 @@ class PostControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    // mustChangePassword=true인 멤버가 /api/admin/posts를 치면, MemberPasswordGuardFilter가
-    // 아니라(그건 "/api/member/" 네임스페이스 밖이라 안 걸림) role 체크로 막혀야 한다 — 즉
+    // mustChangePassword=true인 멤버가 GET /api/admin/posts를 치면, MemberPasswordGuardFilter가
+    // 아니라(가드는 쓰기 메서드만 본다 — GET은 애초에 안 막음) role 체크로 막혀야 한다 — 즉
     // 403 FORBIDDEN이지 403 MUST_CHANGE_PASSWORD가 아니어야 한다. 기존 adminList_Member_Returns403은
     // mustChangePassword=false(기본값)로만 검증해서 이 경계를 안 찔러봤다.
     @Test
@@ -216,9 +216,12 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    // GET과 반대로 PATCH는 쓰기 메서드라 MemberPasswordGuardFilter가 role 체크보다 먼저 걸린다 —
+    // 그래서 403 FORBIDDEN이 아니라 403 MUST_CHANGE_PASSWORD가 나온다(어차피 멤버는 이 API에
+    // 권한이 없어 결과적으로 항상 막히지만, 막히는 "이유"가 GET과 다르다는 걸 명시적으로 잠근다).
     @Test
     @WithMockAdminUser(role = "MEMBER", mustChangePassword = true)
-    void updateStatus_MemberMustChangePassword_Returns403ForbiddenNotGuard() throws Exception {
+    void updateStatus_MemberMustChangePassword_Returns403ViaGuardBeforeRoleCheck() throws Exception {
         String token = issueToken();
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
@@ -229,6 +232,6 @@ class PostControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"PUBLISHED\"}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+                .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
     }
 }

@@ -61,8 +61,12 @@ Spring Security `RoleHierarchy`로 "상위 역할이 하위 권한을 자동 포
 **10. (자체 리뷰에서 발견 — 수정) `PostController`의 어드민 엔드포인트에 `@PreAuthorize`를 추가한 이유**
 `SecurityConfig`의 `/api/admin/posts/**` matcher는 `.authenticated()`까지만 걸려 있다 — "인증된 사람 = 운영진"이라는, MEMBER 로그인이 없던 시절엔 맞았던 암묵적 전제 위에 있었다. 이번 미션이 MEMBER라는 **어드민이 아닌 첫 인증 주체**를 도입하면서 그 전제가 깨져, 첫 로그인 비번변경만 마친 일반 부원이 `GET /api/admin/posts`로 draft/hidden 글을 전부 보고 `PATCH /api/admin/posts/{id}/status`로 아무 글이나 숨기거나 게시할 수 있는 상태가 됐다(위키 역할표상 "문제 글 숨김"은 관리자 전용). `MemberController`의 `/api/admin/members/*`처럼, URL 접두사(`/admin/`)는 정리용 관례일 뿐 보안 경계가 아니라서 `@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")`를 컨트롤러에 직접 달아야 했다. `CommentController`의 `/admin/{commentId}/hide`는 애초에 `permitAll()`(별도 TODO, 이번 미션 이전부터 있던 미인증 상태)이라 이 취약점과는 무관 — 손대지 않았다.
 
-**11. (자체 리뷰에서 발견 — 수정) `MemberPasswordGuardFilter`의 차단 범위를 전역에서 `/api/member/` 네임스페이스로 좁힌 이유**
-이 필터는 `SecurityFilterChain`에 무조건 등록돼 `permitAll()` 여부와 무관하게 모든 요청에서 실행된다. 원래 구현은 허용 목록(`ALLOWED_PATHS`) 3개 밖의 **모든** 경로를 막았는데, 그러면 `GET /api/posts`(공개 피드)·`GET /api/members`(공개 로스터) 같은 완전 공개 API까지 403(MUST_CHANGE_PASSWORD)이 나서, 막 로그인한 신규 멤버가 익명 방문자도 보는 콘텐츠조차 못 보는 문제가 있었다. 게다가 `ALLOWED_PATHS`에 `/api/member/auth/login`이 빠져 있어, 유효기간 안 끝난 access_token 쿠키를 든 채로 재로그인을 시도해도 막혔다. 이제 `/api/member/`(멤버 네임스페이스) 안에서만 막되, 인증 모듈 자기 자신(`/api/member/auth/**`)은 통째로 열어둔다 — 개별 경로를 나열하는 방식(구버전)은 하나라도 빠뜨리면 "재로그인 자체가 막히는" 사고로 이어진다. 지금 코드베이스엔 `/api/member/auth/**` 밖의 실제 멤버 전용 API가 아직 없어서(글쓰기·프로필 편집은 다음 미션), 가드는 사실상 미래의 멤버 전용 API를 위한 선제 방어로만 남는다 — 테스트도 가상 경로(`/api/member/profile`)로 가드 로직 자체를 검증한다.
+**11. (자체 리뷰에서 발견 — 수정, 이후 재수정) `MemberPasswordGuardFilter`의 차단 범위 — 경로 목록에서 "쓰기 메서드인가"로 일반화**
+이 필터는 `SecurityFilterChain`에 무조건 등록돼 `permitAll()` 여부와 무관하게 모든 요청에서 실행된다. 원래 구현은 허용 목록(`ALLOWED_PATHS`) 3개 밖의 **모든** 경로를 막았는데, 그러면 `GET /api/posts`(공개 피드)·`GET /api/members`(공개 로스터) 같은 완전 공개 API까지 403(MUST_CHANGE_PASSWORD)이 나서, 막 로그인한 신규 멤버가 익명 방문자도 보는 콘텐츠조차 못 보는 문제가 있었다. 그래서 1차로 `/api/member/`(멤버 네임스페이스) 안에서만 막도록 좁혔다.
+
+그런데 이 1차 수정도 부족했다 — **#119(프로젝트 쇼케이스) 리뷰에서 `/api/projects`(POST/PATCH/DELETE, 명백한 멤버 전용 쓰기 API)가 `/api/member/` 밖이라 가드가 전혀 안 걸린다는 게 드러났다.** 리드미 기능 트리(`멤버 영역` — 글쓰기·내프로필편집·내프로젝트 등)를 보면 앞으로도 `/api/member/` 밖에 멤버 전용 쓰기 API가 계속 생길 걸 알 수 있어서, 경로를 나열하는 접근 자체가 구조적으로 매번 같은 구멍을 반복한다고 판단했다. 그래서 축을 아예 바꿨다: **"쓰기 메서드(POST/PUT/PATCH/DELETE)인가"**로 판단한다. 읽기(GET)는 애초에 막을 이유가 없었던 거라 전부 통과시키고, 쓰기는 경로가 뭐든(`/api/member/`든 `/api/projects`든 앞으로 생길 무엇이든) 자동으로 걸린다. 유일한 예외는 `/api/member/auth/**`(로그인·로그아웃·리프레시·비번변경, 인증 모듈 자기 자신) — 안 열어두면 비번을 바꾸러 가는 요청 자체가 막힌다.
+
+부수 효과: `/api/admin/posts/**`처럼 멤버에게 원래 권한이 없는(role 체크로 어차피 막히는) 쓰기 엔드포인트도 이제 role 체크보다 가드가 먼저 걸린다 — 결과(403)는 같지만 이유(코드)가 `FORBIDDEN`에서 `MUST_CHANGE_PASSWORD`로 바뀐다(`PostControllerTest.updateStatus_MemberMustChangePassword_Returns403ViaGuardBeforeRoleCheck` 참고). "비번 안 바꾼 멤버는 어떤 쓰기 행동도 못 한다"가 더 단순하고 일관된 규칙이라 이 우선순위를 그대로 받아들였다.
 
 ## 재사용 vs 신규 — 한눈에
 
