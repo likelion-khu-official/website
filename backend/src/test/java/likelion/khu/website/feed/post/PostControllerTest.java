@@ -193,4 +193,42 @@ class PostControllerTest {
                         .content("{\"status\":\"PUBLISHED\"}"))
                 .andExpect(status().isForbidden());
     }
+
+    // 상태공간트리 QA에서 찾은 빈틈 — 쿠키 자체가 없으면(role 이전에) 401인지, GET만이 아니라
+    // PATCH .../status도 같은 matcher("/api/admin/posts/**".authenticated())를 타는지 확인.
+    @Test
+    void updateStatus_NoCookie_Returns401() throws Exception {
+        mockMvc.perform(patch("/api/admin/posts/{id}/status", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // mustChangePassword=true인 멤버가 /api/admin/posts를 치면, MemberPasswordGuardFilter가
+    // 아니라(그건 "/api/member/" 네임스페이스 밖이라 안 걸림) role 체크로 막혀야 한다 — 즉
+    // 403 FORBIDDEN이지 403 MUST_CHANGE_PASSWORD가 아니어야 한다. 기존 adminList_Member_Returns403은
+    // mustChangePassword=false(기본값)로만 검증해서 이 경계를 안 찔러봤다.
+    @Test
+    @WithMockAdminUser(role = "MEMBER", mustChangePassword = true)
+    void adminList_MemberMustChangePassword_Returns403ForbiddenNotGuard() throws Exception {
+        mockMvc.perform(get("/api/admin/posts"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @WithMockAdminUser(role = "MEMBER", mustChangePassword = true)
+    void updateStatus_MemberMustChangePassword_Returns403ForbiddenNotGuard() throws Exception {
+        String token = issueToken();
+        PostCreateRequest req = new PostCreateRequest();
+        req.setTitle("제목");
+        req.setContent("내용");
+        Long id = postService.createPost(token, req).getId();
+
+        mockMvc.perform(patch("/api/admin/posts/{id}/status", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
 }

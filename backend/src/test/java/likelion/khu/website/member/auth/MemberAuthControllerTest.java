@@ -107,6 +107,26 @@ class MemberAuthControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
     }
 
+    // 상태공간트리 QA에서 찾은 빈틈 — 로그아웃은 permitAll이고 서비스도 refreshToken==null이면
+    // 그냥 no-op이라, 쿠키가 아예 없어도(=로그인한 적 없는 방문자가 눌러도) 200이 나와야 정상이다.
+    @Test
+    void logout_NoCookie_StillReturns200() throws Exception {
+        mockMvc.perform(post("/api/member/auth/logout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    // 상태공간트리 QA에서 찾은 빈틈 — /api/member/auth/password는 permitAll 목록에 없어
+    // 쿠키(SecurityContext) 자체가 없으면 hasRole('MEMBER') 이전에 401로 막혀야 한다.
+    @Test
+    void changePassword_NoCookie_Returns401() throws Exception {
+        mockMvc.perform(patch("/api/member/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"x\",\"newPassword\":\"newPassword1\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
     @Test
     void refresh_NoRefreshCookie_Returns401() throws Exception {
         mockMvc.perform(post("/api/member/auth/refresh"))
