@@ -220,12 +220,9 @@ class MemberAuthControllerTest {
                 passwordEncoder.matches("01000000008", unchanged.getPasswordHash()));
     }
 
-    @Test
-    void authenticatedRoute_NoCookie_Returns401() throws Exception {
-        mockMvc.perform(get("/api/admin/posts"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-    }
+    // 미인증(쿠키 없음) → 401은 AdminAuthControllerTest.adminFeedRoute_NoCookie_NowReturns401()가
+    // 이미 같은 엔드포인트(/api/admin/posts)로 검증한다 — 멤버 인증과 무관한 Spring Security 자체
+    // 동작이라 여기서 중복 검증하지 않는다.
 
     @Autowired MemberAuthService memberAuthService;
 
