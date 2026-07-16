@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +45,7 @@ public class ProjectService {
     @Transactional
     public ProjectDetailResponse create(ProjectCreateRequest request, Long creatorMemberId) {
         requireSelfAmongParticipants(request.getParticipants(), creatorMemberId);
+        requireNoDuplicateParticipants(request.getParticipants());
         requireAtMostOneRepresentative(request.getImages());
 
         Project project = Project.create(
@@ -75,6 +77,11 @@ public class ProjectService {
             if (request.getParticipants().isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "참여 멤버는 최소 1명 있어야 해요.");
             }
+            // 참여자 목록을 통째로 교체할 때 요청자 본인을 빼면, 자기가 수정한 프로젝트인데도
+            // 다음부턴 requireParticipant()에 걸려 스스로 못 고치는 상태가 된다 — create()와
+            // 같은 불변식을 여기서도 지킨다.
+            requireSelfAmongParticipants(request.getParticipants(), memberId);
+            requireNoDuplicateParticipants(request.getParticipants());
             projectParticipantRepository.deleteAllByProjectId(id);
             saveParticipants(project, request.getParticipants());
         }
@@ -113,6 +120,16 @@ public class ProjectService {
         boolean includesSelf = participants.stream().anyMatch(p -> p.getMemberId().equals(creatorMemberId));
         if (!includesSelf) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "본인을 참여 멤버에 포함해주세요.");
+        }
+    }
+
+    // 같은 memberId를 참여자 목록에 두 번 넣으면 ProjectParticipant 행이 중복 저장돼(유니크
+    // 제약 없음) 상세 응답에 같은 사람이 두 번 나온다 — 상태공간트리 QA에서 발견.
+    private void requireNoDuplicateParticipants(List<ProjectParticipantRequest> participants) {
+        long distinctCount = participants.stream().map(ProjectParticipantRequest::getMemberId)
+                .collect(Collectors.toSet()).size();
+        if (distinctCount != participants.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "참여 멤버가 중복돼 있어요.");
         }
     }
 
