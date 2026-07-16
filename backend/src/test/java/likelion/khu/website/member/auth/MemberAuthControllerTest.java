@@ -1,6 +1,8 @@
 package likelion.khu.website.member.auth;
 
 import jakarta.servlet.http.Cookie;
+import likelion.khu.website.admin.WithMockAdminUser;
+import likelion.khu.website.admin.auth.JwtProvider;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
@@ -14,6 +16,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,12 +34,26 @@ class MemberAuthControllerTest {
     @Autowired MockMvc mockMvc;
     @Autowired MemberRepository memberRepository;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired JwtProvider jwtProvider;
+    @Autowired MemberRefreshTokenRepository memberRefreshTokenRepository;
 
     private Member createMember(String studentId, String phone) {
         Member member = Member.create(
                 "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@likelion.org",
                 studentId, phone, passwordEncoder.encode(phone));
         return memberRepository.save(member);
+    }
+
+    // MemberAuthService#hash()와 동일한 알고리즘 — DB에 저장된 토큰 행을 테스트에서 직접
+    // 조작하려면(예: 강제 만료) 서비스가 실제로 찾는 것과 같은 해시로 저장돼 있어야 한다.
+    private String hash(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(bytes);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test
@@ -116,6 +133,16 @@ class MemberAuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    // 상태공간트리 QA — refresh_token 쿠키에 아무 의미 없는 문자열이 들어있어도(로그인한 적 없는
+    // 브라우저에 이상한 쿠키가 남아있는 경우 등) 로그아웃은 여전히 no-op으로 200이어야 한다.
+    @Test
+    void logout_GarbageCookie_StillReturns200() throws Exception {
+        mockMvc.perform(post("/api/member/auth/logout")
+                        .cookie(new Cookie("refresh_token", "not-a-real-jwt")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
     // 상태공간트리 QA에서 찾은 빈틈 — /api/member/auth/password는 permitAll 목록에 없어
     // 쿠키(SecurityContext) 자체가 없으면 hasRole('MEMBER') 이전에 401로 막혀야 한다.
     @Test
@@ -147,6 +174,45 @@ class MemberAuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.member.studentId").value("2020000005"))
                 .andExpect(cookie().exists("access_token"));
+    }
+
+    // 상태공간트리 QA — DB에 저장된 refresh 토큰 행 자체가 만료된 경우. JWT 자체의 exp(7일)와는
+    // 별개로 member_refresh_tokens.expires_at을 직접 확인하는 MemberRefreshToken.isValid()의
+    // "만료" 분기 — 지금까진 logout으로 revoked=true 되는 분기만 테스트돼 있었다.
+    @Test
+    void refresh_ExpiredStoredToken_Returns401() throws Exception {
+        Member member = createMember("2020000011", "01000000011");
+        String refreshToken = jwtProvider.createRefreshToken(member);
+        memberRefreshTokenRepository.save(
+                MemberRefreshToken.issue(member.getId(), hash(refreshToken), LocalDateTime.now().minusSeconds(1)));
+
+        mockMvc.perform(post("/api/member/auth/refresh")
+                        .cookie(new Cookie("refresh_token", refreshToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    // 상태공간트리 QA — access 토큰을 refresh 자리에 넣어 보내면(typ 클레임이 access) 막혀야
+    // 한다. DB 조회까지 가지도 않고 jwtProvider.isRefreshToken() 필터에서 먼저 걸러진다.
+    @Test
+    void refresh_AccessTokenUsedAsRefreshToken_Returns401() throws Exception {
+        Member member = createMember("2020000012", "01000000012");
+        String accessToken = jwtProvider.createAccessToken(member);
+
+        mockMvc.perform(post("/api/member/auth/refresh")
+                        .cookie(new Cookie("refresh_token", accessToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    // 상태공간트리 QA — 서명 검증조차 실패하는 문자열. jwtProvider.parseClaims()가
+    // Optional.empty()를 돌려주는 지점부터 이미 걸러진다(DB 조회 자체가 안 일어남).
+    @Test
+    void refresh_GarbageCookie_Returns401() throws Exception {
+        mockMvc.perform(post("/api/member/auth/refresh")
+                        .cookie(new Cookie("refresh_token", "not-a-real-jwt")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
     }
 
     @Test
@@ -238,6 +304,38 @@ class MemberAuthControllerTest {
         Member unchanged = memberRepository.findByStudentId("2020000008").orElseThrow();
         org.junit.jupiter.api.Assertions.assertTrue(
                 passwordEncoder.matches("01000000008", unchanged.getPasswordHash()));
+    }
+
+    // 상태공간트리 QA — 현재 비번은 맞는데 새 비번이 AdminPasswordPolicy(8자+영문+숫자)에
+    // 못 미치면 400. currentPassword 검증 다음, changePassword() 적용 이전에 막혀야 한다.
+    @Test
+    void changePassword_WeakNewPassword_Returns400() throws Exception {
+        createMember("2020000013", "01000000013");
+        MvcResult loginResult = mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020000013\",\"password\":\"01000000013\"}"))
+                .andReturn();
+        Cookie accessCookie = loginResult.getResponse().getCookie("access_token");
+
+        mockMvc.perform(patch("/api/member/auth/password")
+                        .cookie(accessCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"01000000013\",\"newPassword\":\"12345678\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("WEAK_PASSWORD"));
+    }
+
+    // 상태공간트리 QA — 인증은 됐지만(쿠키 있음, 401 아님) 역할이 MEMBER가 아닌 경우.
+    // hasRole('MEMBER') 불충족으로 403 FORBIDDEN — changePassword_NoCookie_Returns401(미인증)과
+    // 대비되는, "인증은 됐지만 권한이 없는" 경계 케이스.
+    @Test
+    @WithMockAdminUser(role = "ADMIN")
+    void changePassword_AdminRole_Returns403() throws Exception {
+        mockMvc.perform(patch("/api/member/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"x\",\"newPassword\":\"newPassword1\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     // 미인증(쿠키 없음) → 401은 AdminAuthControllerTest.adminFeedRoute_NoCookie_NowReturns401()가
