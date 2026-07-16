@@ -18,10 +18,12 @@
 | `member/MemberService.create()` | 전화번호를 BCrypt 해시해 초기 비밀번호로 저장, `mustChangePassword=true`로 시작. 학번 중복 시 409 |
 | `member/auth/MemberRefreshToken(Repository)` | `admin.auth.RefreshToken`과 같은 shape, **별도 테이블**(`member_refresh_tokens`) — 이유는 아래 "설계 결정 1" |
 | `member/auth/MemberCookieFactory` | `AdminCookieFactory`와 같은 쿠키(이름 `access_token`/`refresh_token`, HttpOnly+Secure+SameSite=Strict). `access_token`은 Path=`/`로 어드민과 동일하게 겹쳐 쓰고, `refresh_token`만 Path=`/api/member/auth`로 좁혀 어드민 refresh 흐름과 분리 |
-| `member/auth/MemberAuthService` | login/logout/refresh/changePassword/resetPasswordByAdmin. `AdminAuthService`와 동일 구조(잠금 임계치도 `admin.lockout.*` 설정값 재사용) |
+| `member/auth/MemberAuthService` | login/logout/refresh/changePassword(currentPassword 검증 포함)/resetPasswordByAdmin. `AdminAuthService`와 동일 구조(잠금 임계치도 `admin.lockout.*` 설정값 재사용) |
 | `member/auth/MemberAuthController` | `POST /api/member/auth/{login,logout,refresh}`, `PATCH /api/member/auth/password` |
-| `member/auth/MemberPasswordGuardFilter` | 첫 로그인 강제 변경 — 아래 "설계 결정 2" |
+| `member/auth/MemberPasswordGuardFilter` | 첫 로그인 강제 변경, `/api/member/` 네임스페이스에만 적용 — 아래 "설계 결정 2·11" |
 | `member/MemberController#resetPassword` | `POST /api/admin/members/{id}/password/reset` (ADMIN 이상) |
+| `member/exception/MemberNotFoundException` | changePassword/resetPasswordByAdmin의 404 — 아래 "설계 결정 8" |
+| `feed/post/PostController` | `adminList`/`updateStatus`에 `@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")` 추가 — 아래 "설계 결정 9" |
 | `admin/auth/JwtProvider` | `Admin`/`Member` 양쪽을 받는 오버로드로 일반화 + `mcp`(mustChangePassword) 클레임 추가. 클레임 키 `email`은 이름과 달리 "로그인 식별자" 범용 클레임(어드민=이메일, 멤버=학번) — 필터·Principal을 그대로 재사용하려고 키 이름은 안 바꿨다 |
 | `admin/auth/AdminPrincipal` | `mustChangePassword` 필드 추가(어드민 로그인은 항상 `false`) |
 | `admin/auth/JwtAuthenticationFilter` | `mcp` 클레임을 읽어 `AdminPrincipal`에 채우도록 3줄 추가. 그 외 동작(쿠키 파싱·통과형 필터) 변화 없음 |
@@ -50,6 +52,18 @@ Spring Security `RoleHierarchy`로 "상위 역할이 하위 권한을 자동 포
 **7. (불확실 — 리뷰 시 확인 필요) "최고관리자 딱 1명" vs 코드의 "최소 1명"**
 `역할-4종.md`엔 최고관리자가 "딱 1명"이라 적혀 있지만, 실제 코드(#97)는 "최소 1명"(현재 선우님·시현님 둘 다 SUPER_ADMIN) 불변식이다. 이번 미션 Notes가 "지금 있는 개념과 자연스럽게 이어져요"라고 해서, **기존 코드의 "최소 1명" 불변식은 그대로 두고 문서 표현 차이는 건드리지 않았다.** 이 미션 Done에 없는 범위라 별도 확인·조정이 필요하면 ask-pm으로 올릴 사안.
 
+**8. (자체 리뷰에서 발견 — 수정) changePassword/resetPasswordByAdmin의 404를 커스텀 예외로 뺀 이유**
+처음엔 `ResponseStatusException(HttpStatus.NOT_FOUND, ...)`을 바로 던졌는데, `GlobalExceptionHandler`엔 이걸 잡는 핸들러가 없어(커스텀 예외 클래스만 등록됨) Spring 기본 에러 바디(`{timestamp,status,error,path}`)가 나가고, 정작 이 미션이 `shared/types/member-auth.ts`에 문서화한 `{success,message,code:'NOT_FOUND'}` 계약을 못 지켰다. `admin.exception.AdminNotFoundException`과 같은 패턴으로 `member.exception.MemberNotFoundException`을 새로 만들고 `GlobalExceptionHandler`에 핸들러를 등록해 계약을 맞췄다.
+
+**9. (자체 리뷰에서 발견 — 수정) `changePassword`에 currentPassword 검증을 추가한 이유**
+원래는 `newPassword`만 받았는데, 로그인된 기기를 잠깐 빌린 제3자가 현재 비밀번호를 몰라도 새 비번으로 계정을 영구 탈취할 수 있는 구멍이었다. `currentPassword`를 필수로 받아 `passwordEncoder.matches()`로 검증하도록 고쳤다. 첫 로그인 강제 변경 흐름에서도 FE가 사용자에게 다시 물을 필요는 없다 — 로그인 폼에 입력받은 값(초기값=전화번호)을 그대로 `currentPassword`에 실어 보내면 되므로, 사용자 눈엔 "새 비밀번호" 입력창 하나만 보인다.
+
+**10. (자체 리뷰에서 발견 — 수정) `PostController`의 어드민 엔드포인트에 `@PreAuthorize`를 추가한 이유**
+`SecurityConfig`의 `/api/admin/posts/**` matcher는 `.authenticated()`까지만 걸려 있다 — "인증된 사람 = 운영진"이라는, MEMBER 로그인이 없던 시절엔 맞았던 암묵적 전제 위에 있었다. 이번 미션이 MEMBER라는 **어드민이 아닌 첫 인증 주체**를 도입하면서 그 전제가 깨져, 첫 로그인 비번변경만 마친 일반 부원이 `GET /api/admin/posts`로 draft/hidden 글을 전부 보고 `PATCH /api/admin/posts/{id}/status`로 아무 글이나 숨기거나 게시할 수 있는 상태가 됐다(위키 역할표상 "문제 글 숨김"은 관리자 전용). `MemberController`의 `/api/admin/members/*`처럼, URL 접두사(`/admin/`)는 정리용 관례일 뿐 보안 경계가 아니라서 `@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")`를 컨트롤러에 직접 달아야 했다. `CommentController`의 `/admin/{commentId}/hide`는 애초에 `permitAll()`(별도 TODO, 이번 미션 이전부터 있던 미인증 상태)이라 이 취약점과는 무관 — 손대지 않았다.
+
+**11. (자체 리뷰에서 발견 — 수정) `MemberPasswordGuardFilter`의 차단 범위를 전역에서 `/api/member/` 네임스페이스로 좁힌 이유**
+이 필터는 `SecurityFilterChain`에 무조건 등록돼 `permitAll()` 여부와 무관하게 모든 요청에서 실행된다. 원래 구현은 허용 목록(`ALLOWED_PATHS`) 3개 밖의 **모든** 경로를 막았는데, 그러면 `GET /api/posts`(공개 피드)·`GET /api/members`(공개 로스터) 같은 완전 공개 API까지 403(MUST_CHANGE_PASSWORD)이 나서, 막 로그인한 신규 멤버가 익명 방문자도 보는 콘텐츠조차 못 보는 문제가 있었다. 게다가 `ALLOWED_PATHS`에 `/api/member/auth/login`이 빠져 있어, 유효기간 안 끝난 access_token 쿠키를 든 채로 재로그인을 시도해도 막혔다. 이제 `/api/member/`(멤버 네임스페이스) 안에서만 막되, 인증 모듈 자기 자신(`/api/member/auth/**`)은 통째로 열어둔다 — 개별 경로를 나열하는 방식(구버전)은 하나라도 빠뜨리면 "재로그인 자체가 막히는" 사고로 이어진다. 지금 코드베이스엔 `/api/member/auth/**` 밖의 실제 멤버 전용 API가 아직 없어서(글쓰기·프로필 편집은 다음 미션), 가드는 사실상 미래의 멤버 전용 API를 위한 선제 방어로만 남는다 — 테스트도 가상 경로(`/api/member/profile`)로 가드 로직 자체를 검증한다.
+
 ## 재사용 vs 신규 — 한눈에
 
 | 그대로 재사용 | 새로 만듦(별도) |
@@ -59,14 +73,16 @@ Spring Security `RoleHierarchy`로 "상위 역할이 하위 권한을 자동 포
 | `admin.lockout.*` 설정값(잠금 임계치) | `MemberAuthService`/`Controller` |
 | `GlobalExceptionHandler`의 기존 예외 핸들러(`INVALID_CREDENTIALS`·`ACCOUNT_LOCKED`·`WEAK_PASSWORD` 등, 클래스 재사용이라 별도 등록 불필요) | `MemberPasswordGuardFilter`(신규 요구사항) |
 | `JwtProvider`/`JwtAuthenticationFilter`/`AdminPrincipal`(일반화만) | `admin/members/{id}/password/reset` 엔드포인트 |
+| | `member/exception/MemberNotFoundException` + `GlobalExceptionHandler` 핸들러 1개(신규 등록, 결정 8) |
 
 ## 테스트 커버리지
 
-`member`·`member/auth` 패키지 전체 43개 테스트(전체 스위트 186개, 회귀 0):
+`member`·`member/auth` 패키지 + `PostControllerTest` 어드민 권한 테스트, 회귀 0:
 
-- **`MemberAuthControllerTest`**(신규) — 로그인 성공/실패/5회 잠금, 로그아웃 후 리프레시 실패, 리프레시 갱신, **첫 로그인 강제 변경 종단 시나리오**(변경 전 차단 → 변경 → 새 토큰으로 통과 → 구비번 로그인 불가), **관리자 초기화 종단 시나리오**(초기화 → 전화번호로 재로그인 + 강제변경 재진입 → 바꿨던 비번 무효화), 미인증 401.
-- **`MemberControllerTest`**(확장) — 학번 누락 400, 학번 중복 409, 비번 초기화 API의 ADMIN 허용/MEMBER 거부/미인증/존재하지않는id 404.
+- **`MemberAuthControllerTest`**(신규) — 로그인 성공/실패/5회 잠금, 로그아웃 후 리프레시 실패, 리프레시 갱신, **첫 로그인 강제 변경 종단 시나리오**(변경 전 차단 → 변경 → 새 토큰으로 통과 → 구비번 로그인 불가), **currentPassword 불일치 시 401 + 비번 안 바뀜**(결정 9), **관리자 초기화 종단 시나리오**(초기화 → 전화번호로 재로그인 + 강제변경 재진입 → 바꿨던 비번 무효화), 미인증 401.
+- **`MemberControllerTest`**(확장) — 학번 누락 400, 학번 중복 409, 비번 초기화 API의 ADMIN 허용/MEMBER 거부/미인증/존재하지않는id 404(+ `{success,code:'NOT_FOUND'}` 바디 검증, 결정 8).
 - **`MemberServiceTest`**(확장) — 초기 비밀번호가 전화번호의 BCrypt 해시인지, `mustChangePassword`가 `true`로 시작하는지, 학번 중복 시 예외.
+- **`PostControllerTest`**(확장, 결정 10) — `/api/admin/posts` GET·`PATCH .../status`에 SUPER_ADMIN 허용/MEMBER 거부(403) 케이스 추가.
 - 어드민 쪽 회귀: `AdminAuthControllerTest` 등 기존 스위트 전부 그대로 통과 — `AdminPrincipal`에 필드가 추가됐지만 어드민 로그인 경로의 응답·쿠키·권한 동작은 바뀌지 않았다.
 
 ## 아직 못 메꾼 것 (다음 미션 후보)
@@ -74,3 +90,4 @@ Spring Security `RoleHierarchy`로 "상위 역할이 하위 권한을 자동 포
 - 관리자가 멤버 계정을 대량 등록/발급하는 전용 화면·API(Notes에서 명시적으로 이번 범위 제외)
 - "최고관리자 딱 1명" vs "최소 1명" 스펙-코드 불일치 (위 결정 7)
 - 어드민 모듈과 동일하게 IP 기반 요청 제한(429)·refresh 토큰 로테이션 없음 — `admin-auth-module.md`에 이미 기록된 동일한 트레이드오프를 멤버 쪽도 그대로 상속
+- `CommentController`의 `/admin/{commentId}/hide`는 여전히 `permitAll()`(인증 자체가 없음) — #117 이전부터 있던 별도 TODO, 이번엔 손대지 않음

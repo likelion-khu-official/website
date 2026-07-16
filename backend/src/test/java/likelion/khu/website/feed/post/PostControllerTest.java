@@ -161,4 +161,36 @@ class PostControllerTest {
                         .content("{\"status\":\"HIDDEN\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    // 멤버(#117) 도입 이후 SecurityConfig의 "/api/admin/posts/**".authenticated()만으론
+    // 어드민 전용 API를 못 지킨다 — 컨트롤러의 @PreAuthorize가 실제 경계가 됐는지 확인.
+
+    @Test
+    @WithMockAdminUser(role = "SUPER_ADMIN")
+    void adminList_SuperAdmin_Returns200() throws Exception {
+        mockMvc.perform(get("/api/admin/posts"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockAdminUser(role = "MEMBER")
+    void adminList_Member_Returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/posts"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockAdminUser(role = "MEMBER")
+    void updateStatus_Member_Returns403() throws Exception {
+        String token = issueToken();
+        PostCreateRequest req = new PostCreateRequest();
+        req.setTitle("제목");
+        req.setContent("내용");
+        Long id = postService.createPost(token, req).getId();
+
+        mockMvc.perform(patch("/api/admin/posts/{id}/status", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isForbidden());
+    }
 }

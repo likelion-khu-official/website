@@ -130,7 +130,7 @@ class MemberAuthControllerTest {
     }
 
     @Test
-    void mustChangePassword_BlocksOtherApiButAllowsPasswordChange() throws Exception {
+    void mustChangePassword_BlocksMemberNamespaceButAllowsPublicApiAndPasswordChange() throws Exception {
         createMember("2020000006", "01000000006");
         MvcResult loginResult = mockMvc.perform(post("/api/member/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -138,8 +138,15 @@ class MemberAuthControllerTest {
                 .andReturn();
         Cookie accessCookie = loginResult.getResponse().getCookie("access_token");
 
-        // 첫 로그인 상태 — 비번 변경 전엔 다른 API가 막힌다
-        mockMvc.perform(get("/api/admin/posts").cookie(accessCookie))
+        // 완전 공개 API(GET /api/posts)는 mustChangePassword=true여도 막히면 안 된다 — 가드가
+        // 한때 전역으로 걸려서, 익명 방문자도 보는 공개 피드를 로그인한 신규 멤버만 못 보는 회귀가 있었다.
+        mockMvc.perform(get("/api/posts").cookie(accessCookie))
+                .andExpect(status().isOk());
+
+        // 멤버 네임스페이스(/api/member/**, 인증 모듈 자기 자신 제외)는 여전히 막힌다. 지금 코드베이스엔
+        // 아직 실제 멤버 전용 API(글쓰기·프로필 편집 등)가 없어서, 가상 경로로 가드 로직 자체를 검증한다 —
+        // 나중에 진짜 멤버 전용 API가 생기면 이 경로를 그걸로 바꾸면 된다.
+        mockMvc.perform(patch("/api/member/profile").cookie(accessCookie))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
 
@@ -147,21 +154,70 @@ class MemberAuthControllerTest {
         MvcResult changeResult = mockMvc.perform(patch("/api/member/auth/password")
                         .cookie(accessCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"newPassword\":\"newPassword1\"}"))
+                        .content("{\"currentPassword\":\"01000000006\",\"newPassword\":\"newPassword1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.member.mustChangePassword").value(false))
                 .andReturn();
         Cookie newAccessCookie = changeResult.getResponse().getCookie("access_token");
 
-        // 새 access 토큰으론 더 이상 막히지 않는다
-        mockMvc.perform(get("/api/admin/posts").cookie(newAccessCookie))
-                .andExpect(status().isOk());
+        // 새 access 토큰으론 더 이상 가드에 안 걸린다 — 실존하지 않는 경로라 404로 통과한다
+        // (더는 403 MUST_CHANGE_PASSWORD가 아니라는 게 핵심).
+        mockMvc.perform(patch("/api/member/profile").cookie(newAccessCookie))
+                .andExpect(status().isNotFound());
 
         // 예전 비밀번호로는 더 이상 로그인이 안 된다
         mockMvc.perform(post("/api/member/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"studentId\":\"2020000006\",\"password\":\"01000000006\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_WithStaleMustChangePasswordAccessTokenCookie_StillSucceeds() throws Exception {
+        // 만료 안 된 mustChangePassword=true access_token 쿠키를 들고 로그인을 시도해도(같은
+        // 브라우저에서 로그인 폼을 다시 제출하는 등) 로그인 자체가 막히면 안 된다 — 예전엔
+        // ALLOWED_PATHS에 /api/member/auth/login이 빠져 있어 이 경우 403이 났었다.
+        // 서로 다른 두 멤버를 쓴다 — 같은 멤버를 밀리초 안에 두 번 로그인시키면 JWT의 iat까지
+        // 완전히 같아져 refresh 토큰 문자열이 동일해지고 token_hash UNIQUE 제약과 충돌하는
+        // 별도 문제가 있다(#97부터 물려받은 JwtProvider 패턴, 이 테스트가 검증할 대상이 아님).
+        createMember("2020000009", "01000000009");
+        createMember("2020000010", "01000000010");
+        MvcResult firstLogin = mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020000009\",\"password\":\"01000000009\"}"))
+                .andReturn();
+        Cookie staleAccessCookie = firstLogin.getResponse().getCookie("access_token");
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .cookie(staleAccessCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020000010\",\"password\":\"01000000010\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void changePassword_WrongCurrentPassword_Returns401AndDoesNotChangeIt() throws Exception {
+        createMember("2020000008", "01000000008");
+        MvcResult loginResult = mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020000008\",\"password\":\"01000000008\"}"))
+                .andReturn();
+        Cookie accessCookie = loginResult.getResponse().getCookie("access_token");
+
+        mockMvc.perform(patch("/api/member/auth/password")
+                        .cookie(accessCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"wrong\",\"newPassword\":\"newPassword1\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+
+        // 여전히 전화번호(원래 초기 비번) 해시 그대로다 — 비번이 안 바뀌었다.
+        // (재로그인으로 검증하지 않는다 — 같은 유저를 밀리초 안에 두 번 로그인시키면 JWT의 iat까지
+        // 완전히 같아져 refresh 토큰 문자열이 동일해지고, token_hash UNIQUE 제약과 충돌하는 별도
+        // 문제가 있다. #97부터 물려받은 JwtProvider 패턴의 문제라 여기서 우회하고 별도 보고한다.)
+        Member unchanged = memberRepository.findByStudentId("2020000008").orElseThrow();
+        org.junit.jupiter.api.Assertions.assertTrue(
+                passwordEncoder.matches("01000000008", unchanged.getPasswordHash()));
     }
 
     @Test
@@ -177,7 +233,7 @@ class MemberAuthControllerTest {
     void resetPasswordByAdmin_RevertsToPhoneAndRequiresChangeAgain() throws Exception {
         Member member = createMember("2020000007", "01000000007");
         // 본인이 비번을 한 번 바꾼 뒤
-        memberAuthService.changePassword(member.getId(), "changedPassword1");
+        memberAuthService.changePassword(member.getId(), "01000000007", "changedPassword1");
 
         // 관리자가 초기화하면
         memberAuthService.resetPasswordByAdmin(member.getId());

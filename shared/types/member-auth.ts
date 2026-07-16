@@ -50,8 +50,14 @@ export interface MemberRefreshResponse {
 /**
  * PATCH /api/member/auth/password — 본인 비밀번호 변경(첫 로그인 강제 변경도 동일 엔드포인트).
  * mustChangePassword=true인 동안엔 이 요청 전까지 다른 API가 전부 403(MUST_CHANGE_PASSWORD)으로 막힌다.
+ * currentPassword 불일치 시 401 INVALID_CREDENTIALS.
+ *
+ * 첫 로그인 강제 변경 화면에서 FE는 currentPassword 입력창을 따로 안 보여줘도 된다 — 로그인 폼에
+ * 사용자가 입력한 값(초기값=전화번호)을 그대로 currentPassword에 실어 보내면 된다. 사용자 눈엔
+ * "새 비밀번호" 입력창 하나만 보이지만, 서버는 항상 현재 비밀번호 검증을 요구해 계정 탈취를 막는다.
  */
 export interface MemberChangePasswordRequest {
+  currentPassword: string;
   newPassword: string;
 }
 export interface MemberChangePasswordResponse {

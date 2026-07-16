@@ -240,6 +240,8 @@ class MemberControllerTest {
     @Test
     void resetPassword_NonExistentId_Returns404() throws Exception {
         mockMvc.perform(post("/api/admin/members/{id}/password/reset", 9999L))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 }
