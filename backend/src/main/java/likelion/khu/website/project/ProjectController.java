@@ -5,6 +5,8 @@ import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.project.dto.ProjectCreateRequest;
 import likelion.khu.website.project.dto.ProjectDetailResponse;
 import likelion.khu.website.project.dto.ProjectHiddenUpdateRequest;
+import likelion.khu.website.project.dto.ProjectImageRequest;
+import likelion.khu.website.project.dto.ProjectParticipantRequest;
 import likelion.khu.website.project.dto.ProjectSuccessResponse;
 import likelion.khu.website.project.dto.ProjectSummaryResponse;
 import likelion.khu.website.project.dto.ProjectUpdateRequest;
@@ -63,6 +65,50 @@ public class ProjectController {
         AdminPrincipal member = (AdminPrincipal) authentication.getPrincipal();
         projectService.delete(id, member.getId());
         return new ProjectSuccessResponse();
+    }
+
+    /** 이미지 추가 — 참여자 본인만. representative=true면 기존 대표를 자동 해제 */
+    @PreAuthorize("hasRole('MEMBER')")
+    @PostMapping("/api/projects/{id}/images")
+    public ResponseEntity<ProjectDetailResponse> addImage(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectImageRequest request,
+            Authentication authentication) {
+        AdminPrincipal member = (AdminPrincipal) authentication.getPrincipal();
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.addImage(id, member.getId(), request));
+    }
+
+    /** 이미지 삭제 — 참여자 본인만. 대표 이미지를 지워도 막지 않는다(대표 없음 허용) */
+    @PreAuthorize("hasRole('MEMBER')")
+    @DeleteMapping("/api/projects/{id}/images/{imageId}")
+    public ProjectDetailResponse removeImage(
+            @PathVariable Long id,
+            @PathVariable Long imageId,
+            Authentication authentication) {
+        AdminPrincipal member = (AdminPrincipal) authentication.getPrincipal();
+        return projectService.removeImage(id, member.getId(), imageId);
+    }
+
+    /** 참여자 추가 — 참여자 본인만. 이미 참여 중인 멤버는 거부 */
+    @PreAuthorize("hasRole('MEMBER')")
+    @PostMapping("/api/projects/{id}/participants")
+    public ResponseEntity<ProjectDetailResponse> addParticipant(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectParticipantRequest request,
+            Authentication authentication) {
+        AdminPrincipal member = (AdminPrincipal) authentication.getPrincipal();
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectService.addParticipant(id, member.getId(), request));
+    }
+
+    /** 참여자 삭제 — 참여자면 누구든(본인 포함) 다른 참여자를 뺄 수 있다. 최소 1명은 남아야 함 */
+    @PreAuthorize("hasRole('MEMBER')")
+    @DeleteMapping("/api/projects/{id}/participants/{participantId}")
+    public ProjectDetailResponse removeParticipant(
+            @PathVariable Long id,
+            @PathVariable Long participantId,
+            Authentication authentication) {
+        AdminPrincipal member = (AdminPrincipal) authentication.getPrincipal();
+        return projectService.removeParticipant(id, member.getId(), participantId);
     }
 
     /** 문제 있는 프로젝트 숨김/복원 — 관리자 이상 */

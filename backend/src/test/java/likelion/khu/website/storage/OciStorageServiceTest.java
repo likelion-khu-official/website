@@ -104,4 +104,39 @@ class OciStorageServiceTest {
         assertThat(request.bucket()).isEqualTo(BUCKET);
         assertThat(request.key()).isEqualTo("feed/images/some-key.png");
     }
+
+    @Test
+    void deleteByUrl_UrlUnderPublicUrl_ExtractsKeyAndDeletes() {
+        ociStorageService.deleteByUrl(PUBLIC_URL + "/feed/images/abc.png");
+
+        ArgumentCaptor<DeleteObjectRequest> requestCaptor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(ociStorageClient).deleteObject(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().key()).isEqualTo("feed/images/abc.png");
+    }
+
+    // 다른 소스의 URL(테스트 더미값, 외부 링크 등)은 조용히 무시한다 — 삭제 자체를 막으면 안 된다.
+    @Test
+    void deleteByUrl_UrlNotUnderPublicUrl_DoesNothing() {
+        ociStorageService.deleteByUrl("https://other-host.example.com/some.png");
+
+        verify(ociStorageClient, org.mockito.Mockito.never()).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    @Test
+    void deleteByUrl_NullUrl_DoesNothing() {
+        ociStorageService.deleteByUrl(null);
+
+        verify(ociStorageClient, org.mockito.Mockito.never()).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    // 스토리지 삭제 자체가 실패해도(네트워크 오류 등) 예외를 밖으로 던지지 않는다 —
+    // 원래 하려던 DB 삭제까지 막으면 안 되기 때문(부가 작업이라는 설계 결정).
+    @Test
+    void deleteByUrl_ClientThrows_SwallowsException() {
+        org.mockito.Mockito.doThrow(new RuntimeException("network error"))
+                .when(ociStorageClient).deleteObject(any(DeleteObjectRequest.class));
+
+        ociStorageService.deleteByUrl(PUBLIC_URL + "/feed/images/abc.png");
+        // 예외가 여기까지 안 올라오면 성공 — 별도 assert 불필요.
+    }
 }

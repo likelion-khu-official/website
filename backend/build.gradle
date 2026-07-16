@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 
 group = 'likelion-khu'
@@ -63,4 +64,21 @@ tasks.named('test') {
 	// 공유하는 JUnit5 네이티브 병렬 실행보다 격리가 확실해 이쪽을 골랐다).
 	// CI(ubuntu-latest, 4 vCPU)에 맞추되 상한 4 — 코어가 적은 로컬 환경에서 과다구독 안 되도록.
 	maxParallelForks = Math.max(1, Math.min(4, (int) (Runtime.runtime.availableProcessors() / 2)))
+	finalizedBy jacocoTestReport
+}
+
+// 상태공간트리 QA가 "내가 놓친 게 없다"고 주장하는 걸 내 판단과 무관하게 검증하는 도구 —
+// 트리에서 "동치류라 안 해도 됨"으로 가지치기한 분기가 실제로 바이트코드 상에서도 전혀
+// 실행 안 된 게 맞는지, 아니면 내 가지치기 판단이 틀려서 실은 살아있는 분기였는지를
+// 기계적으로 보여준다.
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+	reports {
+		xml.required = true
+		html.required = true
+	}
 }

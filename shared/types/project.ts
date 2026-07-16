@@ -7,11 +7,13 @@
 export type ProjectPart = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'INFRA';
 
 export interface ProjectImage {
+  id: number; // DELETE /api/projects/{id}/images/{imageId}에 이 값을 쓴다.
   url: string;
-  representative: boolean; // 목록 카드엔 이 이미지만 노출. 전체 이미지 중 정확히 1장이어야 한다.
+  representative: boolean; // 목록 카드엔 이 이미지만 노출. 항상 최대 1장(addImage가 자동으로 보장).
 }
 
 export interface ProjectParticipant {
+  id: number; // DELETE /api/projects/{id}/participants/{participantId}에 이 값을 쓴다 — memberId가 아니다.
   memberId: number;
   name: string;
   part: ProjectPart; // 이 프로젝트에서 맡은 역할 — Member.roles(조직 전체 역할)와 다를 수 있다.
@@ -58,7 +60,10 @@ export interface ProjectCreateRequest {
   participants: ProjectParticipantRequest[];
 }
 
-/** PATCH /api/projects/{id} — 참여 멤버 본인만. 넘긴 필드만 바뀐다(cohort는 불변이라 없음). */
+/**
+ * PATCH /api/projects/{id} — 참여 멤버 본인만. 넘긴 필드만 바뀐다(cohort는 불변이라 없음).
+ * images/participants는 여기 없다 — 통째 교체 대신 아래 하위 리소스 엔드포인트로 개별 추가·삭제한다.
+ */
 export interface ProjectUpdateRequest {
   title?: string;
   summary?: string;
@@ -66,8 +71,6 @@ export interface ProjectUpdateRequest {
   githubUrl?: string;
   startDate?: string;
   endDate?: string;
-  images?: ProjectImageRequest[];      // 넘기면 기존 이미지 전체를 이걸로 교체
-  participants?: ProjectParticipantRequest[]; // 넘기면 기존 참여자 전체를 이걸로 교체(최소 1명)
 }
 
 export interface ProjectImageRequest {
@@ -79,6 +82,34 @@ export interface ProjectParticipantRequest {
   memberId: number;
   part: ProjectPart;
 }
+
+/**
+ * POST /api/projects/{id}/images — 이미지 추가(참여자 본인만). 201, 응답은 항상 최신 ProjectDetail.
+ * representative=true로 추가하면 기존 대표는 서버가 자동으로 해제한다(따로 먼저 해제할 필요 없음).
+ */
+export type ProjectImageAddRequest = ProjectImageRequest;
+export type ProjectImageAddResponse = ProjectDetail;
+
+/**
+ * DELETE /api/projects/{id}/images/{imageId} — 이미지 삭제(참여자 본인만). 200, 응답은 ProjectDetail.
+ * 대표 이미지를 지워도 막지 않는다 — 대표 없음(0장) 상태가 될 수 있고, 다음 대표는
+ * addImage(representative=true)로 다시 명시적으로 지정해야 한다(자동 승격 없음).
+ */
+export type ProjectImageRemoveResponse = ProjectDetail;
+
+/**
+ * POST /api/projects/{id}/participants — 참여자 추가(참여자 본인만). 201, 응답은 ProjectDetail.
+ * 이미 참여 중인 memberId를 또 넣으면 400.
+ */
+export type ProjectParticipantAddRequest = ProjectParticipantRequest;
+export type ProjectParticipantAddResponse = ProjectDetail;
+
+/**
+ * DELETE /api/projects/{id}/participants/{participantId} — 참여자 삭제. 200, 응답은 ProjectDetail.
+ * 참여자면 누구든(본인 포함) 다른 참여자를 뺄 수 있다 — "내가 참여한 프로젝트를 수정"이라는
+ * 기존 철학과 동일한 느슨한 공동편집 모델. 다만 최소 1명은 항상 남아야 한다(마지막 1명이면 400).
+ */
+export type ProjectParticipantRemoveResponse = ProjectDetail;
 
 /** PATCH /api/admin/projects/{id}/hidden — 관리자 이상만 */
 export interface ProjectHiddenUpdateRequest {

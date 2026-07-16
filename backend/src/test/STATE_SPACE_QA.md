@@ -5,6 +5,20 @@
 > 방식으로 커버리지를 점검한 기록. 코드가 바뀌면 이 문서의 트리·표부터 다시 맞는지
 > 확인한다 — 트리는 "코드를 읽고 나온 명제"라 코드와 같이 낡는다.
 
+## 트리의 한계 — 이 트리 자체는 증명이 아니다
+
+이 트리는 코드를 읽고 축·가지치기를 뽑은 것이라, **코드를 잘못 읽었으면 트리도 같이
+틀린다.** 특히 두 지점이 "실행됐다"가 아니라 "그럴 거라는 판단"에 의존한다:
+1. 리프를 "기존 테스트 X가 이미 커버함"이라고 표에 적을 때 — X가 정말 그 상황을
+   찌르는지는 사람이 확인해야 한다.
+2. "동치류라 안 해도 됨"으로 가지치기할 때 — 실행 안 해본 상태를 실행한 것처럼 취급한다.
+
+그래서 **트리만으론 부족하고, `jacocoTestReport`(코드 커버리지 도구)로 별도 검증한다.**
+JaCoCo는 내 판단과 무관하게 바이트코드의 각 분기가 테스트 스위트로 실제 실행됐는지
+기계적으로 센다. 이 라운드에서 실제로 트리가 놓친 리프를 하나 잡아냈다 — 아래
+"JaCoCo로 검증한 결과" 참고. 실행 방법: `./gradlew test jacocoTestReport` 후
+`build/reports/jacoco/test/html/index.html`.
+
 ## 왜 카티션 곱이 아니라 트리인가
 
 변수를 그냥 다 곱하면(카티션 곱) 말이 안 되는 조합까지 기계적으로 생긴다 — 예를 들어
@@ -147,20 +161,36 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 "쓰기 메서드 기반"으로의 일반화(위 설계 결정 11)다. 이 트리는 그 일반화가 실제로
 `/api/projects`를 커버하는지 검증한다.
 
+> **재설계 이력**: 처음엔 이미지·참여자를 `PATCH /api/projects/{id}` 본문에 통째로
+> 넣어 교체하는 방식이었다. 리뷰 중 "부분 추가·삭제가 개별적으로 가능해야 한다"는
+> 요구로 `POST/DELETE /api/projects/{id}/images{,/{imageId}}`·`.../participants{,/{participantId}}`
+> 4개 하위 리소스 엔드포인트로 다시 설계했다 — 아래 트리는 최종 형태 기준이다.
+> 옛 "통째 교체" 트리에서 나온 교훈(가드 누락, 자기제외 검증 누락, 참여자 중복,
+> JaCoCo로 찾은 리프 누락)은 재설계 후에도 전부 유효해서 새 엔드포인트에 그대로
+> 반영했다 — 아래 "이 트리가 실제로 잡아낸 것" 참고.
+
 ### 축(레벨)
 
 ```
-Lv1 Endpoint            list(GET) / detail(GET) / create(POST) / update(PATCH) /
-                        delete(DELETE) / hidden(PATCH, /api/admin/projects/{id}/hidden)
+Lv1 Endpoint            list(GET) / detail(GET) / create(POST /api/projects) /
+                        update(PATCH /api/projects/{id}, 단순 필드만) /
+                        delete(DELETE /api/projects/{id}) /
+                        addImage(POST .../images) / removeImage(DELETE .../images/{imageId}) /
+                        addParticipant(POST .../participants) /
+                        removeParticipant(DELETE .../participants/{participantId}) /
+                        hidden(PATCH /api/admin/projects/{id}/hidden)
 Lv2 Actor               (list/detail은 이 레벨 없음 — 완전 공개)
                         anonymous / member(mcp=false) / member(mcp=true) / admin·super_admin
-Lv3 OwnershipRelation    (update/delete만, member(mcp=false)일 때만 의미 있음)
+Lv3 OwnershipRelation    (쓰기 엔드포인트 전부, member(mcp=false)일 때만 의미 있음)
                         sole(단독 소유 — 참여자 1명, 나뿐) /
                         shared(공동 소유 — 참여자 여럿, 나도 그중 하나) /
                         none(비소유 — 참여자 아님)
-Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) · 참여자 자기포함 여부 ·
-                        참여자 중복(같은 memberId 2번) · 존재하지 않는 참여자 memberId ·
-                        존재하지 않는 project id
+Lv4 세부 검증축          create: 대표이미지 개수(0/1/2+) · 참여자 자기포함 여부 ·
+                        참여자 중복 · 존재하지 않는 참여자 memberId
+                        addImage: representative true/false(기존 대표 자동해제 여부)
+                        removeImage: 대표 이미지 여부(0장 허용) · 존재하지 않는/타 프로젝트 소속 id
+                        addParticipant: 이미 참여 중인지 · 존재하지 않는 memberId
+                        removeParticipant: 최소 1명 남는지 · 존재하지 않는 id
 ```
 
 > **왜 "Creator"가 아니라 "OwnershipRelation"인가**: 처음엔 "만든 사람 vs 나중에 추가된
@@ -175,10 +205,11 @@ Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) 
 
 | 가지 | 왜 안 더 전개했나 |
 |---|---|
-| `member(mcp=true)`에서 OwnershipRelation 축 | 가드가 role 체크·소유권 체크보다 먼저 막아서(403 MUST_CHANGE_PASSWORD), 참여 관계가 뭐든 결과에 영향이 없다 — 더 안 나눈다. |
+| `member(mcp=true)`에서 OwnershipRelation·Lv4 축 | 가드가 role 체크·소유권 체크·세부 검증보다 먼저 막아서(403 MUST_CHANGE_PASSWORD), 나머지가 뭐든 결과에 영향이 없다 — 쓰기 엔드포인트마다 대표 1건만 확인한다(create·update·delete). addImage/removeImage/addParticipant/removeParticipant는 동일 코드 경로(`@PreAuthorize`+가드)라 create/update/delete에서 이미 검증된 걸로 갈음. |
 | `list`/`detail`에서 Actor 축 | 두 엔드포인트 다 `permitAll()`이고 코드가 인증 여부를 아예 안 본다(hidden 여부만 봄) — anonymous 대표 1건으로 충분(트리 B의 로그아웃/리프레시와 같은 근거). |
 | `hidden`에서 `member(mcp=true)` | `hasAnyRole('ADMIN','SUPER_ADMIN')`이 먼저 걸려 MEMBER는 mcp 값과 무관하게 애초에 진입 불가 — admin 계정은 mcp 개념 자체가 없어(트리 A와 동일 이유) 이 축이 성립하지 않는다. |
-| 모든 Endpoint에서 "리소스가 여럿 존재하는가" 축 | 이건 "요청자가 누구고 뭘 요청하는가"라는 이 트리의 분류 기준과 성격이 다른, 데이터 격리 불변식 질문이라 트리에 안 넣고 별도 테스트로 뺐다(아래 "이 트리가 실제로 잡아낸 버그" 4번 참고). |
+| `addImage`/`addParticipant`/`removeImage`/`removeParticipant`에서 OwnershipRelation의 `shared` 값 | `sole`/`shared` 구분은 "집합 멤버십 체크가 첫 참여자만 보는 실수를 하지 않았는가"를 검증하려는 목적인데, 이건 이미 `update_ByCoParticipantWhoIsNotCreator_Returns200`/`delete_ByCoParticipantWhoIsNotCreator_Returns200`가 같은 `requireParticipant()` 호출을 검증했다 — 이미지·참여자 하위 엔드포인트도 전부 같은 `requireParticipant()`를 호출하므로 중복 검증하지 않는다. |
+| 모든 Endpoint에서 "리소스가 여럿 존재하는가" 축 | 이건 "요청자가 누구고 뭘 요청하는가"라는 이 트리의 분류 기준과 성격이 다른, 데이터 격리 불변식 질문이라 트리에 안 넣고 별도 테스트로 뺐다(아래 "트리엔 없지만 확인한 것" 참고). |
 
 ### 리프 → 테스트 대응표
 
@@ -193,42 +224,71 @@ Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) 
 | create | member(mcp=false), 본인 미포함 | 400 | `create_WithoutSelfInParticipants_Returns400` |
 | create | member(mcp=false), 대표이미지 0장/2장+ | 400 | `create_NoRepresentativeImage_Returns400`, `create_TwoRepresentativeImages_Returns400` |
 | create | member(mcp=false), 존재하지 않는 참여자 memberId | 404 | `create_NonExistentParticipantMemberId_Returns404` |
-| create | member(mcp=false), 참여자 중복(같은 memberId 2번) | 400 | `create_DuplicateParticipant_Returns400` |
+| create | member(mcp=false), 참여자 중복 | 400 | `create_DuplicateParticipant_Returns400` |
 | create | member(mcp=false), 정상 | 201 | `create_AsParticipant_Returns201` |
 | update | anonymous | 401 | `update_Unauthenticated_Returns401` |
 | update | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `update_MustChangePasswordMember_Returns403` |
-| update | member(mcp=false), none(비참여자) | 403 | `update_ByNonParticipant_Returns403` |
+| update | member(mcp=false), none | 403 | `update_ByNonParticipant_Returns403` |
 | update | member(mcp=false), sole, 존재하지 않는 id | 404 | `update_NonExistentId_Returns404` |
-| update | member(mcp=false), sole, 참여자목록 빈값 | 400 | `update_EmptyParticipants_Returns400` |
-| update | member(mcp=false), sole, 참여자목록에서 본인 제외 | 400 | `update_RemovesSelfFromParticipants_Returns400` |
-| update | member(mcp=false), sole, 참여자 중복 | 400 | `update_DuplicateParticipant_Returns400` |
-| update | member(mcp=false), sole, 대표이미지 0장 | 400 | `update_NoRepresentativeImage_Returns400` |
 | update | member(mcp=false), sole, 정상 | 200 | `update_ByParticipant_Returns200` |
-| update | member(mcp=false), **shared**(공동소유, 본인은 나중 참여자), 정상 | 200 | `update_ByCoParticipantWhoIsNotCreator_Returns200` |
+| update | member(mcp=false), **shared**(본인은 나중 참여자), 정상 | 200 | `update_ByCoParticipantWhoIsNotCreator_Returns200` |
+| addImage | member(mcp=false), sole, representative=false | 201, 이미지 추가됨 | `addImage_AsParticipant_Returns201AndAppendsImage` |
+| addImage | member(mcp=false), sole, representative=true(기존 대표 있음) | 201, 기존 대표 자동 해제 | `addImage_AsRepresentative_UnsetsExistingRepresentative` |
+| addImage | none | 403 | `addImage_ByNonParticipant_Returns403` |
+| addImage | anonymous | 401 | `addImage_Unauthenticated_Returns401` |
+| addImage | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `addImage_MustChangePasswordMember_Returns403` |
+| removeImage | member(mcp=false), sole, 일반 이미지 | 200, 이미지 제거됨 | `removeImage_AsParticipant_Returns200AndRemovesImage` |
+| removeImage | member(mcp=false), sole, 대표 이미지 | 200, 대표 없음(0장) 허용 | `removeImage_RepresentativeImage_AllowsZeroRepresentative` |
+| removeImage | member(mcp=false), sole, 존재하지 않는 imageId | 404 | `removeImage_NonExistentImageId_Returns404` |
+| removeImage | member(mcp=false), sole, **타 프로젝트 소속** imageId | 404(격리 확인 겸함) | `removeImage_ImageBelongsToDifferentProject_Returns404` |
+| removeImage | none | 403 | `removeImage_ByNonParticipant_Returns403` |
+| addParticipant | member(mcp=false), sole, 정상 | 201, 참여자 추가됨 | `addParticipant_AsParticipant_Returns201AndAppendsParticipant` |
+| addParticipant | member(mcp=false), sole, 이미 참여 중인 memberId | 400 | `addParticipant_AlreadyParticipant_Returns400` |
+| addParticipant | member(mcp=false), sole, 존재하지 않는 memberId | 404 | `addParticipant_NonExistentMemberId_Returns404` |
+| addParticipant | none | 403 | `addParticipant_ByNonParticipant_Returns403` |
+| addParticipant | (격리) 다른 프로젝트엔 안 새는지 | 다른 프로젝트 participants 그대로 | `addParticipant_DoesNotAffectOtherProjects` |
+| removeParticipant | member(mcp=false), shared, **타인**을 삭제 | 200 | `removeParticipant_ByAnyParticipant_Returns200` |
+| removeParticipant | member(mcp=false), shared, **본인**을 삭제(나가기) | 200 | `removeParticipant_Self_Returns200` |
+| removeParticipant | member(mcp=false), sole, 마지막 1명 삭제 시도 | 400 | `removeParticipant_LastRemaining_Returns400` |
+| removeParticipant | member(mcp=false), sole, 존재하지 않는 participantId | 404 | `removeParticipant_NonExistentParticipantId_Returns404` |
+| removeParticipant | none | 403 | `removeParticipant_ByNonParticipant_Returns403` |
 | delete | anonymous | 401 | `delete_Unauthenticated_Returns401` |
 | delete | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `delete_MustChangePasswordMember_Returns403` |
-| delete | member(mcp=false), none(비참여자) | 403 | `delete_ByNonParticipant_Returns403` |
+| delete | member(mcp=false), none | 403 | `delete_ByNonParticipant_Returns403` |
 | delete | member(mcp=false), sole, 존재하지 않는 id | 404 | `delete_NonExistentId_Returns404` |
-| delete | member(mcp=false), sole, 정상 | 200 + 이후 조회 404 | `delete_ByParticipant_Returns200` |
-| delete | member(mcp=false), **shared**(공동소유, 본인은 나중 참여자), 정상 | 200 | `delete_ByCoParticipantWhoIsNotCreator_Returns200` |
+| delete | member(mcp=false), sole, 정상 | 200 + 이후 조회 404 + 스토리지 파일 정리 | `delete_ByParticipant_Returns200` |
+| delete | member(mcp=false), **shared**(본인은 나중 참여자), 정상 | 200 | `delete_ByCoParticipantWhoIsNotCreator_Returns200` |
 | hidden | anonymous | 401 | `hidden_Unauthenticated_Returns401` |
 | hidden | member(mcp 무관) | 403 | `hidden_ByMember_Returns403` |
 | hidden | admin/super_admin, 존재하지 않는 id | 404 | `hidden_NonExistentId_Returns404` |
 | hidden | admin/super_admin, 정상 | 200, 공개목록·상세에서 제외되지만 데이터는 보존 | `hidden_ByAdmin_HidesFromPublicButKeptInStorage` |
 
-### 이 트리가 실제로 잡아낸 버그 4건 (리뷰 당시 코드엔 테스트가 아예 없었음)
+### 이 트리가 실제로 잡아낸 것 (리뷰 당시 코드엔 테스트가 아예 없었음)
 
-1. **`member(mcp=true)`가 세 쓰기 엔드포인트(create/update/delete)를 전부 통과할 수 있었다** — `MemberPasswordGuardFilter`가 `/api/member/` 네임스페이스만 보던 구버전이 원인. `ProjectControllerTest`의 인증 헬퍼(`memberAuthentication`)가 `mustChangePassword`를 항상 `false`로 하드코딩해뒀던 것도 이 조합이 테스트에 존재조차 안 했다는 증거였다. → 가드를 쓰기 메서드 기반으로 일반화(설계 결정 11)해서 해결.
-2. **`update()`가 참여자 목록에서 요청자 본인을 빼도 막지 않았다** — `create()`의 `requireSelfAmongParticipants` 검증이 `update()`엔 없었다. → `update()`에도 같은 검증을 추가.
-3. **(발견 자체가 아니라 커버리지 편향) `shared`(공동 소유) 상태가 테스트에 한 번도 없었다** — 모든 픽스처가 참여자 1명(만든 사람 본인)짜리 프로젝트만 만들어서, "참여자 집합에 있는가" 체크가 실은 "유일한/첫 참여자인가"로 잘못 짜여 있어도 안 드러나는 상태였다. 실제로 버그는 없었지만(코드는 `existsByProjectIdAndMemberId`로 정확했다), 이 축이 트리에 없었다는 것 자체가 지적 대상 — `update_ByCoParticipantWhoIsNotCreator_Returns200`/`delete_...`로 메꿨다.
-4. **참여자 목록에 같은 memberId를 두 번 넣어도 막는 게 없었다** — `ProjectParticipant`에 유니크 제약이 없어 중복 행이 그대로 저장됐다. → `requireNoDuplicateParticipants()` 추가.
+1. **`member(mcp=true)`가 쓰기 엔드포인트를 전부 통과할 수 있었다** — `MemberPasswordGuardFilter`가 `/api/member/` 네임스페이스만 보던 구버전이 원인. `ProjectControllerTest`의 인증 헬퍼(`memberAuthentication`)가 `mustChangePassword`를 항상 `false`로 하드코딩해뒀던 것도 이 조합이 테스트에 존재조차 안 했다는 증거였다. → 가드를 쓰기 메서드 기반으로 일반화(설계 결정 11)해서 해결.
+2. **`update()`가 참여자 목록에서 요청자 본인을 빼도 막지 않았다** — (통째 교체 시절 버그, 재설계로 `update()`가 참여자를 아예 안 건드리게 되면서 자연 소멸. 대신 `addParticipant`/`removeParticipant`가 같은 계열의 새 검증을 각자 갖췄다 — "이미 참여 중" 중복 방지, "최소 1명" 유지.)
+3. **(발견 자체가 아니라 커버리지 편향) `shared`(공동 소유) 상태가 테스트에 한 번도 없었다** — 모든 픽스처가 참여자 1명(만든 사람 본인)짜리 프로젝트만 만들어서, "참여자 집합에 있는가" 체크가 실은 "유일한/첫 참여자인가"로 잘못 짜여 있어도 안 드러나는 상태였다. 실제로 버그는 없었지만(코드는 `existsByProjectIdAndMemberId`로 정확했다), 이 축이 트리에 없었다는 것 자체가 지적 대상 — `update_ByCoParticipantWhoIsNotCreator_Returns200`/`delete_...`/`removeParticipant_ByAnyParticipant_Returns200`로 메꿨다.
+4. **참여자 목록에 같은 memberId를 두 번 넣어도 막는 게 없었다** — `ProjectParticipant`에 유니크 제약이 없어 중복 행이 그대로 저장됐다. → `requireNoDuplicateParticipants()`(create), `addParticipant_AlreadyParticipant_Returns400`(하위 리소스판) 추가.
+5. **응답 DTO에 행 id가 없어서 DELETE 대상을 특정할 수 없었다** — `ProjectImageResponse`/`ProjectParticipantResponse`에 `id`가 없는 채로 `DELETE .../images/{imageId}`를 설계해서, 하위 리소스 엔드포인트를 다 만들고 나서야 "클라이언트가 이 id를 어디서 받지?"라는 걸 테스트 헬퍼를 짜다가 깨달았다. → 두 응답에 `id` 필드 추가.
+6. **이미지를 지워도 실제 OCI 파일이 안 지워졌다** — `OciStorageService.delete(key)`는 있었지만 어디서도 호출 안 되는 죽은 코드. `removeImage`(신설)가 이 구멍을 실사용 가능하게 만들었다 — `deleteByUrl(url)`을 추가해 연결(설계 결정 7).
+
+### JaCoCo로 검증한 결과 (통째 교체 시절)
+
+`./gradlew test jacocoTestReport`로 실제 분기 커버리지를 측정했을 때 `ProjectService`가
+95%(19/20 분기)였고, missed 1건이 `update()`의 이미지 교체 "성공" 경로(검증 통과 후 실제
+저장)였다 — 트리 Lv4에 "대표이미지 0장 → 400"(실패)만 있고 "정상 교체 → 200"(성공) 리프가
+없었던 것. 이후 하위 리소스로 재설계되면서 이 코드 자체가 없어졌지만, "실패 케이스만 넣고
+성공 케이스를 빠뜨리는" 패턴은 새 엔드포인트(`addImage`/`addParticipant`)에서도 반복 안
+하려고 각 엔드포인트에 성공 리프를 먼저 넣고 시작했다.
 
 ### 트리엔 없지만 확인한 것 — 데이터 격리 불변식
 
 "리소스가 여럿 있을 때 서로 안 섞이는가"는 요청자·엔드포인트 조합이 아니라 별개의
-질문이라 트리 밖에 뒀다. 두 프로젝트를 만들고 하나만 삭제/수정해서 다른 하나의
-이미지·참여자가 그대로인지만 확인한다: `delete_DoesNotAffectOtherProjectsImagesOrParticipants`,
-`update_ImagesAndParticipantReplace_DoesNotAffectOtherProjects`.
+질문이라 트리 밖에 뒀다. 두 프로젝트를 만들고 하나만 건드려서 다른 하나가 그대로인지
+확인한다: `delete_DoesNotAffectOtherProjectsImagesOrParticipants`,
+`addParticipant_DoesNotAffectOtherProjects`, `removeImage_ImageBelongsToDifferentProject_Returns404`
+(다른 프로젝트 소속 이미지 id로 지우려 하면 404 — 이건 격리 확인이면서 동시에
+`findByIdAndProjectId`의 정상 리프이기도 하다).
 
 ## 이 문서를 다시 쓸 일이 생기면
 

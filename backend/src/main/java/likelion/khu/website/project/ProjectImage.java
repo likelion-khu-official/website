@@ -34,4 +34,8 @@ public class ProjectImage {
         image.representative = representative;
         return image;
     }
+
+    public void setRepresentative(boolean representative) {
+        this.representative = representative;
+    }
 }

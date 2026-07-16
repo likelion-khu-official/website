@@ -266,32 +266,6 @@ class ProjectControllerTest {
     }
 
     @Test
-    void update_EmptyParticipants_Returns400() throws Exception {
-        Member member = createMember("2020000012", "시현");
-        Long id = createProject(member.getId());
-
-        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", id), member.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"participants\":[]}"))
-                .andExpect(status().isBadRequest());
-    }
-
-    // 상태공간트리 QA — 참여자 목록을 통째로 교체하면서 요청자 본인을 빼면, 다음부턴 자기가
-    // 만든 프로젝트인데도 스스로 못 고치는 상태가 된다 — ProjectService.update()에 create()와
-    // 같은 본인포함 검증을 추가한 수정의 회귀 테스트.
-    @Test
-    void update_RemovesSelfFromParticipants_Returns400() throws Exception {
-        Member member = createMember("2020000021", "시현");
-        Member other = createMember("2020000022", "다른사람");
-        Long id = createProject(member.getId());
-
-        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", id), member.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"participants\":[{\"memberId\":%d,\"part\":\"FE\"}]}".formatted(other.getId())))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void update_Unauthenticated_Returns401() throws Exception {
         Member member = createMember("2020000023", "시현");
         Long id = createProject(member.getId());
@@ -310,29 +284,6 @@ class ProjectControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"수정시도\"}"))
                 .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void update_NoRepresentativeImage_Returns400() throws Exception {
-        Member member = createMember("2020000025", "시현");
-        Long id = createProject(member.getId());
-
-        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", id), member.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"images\":[{\"url\":\"u1\",\"representative\":false}]}"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void update_DuplicateParticipant_Returns400() throws Exception {
-        Member member = createMember("2020000036", "시현");
-        Long id = createProject(member.getId());
-
-        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", id), member.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"participants\":[{\"memberId\":%d,\"part\":\"BE\"},{\"memberId\":%d,\"part\":\"FE\"}]}"
-                                .formatted(member.getId(), member.getId())))
-                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -479,22 +430,251 @@ class ProjectControllerTest {
     }
 
     @Test
-    void update_ImagesAndParticipantReplace_DoesNotAffectOtherProjects() throws Exception {
+    void addParticipant_DoesNotAffectOtherProjects() throws Exception {
         Member member = createMember("2020000038", "시현");
-        Member other = createMember("2020000039", "다른사람");
+        Member newcomer = createMember("2020000039", "다른사람");
         Long untouchedId = createProject(member.getId());
-        Long updatedId = createProjectWithTwoParticipants(member.getId(), other.getId());
+        Long targetId = createProject(member.getId());
 
-        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", updatedId), member.getId())
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/participants", targetId), member.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"participants\":[{\"memberId\":%d,\"part\":\"BE\"}]}".formatted(member.getId())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.participants.length()").value(1));
+                        .content("{\"memberId\":%d,\"part\":\"FE\"}".formatted(newcomer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.participants.length()").value(2));
 
         mockMvc.perform(get("/api/projects/{id}", untouchedId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participants.length()").value(1))
                 .andExpect(jsonPath("$.participants[0].memberId").value(member.getId()));
+    }
+
+    // ── POST/DELETE /api/projects/{id}/images ──────────────────────────
+
+    @Test
+    void addImage_AsParticipant_Returns201AndAppendsImage() throws Exception {
+        Member member = createMember("2020000041", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/images", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://img/2.png\",\"representative\":false}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.images.length()").value(2));
+    }
+
+    // 새 이미지를 representative=true로 추가하면 기존 대표는 자동으로 해제돼야 한다(설계 결정).
+    @Test
+    void addImage_AsRepresentative_UnsetsExistingRepresentative() throws Exception {
+        Member member = createMember("2020000042", "시현");
+        Long id = createProject(member.getId()); // 대표: https://img/1.png
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/images", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://img/new.png\",\"representative\":true}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/projects/{id}", id))
+                .andExpect(jsonPath("$.images.length()").value(2))
+                .andExpect(jsonPath("$.images[?(@.url=='https://img/1.png')].representative").value(false))
+                .andExpect(jsonPath("$.images[?(@.url=='https://img/new.png')].representative").value(true));
+    }
+
+    @Test
+    void addImage_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000043", "시현");
+        Member stranger = createMember("2020000044", "다른사람");
+        Long id = createProject(owner.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/images", id), stranger.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"u\",\"representative\":false}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void addImage_Unauthenticated_Returns401() throws Exception {
+        Member member = createMember("2020000045", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(post("/api/projects/{id}/images", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"u\",\"representative\":false}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void addImage_MustChangePasswordMember_Returns403() throws Exception {
+        Member member = createMember("2020000046", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMustChangePasswordMemberAuth(post("/api/projects/{id}/images", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"u\",\"representative\":false}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
+    }
+
+    @Test
+    void removeImage_AsParticipant_Returns200AndRemovesImage() throws Exception {
+        Member member = createMember("2020000047", "시현");
+        Long id = createProject(member.getId());
+        Long imageId = firstImageId(id);
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/images/{imageId}", id, imageId), member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.images.length()").value(0));
+    }
+
+    // 대표 이미지를 지워도 막지 않는다 — 대표 없음(0장) 상태를 허용한다는 설계 결정의 회귀 테스트.
+    @Test
+    void removeImage_RepresentativeImage_AllowsZeroRepresentative() throws Exception {
+        Member member = createMember("2020000048", "시현");
+        Long id = createProject(member.getId());
+        Long representativeImageId = firstImageId(id); // createRequestJson의 유일한 이미지 = 대표
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/images/{imageId}", id, representativeImageId), member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.images.length()").value(0));
+    }
+
+    @Test
+    void removeImage_NonExistentImageId_Returns404() throws Exception {
+        Member member = createMember("2020000049", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/images/{imageId}", id, 9999L), member.getId()))
+                .andExpect(status().isNotFound());
+    }
+
+    // 형제 리소스 격리 — 다른 프로젝트 소속 이미지 id로 지우려 하면 404여야 한다(그 프로젝트
+    // 안에서 "안 보이는" 게 아니라 존재 자체가 안 보이는 걸로 취급 — 소속 확인은
+    // findByIdAndProjectId가 한다).
+    @Test
+    void removeImage_ImageBelongsToDifferentProject_Returns404() throws Exception {
+        Member member = createMember("2020000050", "시현");
+        Long ownId = createProject(member.getId());
+        Long otherId = createProject(member.getId());
+        Long otherProjectImageId = firstImageId(otherId);
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/images/{imageId}", ownId, otherProjectImageId), member.getId()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void removeImage_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000051", "시현");
+        Member stranger = createMember("2020000052", "다른사람");
+        Long id = createProject(owner.getId());
+        Long imageId = firstImageId(id);
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/images/{imageId}", id, imageId), stranger.getId()))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── POST/DELETE /api/projects/{id}/participants ────────────────────
+
+    @Test
+    void addParticipant_AsParticipant_Returns201AndAppendsParticipant() throws Exception {
+        Member member = createMember("2020000053", "시현");
+        Member newcomer = createMember("2020000054", "다른사람");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/participants", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberId\":%d,\"part\":\"FE\"}".formatted(newcomer.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.participants.length()").value(2));
+    }
+
+    @Test
+    void addParticipant_AlreadyParticipant_Returns400() throws Exception {
+        Member member = createMember("2020000055", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/participants", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberId\":%d,\"part\":\"FE\"}".formatted(member.getId())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addParticipant_NonExistentMemberId_Returns404() throws Exception {
+        Member member = createMember("2020000056", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/participants", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberId\":9999,\"part\":\"FE\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void addParticipant_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000057", "시현");
+        Member stranger = createMember("2020000058", "다른사람");
+        Long id = createProject(owner.getId());
+
+        mockMvc.perform(withMemberAuth(post("/api/projects/{id}/participants", id), stranger.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberId\":%d,\"part\":\"FE\"}".formatted(stranger.getId())))
+                .andExpect(status().isForbidden());
+    }
+
+    // 참여자면 누구든(자기 자신 포함) 다른 참여자도 뺄 수 있다는 설계 결정 — 공동참여자가
+    // 자신이 아닌 다른 참여자를 빼는 경우.
+    @Test
+    void removeParticipant_ByAnyParticipant_Returns200() throws Exception {
+        Member creator = createMember("2020000059", "시현");
+        Member coParticipant = createMember("2020000060", "찬욱");
+        Long id = createProjectWithTwoParticipants(creator.getId(), coParticipant.getId());
+        Long coParticipantRowId = participantIdOf(id, coParticipant.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/participants/{participantId}", id, coParticipantRowId), creator.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants.length()").value(1));
+    }
+
+    // 참여자가 자기 자신을 빼는 경우(프로젝트 나가기) — 다른 참여자가 남아있으면 허용된다.
+    @Test
+    void removeParticipant_Self_Returns200() throws Exception {
+        Member creator = createMember("2020000061", "시현");
+        Member coParticipant = createMember("2020000062", "찬욱");
+        Long id = createProjectWithTwoParticipants(creator.getId(), coParticipant.getId());
+        Long creatorRowId = participantIdOf(id, creator.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/participants/{participantId}", id, creatorRowId), creator.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants.length()").value(1));
+    }
+
+    @Test
+    void removeParticipant_LastRemaining_Returns400() throws Exception {
+        Member member = createMember("2020000063", "시현");
+        Long id = createProject(member.getId());
+        Long participantRowId = participantIdOf(id, member.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/participants/{participantId}", id, participantRowId), member.getId()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void removeParticipant_NonExistentParticipantId_Returns404() throws Exception {
+        Member member = createMember("2020000064", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/participants/{participantId}", id, 9999L), member.getId()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void removeParticipant_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000065", "시현");
+        Member stranger = createMember("2020000066", "다른사람");
+        Long id = createProject(owner.getId());
+        Long participantRowId = participantIdOf(id, owner.getId());
+
+        mockMvc.perform(withMemberAuth(delete("/api/projects/{id}/participants/{participantId}", id, participantRowId), stranger.getId()))
+                .andExpect(status().isForbidden());
     }
 
     // ── helpers ────────────────────────────────────────────────────────
@@ -529,6 +709,27 @@ class ProjectControllerTest {
 
     private Long objectMapperReadId(String json) {
         Matcher matcher = Pattern.compile("\"id\":(\\d+)").matcher(json);
+        matcher.find();
+        return Long.valueOf(matcher.group(1));
+    }
+
+    // "images":[{"id":..,...}] 배열 안의 첫 이미지 id를 뽑는다 — 최상위 프로젝트 id와
+    // 헷갈리지 않게 "images":[ 뒤부터 찾는다.
+    private Long firstImageId(Long projectId) throws Exception {
+        String json = mockMvc.perform(get("/api/projects/{id}", projectId))
+                .andReturn().getResponse().getContentAsString();
+        int start = json.indexOf("\"images\":[");
+        Matcher matcher = Pattern.compile("\"id\":(\\d+)").matcher(json.substring(start));
+        matcher.find();
+        return Long.valueOf(matcher.group(1));
+    }
+
+    // "participants":[{"id":.., "memberId":memberId, ...}] 중 memberId가 일치하는 항목의
+    // ProjectParticipant 행 id를 뽑는다 — DELETE에 쓰는 건 memberId가 아니라 이 id다.
+    private Long participantIdOf(Long projectId, Long memberId) throws Exception {
+        String json = mockMvc.perform(get("/api/projects/{id}", projectId))
+                .andReturn().getResponse().getContentAsString();
+        Matcher matcher = Pattern.compile("\"id\":(\\d+),\"memberId\":" + memberId + ",").matcher(json);
         matcher.find();
         return Long.valueOf(matcher.group(1));
     }
