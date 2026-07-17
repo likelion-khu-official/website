@@ -57,6 +57,14 @@ public class EmailService {
         send(to, EmailType.PASSWORD_RESET, context);
     }
 
+    // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 지원폼(#125)이
+    // 아직 없어 랜딩(모집 섹션이 있는 자리)으로 보낸다 — 지원폼이 생기면 그쪽 경로로 바뀔 값.
+    public void sendRecruitmentOpenEmail(String to, String siteUrl) {
+        Context context = new Context();
+        context.setVariable("siteUrl", siteUrl);
+        send(to, EmailType.RECRUITMENT_OPEN, context);
+    }
+
     // 제목 결정만 try 밖 — 실패해도 로그에 subject가 필요해서 미리 확보(subjectFor 자체는 예외 던질 일 없음).
     // 그 외(템플릿 렌더링·메일 객체 생성·주소검증·전송·로그저장)는 전부 try 안 — "무슨 예외가 나든 반드시
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
