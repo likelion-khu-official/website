@@ -1,4 +1,4 @@
-# 상태공간트리 QA — 멤버 인증(#117)
+# 상태공간트리 QA — 멤버 인증(#117) · 프로젝트 쇼케이스(#119)
 
 > 여러 "사용 상황의 설정"(누가·어떤 토큰으로·어떤 상태로·어디를 치는지)을 변수로 두고
 > 상태공간트리를 구성 → 백트래킹(DFS)으로 잎(리프)까지 내려가며 테스트케이스를 뽑는
@@ -138,6 +138,98 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 
 ---
 
+---
+
+## 트리 C — 프로젝트 쇼케이스(#119)
+
+`/api/projects`(멤버 전용 쓰기)가 `/api/member/` 밖에 있다는 사실 자체가 #117의
+`MemberPasswordGuardFilter` 설계(트리 A 참고)를 재검토하게 만든 계기였다 — 그 결과가
+"쓰기 메서드 기반"으로의 일반화(위 설계 결정 11)다. 이 트리는 그 일반화가 실제로
+`/api/projects`를 커버하는지 검증한다.
+
+### 축(레벨)
+
+```
+Lv1 Endpoint            list(GET) / detail(GET) / create(POST) / update(PATCH) /
+                        delete(DELETE) / hidden(PATCH, /api/admin/projects/{id}/hidden)
+Lv2 Actor               (list/detail은 이 레벨 없음 — 완전 공개)
+                        anonymous / member(mcp=false) / member(mcp=true) / admin·super_admin
+Lv3 OwnershipRelation    (update/delete만, member(mcp=false)일 때만 의미 있음)
+                        sole(단독 소유 — 참여자 1명, 나뿐) /
+                        shared(공동 소유 — 참여자 여럿, 나도 그중 하나) /
+                        none(비소유 — 참여자 아님)
+Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) · 참여자 자기포함 여부 ·
+                        참여자 중복(같은 memberId 2번) · 존재하지 않는 참여자 memberId ·
+                        존재하지 않는 project id
+```
+
+> **왜 "Creator"가 아니라 "OwnershipRelation"인가**: 처음엔 "만든 사람 vs 나중에 추가된
+> 참여자"로 잡을 뻔했는데, 코드(`requireParticipant()` = `existsByProjectIdAndMemberId`)엔
+> "만든 사람"이라는 개념 자체가 없다(`Project` 엔티티에 creator 필드가 없다 — 참여자 집합만
+> 있다). 유저 신원별로 트리를 쪼개는 건 비효율적이고, 코드가 실제로 보는 건 "요청자가
+> 참여자 집합의 원소인가"뿐이다. 다만 `sole`과 `shared`를 굳이 나누는 이유는: 집합
+> 멤버십 체크를 실수로 "첫 참여자(=원래 유일했던 사람)인가"로 잘못 짰다면 `sole`에서는
+> 우연히 똑같이 통과해 버그가 안 드러나고 `shared`에서만 드러나기 때문이다.
+
+### 가지치기 근거
+
+| 가지 | 왜 안 더 전개했나 |
+|---|---|
+| `member(mcp=true)`에서 OwnershipRelation 축 | 가드가 role 체크·소유권 체크보다 먼저 막아서(403 MUST_CHANGE_PASSWORD), 참여 관계가 뭐든 결과에 영향이 없다 — 더 안 나눈다. |
+| `list`/`detail`에서 Actor 축 | 두 엔드포인트 다 `permitAll()`이고 코드가 인증 여부를 아예 안 본다(hidden 여부만 봄) — anonymous 대표 1건으로 충분(트리 B의 로그아웃/리프레시와 같은 근거). |
+| `hidden`에서 `member(mcp=true)` | `hasAnyRole('ADMIN','SUPER_ADMIN')`이 먼저 걸려 MEMBER는 mcp 값과 무관하게 애초에 진입 불가 — admin 계정은 mcp 개념 자체가 없어(트리 A와 동일 이유) 이 축이 성립하지 않는다. |
+| 모든 Endpoint에서 "리소스가 여럿 존재하는가" 축 | 이건 "요청자가 누구고 뭘 요청하는가"라는 이 트리의 분류 기준과 성격이 다른, 데이터 격리 불변식 질문이라 트리에 안 넣고 별도 테스트로 뺐다(아래 "이 트리가 실제로 잡아낸 버그" 4번 참고). |
+
+### 리프 → 테스트 대응표
+
+| Endpoint | 상태 | 기대 | 테스트 |
+|---|---|---|---|
+| list/detail | hidden 프로젝트 | 목록 제외 / 상세 404 | `list_Public_ExcludesHiddenProjects`, `get_HiddenProject_Returns404` |
+| list/detail | 정상 | 200, 대표이미지·이미지전부·참여자 포함 | `list_Public_ReturnsRepresentativeImageUrl`, `get_Public_ReturnsImagesAndParticipants` |
+| detail | 존재하지 않는 id | 404 | `get_NonExistentId_Returns404` |
+| create | anonymous | 401 | `create_Unauthenticated_Returns401` |
+| create | admin/super_admin(MEMBER 아님) | 403 | `create_NotMemberRole_Returns403` |
+| create | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `create_MustChangePasswordMember_Returns403` |
+| create | member(mcp=false), 본인 미포함 | 400 | `create_WithoutSelfInParticipants_Returns400` |
+| create | member(mcp=false), 대표이미지 0장/2장+ | 400 | `create_NoRepresentativeImage_Returns400`, `create_TwoRepresentativeImages_Returns400` |
+| create | member(mcp=false), 존재하지 않는 참여자 memberId | 404 | `create_NonExistentParticipantMemberId_Returns404` |
+| create | member(mcp=false), 참여자 중복(같은 memberId 2번) | 400 | `create_DuplicateParticipant_Returns400` |
+| create | member(mcp=false), 정상 | 201 | `create_AsParticipant_Returns201` |
+| update | anonymous | 401 | `update_Unauthenticated_Returns401` |
+| update | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `update_MustChangePasswordMember_Returns403` |
+| update | member(mcp=false), none(비참여자) | 403 | `update_ByNonParticipant_Returns403` |
+| update | member(mcp=false), sole, 존재하지 않는 id | 404 | `update_NonExistentId_Returns404` |
+| update | member(mcp=false), sole, 참여자목록 빈값 | 400 | `update_EmptyParticipants_Returns400` |
+| update | member(mcp=false), sole, 참여자목록에서 본인 제외 | 400 | `update_RemovesSelfFromParticipants_Returns400` |
+| update | member(mcp=false), sole, 참여자 중복 | 400 | `update_DuplicateParticipant_Returns400` |
+| update | member(mcp=false), sole, 대표이미지 0장 | 400 | `update_NoRepresentativeImage_Returns400` |
+| update | member(mcp=false), sole, 정상 | 200 | `update_ByParticipant_Returns200` |
+| update | member(mcp=false), **shared**(공동소유, 본인은 나중 참여자), 정상 | 200 | `update_ByCoParticipantWhoIsNotCreator_Returns200` |
+| delete | anonymous | 401 | `delete_Unauthenticated_Returns401` |
+| delete | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `delete_MustChangePasswordMember_Returns403` |
+| delete | member(mcp=false), none(비참여자) | 403 | `delete_ByNonParticipant_Returns403` |
+| delete | member(mcp=false), sole, 존재하지 않는 id | 404 | `delete_NonExistentId_Returns404` |
+| delete | member(mcp=false), sole, 정상 | 200 + 이후 조회 404 | `delete_ByParticipant_Returns200` |
+| delete | member(mcp=false), **shared**(공동소유, 본인은 나중 참여자), 정상 | 200 | `delete_ByCoParticipantWhoIsNotCreator_Returns200` |
+| hidden | anonymous | 401 | `hidden_Unauthenticated_Returns401` |
+| hidden | member(mcp 무관) | 403 | `hidden_ByMember_Returns403` |
+| hidden | admin/super_admin, 존재하지 않는 id | 404 | `hidden_NonExistentId_Returns404` |
+| hidden | admin/super_admin, 정상 | 200, 공개목록·상세에서 제외되지만 데이터는 보존 | `hidden_ByAdmin_HidesFromPublicButKeptInStorage` |
+
+### 이 트리가 실제로 잡아낸 버그 4건 (리뷰 당시 코드엔 테스트가 아예 없었음)
+
+1. **`member(mcp=true)`가 세 쓰기 엔드포인트(create/update/delete)를 전부 통과할 수 있었다** — `MemberPasswordGuardFilter`가 `/api/member/` 네임스페이스만 보던 구버전이 원인. `ProjectControllerTest`의 인증 헬퍼(`memberAuthentication`)가 `mustChangePassword`를 항상 `false`로 하드코딩해뒀던 것도 이 조합이 테스트에 존재조차 안 했다는 증거였다. → 가드를 쓰기 메서드 기반으로 일반화(설계 결정 11)해서 해결.
+2. **`update()`가 참여자 목록에서 요청자 본인을 빼도 막지 않았다** — `create()`의 `requireSelfAmongParticipants` 검증이 `update()`엔 없었다. → `update()`에도 같은 검증을 추가.
+3. **(발견 자체가 아니라 커버리지 편향) `shared`(공동 소유) 상태가 테스트에 한 번도 없었다** — 모든 픽스처가 참여자 1명(만든 사람 본인)짜리 프로젝트만 만들어서, "참여자 집합에 있는가" 체크가 실은 "유일한/첫 참여자인가"로 잘못 짜여 있어도 안 드러나는 상태였다. 실제로 버그는 없었지만(코드는 `existsByProjectIdAndMemberId`로 정확했다), 이 축이 트리에 없었다는 것 자체가 지적 대상 — `update_ByCoParticipantWhoIsNotCreator_Returns200`/`delete_...`로 메꿨다.
+4. **참여자 목록에 같은 memberId를 두 번 넣어도 막는 게 없었다** — `ProjectParticipant`에 유니크 제약이 없어 중복 행이 그대로 저장됐다. → `requireNoDuplicateParticipants()` 추가.
+
+### 트리엔 없지만 확인한 것 — 데이터 격리 불변식
+
+"리소스가 여럿 있을 때 서로 안 섞이는가"는 요청자·엔드포인트 조합이 아니라 별개의
+질문이라 트리 밖에 뒀다. 두 프로젝트를 만들고 하나만 삭제/수정해서 다른 하나의
+이미지·참여자가 그대로인지만 확인한다: `delete_DoesNotAffectOtherProjectsImagesOrParticipants`,
+`update_ImagesAndParticipantReplace_DoesNotAffectOtherProjects`.
+
 ## 이 문서를 다시 쓸 일이 생기면
 
 - 코드가 바뀌어서 어떤 리프의 "기대"가 달라지면, 표부터 고치고 → 해당 테스트를 고친다
@@ -148,3 +240,9 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
   정의하고 표를 늘린다.
 - "동치류로 묶었다"는 판단이 더 이상 성립하지 않으면(예: `expired`와 `tampered`를
   나중에 다르게 처리하도록 코드가 바뀌면) 그 가지치기부터 원복해서 다시 전개한다.
+- **새 멤버 전용 API가 생기면(글쓰기·내프로필편집 등, 루트 `README.md`의 "멤버 영역"
+  참고) 트리 C처럼 "member(mcp=true) → 403 MUST_CHANGE_PASSWORD"부터 확인한다.**
+  `MemberPasswordGuardFilter`가 쓰기 메서드 기반으로 일반화돼 있어서 대부분 자동으로
+  커버되지만, 그 API가 GET인데도 예외적으로 상태 변경을 한다거나 하는 특이 케이스는
+  가정하지 말고 직접 찔러본다 — 트리 A→B→C가 전부 "한 기능만 보고 설계한 규칙이
+  다음 기능에서 뚫렸다"는 패턴을 반복했다는 걸 잊지 않는다.
