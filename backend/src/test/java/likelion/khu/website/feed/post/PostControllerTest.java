@@ -65,6 +65,21 @@ class PostControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // #113 item 3 — "발급→소비→재사용 거부→만료 거부 전부 HTTP 요청으로 검증"에서 만료 거부만
+    // 서비스 레이어(MagicLinkTokenServiceTest#consume_ExpiredToken_ThrowsExpired)에만 있고
+    // 실제 소비 엔드포인트(POST /api/posts)를 통한 HTTP 레벨 검증이 빠져 있던 걸 메운다.
+    @Test
+    void createPost_ExpiredToken_Returns410() throws Exception {
+        MagicLinkToken expired = tokenRepository.save(
+                new MagicLinkToken("expired-post-token", "선우", LocalDateTime.now().minusMinutes(1)));
+
+        mockMvc.perform(post("/api/posts")
+                        .header("X-Magic-Token", expired.getToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"제목\",\"content\":\"본문\"}"))
+                .andExpect(status().isGone());
+    }
+
     @Test
     void createPost_UsedToken_Returns410() throws Exception {
         String token = issueToken();
