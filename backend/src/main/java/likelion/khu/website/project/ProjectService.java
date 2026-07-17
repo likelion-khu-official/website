@@ -10,11 +10,16 @@ import likelion.khu.website.project.dto.ProjectParticipantRequest;
 import likelion.khu.website.project.dto.ProjectParticipantResponse;
 import likelion.khu.website.project.dto.ProjectSummaryResponse;
 import likelion.khu.website.project.dto.ProjectUpdateRequest;
+import likelion.khu.website.project.exception.DuplicateParticipantException;
+import likelion.khu.website.project.exception.EmptyParticipantsException;
+import likelion.khu.website.project.exception.InvalidRepresentativeImageException;
+import likelion.khu.website.project.exception.NotProjectParticipantException;
+import likelion.khu.website.project.exception.ParticipantMemberNotFoundException;
+import likelion.khu.website.project.exception.ProjectNotFoundException;
+import likelion.khu.website.project.exception.SelfNotIncludedException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,7 +43,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectDetailResponse getPublicDetail(Long id) {
         Project project = projectRepository.findByIdAndHiddenFalse(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없어요."));
+                .orElseThrow(ProjectNotFoundException::new);
         return toDetailResponse(project);
     }
 
@@ -75,7 +80,7 @@ public class ProjectService {
 
         if (request.getParticipants() != null) {
             if (request.getParticipants().isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "참여 멤버는 최소 1명 있어야 해요.");
+                throw new EmptyParticipantsException();
             }
             // 참여자 목록을 통째로 교체할 때 요청자 본인을 빼면, 자기가 수정한 프로젝트인데도
             // 다음부턴 requireParticipant()에 걸려 스스로 못 고치는 상태가 된다 — create()와
@@ -106,20 +111,20 @@ public class ProjectService {
 
     private Project findProjectOrThrow(Long id) {
         return projectRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없어요."));
+                .orElseThrow(ProjectNotFoundException::new);
     }
 
     // 참여하지 않은 프로젝트는 못 건드린다 — Done의 핵심 불변식.
     private void requireParticipant(Long projectId, Long memberId) {
         if (!projectParticipantRepository.existsByProjectIdAndMemberId(projectId, memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "참여한 프로젝트만 수정·삭제할 수 있어요.");
+            throw new NotProjectParticipantException();
         }
     }
 
     private void requireSelfAmongParticipants(List<ProjectParticipantRequest> participants, Long creatorMemberId) {
         boolean includesSelf = participants.stream().anyMatch(p -> p.getMemberId().equals(creatorMemberId));
         if (!includesSelf) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "본인을 참여 멤버에 포함해주세요.");
+            throw new SelfNotIncludedException();
         }
     }
 
@@ -129,7 +134,7 @@ public class ProjectService {
         long distinctCount = participants.stream().map(ProjectParticipantRequest::getMemberId)
                 .collect(Collectors.toSet()).size();
         if (distinctCount != participants.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "참여 멤버가 중복돼 있어요.");
+            throw new DuplicateParticipantException();
         }
     }
 
@@ -139,7 +144,7 @@ public class ProjectService {
         }
         long representativeCount = images.stream().filter(ProjectImageRequest::isRepresentative).count();
         if (representativeCount != 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "대표 이미지를 정확히 1장 지정해주세요.");
+            throw new InvalidRepresentativeImageException();
         }
     }
 
@@ -154,7 +159,7 @@ public class ProjectService {
     private void saveParticipants(Project project, List<ProjectParticipantRequest> participants) {
         participants.forEach(req -> {
             Member member = memberRepository.findById(req.getMemberId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요."));
+                    .orElseThrow(ParticipantMemberNotFoundException::new);
             projectParticipantRepository.save(ProjectParticipant.create(project, member, req.getPart()));
         });
     }

@@ -6,6 +6,27 @@
 // member.ts의 MemberRole과 같은 값 — shared/ 파일은 서로 import하지 않는 관례라 그대로 다시 선언한다.
 export type ProjectPart = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'INFRA';
 
+// 인증 필터 레벨(UNAUTHENTICATED/FORBIDDEN — admin.ts/member-auth.ts와 공유)과 프로젝트
+// 도메인 자체의 비즈니스 규칙 위반을 구분한다. 블랙박스 QA에서 후자가 code 없는 Spring 기본
+// 에러 바디로 나가던 걸 발견해 이 타입을 추가하고 백엔드도 맞춰 고쳤다(#119).
+export type ProjectErrorCode =
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'PROJECT_NOT_FOUND'          // GET/PATCH/DELETE /api/projects/{id}, PATCH /api/admin/projects/{id}/hidden — id 존재하지 않음
+  | 'NOT_PARTICIPANT'            // PATCH/DELETE /api/projects/{id} — 요청자가 이 프로젝트 참여자가 아님
+  | 'SELF_NOT_INCLUDED'          // POST/PATCH — participants에 요청자 본인이 없음
+  | 'DUPLICATE_PARTICIPANT'      // POST/PATCH — participants에 같은 memberId 중복
+  | 'INVALID_REPRESENTATIVE_IMAGE' // POST/PATCH — images의 representative:true가 0장 또는 2장 이상
+  | 'PARTICIPANT_NOT_FOUND'      // POST/PATCH — participants의 memberId가 존재하지 않는 멤버 (404 — 다른 검증군과 달리 참조 리소스 부재로 취급)
+  | 'EMPTY_PARTICIPANTS';        // PATCH — participants를 빈 배열로 교체 시도
+
+/** 모든 에러 응답 공통 형태 */
+export interface ProjectErrorResponse {
+  success: false;
+  message: string;
+  code: ProjectErrorCode;
+}
+
 export interface ProjectImage {
   url: string;
   representative: boolean; // 목록 카드엔 이 이미지만 노출. 전체 이미지 중 정확히 1장이어야 한다.
