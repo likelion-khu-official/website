@@ -1,96 +1,672 @@
-# 일반 사용자(익명 방문자)가 할 수 있는 것 — 기능 수준 Given-When-Then
-# 범위: dev + 열린 PR(#120·#121·#123·#126)
-# status: dev(지금 됨) · pr-###(머지 후) · spec-only(스펙만, 미구현)
-# ※ 상세판(QA 케이스 78개: 에러·엣지·보안 갭)은 git 5457bc9 에 있음
+# =============================================================================
+# 일반 사용자(익명 방문자) Given-When-Then — QA 진행용
+# =============================================================================
+# 관점: 운영진·멤버를 제외한 비로그인 익명 방문자.
+#       접점 = 공개 화면(브라우저) + 공개 API(직접 호출) + (구독자일 때) 안내 메일.
+# 범위: dev(8a6d4e5) + 열린 PR 4건
+#       - PR #120 (FE) 블로그 숨김·재게시 — 익명에겐 "글이 사라짐/돌아옴"으로 체감
+#       - PR #121 (BE) 멤버 학번 로그인 — ※ #122(#119 프로젝트 공개 API)를 품고 있어
+#         머지 시 익명용 프로젝트 API가 함께 배포됨
+#       - PR #123 (BE) 이메일 E2E — 익명 체감은 SMTP 장애 시 500→502 뿐
+#       - PR #126 (BE) 모집 켜기/끄기 — 익명 접점은 구독자 안내 메일뿐
+#
+# 계층: 기능 → 하위 기능 → 시나리오
+# status:
+#   dev       — 지금 dev에서 관찰 가능 (QA 실행 대상)
+#   pr-###    — 해당 PR 머지 후 관찰 가능
+#   spec-only — 위키 스펙만 있고 미구현 (QA 도달 불가 — 백로그 표식)
+#   gap       — 현재 동작이 스펙·보안 기대와 어긋남 (then은 "현재 실제 동작",
+#               note에 기대를 병기 — QA에서는 현재 동작대로 재현되는지 확인)
+# =============================================================================
 
 meta:
-  perspective: "비로그인 익명 방문자 (운영진·멤버 제외)"
+  perspective: "일반 사용자 = 비로그인 익명 방문자 (운영진·멤버 제외)"
+  baseline: "dev@8a6d4e5 + PR #120 · #121(+#122 동반) · #123 · #126"
   date: 2026-07-18
+  anonymous_can_do: # 위키 정본 기준 익명이 할 수 있는 것 전부
+    - "공개 화면 열람 (랜딩·블로그·프로젝트·멤버)"
+    - "블로그 익명 댓글 작성"
+    - "모집 알림 신청"
+    - "지원폼 제출 (spec-only — 미구현)"
 
 기능:
 
-  둘러보기:
-    - feature: "랜딩"
-      status: dev
-      given: "멋사가 궁금한 사람이"
-      when: "사이트(/)에 들어오면"
-      then: "소개·통계·세션·활동계획·프로젝트·운영진·블로그·모집을 한 페이지로 훑는다"
-      note: "프로젝트·운영진·블로그 섹션은 아직 플레이스홀더"
+  # ===========================================================================
+  랜딩 (/):
 
-    - feature: "블로그 목록"
-      status: dev
-      given: "게시된 글이 있을 때"
-      when: "/blog 에 가면"
-      then: "글 카드 목록을 페이지 넘기며 본다"
+    진입·섹션 구성:
+      - id: LAND-001
+        status: dev
+        given: "익명 방문자가 처음 온다"
+        when: "/ 에 접속한다"
+        then:
+          - "원페이지 스크롤: 히어로 → 소개 → 통계 → 세션 소개 → 프로젝트 → 운영진 → 활동계획 → 블로그 → 모집 → 푸터 순으로 렌더된다"
+          - "서버 데이터 페치가 없어 로딩/에러 상태 자체가 없다 (전부 정적)"
 
-    - feature: "블로그 글 상세"
-      status: dev
-      given: "목록에서 글을 골라"
-      when: "/blog/{slug} 를 열면"
-      then: "본문과 댓글을 읽는다 (숨김·초안 글은 404)"
+    네비게이션:
+      - id: LAND-003
+        status: dev
+        given: "데스크톱 뷰포트(md 이상)다"
+        when: "Nav의 항목(Introduce·Project·Members·Activity·Blog·Recruit)을 클릭한다"
+        then:
+          - "같은 페이지 내 앵커(#introduce 등)로 스크롤한다 — 별도 라우트 이동 없음"
+          - "로고 클릭 시 / 로 이동한다"
+      - id: LAND-004
+        status: dev
+        given: "모바일 뷰포트(md 미만)다"
+        when: "'메뉴' 버튼을 누른다 / 항목을 클릭한다"
+        then:
+          - "세로 메뉴가 펼쳐지고(aria-expanded) 라벨이 '닫기'로 바뀐다"
+          - "항목 클릭 시 앵커 이동 후 메뉴가 닫힌다"
 
-    - feature: "프로젝트 쇼케이스"
-      status: spec-only
-      given: "멋사가 뭘 만드는지 보고 싶을 때"
-      when: "/projects 목록·상세를 열면"
-      then: "프로젝트 카드와 상세(이미지·멤버·스택·GitHub 링크)를 본다"
-      note: "공개 API는 PR #121 머지로 생김 — 화면은 미구현"
+    통계 카운트업:
+      - id: LAND-002
+        status: dev
+        given: "랜딩이 열려 있다"
+        when: "통계 섹션이 뷰포트에 40% 이상 들어온다"
+        then:
+          - "숫자 4개(14년·80+·14,000+·1,800+)가 0부터 1.8초 카운트업된다 (1회만, 천단위 콤마)"
 
-    - feature: "멤버 로스터"
-      status: spec-only
-      given: "누가 활동하는지 보고 싶을 때"
-      when: "/members 를 열면"
-      then: "멤버 카드(이름·역할·기수·이모지/사진)를 본다"
-      note: "공개 API는 dev에 있음 — 화면은 미구현(디자인 #77)"
+    요약 섹션 — 프로젝트·운영진·블로그 (플레이스홀더):
+      - id: LAND-005
+        status: dev
+        given: "익명 방문자가 랜딩을 훑는다"
+        when: "프로젝트·운영진·블로그 섹션을 본다"
+        then:
+          - "프로젝트: 회색 빈 카드 + 장식 SVG (실데이터·링크 없음)"
+          - "운영진: '이름/학과/학번' 플레이스홀더 카드 13개 (실명·사진 없음)"
+          - "블로그: '제목/이름/날짜' 플레이스홀더 4개의 세로 무한 마퀴 — 카드에 링크 없음"
+          - "랜딩 어디에도 /blog·/projects·/members 로 가는 실제 링크가 없다 (Nav는 전부 앵커)"
+        note: "스펙은 요약 + 전용 페이지 '더보기' 링크 구조 [랜딩.md] — 현재는 전부 미연결 플레이스홀더"
+      - id: LAND-006
+        status: dev
+        given: "블로그 마퀴가 흐르고 있다"
+        when: "마퀴에 마우스를 올린다 / OS가 prefers-reduced-motion: reduce 다"
+        then:
+          - "hover 시 애니메이션이 일시정지한다"
+          - "reduced-motion이면 애니메이션이 아예 돌지 않는다"
 
-    - feature: "운영진 소개"
-      status: spec-only
-      given: "랜딩을 보다가"
-      when: "운영진 섹션에 닿으면"
-      then: "운영진 실명·직책·사진·소개를 본다"
-      note: "BE #87 진행 — 현재는 플레이스홀더"
+    푸터:
+      - id: LAND-007
+        status: dev
+        given: "푸터가 보인다"
+        when: "소셜 아이콘을 클릭한다"
+        then:
+          - "GitHub만 실제 링크(새 탭, likelion-khu-official)"
+          - "Instagram·Notion은 href='#' — 아무 데도 안 간다 (플레이스홀더)"
 
-  참여하기:
-    - feature: "익명 댓글"
-      status: dev
-      given: "글을 읽고 한마디 남기고 싶을 때"
-      when: "닉네임(선택)과 내용(300자)을 적어 등록하면"
-      then: "댓글이 바로 달린다 (로그인 불필요)"
+    SEO·메타:
+      - id: LAND-008
+        status: dev
+        given: "검색엔진·SNS가 루트를 크롤링한다"
+        when: "/ 의 메타를 읽는다"
+        then:
+          - "title '멋쟁이사자처럼 at 경희대' + description은 있으나 OG 태그는 루트에 없다"
+          - "robots.txt·sitemap 이 없다 (전 사이트 크롤 정책 부재 — 어드민 noindex 메타만 존재)"
 
-    - feature: "모집 알림 신청"
-      status: dev
-      given: "평상시(모집 전) 방문해서"
-      when: "랜딩 모집 섹션에 이메일을 남기면"
-      then: "다음 모집 시작 때 알림을 받기로 등록된다"
+  # ===========================================================================
+  모집:
 
-    - feature: "모집 시작 안내 메일 수신"
-      status: pr-126
-      given: "알림을 신청해 뒀는데"
-      when: "운영진이 모집을 열면"
-      then: "'모집이 시작됐어요' 메일을 받는다"
+    알림 신청 폼 (랜딩 모집 섹션 → POST /api/notifications/subscribe):
+      - id: NOTI-001
+        status: dev
+        given: "랜딩 모집 섹션이 보인다 (항상 '평소 모드' — 모집중 모드는 FE에 없음)"
+        when: "'지원기간 신청 알림 받기' pill을 클릭한다"
+        then:
+          - "이메일 입력 폼으로 교체된다 (pill로 되돌리는 UI는 없음)"
+      - id: NOTI-002
+        status: dev
+        given: "이메일 폼이 열려 있다"
+        when: "빈 값 또는 이메일 형식이 아닌 값으로 제출한다"
+        then:
+          - "브라우저 네이티브 검증(type=email + required)이 제출을 막는다"
+          - "API를 직접 치면 400 {success:false} — 빈 값 '이메일을 입력해주세요.' / 형식 오류 '유효하지 않은 이메일 형식이에요.'"
+      - id: NOTI-003
+        status: dev
+        given: "등록된 적 없는 이메일을 입력했다"
+        when: "제출한다"
+        then:
+          - "제출 중 버튼 '신청 중…' + 입력 disabled"
+          - "성공 시 200 {success:true, message:'모집 알림을 신청했어요!'} — 버튼 '완료', accent 메시지, 입력 비워짐"
+          - "성공 후 입력·버튼이 계속 disabled — 같은 화면에서 재신청 불가"
+          - "확인(더블 옵트인) 메일은 발송되지 않는다"
+      - id: NOTI-004
+        status: gap
+        given: "이미 구독된 이메일이다"
+        when: "다시 신청한다"
+        then:
+          - "200 {success:true, message:'이미 등록된 이메일이에요.'} — 저장은 안 되고(멱등) 화면은 완료 상태"
+        note: "스펙(#70)은 등록 여부와 무관하게 동일 응답('신청됐어요') 요구 — 현재 메시지 차이로 타인의 구독 여부를 유추 가능. 미구현 OPEN. 또한 이메일 정규화가 없어 대소문자만 다른 주소는 별도 구독으로 저장된다 — PR #126 발송 시 같은 사람이 2통 수신"
+      - id: NOTI-005
+        status: dev
+        given: "서버가 success:false 또는 비정상 응답을 준다"
+        when: "제출한다"
+        then:
+          - "빨간 메시지(서버 message 또는 '오류가 발생했어요. 다시 시도해 주세요.') — 재시도 가능"
+          - "네트워크 예외면 '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'"
+      - id: NOTI-006
+        status: gap
+        given: "익명 방문자가 알림을 신청하려 한다"
+        when: "폼을 본다 / 자동화 스크립트가 반복 제출한다"
+        then:
+          - "개인정보 수집·이용 동의 체크박스가 없다 — 스펙([필수] 동의) 위반, #68 OPEN"
+          - "봇 방지(캡차 등)가 없다 — #69 OPEN, rate limit 전무"
+          - "구독 해지 경로가 없다 (스펙에도 없음 — 스펙 빈칸)"
 
-    - feature: "지원폼 제출"
-      status: spec-only
-      given: "모집 기간에"
-      when: "/apply 에서 공통·세션별 질문에 답하고 제출하면"
-      then: "계정 없이 지원이 접수된다 ('접수됐어요' 안내)"
-      note: "FE·BE 모두 미구현 (#125 대기)"
+    "모집 시작 안내 메일 (구독자 수신, PR #126)":
+      - id: NOTI-007
+        status: pr-126
+        given: "익명 방문자가 과거에 알림을 신청했고, 모집이 닫힘 상태다"
+        when: "관리자가 모집을 켠다 (닫힘→열림 전이)"
+        then:
+          - "전이 시점의 구독자 전원에게 안내 메일 1통이 발송된다"
+          - "제목 '[멋쟁이사자처럼 경희대] 모집이 시작됐어요!'"
+          - "버튼 링크는 지원폼이 아니라 랜딩(frontend-base-url)이고, 버튼 텍스트도 '지원하러 가기'가 아니라 원시 URL 문자열이다 (템플릿의 th:text가 본문을 URL로 덮어씀)"
+          - "메일에 수신거부 링크 없음 — '받고 싶지 않다면 무시해주세요' 문구뿐"
+        note: "지원폼(#125) 부재 상태에서 버튼이 랜딩으로 가는 갭 — 방문자 혼란 지점"
+      - id: NOTI-008
+        status: pr-126
+        given: "모집이 이미 열려 있다"
+        when: "관리자가 열기를 재요청 / 모집을 닫는다 / 닫았다가 다시 연다"
+        then:
+          - "이미 열림 → 재발송 없음 (멱등)"
+          - "닫기 → 어떤 메일도 없음"
+          - "닫았다 다시 열면 재발송된다 — '1회'는 열림 전이당 1회"
+      - id: NOTI-009
+        status: pr-126
+        given: "모집이 열린 뒤에 알림을 신청했다"
+        when: "이번 모집 기간이 흘러간다"
+        then:
+          - "이번 전이의 메일은 못 받는다 (전이 시점 스냅샷 발송) — 다음 닫힘→열림 때만 수신"
+      - id: NOTI-010
+        status: pr-126
+        given: "구독자 중 한 명의 주소가 불량이다"
+        when: "모집 열림 메일이 발송된다"
+        then:
+          - "실패는 격리되고 나머지 구독자는 정상 수신한다 (실패는 email_log에 FAILURE 기록)"
 
-  경계: # 익명이 못 하는 것
-    - feature: "회원가입"
-      status: dev
-      given: "익명 방문자는"
-      when: "계정을 만들려 해도"
-      then: "공개 가입 경로가 없다 (계정은 관리자 등록·초대 전용)"
+    모집 안내 페이지 (/recruit):
+      - id: RECR-001
+        status: dev
+        given: "익명 방문자가 URL을 직접 입력한다 (랜딩에 링크 없음)"
+        when: "/recruit 에 접속한다"
+        then:
+          - "'모집 안내 — 준비 중이에요.' 한 줄 플레이스홀더만 보인다 (Nav·Footer 없음)"
+      - id: RECR-002
+        status: gap
+        given: "관리자가 모집을 켰다 (PR #126 머지 후)"
+        when: "익명 방문자가 사이트를 본다"
+        then:
+          - "화면은 아무것도 안 바뀐다 — 공개 모집 상태 조회 API·FE 모드 분기가 없다"
+          - "GET /api/admin/recruitment/status 를 익명이 치면 401"
+        note: "스펙은 모집기간에 같은 자리가 '지원하기'로 전환 [모집.md] — 공개 표면 미구현"
 
-    - feature: "멤버·어드민 영역"
-      status: dev
-      given: "익명 상태로"
-      when: "/admin 등 보호 영역·API에 접근하면"
-      then: "로그인으로 리다이렉트되거나 401 — 보호 콘텐츠는 보이지 않는다"
+    지원폼 (/apply, spec-only):
+      - id: RECR-003
+        status: spec-only
+        given: "모집 기간이다"
+        when: "익명 방문자가 랜딩 모집 섹션을 본다"
+        then:
+          - "'지원하기' → /apply 지원폼으로 전환된다 (알림 폼과 같은 자리, 두 얼굴)"
+      - id: RECR-004
+        status: spec-only
+        given: "모집 기간에 /apply 를 연다"
+        when: "지원폼을 작성·제출한다"
+        then:
+          - "공통 질문: 이름·학번·학과·전화·이메일·지원 세션(1·2지망)·지원 동기·포트폴리오(선택)·[필수] 개인정보 동의(처리방침 링크)"
+          - "1지망 세션에 따라 조건부 질문만 표시 (FE/BE/디자인/AI 각각)"
+          - "제출 후 '접수됐어요' 안내만 — 합불 조회 없음"
+          - "계정 없이 제출 가능, 응답은 제출 시점 질문 정의와 함께 JSON 저장"
+        note: "FE·BE 모두 미구현(API 자체 없음). 중복 제출 규칙은 스펙에도 없음 — 스펙 빈칸"
 
-    - feature: "글쓰기·프로필·프로젝트 등록"
-      status: dev
-      given: "익명 방문자는"
-      when: "쓰기 행위를 하려면"
-      then: "댓글·지원·알림 신청 외 전부 로그인이 필요하다"
+  # ===========================================================================
+  블로그:
+
+    목록 (/blog):
+      - id: BLOG-L01
+        status: dev
+        given: "게시(PUBLISHED)된 글이 있다"
+        when: "익명이 /blog 에 접속한다"
+        then:
+          - "SSR로 목록이 렌더된다 (no-store — 매 요청 fresh, JS 꺼도 보임)"
+          - "PUBLISHED 글만 publishedAt 내림차순 — DRAFT·HIDDEN은 목록에 없다"
+          - "상단 '← 멋쟁이사자처럼 경희대' 링크로 홈 복귀 가능 (랜딩 Nav 없음)"
+          - "로드 전에는 스켈레톤(제목 바 + 카드 6개 펄스)이 보인다"
+      - id: BLOG-L02
+        status: dev
+        given: "게시된 글이 하나도 없다"
+        when: "/blog 에 접속한다"
+        then:
+          - "'아직 등록된 글이 없어요.' 중앙 텍스트"
+      - id: BLOG-L03
+        status: dev
+        given: "글 목록 조회가 실패한다"
+        when: "/blog 에 접속한다"
+        then:
+          - "'글 목록을 불러오지 못했어요…' + '다시 시도' 버튼(reset)"
+      - id: BLOG-L04
+        status: dev
+        given: "URL 쿼리를 직접 조작한다"
+        when: "?page=-1·NaN·소수 또는 범위 밖 큰 값(?page=999)으로 접속한다"
+        then:
+          - "음수·NaN·소수는 0으로 보정되어 첫 페이지가 보인다"
+          - "범위 밖 큰 정수는 보정 없이 통과 — 글이 있어도 '아직 등록된 글이 없어요.' 빈 상태가 보인다 (totalPages>1이면 페이지네이션은 렌더됨)"
+      - id: BLOG-L05
+        status: dev
+        given: "글이 여러 페이지 분량(페이지당 10개)이다"
+        when: "페이지네이션을 조작한다"
+        then:
+          - "totalPages ≤ 1 이면 페이지네이션 자체가 없다"
+          - "첫/끝 페이지에서 이전/다음은 비활성(aria-disabled, pointer-events-none)"
+          - "현재 페이지는 accent 배경 + aria-current='page'"
+          - "정렬·필터 UI는 없다 (서버 기본 정렬 고정)"
+        note: "비활성 버튼도 DOM엔 ?page=-1 링크로 남지만 page 보정이 0으로 흡수"
+      - id: BLOG-L06
+        status: dev
+        given: "카드 데이터가 각양각색이다"
+        when: "목록 카드를 본다"
+        then:
+          - "썸네일 없으면 회색 그라데이션 (카드는 안 깨짐)"
+          - "summary는 있을 때만 2줄 클램프"
+          - "'저자 · YYYY년 M월 D일' (publishedAt 우선, 파싱 실패 시 원문 그대로)"
+          - "카드 전체가 /blog/{slug} 링크"
+      - id: BLOG-L07
+        status: gap
+        given: "익명이 목록 API의 쿼리를 직접 조작한다"
+        when: "GET /api/posts?size=2000 또는 ?sort=없는필드 를 친다"
+        then:
+          - "size 상한이 레포에 없다 — 프레임워크 기본 상한(2000)까지 페이지당 개수를 키울 수 있다"
+          - "잘못된 sort 필드는 500 Spring 기본 에러 (PropertyReferenceException 미처리)"
+
+    글 상세 (/blog/[slug]):
+      - id: BLOG-D01
+        status: dev
+        given: "게시된 글의 slug를 안다"
+        when: "/blog/{slug} 에 접속한다"
+        then:
+          - "제목·'저자 · 날짜'·썸네일(있을 때만)·본문이 렌더된다"
+          - "본문은 plain text의 pre-wrap — 마크다운·HTML 렌더링 없음"
+      - id: BLOG-D02
+        status: dev
+        given: "SNS·검색엔진이 글 상세를 크롤링한다"
+        when: "메타를 읽는다"
+        then:
+          - "title '{제목} — 멋쟁이사자처럼 경희대', description = summary 또는 본문 앞 100자"
+          - "og:type=article, 썸네일 있으면 og:image, twitter summary_large_image"
+      - id: BLOG-D03
+        status: dev
+        given: "없는 slug이거나 글이 HIDDEN·DRAFT 상태다"
+        when: "/blog/{slug} 에 접속한다"
+        then:
+          - "세 경우 모두 동일한 404 화면 — '글을 찾을 수 없어요.' + '목록으로 돌아가기'"
+          - "숨김 여부·존재 여부가 구분되지 않는다 (API가 PUBLISHED만 slug 조회)"
+        note: "위키는 숨김 글 화면을 명시 안 함 — 현재 구현(404)이 사실상 정답 역할"
+      - id: BLOG-D04
+        status: dev
+        given: "글 조회가 404 이외로 실패한다"
+        when: "/blog/{slug} 에 접속한다"
+        then:
+          - "'글을 불러오지 못했어요…' + '다시 시도' 버튼"
+      - id: BLOG-D05
+        status: pr-120
+        given: "익명이 어떤 글을 보고 있고, 어드민이 그 글을 숨긴다(PUBLISHED→HIDDEN)"
+        when: "익명이 목록·상세를 새로고침한다"
+        then:
+          - "목록에서 사라지고 상세는 404 — no-store라 다음 요청부터 즉시 반영"
+          - "이미 열어둔 상세 탭은 새로고침 전까지 그대로 보인다"
+      - id: BLOG-D06
+        status: pr-120
+        given: "숨겨졌던 글을 어드민이 재게시한다 / DRAFT 글을 게시한다"
+        when: "익명이 목록·상세를 본다"
+        then:
+          - "목록·상세 모두 복귀/노출 시작 — 같은 slug로 다시 열린다"
+
+    익명 댓글 (/blog/[slug] 하단):
+      - id: CMT-001
+        status: dev
+        given: "글 상세가 열려 있다"
+        when: "댓글 영역이 마운트된다"
+        then:
+          - "로딩 중 펄스 박스 2개 → 로드 후 목록 (숨김 제외, 오래된 순)"
+          - "헤더 '댓글 N' — 로드 전 SSR commentCount(숨김 제외), 로드 후 실제 개수"
+          - "로드 실패 시 '댓글을 불러오지 못했어요.' + '다시 시도'(재페치)"
+          - "댓글 0개면 '첫 댓글을 남겨보세요.'"
+          - "각 항목: 닉네임(없으면 '익명') + 날짜 + 내용(pre-wrap)"
+      - id: CMT-002
+        status: dev
+        given: "익명 방문자가 댓글을 쓴다"
+        when: "닉네임(선택)과 내용을 입력해 제출한다"
+        then:
+          - "닉네임 최대 50자 — 비우거나 공백만이면 '익명' 처리(null 저장)"
+          - "내용 필수·최대 300자, 'N/300' 카운터 표시"
+          - "내용이 공백뿐이면 제출 버튼 disabled"
+          - "제출 중 '등록 중…' + disabled"
+          - "성공(201) 시 목록 맨 아래 즉시 append, 입력 초기화, 페이지 리로드 없음"
+      - id: CMT-003
+        status: dev
+        given: "댓글 작성이 실패한다 (서버 400 검증·에러)"
+        when: "제출한다"
+        then:
+          - "폼 하단 빨간 텍스트(서버 message 또는 '댓글 작성에 실패했어요.') — 입력값 유지"
+      - id: CMT-004
+        status: dev
+        given: "PUBLISHED가 아닌(숨김·초안·없는) 글의 postId를 안다"
+        when: "그 글에 댓글 작성 API를 직접 친다"
+        then:
+          - "404 (Spring 기본 에러 JSON — 커스텀 {success,message} 아님)"
+      - id: CMT-005
+        status: dev
+        given: "존재하지 않는 postId다"
+        when: "GET /api/posts/{postId}/comments 를 직접 친다"
+        then:
+          - "에러가 아니라 200 [] — 글 존재 검증이 없다"
+      - id: CMT-006
+        status: gap
+        given: "HIDDEN·DRAFT 글의 숫자 postId를 안다"
+        when: "그 글의 댓글 조회 API를 직접 친다"
+        then:
+          - "숨김 글의 댓글이 그대로 조회된다 — 글 숨김이 댓글 조회에 캐스케이드되지 않음"
+      - id: CMT-007
+        status: gap
+        given: "익명 상태다"
+        when: "PATCH /api/posts/{postId}/comments/admin/{commentId}/hide 를 직접 친다"
+        then:
+          - "204 — 익명이 아무 댓글이나 숨길 수 있다"
+          - "postId 경로변수는 검증에 안 쓰인다 (아무 값이나 통과)"
+        note: "SecurityConfig의 authenticated 매처(/api/admin/comments/**)와 실제 경로 불일치 — permitAll(/api/posts/*/comments/**)에 걸림. 컨트롤러 주석에도 'TODO: 인증 추가'"
+      - id: CMT-008
+        status: gap
+        given: "자동화 스크립트가 댓글을 반복 제출한다"
+        when: "연속 작성한다"
+        then:
+          - "무제한 등록된다 — rate limit·중복 방지·스팸 필터·CAPTCHA 전무"
+        note: "스펙상 v1 스팸 대응 = 관리자 사후 숨김뿐 (사전 필터 없음이 스펙이긴 함)"
+
+    글쓰기 — 매직링크 (/blog/write, 멤버용이지만 URL은 익명 접근 가능):
+      - id: WRITE-001
+        status: dev
+        given: "토큰 없이 URL만 안다"
+        when: "/blog/write 에 접속한다"
+        then:
+          - "'접근할 수 없어요 / 글 작성 링크가 필요해요…' 안내 — 폼 미노출"
+          - "페이지는 noindex·nofollow"
+      - id: WRITE-002
+        status: dev
+        given: "?token= 이 붙은 링크로 접근한다"
+        when: "토큰 상태별로 열어본다"
+        then:
+          - "확인 중 '확인하고 있어요…'"
+          - "만료(24h) → '링크가 만료됐어요…' / 사용됨 → '이미 사용된 링크예요…' / 검증 실패 → '확인하지 못했어요…'"
+          - "유효 → '{작성자명} 님으로 작성해요.' + 작성 폼"
+      - id: WRITE-003
+        status: dev
+        given: "유효 토큰으로 폼이 열렸다"
+        when: "작성한다"
+        then:
+          - "제목·본문 필수 — 비우고 제출 시 '제목과 본문을 모두 입력해 주세요.'"
+          - "'미리보기' ↔ '편집으로 돌아가기' 토글 (제목 없으면 '(제목 없음)')"
+          - "입력할 때마다 localStorage 임시저장 — 재접속 시 복원, 제출 성공 시 삭제"
+      - id: WRITE-004
+        status: dev
+        given: "폼에서 이미지를 올린다"
+        when: "클릭 또는 드래그&드롭으로 업로드한다"
+        then:
+          - "jpg·png·webp·gif 외 → 클라 거절 / 5MB 초과 → 클라 거절 + 서버도 413"
+          - "업로드 중 진행률 바 + 제출 버튼 '이미지 업로드 중…' disabled"
+          - "실패 시 빨간 에러, '삭제' 버튼으로 제거 가능"
+      - id: WRITE-005
+        status: dev
+        given: "유효 토큰으로 글을 제출한다"
+        when: "제출이 성공한다"
+        then:
+          - "201 — 글은 DRAFT로 생성되어 공개 목록·상세에 안 보인다 (어드민 게시 후 노출)"
+          - "'글이 등록됐어요 / 이 링크는 1회용이라…' 안내 — 토큰은 소모됨"
+      - id: WRITE-006
+        status: dev
+        given: "무효 토큰으로 API를 직접 친다"
+        when: "POST /api/posts 를 보낸다"
+        then:
+          - "없는 토큰 404 / 사용된·만료 토큰 410 (각 {success:false, message})"
+          - "X-Magic-Token 헤더 누락 → 400 Spring 기본 에러 JSON"
+      - id: WRITE-007
+        status: gap
+        given: "익명 상태다"
+        when: "POST /api/feed/tokens 로 토큰 발급을 직접 친다"
+        then:
+          - "200 — authorName만 주면 익명 누구나 발급 가능 (발급→제출 콤보로 사실상 익명 글 무제한 제출)"
+          - "단 제출물은 DRAFT라 공개 노출은 어드민 게이트 뒤"
+        note: "SecurityConfig 주석 '운영진 인증 붙기 전까지 임시 공개' TODO — #115·#116(멤버 글쓰기 전환)으로 회수 예정"
+      - id: WRITE-008
+        status: gap
+        given: "익명 상태다"
+        when: "POST /api/feed/images 로 업로드를 직접 친다"
+        then:
+          - "토큰조차 없이 업로드 성공 (OCI 퍼블릭 URL 반환) — rate limit 없음"
+          - "Content-Type 선언만 검사 (매직바이트 검사 없음), 확장자는 원본 그대로"
+        note: "익명 무제한 스토리지 업로드 — SecurityConfig TODO 명시"
+
+  # ===========================================================================
+  프로젝트:
+
+    목록:
+      - id: PROJ-001
+        status: dev
+        given: "익명이 URL을 직접 입력한다"
+        when: "/projects 에 접속한다"
+        then:
+          - "'프로젝트 — 준비 중이에요.' 플레이스홀더 (랜딩 프로젝트 섹션도 빈 카드)"
+      - id: PROJ-002
+        status: pr-121
+        given: "PR #121 머지로 #119 공개 프로젝트 API가 함께 배포됐다"
+        when: "익명이 GET /api/projects 를 친다"
+        then:
+          - "hidden=false 프로젝트만 최신순 배열로 온다"
+          - "FE 화면은 아직 없음 — API 레벨만 공개"
+
+    상세:
+      - id: PROJ-003
+        status: pr-121
+        given: "숨김 처리됐거나 없는 프로젝트 id다"
+        when: "GET /api/projects/{id} 를 친다"
+        then:
+          - "404 {success:false, code:'PROJECT_NOT_FOUND'} — 존재·숨김 구분 없음"
+
+    노출 제어 (어드민·멤버 액션의 익명 체감):
+      - id: PROJ-004
+        status: pr-121
+        given: "어드민이 프로젝트를 숨기거나 복원한다 / 멤버가 삭제한다"
+        when: "익명이 목록·상세 API를 다시 친다"
+        then:
+          - "숨김·삭제 → 목록 제외 + 상세 404 / 복원 → 복귀"
+      - id: PROJ-006
+        status: pr-121
+        given: "익명 상태다"
+        when: "POST·PATCH·DELETE /api/projects(·{id}) 또는 PATCH /api/admin/projects/{id}/hidden 을 직접 친다"
+        then:
+          - "401 UNAUTHENTICATED — 같은 경로 prefix에서 GET(목록·상세)만 permitAll, 쓰기는 전부 인증 필요"
+
+    화면 (spec-only):
+      - id: PROJ-005
+        status: spec-only
+        given: "익명 방문자가 프로젝트를 본다"
+        when: "/projects 목록·상세 화면이 구현되면"
+        then:
+          - "목록 카드: 대표 이미지 1장 + 제목·한 줄 소개·기수·스택"
+          - "상세: 이미지 전부·참여 멤버(이름·파트)·기수·개발 기간·기술 스택·GitHub 링크"
+
+  # ===========================================================================
+  멤버·운영진:
+
+    로스터 (/members):
+      - id: MEM-001
+        status: dev
+        given: "익명이 URL을 직접 입력한다"
+        when: "/members 에 접속한다"
+        then:
+          - "'멤버 — 준비 중이에요.' 플레이스홀더"
+      - id: MEM-002
+        status: dev
+        given: "익명 상태다"
+        when: "GET /api/members 를 친다"
+        then:
+          - "200 — 전체 멤버 배열 (등록순, 페이지네이션·필터 없음)"
+          - "필드: id·name·roles·cohort·emoji·photoUrl·joinReason 만"
+      - id: MEM-003
+        status: pr-121
+        given: "멤버 계정 체계(학번·전화·비밀번호)가 dev에 들어왔다"
+        when: "익명이 GET /api/members 응답을 본다"
+        then:
+          - "학번·전화번호·비밀번호 해시가 응답에 없다 (MemberResponse 무변경 — QA에서 부재 단언)"
+      - id: MEM-004
+        status: spec-only
+        given: "로스터 탭 화면이 구현되면 (디자인 #77 진행)"
+        when: "익명이 /members 를 본다"
+        then:
+          - "멤버 카드 그리드 — 이름·역할(겸직 가능)·기수·비주얼(사진 또는 이모지, 기본 랜덤 이모지 — 카드는 절대 비지 않음)·입부 계기(선택)"
+
+    운영진 소개 (랜딩 섹션 실데이터):
+      - id: MEM-005
+        status: spec-only
+        given: "운영진 소개 실데이터가 붙으면 (BE #87 진행)"
+        when: "익명이 랜딩 운영진 섹션을 본다"
+        then:
+          - "실명·직책·학과/학번·사진(필수, 이모지 대체 없음)·소개글(회장·부회장 필수)이 관리자 정렬 순서대로"
+
+    퇴출 멤버:
+      - id: MEM-006
+        status: spec-only
+        given: "멤버가 퇴출(소프트 딜리트)됐다"
+        when: "익명이 그 멤버의 작성물을 본다"
+        then:
+          - "작성물은 보존되어 계속 보인다 — 로그인만 차단되는 것이 스펙"
+        note: "현재 dev·PR #121 어디에도 멤버 삭제(소프트 포함) 경로가 없어 Given 자체가 재현 불가. 글 작성자도 FK가 아닌 authorName 문자열이라 아직 검증 대상이 성립하지 않음"
+
+  # ===========================================================================
+  권한 경계:
+
+    어드민 영역 진입:
+      - id: AUTH-001
+        status: dev
+        given: "익명 상태(access_token 쿠키 없음)다"
+        when: "/admin 또는 하위 비공개 경로에 접속한다"
+        then:
+          - "/admin/login 으로 리다이렉트 (404 아님) — 보호 콘텐츠는 렌더되지 않는다"
+          - "어드민 전체가 noindex·nofollow"
+      - id: AUTH-002
+        status: gap
+        given: "가짜 access_token 쿠키를 심었다"
+        when: "/admin 에 접속한다"
+        then:
+          - "미들웨어(쿠키 존재 여부만 검사)는 통과하고 세션 API 401 → /admin/login 으로 replace 시도"
+          - "그러나 미들웨어가 쿠키 있는 /admin/login 요청을 다시 /admin 으로 되돌려 리다이렉트 루프 — 쿠키를 지우기 전까지 로그인 폼에 도달하지 못한다"
+          - "보호 데이터는 어느 시점에도 렌더되지 않는다"
+        note: "미들웨어는 JWT 유효성 검증 없이 쿠키 존재만 보고, 백엔드 refresh 실패는 쿠키를 지우지 않아 발생하는 루프"
+      - id: AUTH-003
+        status: dev
+        given: "익명이 /admin/login 폼을 연다"
+        when: "임의 자격으로 로그인을 시도한다"
+        then:
+          - "틀린 자격 → 401 INVALID_CREDENTIALS '이메일 또는 비밀번호가 올바르지 않아요.' (계정 존재 여부 구분 없음)"
+          - "5회 연속 실패 → 423 ACCOUNT_LOCKED '계정이 잠겼어요…' (15분)"
+
+    비밀번호 재설정·초대 토큰 (메일 링크 → 익명 브라우저):
+      - id: AUTH-004
+        status: dev
+        given: "익명이 /admin/forgot-password 를 연다"
+        when: "아무 이메일이나 넣고 제출한다"
+        then:
+          - "존재 여부와 무관하게 항상 200 '메일이 발송되었어요' (계정 열거 방지)"
+          - "실재 계정일 때만 30분 TTL 재설정 메일이 실제 발송된다"
+        note: "gap — 재발송 rate limit 없음: 반복 호출 시 실재 계정에 메일 폭탄 가능"
+      - id: AUTH-005
+        status: dev
+        given: "재설정/초대 메일의 토큰 링크를 가진 사람이 연다 (익명 브라우저)"
+        when: "/admin/reset-password/{token} 또는 /admin/invite/{token} 에 접속한다"
+        then:
+          - "확인 중 → 만료('링크가 만료됐어요' + 재요청 유도) / 무효('유효하지 않은 링크예요') / 유효(폼) 분기"
+          - "비밀번호 정책: 8자 이상 + 영문 + 숫자 (클라·서버 동일 검증, 불일치·이름 누락 등 필드별 메시지)"
+          - "성공 시 완료 화면 + 로그인 이동 버튼, 토큰은 재사용 불가(재설정 400 / 초대 400·만료 410)"
+      - id: AUTH-008
+        status: pr-123
+        given: "SMTP가 장애 상태다"
+        when: "익명이 forgot-password 를 제출한다"
+        then:
+          - "실재 계정 이메일 → 502 {code:'EMAIL_SEND_FAILED'} (발송 시도 후 실패)"
+          - "미존재 이메일 → 여전히 200 '메일이 발송되었어요' (발송 시도 자체가 없음)"
+          - "→ 장애 중엔 응답 차이로 계정 존재가 유추된다 — AUTH-004의 열거 방지가 SMTP 장애 시간대엔 깨진다"
+        note: "dev 현재는 502 대신 500 Spring 기본 JSON — PR #123이 502로 정리하지만 실재/미존재 응답 차등은 동일하게 남는다"
+
+    회원가입 없음:
+      - id: AUTH-006
+        status: dev
+        given: "익명 상태다"
+        when: "공개 회원가입 경로를 찾는다"
+        then:
+          - "없다 — 스펙 준수 (계정은 관리자 등록·초대 전용)"
+
+    "멤버 인증 경계 (PR #121)":
+      - id: AUTH-007
+        status: pr-121
+        given: "멤버 로그인 API가 dev에 들어왔다 (공개 화면 로그인 UI는 아직 없음)"
+        when: "익명이 POST /api/member/auth/login 을 직접 친다"
+        then:
+          - "틀린 학번/비번 → 401 INVALID_CREDENTIALS '학번 또는 비밀번호가 올바르지 않아요' (존재 구분 없음)"
+          - "5회 실패 → ACCOUNT_LOCKED"
+          - "쿠키 없이 refresh → 401 / 멤버 전용 쓰기 API → 401 UNAUTHENTICATED"
+        note: "스펙상 /login 공개 화면이 생길 예정(#117 진행) — 현재 FE 진입점 없음"
+
+  # ===========================================================================
+  시스템·전역:
+
+    라우팅 엣지:
+      - id: SYS-001
+        status: dev
+        given: "익명 방문자가 브라우저로 사이트에 접속해 있다"
+        when: "존재하지 않는 경로(예: /asdf)로 이동한다"
+        then:
+          - "Next.js 기본 404 화면이 보인다 (루트 커스텀 not-found 없음)"
+        note: "커스텀 404는 /blog/[slug] 하위에만 존재"
+      - id: SYS-007
+        status: dev
+        given: "익명이 URL을 직접 입력한다 (랜딩에 링크 없음)"
+        when: "/activities 에 접속한다"
+        then:
+          - "'활동 — 준비 중이에요.' 플레이스홀더만 보인다 (Nav·Footer 없음)"
+
+    백엔드 장애:
+      - id: SYS-002
+        status: dev
+        given: "백엔드가 죽어 있거나 응답 불가 상태다"
+        when: "익명 방문자가 /blog 등 데이터 페이지에 접속하거나 폼을 제출한다"
+        then:
+          - "블로그는 error boundary('글 목록을 불러오지 못했어요…' + 다시 시도 버튼)로 표출된다"
+          - "폼(알림 신청·댓글)은 각자의 빨간 에러 메시지로 표출되고 재시도 가능하다"
+
+    API 경계:
+      - id: SYS-003
+        status: dev
+        given: "익명 상태(인증 쿠키 없음)다"
+        when: "보호된 API(permitAll 외 전부)를 직접 호출한다"
+        then:
+          - "401 JSON {success:false, code:'UNAUTHENTICATED', message:'로그인이 필요해요.'} — 리다이렉트 없음"
+          - "존재하지 않는 API 경로도 404가 아니라 동일한 401이다"
+      - id: SYS-004
+        status: gap
+        given: "익명 상태다"
+        when: "/swagger-ui 또는 /v3/api-docs 에 접근한다"
+        then:
+          - "API 문서 전체가 익명에게 열람된다 (permitAll)"
+        note: "내부 API 구조 노출 — 스펙에 공개 근거 없음"
+      - id: SYS-005
+        status: dev
+        given: "익명 상태다"
+        when: "GET /actuator/health 또는 프론트 /api/health 를 연다"
+        then:
+          - "actuator는 상태만(show-details: never), 프론트는 {status:'ok'} JSON이 보인다"
+      - id: SYS-006
+        status: dev
+        given: "익명이 공개 API에 잘못된 요청을 보낸다"
+        when: "파싱 불가 JSON·필수 헤더/파트 누락·핸들러 없는 예외를 유발한다"
+        then:
+          - "커스텀 {success,message} 가 아닌 Spring 기본 에러 JSON(timestamp/status/error/path)이 온다"
+        note: "에러 body 스키마 3종 혼재(①{success,message} ②+code ③Spring 기본) — QA 단언 시 주의"
