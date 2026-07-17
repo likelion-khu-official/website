@@ -14,6 +14,7 @@ import likelion.khu.website.admin.exception.LastSuperAdminException;
 import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
 import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
+import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
 import likelion.khu.website.feed.exception.MagicLinkTokenExpiredException;
@@ -133,6 +134,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AdminInvitationIdNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAdminInvitationIdNotFound(AdminInvitationIdNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    // #113 QA에서 발견 — AdminInvitationService.invite()/AdminPasswordResetService.forgot()가
+    // EmailService.send()를 트랜잭션 안 마지막 단계로 호출해서, SMTP 장애 시 이 예외가 컨트롤러
+    // 밖으로 그대로 새나가 핸들러 없는 채로 Spring 기본 500 에러가 나갔다(email_log에 FAILURE는
+    // 비동기로 결국 남지만, 응답 자체는 다른 API와 형태가 다른 500이었음). 502로 "우리 문제가
+    // 아니라 외부 메일 서버 문제"임을 구분해 응답한다 — 초대/토큰 레코드는 같은 트랜잭션이라 이미
+    // 롤백된 뒤라 재시도해도 안전(멱등, 새 토큰으로 다시 발급됨).
+    @ExceptionHandler(EmailSendException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
     }
 
     private Map<String, Object> errorBody(String message, String code) {
