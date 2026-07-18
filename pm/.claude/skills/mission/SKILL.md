@@ -144,7 +144,7 @@ gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --l
 
 **그리고 기능 트리를 갱신한다(필수).** 이 미션의 `Target` 노드(`pm/features/<노드>.md`)의 상태 색·`진행 상태`와 루트 `README.md` 트리의 그 노드 색을 이번 결과로 업데이트한다. 미션이 노드를 🔵/🟡 → 🟢 등으로 옮긴다 — 이 한 칸을 빼먹으면 트리(현황)가 거짓말을 한다. *(claim-mission이 닫는 코드 미션은 그쪽 Step 4에서 이걸 하고, PM이 직접 닫는 미션은 여기서 한다.)*
 
-**Target 노드에 `pm/qa/verification/<노드>.md`가 있으면(=GWT 커버 노드) 검증 결과도 같이 갱신한다.** 이번 변경으로 시나리오 결과(pass/fail/not-run)가 바뀌었으면 근거와 함께 고친다 — 작성 규칙은 `pm/qa/GUIDE.md`. 대상 노드가 아직 GWT 커버 밖(현재 익명 방문자 관점만 있음)이면 해당 없음.
+**Target 노드에 `pm/qa/verification/<노드>.md`가 있으면(=GWT 커버 노드) 검증 결과도 같이 갱신한다.** 이번 변경으로 시나리오 결과(pass/fail/not-run)가 바뀌었으면 근거와 함께 고친다 — 작성 규칙은 `pm/qa/GUIDE.md`. 이 미션이 머지한 PR 번호가 criteria의 `status: pr-###`에 있으면 `dev`로 바꾸고, "PR #### 코드 리뷰(머지 전)" 근거의 pass는 `not-run`(재확인 필요)으로 되돌린다. 대상 노드가 아직 GWT 커버 밖(현재 익명 방문자 관점만 있음)이면 해당 없음.
 
 ## 스텁 템플릿 (던질 때 생성)
 `log.md`:

@@ -15,8 +15,13 @@
 #
 # status — 이 시나리오를 "언제" 테스트할 수 있는가:
 #   dev       — 지금 dev에서 테스트 가능
-#   pr-###    — 해당 PR 머지 후 테스트 가능
+#   pr-###    — 해당 PR 머지 후 테스트 가능 (그 PR을 머지하는 미션이 status를
+#               dev로 되돌리고, '머지 전 pass'였던 검증 결과를 not-run으로 되돌린다)
 #   spec-only — 위키 스펙만 있고 미구현 (구현되면 status를 dev로 전환)
+#
+# then은 항상 "스펙이 기대하는 동작"이다 — 현재 동작(버그 포함)을 then에 적으면
+# 버그가 기대값이 된다. given에 문서(트리) 서술을 넣지 않는다 — 기준은 동작이다.
+# 보안성 갭은 재현 경로·엔드포인트를 이 파일에 적지 않는다(공개 레포) — pm/qa/GUIDE.md.
 # =============================================================================
 
 meta:
@@ -407,24 +412,24 @@ meta:
         given: "HIDDEN·DRAFT 글의 숫자 postId를 안다"
         when: "그 글의 댓글 조회 API를 직접 친다"
         then:
-          - "숨김 글의 댓글이 그대로 조회된다 — 글 숨김이 댓글 조회에 캐스케이드되지 않음"
+          - "숨김·미게시 글의 댓글은 조회되지 않는다 — 글 숨김이 댓글 조회에 캐스케이드된다"
+        note: "현재 fail — 글 상태와 무관하게 댓글이 그대로 조회된다"
       - id: CMT-007
         status: dev
         node: pm/features/블로그-익명댓글.md
         given: "익명 상태다"
-        when: "PATCH /api/posts/{postId}/comments/admin/{commentId}/hide 를 직접 친다"
+        when: "관리자용 댓글 숨김 API를 인증 없이 호출한다"
         then:
-          - "204 — 익명이 아무 댓글이나 숨길 수 있다"
-          - "postId 경로변수는 검증에 안 쓰인다 (아무 값이나 통과)"
-        note: "SecurityConfig의 authenticated 매처(/api/admin/comments/**)와 실제 경로 불일치 — permitAll(/api/posts/*/comments/**)에 걸림. 컨트롤러 주석에도 'TODO: 인증 추가'. 이슈 미등록 — 이슈화 필요"
+          - "401 UNAUTHENTICATED — 글 숨김(ADMMOD-001)과 같은 수준으로 보호된다"
+        note: "현재 fail — 인증 없이 숨김이 성공한다. 재현 경로·원인은 공개 문서에 적지 않는다(GUIDE 보안 규칙, 상세는 비공개 전달). 이슈화 필요"
       - id: CMT-008
         status: dev
         node: pm/features/블로그-익명댓글.md
         given: "자동화 스크립트가 댓글을 반복 제출한다"
         when: "연속 작성한다"
         then:
-          - "무제한 등록된다 — rate limit·중복 방지·스팸 필터·CAPTCHA 전무"
-        note: "스펙상 v1 스팸 대응 = 관리자 사후 숨김뿐 (사전 필터 없음이 스펙이긴 함)"
+          - "무제한 등록된다 — v1 스펙이 의도한 상태(사전 필터 없음, 스팸 대응은 관리자 사후 숨김뿐)"
+        note: "스펙 자체가 사전 대응 없음이라 이 동작이 곧 스펙 — pass. 사전 필터를 도입하기로 스펙이 바뀌면 이 then부터 갈아엎는다"
 
     글쓰기 — 매직링크 (/blog/write, 멤버용이지만 URL은 익명 접근 가능):
       - id: WRITE-001
@@ -752,7 +757,7 @@ meta:
         note: "에러 body 스키마 3종 혼재(①{success,message} ②+code ③Spring 기본) — QA 단언 시 주의"
 
   # ===========================================================================
-  # 2026-07-19 추가: "성공기준이 없는 것 자체가 문제" — 이전까지 node: null/미매핑이던
+  # 2026-07-18 추가: "성공기준이 없는 것 자체가 문제" — 이전까지 node: null/미매핑이던
   # 나머지 트리 노드 전부에 익명 관점에서 실제로 검증 가능한 최소 시나리오를 만들었다.
   # 이미 코드가 있는 곳은 dev/pr-### + 코드 근거로, 아직 없는 곳은 spec-only로 채운다 —
   # "없으면 없는 대로" 방치하지 않고 status를 명시해 0/n으로 드러나게 한다.
@@ -828,11 +833,11 @@ meta:
     - id: MYPOST-001
       status: dev
       node: pm/features/내글-수정삭제.md
-      given: "pm/features/내글-수정삭제.md는 '글 CRUD 배포됨(🟢 됨)'이라고 되어 있다"
-      when: "PostController·PostRepository에서 글 수정(update)·삭제(delete) 엔드포인트를 찾는다"
+      given: "익명 상태다"
+      when: "글 본문 수정(PATCH)·삭제(DELETE)를 시도한다"
       then:
-        - "존재해야 한다 — 본인 글에 한해 PATCH·DELETE 가능해야 스펙(그리고 트리의 '됨' 표시)과 맞는다"
-      note: "실제로는 없다 — 검증 결과 참고"
+        - "익명은 어떤 글도 수정·삭제할 수 없다"
+      note: "현재는 U·D 엔드포인트 자체가 미구현이라 자명하게 성립(pass). 기능 자체의 존재는 멤버 관점 GWT 몫. 부수 발견이던 트리 불일치('글 CRUD 배포됨' 과장)는 2026-07-18 트리 정정으로 해소 — 검증 결과 문서의 '트리 정정' 섹션 참고"
 
   내 프로필 편집 (셀프 편집 경로 미구현, 트리와 일치):
     - id: MYPROFILE-001
@@ -856,11 +861,11 @@ meta:
     - id: ADMMEM-001
       status: dev
       node: pm/features/멤버-관리.md
-      given: "pm/features/멤버-관리.md는 '멤버 계정 관리 흐름은 미구현'이라고 되어 있다"
-      when: "MemberController에서 멤버 등록·수정 엔드포인트를 찾는다"
+      given: "익명 상태다"
+      when: "멤버 등록·수정 API를 인증 없이 호출한다"
       then:
-        - "미구현이어야 문서와 맞는다"
-      note: "실제로는 이미 있다 — 검증 결과 참고. 익명 경계(POST/PATCH /api/admin/members 인증 없이 호출 시 401)는 정상"
+        - "401 UNAUTHENTICATED — 멤버 관리는 관리자 전용"
+      note: "pass — 경계 정상. 부수 발견이던 트리 불일치('미구현' 서술이 코드보다 뒤처짐)는 2026-07-18 트리 정정으로 해소 — 검증 결과 문서의 '트리 정정' 섹션 참고"
 
   운영진 소개 관리 (BE 착수 전):
     - id: ADMSTAFF-001
@@ -882,11 +887,11 @@ meta:
     - id: ADMMOD-002
       status: dev
       node: pm/features/모니터링-검수.md
-      given: "댓글 숨김 API가 있다(CMT-007과 같은 엔드포인트를 이 노드 관점에서 재확인)"
-      when: "익명이 인증 없이 PATCH /api/posts/{postId}/comments/admin/{commentId}/hide 를 친다"
+      given: "관리자용 댓글 숨김 API가 있다 (CMT-007과 같은 대상 — 이 노드 관점에서 재확인)"
+      when: "익명이 인증 없이 호출한다"
       then:
-        - "401 UNAUTHENTICATED 이어야 글 숨김과 같은 수준의 보호"
-      note: "CMT-007 참고 — 실제로는 SecurityConfig 매처 불일치로 permitAll에 걸려 204로 성공한다. 같은 버그를 '모니터링·검수'(관리자 권한 경계) 관점에서 재확인"
+        - "401 UNAUTHENTICATED — 글 숨김과 같은 수준의 보호"
+      note: "현재 fail — CMT-007 참고. 같은 갭을 '모니터링·검수'(관리자 권한 경계) 관점에서 재확인한 것. 재현 경로는 공개 문서에 적지 않는다"
 
   명단 열람 (미구현):
     - id: ADMROSTER-001

@@ -9,6 +9,7 @@
 - **스코프 크리프 감사.** Done에 없는 변경이 diff에 있나? 있으면 덜어내거나(원복) IQ 게이트에서 사유를 밝힌다.
 - **초보 관점 한 번.** 다음 사람이 이 변경을 5분에 이해하나(mindset).
 - **검증 문서 있으면 갱신.** Target 노드에 `pm/qa/verification/<노드>.md`가 있으면, 이번 변경으로 시나리오 결과(pass/fail/not-run)가 바뀌었는지 확인하고 근거와 함께 갱신한다 — 지어내지 않는다, 작성 규칙은 `pm/qa/GUIDE.md`. 대상 노드가 없으면(현재 익명 방문자 관점만 커버) 해당 없음.
+- **"머지 전 pass" 만료 처리.** 지금 머지하는 PR 번호가 `pm/qa/criteria/*.yaml`의 `status: pr-<이번 PR#>`에 있으면 `dev`로 바꾸고, verification에서 "PR #<이번 PR#> 코드 리뷰(머지 전)"을 근거로 pass된 항목은 `not-run`(재확인 필요)으로 되돌린다 — 머지 전 diff 리뷰는 머지 순간 근거 자격을 잃는다.
 
 ## IQ 게이트에 낼 것
 Done 항목별 참/근거 표 + Notes 경계 확인 + 스코프 크리프 없음. 사람이 승인하면 **채간 사람이 Step 4에서 마감**한다 — `close-mission.sh`로 보드 Done + 이슈 close. (미션은 연 사람이 닫는다 — `contract.md`.)

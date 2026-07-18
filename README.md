@@ -34,12 +34,12 @@
 │
 ├─ <a href="pm/features/멤버-영역.md">멤버 영역</a>  /member
 │  ├─ <a href="pm/features/글쓰기.md">🟡 글쓰기</a>
-│  ├─ <a href="pm/features/내글-수정삭제.md">🟢 내 글 수정 · 삭제</a>
+│  ├─ <a href="pm/features/내글-수정삭제.md">🔵 내 글 수정 · 삭제</a>
 │  ├─ <a href="pm/features/내프로필-편집.md">🟡 내 프로필 편집</a>
 │  └─ <a href="pm/features/내프로젝트.md">🟡 내 프로젝트</a>
 │
 ├─ <a href="pm/features/어드민.md">어드민</a>  /admin
-│  ├─ <a href="pm/features/멤버-관리.md">🔵 멤버 관리</a>
+│  ├─ <a href="pm/features/멤버-관리.md">🟡 멤버 관리</a>
 │  ├─ <a href="pm/features/운영진-소개-관리.md">🟡 운영진 소개 관리</a>
 │  ├─ <a href="pm/features/모니터링-검수.md">🟡 모니터링 · 검수</a>
 │  ├─ <a href="pm/features/명단-열람.md">🔵 명단 열람</a>
