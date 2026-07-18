@@ -750,3 +750,178 @@ meta:
         then:
           - "커스텀 {success,message} 가 아닌 Spring 기본 에러 JSON(timestamp/status/error/path)이 온다"
         note: "에러 body 스키마 3종 혼재(①{success,message} ②+code ③Spring 기본) — QA 단언 시 주의"
+
+  # ===========================================================================
+  # 2026-07-19 추가: "성공기준이 없는 것 자체가 문제" — 이전까지 node: null/미매핑이던
+  # 나머지 트리 노드 전부에 익명 관점에서 실제로 검증 가능한 최소 시나리오를 만들었다.
+  # 이미 코드가 있는 곳은 dev/pr-### + 코드 근거로, 아직 없는 곳은 spec-only로 채운다 —
+  # "없으면 없는 대로" 방치하지 않고 status를 명시해 0/n으로 드러나게 한다.
+  # ===========================================================================
+
+  멤버 카드 (쓰기 경로 없음, 유일한 변경 창구는 관리자 API):
+    - id: CARD-001
+      status: dev
+      node: pm/features/멤버카드.md
+      given: "멤버 카드 셀프 편집(사진·입부계기 본인 수정) 경로는 스펙엔 있지만 코드엔 없다 — 유일한 쓰기 경로는 관리자 전용 API뿐이다"
+      when: "익명이 PATCH /api/admin/members/{id} 를 인증 없이 친다"
+      then:
+        - "401 UNAUTHENTICATED — 카드 정보를 익명은 물론 셀프 편집 경로 자체가 없어 멤버 본인도 못 고친다"
+
+  운영진 카드 (BE 착수 전):
+    - id: STAFF-001
+      status: spec-only
+      node: pm/features/운영진-카드.md
+      given: "운영진 카드 API(#87)가 착수만 됐고 구현 코드는 아직 없다"
+      when: "구현되면"
+      then:
+        - "익명은 조회만 가능하고, 카드 작성·수정·삭제는 관리자 전용이어야 한다(위키 스펙 — 본인 직접 수정 불가)"
+
+  지원폼 — 공통 질문 (spec-only):
+    - id: FORM-001
+      status: spec-only
+      node: pm/features/지원폼-공통질문.md
+      given: "모집 기간이고 /apply 가 구현되면"
+      when: "공통 질문 섹션을 본다"
+      then:
+        - "이름·학번·학과·전화·이메일·지원 세션(1·2지망)·지원 동기·포트폴리오 링크(선택) 입력란이 있어야 한다"
+
+  지원폼 — 세션별 질문 (spec-only):
+    - id: FORM-002
+      status: spec-only
+      node: pm/features/지원폼-세션별질문.md
+      given: "지원폼이 구현되고 1지망 세션을 고르면"
+      when: "세션별 질문을 본다"
+      then:
+        - "FE/BE/디자인/AI 1지망별로 서로 다른 조건부 질문 세트가 표시돼야 한다"
+
+  지원폼 — 개인정보 동의·접수 (spec-only):
+    - id: FORM-003
+      status: spec-only
+      node: pm/features/지원폼-개인정보동의.md
+      given: "지원폼이 구현되면"
+      when: "제출 전후 화면을 본다"
+      then:
+        - "[필수] 개인정보 수집·이용 동의 체크박스(처리방침 링크 포함)가 있고, 동의 없인 제출이 막혀야 한다"
+        - "제출 후엔 '접수됐어요' 안내만 — 합불 조회 기능은 없어야 한다(스펙상 의도적 미구현)"
+
+  첫 로그인 비밀번호 변경 (PR #121):
+    - id: PWFIRST-001
+      status: pr-121
+      node: pm/features/첫로그인-비번변경.md
+      given: "PR #121의 멤버 비밀번호 변경 API(PATCH /api/member/auth/password)가 아직 dev에 없다"
+      when: "익명이 인증 없이 이 경로를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 로그인한 멤버 본인만 자기 비밀번호를 바꿀 수 있어야 한다"
+      note: "@PreAuthorize(hasRole('MEMBER'))로 보호됨(PR #121). 첫 로그인 강제 변경 로직(MemberPasswordGuardFilter, mustChangePassword 미해제 시 다른 쓰기 API 전부 403)은 로그인 상태가 전제라 익명 관점 밖 — 멤버 관점 GWT가 생기면 그쪽에서 다룰 것"
+
+  역할 4종 (인증 우선순위 확인):
+    - id: ROLE-001
+      status: dev
+      node: pm/features/역할-4종.md
+      given: "요청에 아무 역할도 없는 상태(익명)다"
+      when: "역할이 필요한 임의의 쓰기 API(예: PATCH /api/admin/admins/{id}/role, SUPER_ADMIN 전용)를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 역할(@PreAuthorize) 검사 이전에 인증 단계에서부터 막힌다(Spring Security 필터 순서상 인증 실패가 인가 실패보다 먼저)"
+      note: "스펙의 4종(일반 유저·멤버·관리자·최고관리자) 중 코드는 현재 ADMIN/SUPER_ADMIN 2종(dev) + MEMBER(PR #121) 3종까지만 표현한다. '일반 유저'는 애초에 인증 주체가 아니라 역할로 코드에 나타나지 않음 — 구조상 당연."
+
+  내 글 수정·삭제 (트리는 🟢 됨이라고 주장):
+    - id: MYPOST-001
+      status: dev
+      node: pm/features/내글-수정삭제.md
+      given: "pm/features/내글-수정삭제.md는 '글 CRUD 배포됨(🟢 됨)'이라고 되어 있다"
+      when: "PostController·PostRepository에서 글 수정(update)·삭제(delete) 엔드포인트를 찾는다"
+      then:
+        - "존재해야 한다 — 본인 글에 한해 PATCH·DELETE 가능해야 스펙(그리고 트리의 '됨' 표시)과 맞는다"
+      note: "실제로는 없다 — 검증 결과 참고"
+
+  내 프로필 편집 (셀프 편집 경로 미구현, 트리와 일치):
+    - id: MYPROFILE-001
+      status: spec-only
+      node: pm/features/내프로필-편집.md
+      given: "본인 사진·입부계기 셀프 편집 경로가 스펙엔 있다"
+      when: "멤버 전용 프로필 편집 엔드포인트(예: PATCH /api/members/me)를 코드에서 찾는다"
+      then:
+        - "구현되면 이름·역할·기수·이모지는 그대로 두고 사진·입부계기만 바꿀 수 있어야 한다(관리자가 등록한 뼈대는 본인이 못 고침)"
+
+  내 프로젝트 (PR #121에 참여 멤버 셀프 CRUD 포함):
+    - id: MYPROJ-001
+      status: pr-121
+      node: pm/features/내프로젝트.md
+      given: "PR #121에 프로젝트 참여 멤버 셀프 CRUD가 포함돼 있다"
+      when: "익명이 인증 없이 POST/PATCH/DELETE /api/projects(/{id}) 를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 세 메서드 모두 hasRole('MEMBER')로 보호되고, 수정·삭제는 requireParticipant()로 본인 참여 프로젝트만 허용한다(스펙의 '내가 참여한 것만 수정 가능'과 일치)"
+
+  멤버 관리 (트리는 미구현이라고 주장):
+    - id: ADMMEM-001
+      status: dev
+      node: pm/features/멤버-관리.md
+      given: "pm/features/멤버-관리.md는 '멤버 계정 관리 흐름은 미구현'이라고 되어 있다"
+      when: "MemberController에서 멤버 등록·수정 엔드포인트를 찾는다"
+      then:
+        - "미구현이어야 문서와 맞는다"
+      note: "실제로는 이미 있다 — 검증 결과 참고. 익명 경계(POST/PATCH /api/admin/members 인증 없이 호출 시 401)는 정상"
+
+  운영진 소개 관리 (BE 착수 전):
+    - id: ADMSTAFF-001
+      status: spec-only
+      node: pm/features/운영진-소개-관리.md
+      given: "운영진 카드 API(#87)가 착수만 됐다"
+      when: "backend에서 관리 화면이 쓸 관리자용 운영진 카드 API(작성·수정·삭제)를 찾는다"
+      then:
+        - "아직 없다 — API·계약이 먼저 나온 뒤 관리 화면이 붙을 예정"
+
+  모니터링 · 검수 (글 숨김 vs 댓글 숨김, 경계가 다르다):
+    - id: ADMMOD-001
+      status: dev
+      node: pm/features/모니터링-검수.md
+      given: "글 상태전이(PUBLISHED↔HIDDEN) API가 있다"
+      when: "익명이 인증 없이 PATCH /api/admin/posts/{id}/status 를 친다"
+      then:
+        - "401 UNAUTHENTICATED — SecurityConfig의 anyRequest().authenticated() 기본 규칙이 적용된다"
+    - id: ADMMOD-002
+      status: dev
+      node: pm/features/모니터링-검수.md
+      given: "댓글 숨김 API가 있다(CMT-007과 같은 엔드포인트를 이 노드 관점에서 재확인)"
+      when: "익명이 인증 없이 PATCH /api/posts/{postId}/comments/admin/{commentId}/hide 를 친다"
+      then:
+        - "401 UNAUTHENTICATED 이어야 글 숨김과 같은 수준의 보호"
+      note: "CMT-007 참고 — 실제로는 SecurityConfig 매처 불일치로 permitAll에 걸려 204로 성공한다. 같은 버그를 '모니터링·검수'(관리자 권한 경계) 관점에서 재확인"
+
+  명단 열람 (미구현):
+    - id: ADMROSTER-001
+      status: spec-only
+      node: pm/features/명단-열람.md
+      given: "지원자·구독자 명단 열람 화면(스펙)"
+      when: "backend에서 지원자 목록 조회 API, 구독자 목록 조회(관리자용) API를 찾는다"
+      then:
+        - "지원폼 자체가 없어 지원자 명단 API도 없다. 구독자(NotificationSubscription)는 저장은 되지만 관리자가 명단을 조회하는 API가 없다(NotificationController엔 POST /subscribe 하나뿐)"
+
+  모집 관리 (PR #126):
+    - id: ADMRECRUIT-001
+      status: pr-126
+      node: pm/features/모집-관리.md
+      given: "PR #126의 RecruitmentManagementController가 모집 켜기/끄기를 담당한다"
+      when: "익명이 인증 없이 PATCH /api/admin/recruitment/status 를 친다"
+      then:
+        - "401 — 클래스 레벨 @PreAuthorize(hasAnyRole ADMIN,SUPER_ADMIN) + SecurityConfig authenticated() 이중 보호"
+      note: "GET /status 익명 401은 모집-알림.md RECR-002에서 이미 확인 — 여긴 쓰기(PATCH) 경계"
+
+  관리자 임명 · 회수 (이미 dev, #97):
+    - id: APPOINT-001
+      status: dev
+      node: pm/features/임명-회수.md
+      given: "AdminManagementController가 이미 dev에 배포돼 있다(#97)"
+      when: "익명이 인증 없이 DELETE /api/admin/admins/{id} 또는 PATCH /api/admin/admins/{id}/role 을 친다"
+      then:
+        - "401 UNAUTHENTICATED — 실제로는 SUPER_ADMIN 전용(@PreAuthorize)이지만 익명은 그 이전 인증 단계에서 걸린다"
+      note: "현재 '임명·회수'는 기존 ADMIN↔SUPER_ADMIN 역할 변경일 뿐 — '멤버를 관리자로 승격'하는 흐름은 역할 4종이 정리돼야 가능(스펙 갭, 버그 아님)"
+
+  최고관리자 승계 (미구현):
+    - id: SUCCESSION-001
+      status: spec-only
+      node: pm/features/최고관리자-승계.md
+      given: "최고관리자 승계 흐름(스펙)"
+      when: "backend에서 관련 컨트롤러/서비스를 찾는다"
+      then:
+        - "없다 — role 변경 API는 있지만(APPOINT-001) '넘기면서 동시에 본인은 강등'되는 원자적 승계 흐름이 아니라 단순 role 필드 변경이다. LastSuperAdminException이 '최소 1명' 불변식만 지킨다"
