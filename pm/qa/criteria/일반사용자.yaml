@@ -620,13 +620,13 @@ meta:
       - id: AUTH-002
         status: dev
         node: pm/features/로그인.md
-        given: "가짜 access_token 쿠키를 심었다"
+        given: "가짜(서명 무효) access_token 쿠키만 있고 refresh_token 쿠키는 없다 — 이 프로젝트엔 Next.js middleware.ts가 없어 가드는 전부 클라이언트 컴포넌트(AdminDashboard)에서 이뤄진다"
         when: "/admin 에 접속한다"
         then:
-          - "미들웨어(쿠키 존재 여부만 검사)는 통과하고 세션 API 401 → /admin/login 으로 replace 시도"
-          - "그러나 미들웨어가 쿠키 있는 /admin/login 요청을 다시 /admin 으로 되돌려 리다이렉트 루프 — 쿠키를 지우기 전까지 로그인 폼에 도달하지 못한다"
-          - "보호 데이터는 어느 시점에도 렌더되지 않는다"
-        note: "미들웨어는 JWT 유효성 검증 없이 쿠키 존재만 보고, 백엔드 refresh 실패는 쿠키를 지우지 않아 발생하는 루프"
+          - "페이지는 정상 렌더되고(404 아님) AdminDashboard가 마운트되며 잠깐 '불러오고 있어요…' 로딩 문구가 보인다"
+          - "JwtAuthenticationFilter가 access_token 서명을 검증해 무효 토큰은 익명으로 통과시키고, refreshSession()이 refresh_token 부재로 401을 받아 router.replace('/admin/login')로 정확히 1회 이동한다 — 루프 없음"
+          - "보호 데이터(운영진 목록 등)는 어느 시점에도 렌더되지 않는다(로딩 중엔 빈 state)"
+        note: "2026-07-18 이전 버전의 이 시나리오는 'middleware.ts가 쿠키 존재만 보고 리다이렉트 루프를 만든다'고 서술했으나, 코드 확인 결과 middleware.ts 자체가 없어 그 버그는 이 코드베이스에서 성립하지 않는다 — 실제 아키텍처(클라이언트 사이드 가드)에 맞게 재작성함. pm/qa/verification/로그인.md 참고"
       - id: AUTH-003
         status: dev
         node: pm/features/로그인.md
