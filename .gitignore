@@ -49,6 +49,9 @@ Thumbs.db
 # 개인 신원 + GitHub PAT (claim-mission Step 0) — 절대 커밋 금지
 /.identity.local.yml
 
+# 지원자 개인정보(PII) — 절대 커밋 금지
+/pm/applicants/
+
 
 HELP.md
 .gradle
