@@ -1,33 +1,39 @@
 # =============================================================================
-# 일반 사용자(익명 방문자) Given-When-Then — QA 진행용
+# 일반 사용자(익명 방문자) Given-When-Then — 성공 기준
 # =============================================================================
 # 관점: 운영진·멤버를 제외한 비로그인 익명 방문자.
 #       접점 = 공개 화면(브라우저) + 공개 API(직접 호출) + (구독자일 때) 안내 메일.
-# 범위: dev(8a6d4e5) + 열린 PR 4건
-#       - PR #120 (FE) 블로그 숨김·재게시 — 익명에겐 "글이 사라짐/돌아옴"으로 체감
-#       - PR #121 (BE) 멤버 학번 로그인 — ※ #122(#119 프로젝트 공개 API)를 품고 있어
-#         머지 시 익명용 프로젝트 API가 함께 배포됨
-#       - PR #123 (BE) 이메일 E2E — 익명 체감은 SMTP 장애 시 500→502 뿐
-#       - PR #126 (BE) 모집 켜기/끄기 — 익명 접점은 구독자 안내 메일뿐
 #
-# 계층: 기능 → 하위 기능 → 시나리오
-# status:
-#   dev       — 지금 dev에서 관찰 가능 (QA 실행 대상)
-#   pr-###    — 해당 PR 머지 후 관찰 가능
-#   spec-only — 위키 스펙만 있고 미구현 (QA 도달 불가 — 백로그 표식)
-#   gap       — 현재 동작이 스펙·보안 기대와 어긋남 (then은 "현재 실제 동작",
-#               note에 기대를 병기 — QA에서는 현재 동작대로 재현되는지 확인)
+# 이 파일은 "성공 기준"만 담는다 — given/when/then = 기대 동작. 커밋·PR에 안
+# 묶인다. 스펙이 안 바뀌면 안 바뀐다. TDD의 테스트 코드에 해당.
+#
+# 실제로 지금 통과하는지(검증 결과)는 여기 없다 — pm/qa/verification/<node>.md
+# 에 있다. 작성 규칙은 pm/qa/GUIDE.md. (성공 기준과 검증 결과를 한 파일에 섞지 않는다.)
+#
+# node = pm/features/의 어느 노드가 이 시나리오로 검증되는지. README 지도와의
+#        연결점 — node 없는 시나리오는 meta.미매핑 참고.
+#
+# status — 이 시나리오를 "언제" 테스트할 수 있는가:
+#   dev       — 지금 dev에서 테스트 가능
+#   pr-###    — 해당 PR 머지 후 테스트 가능 (그 PR을 머지하는 미션이 status를
+#               dev로 되돌리고, '머지 전 pass'였던 검증 결과를 not-run으로 되돌린다)
+#   spec-only — 위키 스펙만 있고 미구현 (구현되면 status를 dev로 전환)
+#
+# then은 항상 "스펙이 기대하는 동작"이다 — 현재 동작(버그 포함)을 then에 적으면
+# 버그가 기대값이 된다. given에 문서(트리) 서술을 넣지 않는다 — 기준은 동작이다.
+# 보안성 갭은 재현 경로·엔드포인트를 이 파일에 적지 않는다(공개 레포) — pm/qa/GUIDE.md.
 # =============================================================================
 
 meta:
   perspective: "일반 사용자 = 비로그인 익명 방문자 (운영진·멤버 제외)"
-  baseline: "dev@8a6d4e5 + PR #120 · #121(+#122 동반) · #123 · #126"
-  date: 2026-07-18
   anonymous_can_do: # 위키 정본 기준 익명이 할 수 있는 것 전부
     - "공개 화면 열람 (랜딩·블로그·프로젝트·멤버)"
     - "블로그 익명 댓글 작성"
     - "모집 알림 신청"
     - "지원폼 제출 (spec-only — 미구현)"
+  미매핑: # 트리에 대응 노드가 없어 node: null 인 시나리오들 — 새 노드 신설 여부는 PM 판단
+    - "MEM-006 — Given 자체가 dev·PR 어디에도 재현 불가(멤버 소프트 딜리트 경로 없음). 경로가 생기면 노드 배정."
+    - "SYS-001~006 — 라우팅 404·백엔드 장애·API 401 경계·swagger 노출·헬스체크·에러 스키마 혼재. 특정 기능 노드가 아니라 플랫폼 전역 관심사."
 
 기능:
 
@@ -37,6 +43,7 @@ meta:
     진입·섹션 구성:
       - id: LAND-001
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "익명 방문자가 처음 온다"
         when: "/ 에 접속한다"
         then:
@@ -46,6 +53,7 @@ meta:
     네비게이션:
       - id: LAND-003
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "데스크톱 뷰포트(md 이상)다"
         when: "Nav의 항목(Introduce·Project·Members·Activity·Blog·Recruit)을 클릭한다"
         then:
@@ -53,6 +61,7 @@ meta:
           - "로고 클릭 시 / 로 이동한다"
       - id: LAND-004
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "모바일 뷰포트(md 미만)다"
         when: "'메뉴' 버튼을 누른다 / 항목을 클릭한다"
         then:
@@ -62,6 +71,7 @@ meta:
     통계 카운트업:
       - id: LAND-002
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "랜딩이 열려 있다"
         when: "통계 섹션이 뷰포트에 40% 이상 들어온다"
         then:
@@ -70,6 +80,7 @@ meta:
     요약 섹션 — 프로젝트·운영진·블로그 (플레이스홀더):
       - id: LAND-005
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "익명 방문자가 랜딩을 훑는다"
         when: "프로젝트·운영진·블로그 섹션을 본다"
         then:
@@ -80,6 +91,7 @@ meta:
         note: "스펙은 요약 + 전용 페이지 '더보기' 링크 구조 [랜딩.md] — 현재는 전부 미연결 플레이스홀더"
       - id: LAND-006
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "블로그 마퀴가 흐르고 있다"
         when: "마퀴에 마우스를 올린다 / OS가 prefers-reduced-motion: reduce 다"
         then:
@@ -89,6 +101,7 @@ meta:
     푸터:
       - id: LAND-007
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "푸터가 보인다"
         when: "소셜 아이콘을 클릭한다"
         then:
@@ -98,6 +111,7 @@ meta:
     SEO·메타:
       - id: LAND-008
         status: dev
+        node: pm/features/랜딩-히어로소개통계세션.md
         given: "검색엔진·SNS가 루트를 크롤링한다"
         when: "/ 의 메타를 읽는다"
         then:
@@ -110,12 +124,14 @@ meta:
     알림 신청 폼 (랜딩 모집 섹션 → POST /api/notifications/subscribe):
       - id: NOTI-001
         status: dev
+        node: pm/features/모집-알림.md
         given: "랜딩 모집 섹션이 보인다 (항상 '평소 모드' — 모집중 모드는 FE에 없음)"
         when: "'지원기간 신청 알림 받기' pill을 클릭한다"
         then:
           - "이메일 입력 폼으로 교체된다 (pill로 되돌리는 UI는 없음)"
       - id: NOTI-002
         status: dev
+        node: pm/features/모집-알림.md
         given: "이메일 폼이 열려 있다"
         when: "빈 값 또는 이메일 형식이 아닌 값으로 제출한다"
         then:
@@ -123,6 +139,7 @@ meta:
           - "API를 직접 치면 400 {success:false} — 빈 값 '이메일을 입력해주세요.' / 형식 오류 '유효하지 않은 이메일 형식이에요.'"
       - id: NOTI-003
         status: dev
+        node: pm/features/모집-알림.md
         given: "등록된 적 없는 이메일을 입력했다"
         when: "제출한다"
         then:
@@ -131,7 +148,8 @@ meta:
           - "성공 후 입력·버튼이 계속 disabled — 같은 화면에서 재신청 불가"
           - "확인(더블 옵트인) 메일은 발송되지 않는다"
       - id: NOTI-004
-        status: gap
+        status: dev
+        node: pm/features/모집-알림.md
         given: "이미 구독된 이메일이다"
         when: "다시 신청한다"
         then:
@@ -139,13 +157,15 @@ meta:
         note: "스펙(#70)은 등록 여부와 무관하게 동일 응답('신청됐어요') 요구 — 현재 메시지 차이로 타인의 구독 여부를 유추 가능. 미구현 OPEN. 또한 이메일 정규화가 없어 대소문자만 다른 주소는 별도 구독으로 저장된다 — PR #126 발송 시 같은 사람이 2통 수신"
       - id: NOTI-005
         status: dev
+        node: pm/features/모집-알림.md
         given: "서버가 success:false 또는 비정상 응답을 준다"
         when: "제출한다"
         then:
           - "빨간 메시지(서버 message 또는 '오류가 발생했어요. 다시 시도해 주세요.') — 재시도 가능"
           - "네트워크 예외면 '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'"
       - id: NOTI-006
-        status: gap
+        status: dev
+        node: pm/features/모집-알림.md
         given: "익명 방문자가 알림을 신청하려 한다"
         when: "폼을 본다 / 자동화 스크립트가 반복 제출한다"
         then:
@@ -156,6 +176,7 @@ meta:
     "모집 시작 안내 메일 (구독자 수신, PR #126)":
       - id: NOTI-007
         status: pr-126
+        node: pm/features/모집-알림.md
         given: "익명 방문자가 과거에 알림을 신청했고, 모집이 닫힘 상태다"
         when: "관리자가 모집을 켠다 (닫힘→열림 전이)"
         then:
@@ -166,6 +187,7 @@ meta:
         note: "지원폼(#125) 부재 상태에서 버튼이 랜딩으로 가는 갭 — 방문자 혼란 지점"
       - id: NOTI-008
         status: pr-126
+        node: pm/features/모집-알림.md
         given: "모집이 이미 열려 있다"
         when: "관리자가 열기를 재요청 / 모집을 닫는다 / 닫았다가 다시 연다"
         then:
@@ -174,12 +196,14 @@ meta:
           - "닫았다 다시 열면 재발송된다 — '1회'는 열림 전이당 1회"
       - id: NOTI-009
         status: pr-126
+        node: pm/features/모집-알림.md
         given: "모집이 열린 뒤에 알림을 신청했다"
         when: "이번 모집 기간이 흘러간다"
         then:
           - "이번 전이의 메일은 못 받는다 (전이 시점 스냅샷 발송) — 다음 닫힘→열림 때만 수신"
       - id: NOTI-010
         status: pr-126
+        node: pm/features/모집-알림.md
         given: "구독자 중 한 명의 주소가 불량이다"
         when: "모집 열림 메일이 발송된다"
         then:
@@ -188,12 +212,14 @@ meta:
     모집 안내 페이지 (/recruit):
       - id: RECR-001
         status: dev
+        node: pm/features/모집-알림.md
         given: "익명 방문자가 URL을 직접 입력한다 (랜딩에 링크 없음)"
         when: "/recruit 에 접속한다"
         then:
           - "'모집 안내 — 준비 중이에요.' 한 줄 플레이스홀더만 보인다 (Nav·Footer 없음)"
       - id: RECR-002
-        status: gap
+        status: dev
+        node: pm/features/모집-알림.md
         given: "관리자가 모집을 켰다 (PR #126 머지 후)"
         when: "익명 방문자가 사이트를 본다"
         then:
@@ -204,12 +230,14 @@ meta:
     지원폼 (/apply, spec-only):
       - id: RECR-003
         status: spec-only
+        node: pm/features/지원폼.md
         given: "모집 기간이다"
         when: "익명 방문자가 랜딩 모집 섹션을 본다"
         then:
           - "'지원하기' → /apply 지원폼으로 전환된다 (알림 폼과 같은 자리, 두 얼굴)"
       - id: RECR-004
         status: spec-only
+        node: pm/features/지원폼.md
         given: "모집 기간에 /apply 를 연다"
         when: "지원폼을 작성·제출한다"
         then:
@@ -225,6 +253,7 @@ meta:
     목록 (/blog):
       - id: BLOG-L01
         status: dev
+        node: pm/features/블로그-목록.md
         given: "게시(PUBLISHED)된 글이 있다"
         when: "익명이 /blog 에 접속한다"
         then:
@@ -234,18 +263,21 @@ meta:
           - "로드 전에는 스켈레톤(제목 바 + 카드 6개 펄스)이 보인다"
       - id: BLOG-L02
         status: dev
+        node: pm/features/블로그-목록.md
         given: "게시된 글이 하나도 없다"
         when: "/blog 에 접속한다"
         then:
           - "'아직 등록된 글이 없어요.' 중앙 텍스트"
       - id: BLOG-L03
         status: dev
+        node: pm/features/블로그-목록.md
         given: "글 목록 조회가 실패한다"
         when: "/blog 에 접속한다"
         then:
           - "'글 목록을 불러오지 못했어요…' + '다시 시도' 버튼(reset)"
       - id: BLOG-L04
         status: dev
+        node: pm/features/블로그-목록.md
         given: "URL 쿼리를 직접 조작한다"
         when: "?page=-1·NaN·소수 또는 범위 밖 큰 값(?page=999)으로 접속한다"
         then:
@@ -253,6 +285,7 @@ meta:
           - "범위 밖 큰 정수는 보정 없이 통과 — 글이 있어도 '아직 등록된 글이 없어요.' 빈 상태가 보인다 (totalPages>1이면 페이지네이션은 렌더됨)"
       - id: BLOG-L05
         status: dev
+        node: pm/features/블로그-목록.md
         given: "글이 여러 페이지 분량(페이지당 10개)이다"
         when: "페이지네이션을 조작한다"
         then:
@@ -263,6 +296,7 @@ meta:
         note: "비활성 버튼도 DOM엔 ?page=-1 링크로 남지만 page 보정이 0으로 흡수"
       - id: BLOG-L06
         status: dev
+        node: pm/features/블로그-목록.md
         given: "카드 데이터가 각양각색이다"
         when: "목록 카드를 본다"
         then:
@@ -271,7 +305,8 @@ meta:
           - "'저자 · YYYY년 M월 D일' (publishedAt 우선, 파싱 실패 시 원문 그대로)"
           - "카드 전체가 /blog/{slug} 링크"
       - id: BLOG-L07
-        status: gap
+        status: dev
+        node: pm/features/블로그-목록.md
         given: "익명이 목록 API의 쿼리를 직접 조작한다"
         when: "GET /api/posts?size=2000 또는 ?sort=없는필드 를 친다"
         then:
@@ -281,6 +316,7 @@ meta:
     글 상세 (/blog/[slug]):
       - id: BLOG-D01
         status: dev
+        node: pm/features/블로그-글상세.md
         given: "게시된 글의 slug를 안다"
         when: "/blog/{slug} 에 접속한다"
         then:
@@ -288,6 +324,7 @@ meta:
           - "본문은 plain text의 pre-wrap — 마크다운·HTML 렌더링 없음"
       - id: BLOG-D02
         status: dev
+        node: pm/features/블로그-글상세.md
         given: "SNS·검색엔진이 글 상세를 크롤링한다"
         when: "메타를 읽는다"
         then:
@@ -295,6 +332,7 @@ meta:
           - "og:type=article, 썸네일 있으면 og:image, twitter summary_large_image"
       - id: BLOG-D03
         status: dev
+        node: pm/features/블로그-글상세.md
         given: "없는 slug이거나 글이 HIDDEN·DRAFT 상태다"
         when: "/blog/{slug} 에 접속한다"
         then:
@@ -303,12 +341,14 @@ meta:
         note: "위키는 숨김 글 화면을 명시 안 함 — 현재 구현(404)이 사실상 정답 역할"
       - id: BLOG-D04
         status: dev
+        node: pm/features/블로그-글상세.md
         given: "글 조회가 404 이외로 실패한다"
         when: "/blog/{slug} 에 접속한다"
         then:
           - "'글을 불러오지 못했어요…' + '다시 시도' 버튼"
       - id: BLOG-D05
         status: pr-120
+        node: pm/features/블로그-글상세.md
         given: "익명이 어떤 글을 보고 있고, 어드민이 그 글을 숨긴다(PUBLISHED→HIDDEN)"
         when: "익명이 목록·상세를 새로고침한다"
         then:
@@ -316,6 +356,7 @@ meta:
           - "이미 열어둔 상세 탭은 새로고침 전까지 그대로 보인다"
       - id: BLOG-D06
         status: pr-120
+        node: pm/features/블로그-글상세.md
         given: "숨겨졌던 글을 어드민이 재게시한다 / DRAFT 글을 게시한다"
         when: "익명이 목록·상세를 본다"
         then:
@@ -324,6 +365,7 @@ meta:
     익명 댓글 (/blog/[slug] 하단):
       - id: CMT-001
         status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "글 상세가 열려 있다"
         when: "댓글 영역이 마운트된다"
         then:
@@ -334,6 +376,7 @@ meta:
           - "각 항목: 닉네임(없으면 '익명') + 날짜 + 내용(pre-wrap)"
       - id: CMT-002
         status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "익명 방문자가 댓글을 쓴다"
         when: "닉네임(선택)과 내용을 입력해 제출한다"
         then:
@@ -344,47 +387,54 @@ meta:
           - "성공(201) 시 목록 맨 아래 즉시 append, 입력 초기화, 페이지 리로드 없음"
       - id: CMT-003
         status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "댓글 작성이 실패한다 (서버 400 검증·에러)"
         when: "제출한다"
         then:
           - "폼 하단 빨간 텍스트(서버 message 또는 '댓글 작성에 실패했어요.') — 입력값 유지"
       - id: CMT-004
         status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "PUBLISHED가 아닌(숨김·초안·없는) 글의 postId를 안다"
         when: "그 글에 댓글 작성 API를 직접 친다"
         then:
           - "404 (Spring 기본 에러 JSON — 커스텀 {success,message} 아님)"
       - id: CMT-005
         status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "존재하지 않는 postId다"
         when: "GET /api/posts/{postId}/comments 를 직접 친다"
         then:
           - "에러가 아니라 200 [] — 글 존재 검증이 없다"
       - id: CMT-006
-        status: gap
+        status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "HIDDEN·DRAFT 글의 숫자 postId를 안다"
         when: "그 글의 댓글 조회 API를 직접 친다"
         then:
-          - "숨김 글의 댓글이 그대로 조회된다 — 글 숨김이 댓글 조회에 캐스케이드되지 않음"
+          - "숨김·미게시 글의 댓글은 조회되지 않는다 — 글 숨김이 댓글 조회에 캐스케이드된다"
+        note: "현재 fail — 글 상태와 무관하게 댓글이 그대로 조회된다"
       - id: CMT-007
-        status: gap
+        status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "익명 상태다"
-        when: "PATCH /api/posts/{postId}/comments/admin/{commentId}/hide 를 직접 친다"
+        when: "관리자용 댓글 숨김 API를 인증 없이 호출한다"
         then:
-          - "204 — 익명이 아무 댓글이나 숨길 수 있다"
-          - "postId 경로변수는 검증에 안 쓰인다 (아무 값이나 통과)"
-        note: "SecurityConfig의 authenticated 매처(/api/admin/comments/**)와 실제 경로 불일치 — permitAll(/api/posts/*/comments/**)에 걸림. 컨트롤러 주석에도 'TODO: 인증 추가'"
+          - "401 UNAUTHENTICATED — 글 숨김(ADMMOD-001)과 같은 수준으로 보호된다"
+        note: "현재 fail — 인증 없이 숨김이 성공한다. 재현 경로·원인은 공개 문서에 적지 않는다(GUIDE 보안 규칙, 상세는 비공개 전달). 이슈화 필요"
       - id: CMT-008
-        status: gap
+        status: dev
+        node: pm/features/블로그-익명댓글.md
         given: "자동화 스크립트가 댓글을 반복 제출한다"
         when: "연속 작성한다"
         then:
-          - "무제한 등록된다 — rate limit·중복 방지·스팸 필터·CAPTCHA 전무"
-        note: "스펙상 v1 스팸 대응 = 관리자 사후 숨김뿐 (사전 필터 없음이 스펙이긴 함)"
+          - "무제한 등록된다 — v1 스펙이 의도한 상태(사전 필터 없음, 스팸 대응은 관리자 사후 숨김뿐)"
+        note: "스펙 자체가 사전 대응 없음이라 이 동작이 곧 스펙 — pass. 사전 필터를 도입하기로 스펙이 바뀌면 이 then부터 갈아엎는다"
 
     글쓰기 — 매직링크 (/blog/write, 멤버용이지만 URL은 익명 접근 가능):
       - id: WRITE-001
         status: dev
+        node: pm/features/글쓰기.md
         given: "토큰 없이 URL만 안다"
         when: "/blog/write 에 접속한다"
         then:
@@ -392,6 +442,7 @@ meta:
           - "페이지는 noindex·nofollow"
       - id: WRITE-002
         status: dev
+        node: pm/features/글쓰기.md
         given: "?token= 이 붙은 링크로 접근한다"
         when: "토큰 상태별로 열어본다"
         then:
@@ -400,6 +451,7 @@ meta:
           - "유효 → '{작성자명} 님으로 작성해요.' + 작성 폼"
       - id: WRITE-003
         status: dev
+        node: pm/features/글쓰기.md
         given: "유효 토큰으로 폼이 열렸다"
         when: "작성한다"
         then:
@@ -408,6 +460,7 @@ meta:
           - "입력할 때마다 localStorage 임시저장 — 재접속 시 복원, 제출 성공 시 삭제"
       - id: WRITE-004
         status: dev
+        node: pm/features/글쓰기.md
         given: "폼에서 이미지를 올린다"
         when: "클릭 또는 드래그&드롭으로 업로드한다"
         then:
@@ -416,6 +469,7 @@ meta:
           - "실패 시 빨간 에러, '삭제' 버튼으로 제거 가능"
       - id: WRITE-005
         status: dev
+        node: pm/features/글쓰기.md
         given: "유효 토큰으로 글을 제출한다"
         when: "제출이 성공한다"
         then:
@@ -423,27 +477,30 @@ meta:
           - "'글이 등록됐어요 / 이 링크는 1회용이라…' 안내 — 토큰은 소모됨"
       - id: WRITE-006
         status: dev
+        node: pm/features/글쓰기.md
         given: "무효 토큰으로 API를 직접 친다"
         when: "POST /api/posts 를 보낸다"
         then:
           - "없는 토큰 404 / 사용된·만료 토큰 410 (각 {success:false, message})"
           - "X-Magic-Token 헤더 누락 → 400 Spring 기본 에러 JSON"
       - id: WRITE-007
-        status: gap
+        status: dev
+        node: pm/features/글쓰기.md
         given: "익명 상태다"
         when: "POST /api/feed/tokens 로 토큰 발급을 직접 친다"
         then:
           - "200 — authorName만 주면 익명 누구나 발급 가능 (발급→제출 콤보로 사실상 익명 글 무제한 제출)"
           - "단 제출물은 DRAFT라 공개 노출은 어드민 게이트 뒤"
-        note: "SecurityConfig 주석 '운영진 인증 붙기 전까지 임시 공개' TODO — #115·#116(멤버 글쓰기 전환)으로 회수 예정"
+        note: "SecurityConfig 주석 '운영진 인증 붙기 전까지 임시 공개' TODO — #115·#116(멤버 글쓰기 전환)으로 회수 예정. 회수되면 이 시나리오 자체가 매직링크와 함께 폐기된다"
       - id: WRITE-008
-        status: gap
+        status: dev
+        node: pm/features/글쓰기.md
         given: "익명 상태다"
         when: "POST /api/feed/images 로 업로드를 직접 친다"
         then:
           - "토큰조차 없이 업로드 성공 (OCI 퍼블릭 URL 반환) — rate limit 없음"
           - "Content-Type 선언만 검사 (매직바이트 검사 없음), 확장자는 원본 그대로"
-        note: "익명 무제한 스토리지 업로드 — SecurityConfig TODO 명시"
+        note: "익명 무제한 스토리지 업로드 — SecurityConfig TODO 명시. #115·#116으로 회수 예정"
 
   # ===========================================================================
   프로젝트:
@@ -451,12 +508,14 @@ meta:
     목록:
       - id: PROJ-001
         status: dev
+        node: pm/features/프로젝트-목록.md
         given: "익명이 URL을 직접 입력한다"
         when: "/projects 에 접속한다"
         then:
           - "'프로젝트 — 준비 중이에요.' 플레이스홀더 (랜딩 프로젝트 섹션도 빈 카드)"
       - id: PROJ-002
         status: pr-121
+        node: pm/features/프로젝트-목록.md
         given: "PR #121 머지로 #119 공개 프로젝트 API가 함께 배포됐다"
         when: "익명이 GET /api/projects 를 친다"
         then:
@@ -466,6 +525,7 @@ meta:
     상세:
       - id: PROJ-003
         status: pr-121
+        node: pm/features/프로젝트-상세.md
         given: "숨김 처리됐거나 없는 프로젝트 id다"
         when: "GET /api/projects/{id} 를 친다"
         then:
@@ -474,12 +534,14 @@ meta:
     노출 제어 (어드민·멤버 액션의 익명 체감):
       - id: PROJ-004
         status: pr-121
+        node: [pm/features/프로젝트-목록.md, pm/features/프로젝트-상세.md]
         given: "어드민이 프로젝트를 숨기거나 복원한다 / 멤버가 삭제한다"
         when: "익명이 목록·상세 API를 다시 친다"
         then:
           - "숨김·삭제 → 목록 제외 + 상세 404 / 복원 → 복귀"
       - id: PROJ-006
         status: pr-121
+        node: [pm/features/프로젝트-목록.md, pm/features/프로젝트-상세.md]
         given: "익명 상태다"
         when: "POST·PATCH·DELETE /api/projects(·{id}) 또는 PATCH /api/admin/projects/{id}/hidden 을 직접 친다"
         then:
@@ -488,6 +550,7 @@ meta:
     화면 (spec-only):
       - id: PROJ-005
         status: spec-only
+        node: [pm/features/프로젝트-목록.md, pm/features/프로젝트-상세.md]
         given: "익명 방문자가 프로젝트를 본다"
         when: "/projects 목록·상세 화면이 구현되면"
         then:
@@ -500,12 +563,14 @@ meta:
     로스터 (/members):
       - id: MEM-001
         status: dev
+        node: pm/features/로스터-탭.md
         given: "익명이 URL을 직접 입력한다"
         when: "/members 에 접속한다"
         then:
           - "'멤버 — 준비 중이에요.' 플레이스홀더"
       - id: MEM-002
         status: dev
+        node: pm/features/로스터-탭.md
         given: "익명 상태다"
         when: "GET /api/members 를 친다"
         then:
@@ -513,12 +578,14 @@ meta:
           - "필드: id·name·roles·cohort·emoji·photoUrl·joinReason 만"
       - id: MEM-003
         status: pr-121
+        node: pm/features/로스터-탭.md
         given: "멤버 계정 체계(학번·전화·비밀번호)가 dev에 들어왔다"
         when: "익명이 GET /api/members 응답을 본다"
         then:
           - "학번·전화번호·비밀번호 해시가 응답에 없다 (MemberResponse 무변경 — QA에서 부재 단언)"
       - id: MEM-004
         status: spec-only
+        node: pm/features/로스터-탭.md
         given: "로스터 탭 화면이 구현되면 (디자인 #77 진행)"
         when: "익명이 /members 를 본다"
         then:
@@ -527,6 +594,7 @@ meta:
     운영진 소개 (랜딩 섹션 실데이터):
       - id: MEM-005
         status: spec-only
+        node: pm/features/운영진-소개.md
         given: "운영진 소개 실데이터가 붙으면 (BE #87 진행)"
         when: "익명이 랜딩 운영진 섹션을 본다"
         then:
@@ -535,11 +603,12 @@ meta:
     퇴출 멤버:
       - id: MEM-006
         status: spec-only
+        node: null
         given: "멤버가 퇴출(소프트 딜리트)됐다"
         when: "익명이 그 멤버의 작성물을 본다"
         then:
           - "작성물은 보존되어 계속 보인다 — 로그인만 차단되는 것이 스펙"
-        note: "현재 dev·PR #121 어디에도 멤버 삭제(소프트 포함) 경로가 없어 Given 자체가 재현 불가. 글 작성자도 FK가 아닌 authorName 문자열이라 아직 검증 대상이 성립하지 않음"
+        note: "현재 dev·PR #121 어디에도 멤버 삭제(소프트 포함) 경로가 없어 Given 자체가 재현 불가. 글 작성자도 FK가 아닌 authorName 문자열이라 아직 검증 대상이 성립하지 않음. 재현 가능해지면 node 배정"
 
   # ===========================================================================
   권한 경계:
@@ -547,22 +616,25 @@ meta:
     어드민 영역 진입:
       - id: AUTH-001
         status: dev
+        node: pm/features/로그인.md
         given: "익명 상태(access_token 쿠키 없음)다"
         when: "/admin 또는 하위 비공개 경로에 접속한다"
         then:
           - "/admin/login 으로 리다이렉트 (404 아님) — 보호 콘텐츠는 렌더되지 않는다"
           - "어드민 전체가 noindex·nofollow"
       - id: AUTH-002
-        status: gap
-        given: "가짜 access_token 쿠키를 심었다"
+        status: dev
+        node: pm/features/로그인.md
+        given: "가짜(서명 무효) access_token 쿠키만 있고 refresh_token 쿠키는 없다 — 이 프로젝트엔 Next.js middleware.ts가 없어 가드는 전부 클라이언트 컴포넌트(AdminDashboard)에서 이뤄진다"
         when: "/admin 에 접속한다"
         then:
-          - "미들웨어(쿠키 존재 여부만 검사)는 통과하고 세션 API 401 → /admin/login 으로 replace 시도"
-          - "그러나 미들웨어가 쿠키 있는 /admin/login 요청을 다시 /admin 으로 되돌려 리다이렉트 루프 — 쿠키를 지우기 전까지 로그인 폼에 도달하지 못한다"
-          - "보호 데이터는 어느 시점에도 렌더되지 않는다"
-        note: "미들웨어는 JWT 유효성 검증 없이 쿠키 존재만 보고, 백엔드 refresh 실패는 쿠키를 지우지 않아 발생하는 루프"
+          - "페이지는 정상 렌더되고(404 아님) AdminDashboard가 마운트되며 잠깐 '불러오고 있어요…' 로딩 문구가 보인다"
+          - "JwtAuthenticationFilter가 access_token 서명을 검증해 무효 토큰은 익명으로 통과시키고, refreshSession()이 refresh_token 부재로 401을 받아 router.replace('/admin/login')로 정확히 1회 이동한다 — 루프 없음"
+          - "보호 데이터(운영진 목록 등)는 어느 시점에도 렌더되지 않는다(로딩 중엔 빈 state)"
+        note: "2026-07-18 이전 버전의 이 시나리오는 'middleware.ts가 쿠키 존재만 보고 리다이렉트 루프를 만든다'고 서술했으나, 코드 확인 결과 middleware.ts 자체가 없어 그 버그는 이 코드베이스에서 성립하지 않는다 — 실제 아키텍처(클라이언트 사이드 가드)에 맞게 재작성함. pm/qa/verification/로그인.md 참고"
       - id: AUTH-003
         status: dev
+        node: pm/features/로그인.md
         given: "익명이 /admin/login 폼을 연다"
         when: "임의 자격으로 로그인을 시도한다"
         then:
@@ -572,14 +644,16 @@ meta:
     비밀번호 재설정·초대 토큰 (메일 링크 → 익명 브라우저):
       - id: AUTH-004
         status: dev
+        node: pm/features/비번-초기화.md
         given: "익명이 /admin/forgot-password 를 연다"
         when: "아무 이메일이나 넣고 제출한다"
         then:
           - "존재 여부와 무관하게 항상 200 '메일이 발송되었어요' (계정 열거 방지)"
           - "실재 계정일 때만 30분 TTL 재설정 메일이 실제 발송된다"
-        note: "gap — 재발송 rate limit 없음: 반복 호출 시 실재 계정에 메일 폭탄 가능"
+        note: "재발송 rate limit 없음: 반복 호출 시 실재 계정에 메일 폭탄 가능. 이슈 미등록 — 이슈화 검토"
       - id: AUTH-005
         status: dev
+        node: pm/features/비번-초기화.md
         given: "재설정/초대 메일의 토큰 링크를 가진 사람이 연다 (익명 브라우저)"
         when: "/admin/reset-password/{token} 또는 /admin/invite/{token} 에 접속한다"
         then:
@@ -588,6 +662,7 @@ meta:
           - "성공 시 완료 화면 + 로그인 이동 버튼, 토큰은 재사용 불가(재설정 400 / 초대 400·만료 410)"
       - id: AUTH-008
         status: pr-123
+        node: pm/features/비번-초기화.md
         given: "SMTP가 장애 상태다"
         when: "익명이 forgot-password 를 제출한다"
         then:
@@ -599,6 +674,7 @@ meta:
     회원가입 없음:
       - id: AUTH-006
         status: dev
+        node: pm/features/로그인.md
         given: "익명 상태다"
         when: "공개 회원가입 경로를 찾는다"
         then:
@@ -607,6 +683,7 @@ meta:
     "멤버 인증 경계 (PR #121)":
       - id: AUTH-007
         status: pr-121
+        node: pm/features/로그인.md
         given: "멤버 로그인 API가 dev에 들어왔다 (공개 화면 로그인 UI는 아직 없음)"
         when: "익명이 POST /api/member/auth/login 을 직접 친다"
         then:
@@ -617,10 +694,12 @@ meta:
 
   # ===========================================================================
   시스템·전역:
+    # 트리에 대응 노드가 없는 플랫폼 전역 관심사 (meta.미매핑 참고). node: null.
 
     라우팅 엣지:
       - id: SYS-001
         status: dev
+        node: null
         given: "익명 방문자가 브라우저로 사이트에 접속해 있다"
         when: "존재하지 않는 경로(예: /asdf)로 이동한다"
         then:
@@ -628,6 +707,7 @@ meta:
         note: "커스텀 404는 /blog/[slug] 하위에만 존재"
       - id: SYS-007
         status: dev
+        node: pm/features/랜딩-연간활동계획.md
         given: "익명이 URL을 직접 입력한다 (랜딩에 링크 없음)"
         when: "/activities 에 접속한다"
         then:
@@ -636,6 +716,7 @@ meta:
     백엔드 장애:
       - id: SYS-002
         status: dev
+        node: null
         given: "백엔드가 죽어 있거나 응답 불가 상태다"
         when: "익명 방문자가 /blog 등 데이터 페이지에 접속하거나 폼을 제출한다"
         then:
@@ -645,28 +726,207 @@ meta:
     API 경계:
       - id: SYS-003
         status: dev
+        node: null
         given: "익명 상태(인증 쿠키 없음)다"
         when: "보호된 API(permitAll 외 전부)를 직접 호출한다"
         then:
           - "401 JSON {success:false, code:'UNAUTHENTICATED', message:'로그인이 필요해요.'} — 리다이렉트 없음"
           - "존재하지 않는 API 경로도 404가 아니라 동일한 401이다"
       - id: SYS-004
-        status: gap
+        status: dev
+        node: null
         given: "익명 상태다"
         when: "/swagger-ui 또는 /v3/api-docs 에 접근한다"
         then:
           - "API 문서 전체가 익명에게 열람된다 (permitAll)"
-        note: "내부 API 구조 노출 — 스펙에 공개 근거 없음"
+        note: "내부 API 구조 노출 — 스펙에 공개 근거 없음. 이슈 미등록 — 이슈화 검토"
       - id: SYS-005
         status: dev
+        node: null
         given: "익명 상태다"
         when: "GET /actuator/health 또는 프론트 /api/health 를 연다"
         then:
           - "actuator는 상태만(show-details: never), 프론트는 {status:'ok'} JSON이 보인다"
       - id: SYS-006
         status: dev
+        node: null
         given: "익명이 공개 API에 잘못된 요청을 보낸다"
         when: "파싱 불가 JSON·필수 헤더/파트 누락·핸들러 없는 예외를 유발한다"
         then:
           - "커스텀 {success,message} 가 아닌 Spring 기본 에러 JSON(timestamp/status/error/path)이 온다"
         note: "에러 body 스키마 3종 혼재(①{success,message} ②+code ③Spring 기본) — QA 단언 시 주의"
+
+  # ===========================================================================
+  # 2026-07-18 추가: "성공기준이 없는 것 자체가 문제" — 이전까지 node: null/미매핑이던
+  # 나머지 트리 노드 전부에 익명 관점에서 실제로 검증 가능한 최소 시나리오를 만들었다.
+  # 이미 코드가 있는 곳은 dev/pr-### + 코드 근거로, 아직 없는 곳은 spec-only로 채운다 —
+  # "없으면 없는 대로" 방치하지 않고 status를 명시해 0/n으로 드러나게 한다.
+  # ===========================================================================
+
+  멤버 카드 (쓰기 경로 없음, 유일한 변경 창구는 관리자 API):
+    - id: CARD-001
+      status: dev
+      node: pm/features/멤버카드.md
+      given: "멤버 카드 셀프 편집(사진·입부계기 본인 수정) 경로는 스펙엔 있지만 코드엔 없다 — 유일한 쓰기 경로는 관리자 전용 API뿐이다"
+      when: "익명이 PATCH /api/admin/members/{id} 를 인증 없이 친다"
+      then:
+        - "401 UNAUTHENTICATED — 카드 정보를 익명은 물론 셀프 편집 경로 자체가 없어 멤버 본인도 못 고친다"
+
+  운영진 카드 (BE 착수 전):
+    - id: STAFF-001
+      status: spec-only
+      node: pm/features/운영진-카드.md
+      given: "운영진 카드 API(#87)가 착수만 됐고 구현 코드는 아직 없다"
+      when: "구현되면"
+      then:
+        - "익명은 조회만 가능하고, 카드 작성·수정·삭제는 관리자 전용이어야 한다(위키 스펙 — 본인 직접 수정 불가)"
+
+  지원폼 — 공통 질문 (spec-only):
+    - id: FORM-001
+      status: spec-only
+      node: pm/features/지원폼-공통질문.md
+      given: "모집 기간이고 /apply 가 구현되면"
+      when: "공통 질문 섹션을 본다"
+      then:
+        - "이름·학번·학과·전화·이메일·지원 세션(1·2지망)·지원 동기·포트폴리오 링크(선택) 입력란이 있어야 한다"
+
+  지원폼 — 세션별 질문 (spec-only):
+    - id: FORM-002
+      status: spec-only
+      node: pm/features/지원폼-세션별질문.md
+      given: "지원폼이 구현되고 1지망 세션을 고르면"
+      when: "세션별 질문을 본다"
+      then:
+        - "FE/BE/디자인/AI 1지망별로 서로 다른 조건부 질문 세트가 표시돼야 한다"
+
+  지원폼 — 개인정보 동의·접수 (spec-only):
+    - id: FORM-003
+      status: spec-only
+      node: pm/features/지원폼-개인정보동의.md
+      given: "지원폼이 구현되면"
+      when: "제출 전후 화면을 본다"
+      then:
+        - "[필수] 개인정보 수집·이용 동의 체크박스(처리방침 링크 포함)가 있고, 동의 없인 제출이 막혀야 한다"
+        - "제출 후엔 '접수됐어요' 안내만 — 합불 조회 기능은 없어야 한다(스펙상 의도적 미구현)"
+
+  첫 로그인 비밀번호 변경 (PR #121):
+    - id: PWFIRST-001
+      status: pr-121
+      node: pm/features/첫로그인-비번변경.md
+      given: "PR #121의 멤버 비밀번호 변경 API(PATCH /api/member/auth/password)가 아직 dev에 없다"
+      when: "익명이 인증 없이 이 경로를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 로그인한 멤버 본인만 자기 비밀번호를 바꿀 수 있어야 한다"
+      note: "@PreAuthorize(hasRole('MEMBER'))로 보호됨(PR #121). 첫 로그인 강제 변경 로직(MemberPasswordGuardFilter, mustChangePassword 미해제 시 다른 쓰기 API 전부 403)은 로그인 상태가 전제라 익명 관점 밖 — 멤버 관점 GWT가 생기면 그쪽에서 다룰 것"
+
+  역할 4종 (인증 우선순위 확인):
+    - id: ROLE-001
+      status: dev
+      node: pm/features/역할-4종.md
+      given: "요청에 아무 역할도 없는 상태(익명)다"
+      when: "역할이 필요한 임의의 쓰기 API(예: PATCH /api/admin/admins/{id}/role, SUPER_ADMIN 전용)를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 역할(@PreAuthorize) 검사 이전에 인증 단계에서부터 막힌다(Spring Security 필터 순서상 인증 실패가 인가 실패보다 먼저)"
+      note: "스펙의 4종(일반 유저·멤버·관리자·최고관리자) 중 코드는 현재 ADMIN/SUPER_ADMIN 2종(dev) + MEMBER(PR #121) 3종까지만 표현한다. '일반 유저'는 애초에 인증 주체가 아니라 역할로 코드에 나타나지 않음 — 구조상 당연."
+
+  내 글 수정·삭제 (트리는 🟢 됨이라고 주장):
+    - id: MYPOST-001
+      status: dev
+      node: pm/features/내글-수정삭제.md
+      given: "익명 상태다"
+      when: "글 본문 수정(PATCH)·삭제(DELETE)를 시도한다"
+      then:
+        - "익명은 어떤 글도 수정·삭제할 수 없다"
+      note: "현재는 U·D 엔드포인트 자체가 미구현이라 자명하게 성립(pass). 기능 자체의 존재는 멤버 관점 GWT 몫. 부수 발견이던 트리 불일치('글 CRUD 배포됨' 과장)는 2026-07-18 트리 정정으로 해소 — 검증 결과 문서의 '트리 정정' 섹션 참고"
+
+  내 프로필 편집 (셀프 편집 경로 미구현, 트리와 일치):
+    - id: MYPROFILE-001
+      status: spec-only
+      node: pm/features/내프로필-편집.md
+      given: "본인 사진·입부계기 셀프 편집 경로가 스펙엔 있다"
+      when: "멤버 전용 프로필 편집 엔드포인트(예: PATCH /api/members/me)를 코드에서 찾는다"
+      then:
+        - "구현되면 이름·역할·기수·이모지는 그대로 두고 사진·입부계기만 바꿀 수 있어야 한다(관리자가 등록한 뼈대는 본인이 못 고침)"
+
+  내 프로젝트 (PR #121에 참여 멤버 셀프 CRUD 포함):
+    - id: MYPROJ-001
+      status: pr-121
+      node: pm/features/내프로젝트.md
+      given: "PR #121에 프로젝트 참여 멤버 셀프 CRUD가 포함돼 있다"
+      when: "익명이 인증 없이 POST/PATCH/DELETE /api/projects(/{id}) 를 친다"
+      then:
+        - "401 UNAUTHENTICATED — 세 메서드 모두 hasRole('MEMBER')로 보호되고, 수정·삭제는 requireParticipant()로 본인 참여 프로젝트만 허용한다(스펙의 '내가 참여한 것만 수정 가능'과 일치)"
+
+  멤버 관리 (트리는 미구현이라고 주장):
+    - id: ADMMEM-001
+      status: dev
+      node: pm/features/멤버-관리.md
+      given: "익명 상태다"
+      when: "멤버 등록·수정 API를 인증 없이 호출한다"
+      then:
+        - "401 UNAUTHENTICATED — 멤버 관리는 관리자 전용"
+      note: "pass — 경계 정상. 부수 발견이던 트리 불일치('미구현' 서술이 코드보다 뒤처짐)는 2026-07-18 트리 정정으로 해소 — 검증 결과 문서의 '트리 정정' 섹션 참고"
+
+  운영진 소개 관리 (BE 착수 전):
+    - id: ADMSTAFF-001
+      status: spec-only
+      node: pm/features/운영진-소개-관리.md
+      given: "운영진 카드 API(#87)가 착수만 됐다"
+      when: "backend에서 관리 화면이 쓸 관리자용 운영진 카드 API(작성·수정·삭제)를 찾는다"
+      then:
+        - "아직 없다 — API·계약이 먼저 나온 뒤 관리 화면이 붙을 예정"
+
+  모니터링 · 검수 (글 숨김 vs 댓글 숨김, 경계가 다르다):
+    - id: ADMMOD-001
+      status: dev
+      node: pm/features/모니터링-검수.md
+      given: "글 상태전이(PUBLISHED↔HIDDEN) API가 있다"
+      when: "익명이 인증 없이 PATCH /api/admin/posts/{id}/status 를 친다"
+      then:
+        - "401 UNAUTHENTICATED — SecurityConfig의 anyRequest().authenticated() 기본 규칙이 적용된다"
+    - id: ADMMOD-002
+      status: dev
+      node: pm/features/모니터링-검수.md
+      given: "관리자용 댓글 숨김 API가 있다 (CMT-007과 같은 대상 — 이 노드 관점에서 재확인)"
+      when: "익명이 인증 없이 호출한다"
+      then:
+        - "401 UNAUTHENTICATED — 글 숨김과 같은 수준의 보호"
+      note: "현재 fail — CMT-007 참고. 같은 갭을 '모니터링·검수'(관리자 권한 경계) 관점에서 재확인한 것. 재현 경로는 공개 문서에 적지 않는다"
+
+  명단 열람 (미구현):
+    - id: ADMROSTER-001
+      status: spec-only
+      node: pm/features/명단-열람.md
+      given: "지원자·구독자 명단 열람 화면(스펙)"
+      when: "backend에서 지원자 목록 조회 API, 구독자 목록 조회(관리자용) API를 찾는다"
+      then:
+        - "지원폼 자체가 없어 지원자 명단 API도 없다. 구독자(NotificationSubscription)는 저장은 되지만 관리자가 명단을 조회하는 API가 없다(NotificationController엔 POST /subscribe 하나뿐)"
+
+  모집 관리 (PR #126):
+    - id: ADMRECRUIT-001
+      status: pr-126
+      node: pm/features/모집-관리.md
+      given: "PR #126의 RecruitmentManagementController가 모집 켜기/끄기를 담당한다"
+      when: "익명이 인증 없이 PATCH /api/admin/recruitment/status 를 친다"
+      then:
+        - "401 — 클래스 레벨 @PreAuthorize(hasAnyRole ADMIN,SUPER_ADMIN) + SecurityConfig authenticated() 이중 보호"
+      note: "GET /status 익명 401은 모집-알림.md RECR-002에서 이미 확인 — 여긴 쓰기(PATCH) 경계"
+
+  관리자 임명 · 회수 (이미 dev, #97):
+    - id: APPOINT-001
+      status: dev
+      node: pm/features/임명-회수.md
+      given: "AdminManagementController가 이미 dev에 배포돼 있다(#97)"
+      when: "익명이 인증 없이 DELETE /api/admin/admins/{id} 또는 PATCH /api/admin/admins/{id}/role 을 친다"
+      then:
+        - "401 UNAUTHENTICATED — 실제로는 SUPER_ADMIN 전용(@PreAuthorize)이지만 익명은 그 이전 인증 단계에서 걸린다"
+      note: "현재 '임명·회수'는 기존 ADMIN↔SUPER_ADMIN 역할 변경일 뿐 — '멤버를 관리자로 승격'하는 흐름은 역할 4종이 정리돼야 가능(스펙 갭, 버그 아님)"
+
+  최고관리자 승계 (미구현):
+    - id: SUCCESSION-001
+      status: spec-only
+      node: pm/features/최고관리자-승계.md
+      given: "최고관리자 승계 흐름(스펙)"
+      when: "backend에서 관련 컨트롤러/서비스를 찾는다"
+      then:
+        - "없다 — role 변경 API는 있지만(APPOINT-001) '넘기면서 동시에 본인은 강등'되는 원자적 승계 흐름이 아니라 단순 role 필드 변경이다. LastSuperAdminException이 '최소 1명' 불변식만 지킨다"
