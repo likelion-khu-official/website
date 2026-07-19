@@ -54,6 +54,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/feed/images/**").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
+                // 운영진 소개 공개 목록
+                .requestMatchers("/api/staff").permitAll()
                 // 피드 글 — 공개 읽기 + 매직링크 제출
                 .requestMatchers("/api/posts/**").permitAll()
                 // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
