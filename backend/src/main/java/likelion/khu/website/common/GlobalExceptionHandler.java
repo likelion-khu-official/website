@@ -18,6 +18,14 @@ import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
 import likelion.khu.website.feed.exception.MagicLinkTokenExpiredException;
 import likelion.khu.website.feed.exception.MagicLinkTokenNotFoundException;
+import likelion.khu.website.member.exception.MemberNotFoundException;
+import likelion.khu.website.project.exception.DuplicateParticipantException;
+import likelion.khu.website.project.exception.EmptyParticipantsException;
+import likelion.khu.website.project.exception.InvalidRepresentativeImageException;
+import likelion.khu.website.project.exception.NotProjectParticipantException;
+import likelion.khu.website.project.exception.ParticipantMemberNotFoundException;
+import likelion.khu.website.project.exception.ProjectNotFoundException;
+import likelion.khu.website.project.exception.SelfNotIncludedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -133,6 +141,54 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AdminInvitationIdNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAdminInvitationIdNotFound(AdminInvitationIdNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    // ── 멤버 인증(#117) ──────────────────────────────────────────────
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMemberNotFound(MemberNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    // ── 프로젝트 쇼케이스(#119) — 블랙박스 QA에서 발견한 에러 계약 갭 수정.
+    // 이전엔 ResponseStatusException을 그대로 던져 success/code 없는 Spring 기본 에러 바디가
+    // 나갔다 — 다른 도메인과 형태가 달라 FE가 실패 사유를 분기할 수 없었다. ──
+
+    @ExceptionHandler(ProjectNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleProjectNotFound(ProjectNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "PROJECT_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(NotProjectParticipantException.class)
+    public ResponseEntity<Map<String, Object>> handleNotProjectParticipant(NotProjectParticipantException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody(ex.getMessage(), "NOT_PARTICIPANT"));
+    }
+
+    @ExceptionHandler(SelfNotIncludedException.class)
+    public ResponseEntity<Map<String, Object>> handleSelfNotIncluded(SelfNotIncludedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "SELF_NOT_INCLUDED"));
+    }
+
+    @ExceptionHandler(DuplicateParticipantException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateParticipant(DuplicateParticipantException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "DUPLICATE_PARTICIPANT"));
+    }
+
+    @ExceptionHandler(InvalidRepresentativeImageException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRepresentativeImage(InvalidRepresentativeImageException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "INVALID_REPRESENTATIVE_IMAGE"));
+    }
+
+    // 상태코드는 기존 팀 결정(상태공간트리 QA, ProjectControllerTest#create_NonExistentParticipantMemberId_Returns404)을
+    // 그대로 따른다 — 404. code 필드만 새로 붙여 다른 참여자 검증(400)과 응답 형태는 통일한다.
+    @ExceptionHandler(ParticipantMemberNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleParticipantMemberNotFound(ParticipantMemberNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "PARTICIPANT_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(EmptyParticipantsException.class)
+    public ResponseEntity<Map<String, Object>> handleEmptyParticipants(EmptyParticipantsException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "EMPTY_PARTICIPANTS"));
     }
 
     private Map<String, Object> errorBody(String message, String code) {

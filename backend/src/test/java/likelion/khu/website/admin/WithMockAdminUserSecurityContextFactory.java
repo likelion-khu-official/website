@@ -14,7 +14,7 @@ public class WithMockAdminUserSecurityContextFactory implements WithSecurityCont
     @Override
     public SecurityContext createSecurityContext(WithMockAdminUser annotation) {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
-        AdminPrincipal principal = new AdminPrincipal(annotation.id(), annotation.email(), annotation.role());
+        AdminPrincipal principal = new AdminPrincipal(annotation.id(), annotation.email(), annotation.role(), annotation.mustChangePassword());
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + annotation.role()));
         context.setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, authorities));
         return context;

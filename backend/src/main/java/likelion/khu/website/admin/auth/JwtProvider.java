@@ -5,6 +5,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import likelion.khu.website.admin.Admin;
+import likelion.khu.website.member.Member;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +19,15 @@ import java.util.Optional;
 @Component
 public class JwtProvider {
 
+    // CLAIM_EMAIL은 이름과 달리 "로그인 식별자" 범용 클레임이다 — 어드민은 이메일, 멤버는 학번이 들어간다.
+    // JwtAuthenticationFilter·AdminPrincipal을 그대로 재사용하기 위해 클레임 키 자체는 안 바꿨다.
     private static final String CLAIM_EMAIL = "email";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TYPE = "typ";
+    private static final String CLAIM_MUST_CHANGE_PASSWORD = "mcp";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
+    private static final String MEMBER_ROLE = "MEMBER";
 
     private final SecretKey key;
     private final long accessExpirationMs;
@@ -45,11 +50,19 @@ public class JwtProvider {
     }
 
     public String createAccessToken(Admin admin) {
-        return buildToken(admin, TYPE_ACCESS, accessExpirationMs);
+        return buildToken(admin.getId(), admin.getEmail(), admin.getRole().name(), false, TYPE_ACCESS, accessExpirationMs);
     }
 
     public String createRefreshToken(Admin admin) {
-        return buildToken(admin, TYPE_REFRESH, refreshExpirationMs);
+        return buildToken(admin.getId(), admin.getEmail(), admin.getRole().name(), false, TYPE_REFRESH, refreshExpirationMs);
+    }
+
+    public String createAccessToken(Member member) {
+        return buildToken(member.getId(), member.getStudentId(), MEMBER_ROLE, member.isMustChangePassword(), TYPE_ACCESS, accessExpirationMs);
+    }
+
+    public String createRefreshToken(Member member) {
+        return buildToken(member.getId(), member.getStudentId(), MEMBER_ROLE, member.isMustChangePassword(), TYPE_REFRESH, refreshExpirationMs);
     }
 
     // typ 클레임으로 access/refresh를 구분 — 이게 없으면 refresh 토큰을 access 쿠키에 넣거나
@@ -74,12 +87,14 @@ public class JwtProvider {
         return LocalDateTime.ofInstant(claims.getExpiration().toInstant(), ZoneId.systemDefault());
     }
 
-    private String buildToken(Admin admin, String type, long expirationMs) {
+    private String buildToken(Long id, String loginIdentifier, String role, boolean mustChangePassword,
+                               String type, long expirationMs) {
         Date now = new Date();
         return Jwts.builder()
-                .subject(String.valueOf(admin.getId()))
-                .claim(CLAIM_EMAIL, admin.getEmail())
-                .claim(CLAIM_ROLE, admin.getRole().name())
+                .subject(String.valueOf(id))
+                .claim(CLAIM_EMAIL, loginIdentifier)
+                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_MUST_CHANGE_PASSWORD, mustChangePassword)
                 .claim(CLAIM_TYPE, type)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))
