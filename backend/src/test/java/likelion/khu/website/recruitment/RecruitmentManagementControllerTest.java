@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -59,7 +60,9 @@ class RecruitmentManagementControllerTest {
                 .andExpect(jsonPath("$.open").value(true))
                 .andExpect(jsonPath("$.subscriberCount").value(3));
 
-        verify(emailService, times(3)).sendRecruitmentOpenEmail(anyString(), anyString());
+        // 발송은 #126 이후 @Async(RecruitmentOpenEmailEventListener)라 응답이 온 시점엔 아직
+        // 안 끝났을 수 있음 — timeout()으로 별도 스레드가 따라잡을 때까지 폴링.
+        verify(emailService, timeout(2000).times(3)).sendRecruitmentOpenEmail(anyString(), anyString());
     }
 
     // 완료기준 — "같은 발송을 두 번 트리거해도 중복 발송되지 않는다"
@@ -71,6 +74,10 @@ class RecruitmentManagementControllerTest {
         mockMvc.perform(patch("/api/admin/recruitment/status")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"open\":true}"));
+        // 두 번째(이미 열림) 트리거 전에, 첫 번째 발송이 비동기로 끝났는지 확인해둔다 — 안 그러면
+        // 아래 두 번째 verify가 첫 발송이 아직 안 끝난 타이밍에 우연히 통과할 수 있음.
+        verify(emailService, timeout(2000)).sendRecruitmentOpenEmail(anyString(), anyString());
+
         mockMvc.perform(patch("/api/admin/recruitment/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"open\":true}"))
@@ -87,6 +94,8 @@ class RecruitmentManagementControllerTest {
         mockMvc.perform(patch("/api/admin/recruitment/status")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"open\":true}"));
+        // close() 전에 open()의 비동기 발송이 끝났는지 확인해둔다(위 open_AlreadyOpen_DoesNotResend와 동일한 이유).
+        verify(emailService, timeout(2000)).sendRecruitmentOpenEmail(anyString(), anyString());
 
         mockMvc.perform(patch("/api/admin/recruitment/status")
                         .contentType(MediaType.APPLICATION_JSON)
