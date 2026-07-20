@@ -126,4 +126,22 @@ class RecruitmentManagementControllerTest {
         mockMvc.perform(get("/api/admin/recruitment/status"))
                 .andExpect(status().isUnauthorized());
     }
+
+    // #117에서 추가되는 MEMBER(일반 부원) 역할이 ADMIN/SUPER_ADMIN 전용 엔드포인트에
+    // 접근하지 못하는지 — 권한상승 재발 방지용 경계 케이스.
+    @Test
+    @WithMockAdminUser(role = "MEMBER")
+    void status_CalledByMember_Returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/recruitment/status"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockAdminUser(role = "MEMBER")
+    void updateStatus_CalledByMember_Returns403() throws Exception {
+        mockMvc.perform(patch("/api/admin/recruitment/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"open\":true}"))
+                .andExpect(status().isForbidden());
+    }
 }
