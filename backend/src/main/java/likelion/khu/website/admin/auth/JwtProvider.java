@@ -27,7 +27,9 @@ public class JwtProvider {
     private static final String CLAIM_MUST_CHANGE_PASSWORD = "mcp";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
-    private static final String MEMBER_ROLE = "MEMBER";
+    // public: MemberAccountResponse가 로그인 응답 바디에 내려주는 role 값도 이 상수와 같은 값이어야
+    // 하므로(JWT 클레임과 응답 바디가 따로 놀면 안 됨) 단일 출처로 공유한다.
+    public static final String MEMBER_ROLE = "MEMBER";
 
     private final SecretKey key;
     private final long accessExpirationMs;

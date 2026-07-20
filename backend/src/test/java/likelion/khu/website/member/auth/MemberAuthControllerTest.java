@@ -66,6 +66,7 @@ class MemberAuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.member.studentId").value("2020000001"))
                 .andExpect(jsonPath("$.member.mustChangePassword").value(true))
+                .andExpect(jsonPath("$.member.role").value("MEMBER"))
                 .andExpect(jsonPath("$.accessToken").doesNotExist())
                 .andExpect(cookie().exists("access_token"))
                 .andExpect(cookie().exists("refresh_token"))
