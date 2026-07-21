@@ -67,8 +67,12 @@ admin:
     super-admins: ${ADMIN_SEED_SUPER_ADMINS:}
 
 app:
-  # 초대·재설정 메일 링크의 베이스 URL — FE 라우트 경로 확정 전 placeholder
+  # 초대·재설정 메일 링크의 베이스 URL — 어드민(admin.likelion-khu.com) 전용. 일반 사용자 대상
+  # 메일(모집 안내 등)엔 절대 재사용하지 말 것 — public-site-url을 쓸 것(#124 리뷰에서 혼용 발견).
   frontend-base-url: ${FRONTEND_BASE_URL:https://admin.likelion-khu.com}
+  # 일반 사용자(구독자 등)에게 보내는 메일의 베이스 URL — 공개 사이트. stage=dev.likelion-khu.com,
+  # prod=likelion-khu.com(이 기본값)이라 stage 배포 .env.stage엔 PUBLIC_SITE_URL을 반드시 오버라이드해야 함.
+  public-site-url: ${PUBLIC_SITE_URL:https://likelion-khu.com}
   # 로컬 개발(HTTP)에서만 false — stage/prod는 반드시 true(HTTPS 전제)
   cookie-secure: ${COOKIE_SECURE:true}
 
