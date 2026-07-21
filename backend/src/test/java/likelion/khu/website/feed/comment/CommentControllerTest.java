@@ -1,11 +1,13 @@
 package likelion.khu.website.feed.comment;
 
-import likelion.khu.website.feed.MagicLinkTokenService;
-import likelion.khu.website.feed.dto.MagicLinkTokenIssueRequest;
 import likelion.khu.website.feed.post.PostService;
 import likelion.khu.website.feed.post.PostStatus;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
+import likelion.khu.website.member.Member;
+import likelion.khu.website.member.MemberRepository;
+import likelion.khu.website.member.MemberRole;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -25,14 +29,22 @@ class CommentControllerTest {
     @Autowired MockMvc mockMvc;
     @Autowired CommentService commentService;
     @Autowired PostService postService;
-    @Autowired MagicLinkTokenService magicLinkTokenService;
+    @Autowired MemberRepository memberRepository;
+
+    private Member member;
+
+    @BeforeEach
+    void setUp() {
+        member = memberRepository.save(Member.create(
+                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "20240001", "01012345678", "hash"));
+    }
 
     private Long createPublishedPost() {
-        String token = magicLinkTokenService.issue(new MagicLinkTokenIssueRequest("시현")).getToken();
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
         req.setContent("본문");
-        PostDetailResponse post = postService.createPost(token, req);
+        PostDetailResponse post = postService.createPost(member.getId(), req);
         postService.updateStatus(post.getId(), PostStatus.PUBLISHED);
         return post.getId();
     }
