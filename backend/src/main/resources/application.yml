@@ -88,6 +88,19 @@ oci-storage:
 mail-sender:
   from: ${MAIL_FROM_ADDRESS:noreply@likelion-khu.com}
 
+# === 로그 파일 영속화 ===
+# LOG_FILE_PATH는 docker-compose(backend-stage/backend-prod)에서 배포 태그(커밋 SHA)를 포함한
+# 경로로 주입 → 재배포로 컨테이너가 교체돼도 버전별 로그 파일이 호스트 볼륨에 그대로 남음.
+# 미설정 시(로컬 개발) logs/website-backend.log에 기록.
+logging:
+  file:
+    name: ${LOG_FILE_PATH:logs/website-backend.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 20MB
+      max-history: 14
+      total-size-cap: 1GB
+
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이
 # 자동으로 permitAll() 처리. SecurityConfig 추가 시 아래 주석 참고.
