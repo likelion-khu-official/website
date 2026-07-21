@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,6 +52,13 @@ public class MemberAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookieFactory.accessTokenCookie(result.getAccessToken()).toString())
                 .body(result.getSession());
+    }
+
+    @PreAuthorize("hasRole('MEMBER')")
+    @GetMapping("/me")
+    public ResponseEntity<MemberSessionResponse> me(Authentication authentication) {
+        AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
+        return ResponseEntity.ok(authService.me(principal.getId()));
     }
 
     // 첫 로그인 강제 변경도 이 엔드포인트를 쓴다 — MemberPasswordGuardFilter가 mustChangePassword=true인

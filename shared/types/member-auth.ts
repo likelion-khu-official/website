@@ -69,6 +69,11 @@ export interface MemberChangePasswordResponse {
   member: MemberAccount;
 }
 
+/** GET /api/member/auth/me — 로그인 상태 확인 + 현재 세션 멤버 정보. 비로그인 시 401. */
+export interface MemberMeResponse {
+  member: MemberAccount;
+}
+
 /** POST /api/admin/members/:id/password/reset — 관리자(ADMIN 이상)가 초기화. 비번=전화번호로 되돌아간다(재설정 메일 없음). */
 export interface MemberPasswordResetResponse {
   success: true;
