@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { login, changePassword, MemberApiError } from '@/lib/memberApi';
 import { validateAdminPassword } from '@/lib/adminValidation';
@@ -11,6 +11,12 @@ import type { MemberAuthRole } from '@shared/types/member-auth';
 const ROLE_HOME: Record<MemberAuthRole, string> = {
   MEMBER: '/member',
 };
+
+/** '/'로 시작하는 내부 경로만 허용 — '//evil.com'처럼 '/'로 시작하지만 실제로는
+ * 프로토콜 상대 URL(외부로 튀는 open redirect)인 경우를 막는다. */
+function isSafeReturnTo(value: string | null): value is string {
+  return !!value && value.startsWith('/') && !value.startsWith('//');
+}
 
 function loginErrorMessage(err: unknown): string {
   if (err instanceof MemberApiError) {
@@ -34,6 +40,7 @@ type Step = 'login' | 'change-password';
 
 export default function MemberLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('login');
 
   const [studentId, setStudentId] = useState('');
@@ -46,7 +53,8 @@ export default function MemberLoginForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   function goHome(role: MemberAuthRole) {
-    router.push(ROLE_HOME[role]);
+    const returnTo = searchParams.get('returnTo');
+    router.push(isSafeReturnTo(returnTo) ? returnTo : ROLE_HOME[role]);
     router.refresh();
   }
 
