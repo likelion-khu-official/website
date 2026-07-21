@@ -16,6 +16,7 @@ public class PostSummaryResponse {
     private String summary;
     private String thumbnailUrl;
     private String authorName;
+    private String authorPart;
     private PostStatus status;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
@@ -24,7 +25,7 @@ public class PostSummaryResponse {
         return new PostSummaryResponse(
                 post.getId(), post.getSlug(), post.getTitle(),
                 post.getSummary(), post.getThumbnailUrl(),
-                post.getAuthorName(), post.getStatus(),
+                post.getAuthorName(), post.getAuthorPart(), post.getStatus(),
                 post.getPublishedAt(), post.getCreatedAt());
     }
 }
