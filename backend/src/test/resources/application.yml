@@ -41,6 +41,7 @@ admin:
 
 app:
   frontend-base-url: https://admin.likelion-khu.com
+  public-site-url: https://dev.likelion-khu.com
   cookie-secure: true
 
 oci-storage:

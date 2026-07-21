@@ -20,8 +20,11 @@ public class RecruitmentManagementService {
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Value("${app.frontend-base-url}")
-    private String frontendBaseUrl;
+    // app.frontend-base-url(admin.likelion-khu.com)이 아니라 이걸 쓴다 — frontend-base-url은
+    // 어드민 초대·비밀번호 재설정 전용이고(#124 리뷰에서 혼용 발견), 이 메일은 일반 구독자에게
+    // 가므로 공개 사이트 주소가 맞다.
+    @Value("${app.public-site-url}")
+    private String publicSiteUrl;
 
     public RecruitmentStatusResponse getStatus() {
         return toResponse(findOrCreate());
@@ -92,7 +95,7 @@ public class RecruitmentManagementService {
         try {
             subscriptionRepository.findAll().forEach(subscription -> {
                 try {
-                    emailService.sendRecruitmentOpenEmail(subscription.getEmail(), frontendBaseUrl);
+                    emailService.sendRecruitmentOpenEmail(subscription.getEmail(), publicSiteUrl);
                 } catch (EmailSendException e) {
                     // 계속 진행 — 실패는 email_log로 추적(#113 실패 임계치 알림의 대상).
                 }

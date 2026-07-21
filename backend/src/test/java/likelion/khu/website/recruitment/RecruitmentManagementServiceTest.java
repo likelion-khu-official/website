@@ -35,7 +35,7 @@ class RecruitmentManagementServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         service = new RecruitmentManagementService(statusRepository, subscriptionRepository, emailService, eventPublisher);
-        ReflectionTestUtils.setField(service, "frontendBaseUrl", "https://likelion-khu.com");
+        ReflectionTestUtils.setField(service, "publicSiteUrl", "https://likelion-khu.com");
     }
 
     // 구독자 한 명의 EmailSendException은 안쪽 catch가 잡지만, findAll() 자체가 던지는 예외
