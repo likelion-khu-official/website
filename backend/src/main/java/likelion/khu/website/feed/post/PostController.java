@@ -1,5 +1,6 @@
 package likelion.khu.website.feed.post;
 
+import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
 import likelion.khu.website.feed.post.dto.PostStatusUpdateRequest;
@@ -12,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,12 +22,13 @@ public class PostController {
 
     private final PostService postService;
 
-    /** 글 작성 — 매직토큰 1회용 */
+    /** 글 작성 — 로그인 멤버 전용, 작성자는 세션에서 자동 결정 */
+    @PreAuthorize("hasRole('MEMBER')")
     @PostMapping("/api/posts")
     public ResponseEntity<PostDetailResponse> create(
-            @RequestHeader("X-Magic-Token") String token,
+            @AuthenticationPrincipal AdminPrincipal principal,
             @Valid @RequestBody PostCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(token, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(principal.getId(), request));
     }
 
     /** 공개 목록 — published만 */

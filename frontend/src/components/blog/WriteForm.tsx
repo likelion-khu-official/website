@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getTokenStatus, createPost, FeedApiError } from '@/lib/feedApi';
+import { createPost, FeedApiError } from '@/lib/feedApi';
 import type { PostCreateRequest } from '@shared/types/feed';
 import ImageUploader from './ImageUploader';
 
@@ -18,7 +18,7 @@ function draftKey(token: string) {
 }
 
 export default function WriteForm({ token }: { token: string | null }) {
-  const [tokenState, setTokenState] = useState<TokenState>(token ? 'checking' : 'no-token');
+  const [tokenState, setTokenState] = useState<TokenState>('no-token');
   const [authorName, setAuthorName] = useState('');
 
   const [title, setTitle] = useState('');
@@ -30,46 +30,6 @@ export default function WriteForm({ token }: { token: string | null }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (!token) return;
-
-    let cancelled = false;
-    (async () => {
-      let status;
-      try {
-        status = await getTokenStatus(token);
-      } catch {
-        if (!cancelled) setTokenState('error');
-        return;
-      }
-      if (cancelled) return;
-
-      if (!status.valid) {
-        setTokenState(status.reason === 'EXPIRED' ? 'expired' : status.reason === 'USED' ? 'used' : 'error');
-        return;
-      }
-
-      setAuthorName(status.authorName);
-      // 임시저장 복원 — await 이후라 이 안에서의 setState는 effect에 동기적이지 않다
-      try {
-        const raw = localStorage.getItem(draftKey(token));
-        if (raw) {
-          const draft: Draft = JSON.parse(raw);
-          setTitle(draft.title ?? '');
-          setContent(draft.content ?? '');
-          setThumbnailUrl(draft.thumbnailUrl ?? null);
-        }
-      } catch {
-        // 손상된 draft는 무시하고 빈 폼으로 시작
-      }
-      setTokenState('valid');
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
 
   // 입력이 바뀔 때마다 임시저장 (제출 완료 후에는 저장하지 않음)
   useEffect(() => {

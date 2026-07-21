@@ -16,9 +16,6 @@ import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
-import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
-import likelion.khu.website.feed.exception.MagicLinkTokenExpiredException;
-import likelion.khu.website.feed.exception.MagicLinkTokenNotFoundException;
 import likelion.khu.website.member.exception.MemberNotFoundException;
 import likelion.khu.website.project.exception.DuplicateParticipantException;
 import likelion.khu.website.project.exception.EmptyParticipantsException;
@@ -49,20 +46,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("success", false, "message", message));
-    }
-
-    @ExceptionHandler(MagicLinkTokenNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleTokenNotFound(MagicLinkTokenNotFoundException ex) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Map.of("success", false, "message", ex.getMessage()));
-    }
-
-    @ExceptionHandler({MagicLinkTokenAlreadyUsedException.class, MagicLinkTokenExpiredException.class})
-    public ResponseEntity<Map<String, Object>> handleTokenInvalid(RuntimeException ex) {
-        return ResponseEntity
-                .status(HttpStatus.GONE)
-                .body(Map.of("success", false, "message", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidImageFileException.class)
