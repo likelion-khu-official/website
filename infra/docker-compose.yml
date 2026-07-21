@@ -16,7 +16,7 @@ services:
     env_file:
       - .env.stage
     environment:
-      - LOG_FILE_PATH=/app/logs/stage-${STAGE_TAG:-stage-latest}.log
+      - LOG_FILE_PATH=/app/logs/${STAGE_TAG:-stage-latest}.log
     volumes:
       - ./data:/app/data
       - ./logs/stage:/app/logs
@@ -29,7 +29,7 @@ services:
     env_file:
       - .env.prod
     environment:
-      - LOG_FILE_PATH=/app/logs/prod-${PROD_TAG:-prod-latest}.log
+      - LOG_FILE_PATH=/app/logs/${PROD_TAG:-prod-latest}.log
     volumes:
       - ./data:/app/data
       - ./logs/prod:/app/logs
