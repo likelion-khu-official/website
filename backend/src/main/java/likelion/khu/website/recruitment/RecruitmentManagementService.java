@@ -5,10 +5,12 @@ import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecruitmentManagementService {
@@ -62,7 +64,11 @@ public class RecruitmentManagementService {
         return toResponse(status);
     }
 
-    public RecruitmentStatusResponse close() {
+    // open()과 같은 락(this)을 공유하도록 synchronized — 아니면 open()이 read-check-write를
+    // 도는 도중에 close()가 아무 대기 없이 끼어들어 같은 싱글턴 행에 동시에 쓸 수 있다. 발송
+    // 중복까지는 안 이어지지만(close()는 이벤트를 안 띄움), "열기/닫기 중 하나가 완전히 끝난
+    // 뒤에만 다음 상태 전이가 일어난다"는 걸 보장하려면 같은 모니터를 써야 한다.
+    public synchronized RecruitmentStatusResponse close() {
         RecruitmentStatus status = findOrCreate();
         status.markClosed();
         statusRepository.save(status);
@@ -74,14 +80,27 @@ public class RecruitmentManagementService {
     // 참고), 여기 도달했을 땐 이미 로그가 남아있는 상태 — catch에서 할 일은 "이 사람은 실패했으니
     // 다음 구독자로 넘어가자"뿐이다. catch가 없으면 한 명 실패에 forEach 전체가 멈춘다.
     // package-private: RecruitmentOpenEmailEventListener(@Async)가 별도 스레드에서 호출한다.
+    //
+    // 바깥 try/catch(Exception): 안쪽 catch는 "구독자 한 명"의 EmailSendException만 잡는다.
+    // findAll() 자체가 던지는 예외(DB 순간 장애 등)나 그 밖의 예상 못 한 예외는 안쪽 catch
+    // 밖이라, 여기서도 안 잡으면 @Async 스레드에서 그대로 터져 Spring 기본 핸들러가 서버 로그
+    // 한 줄만 남기고 끝난다 — email_log엔 아무 흔적도 안 남아 #113 실패 임계치 알림도 못 보고,
+    // "구독자 0명에게 발송됐다"는 사실을 아무도 알아채지 못한다. 그래서 배치 전체를 감싸
+    // 명시적으로 ERROR 로그를 남긴다 — 새 인프라(email_log 스키마 변경 등)를 만들지 않고,
+    // 지금 있는 서버 로그 관측 경로에 "이건 놓치면 안 되는 에러"라는 신호만 확실히 남기는 선.
     void sendToAllSubscribers() {
-        subscriptionRepository.findAll().forEach(subscription -> {
-            try {
-                emailService.sendRecruitmentOpenEmail(subscription.getEmail(), frontendBaseUrl);
-            } catch (EmailSendException e) {
-                // 계속 진행 — 실패는 email_log로 추적(#113 실패 임계치 알림의 대상).
-            }
-        });
+        try {
+            subscriptionRepository.findAll().forEach(subscription -> {
+                try {
+                    emailService.sendRecruitmentOpenEmail(subscription.getEmail(), frontendBaseUrl);
+                } catch (EmailSendException e) {
+                    // 계속 진행 — 실패는 email_log로 추적(#113 실패 임계치 알림의 대상).
+                }
+            });
+        } catch (Exception e) {
+            log.error("모집 안내메일 배치 발송이 구독자 개별 재시도 범위 밖에서 중단됐습니다 — " +
+                    "구독자 목록 조회 실패 등으로 일부 또는 전원이 발송을 못 받았을 수 있습니다.", e);
+        }
     }
 
     private RecruitmentStatus findOrCreate() {
