@@ -339,6 +339,29 @@ class MemberAuthControllerTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @Test
+    void me_LoggedIn_Returns200WithMemberInfo() throws Exception {
+        createMember("2020000020", "01000000020");
+        MvcResult loginResult = mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020000020\",\"password\":\"01000000020\"}"))
+                .andReturn();
+        Cookie accessCookie = loginResult.getResponse().getCookie("access_token");
+
+        mockMvc.perform(get("/api/member/auth/me").cookie(accessCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.member.studentId").value("2020000020"))
+                .andExpect(jsonPath("$.member.name").value("시현"))
+                .andExpect(jsonPath("$.member.role").value("MEMBER"));
+    }
+
+    @Test
+    void me_NoCookie_Returns401() throws Exception {
+        mockMvc.perform(get("/api/member/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
     // 미인증(쿠키 없음) → 401은 AdminAuthControllerTest.adminFeedRoute_NoCookie_NowReturns401()가
     // 이미 같은 엔드포인트(/api/admin/posts)로 검증한다 — 멤버 인증과 무관한 Spring Security 자체
     // 동작이라 여기서 중복 검증하지 않는다.

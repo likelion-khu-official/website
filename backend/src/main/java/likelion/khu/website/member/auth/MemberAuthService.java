@@ -120,6 +120,13 @@ public class MemberAuthService {
         return issueTokenPair(member);
     }
 
+    @Transactional(readOnly = true)
+    public MemberSessionResponse me(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        return MemberSessionResponse.from(member);
+    }
+
     // 관리자(ADMIN 이상)가 분실 비밀번호를 초기화 — 전화번호로 되돌리고 다시 첫 로그인 상태로 만든다(재설정 메일 없음).
     @Transactional
     public void resetPasswordByAdmin(Long memberId) {
