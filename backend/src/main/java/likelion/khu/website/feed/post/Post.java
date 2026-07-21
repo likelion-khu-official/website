@@ -57,8 +57,9 @@ public class Post {
         p.authorName = authorName;
         p.authorPart = authorPart;
         p.thumbnailUrl = thumbnailUrl;
-        p.status = PostStatus.DRAFT;
         LocalDateTime now = LocalDateTime.now();
+        p.status = PostStatus.PUBLISHED;
+        p.publishedAt = now;
         p.createdAt = now;
         p.updatedAt = now;
         return p;

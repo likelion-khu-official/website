@@ -50,13 +50,13 @@ class PostServiceTest {
     }
 
     @Test
-    void createPost_LoggedInMember_CreatesDraftWithAuthorInfo() {
+    void createPost_LoggedInMember_CreatesPublishedWithAuthorInfo() {
         PostDetailResponse res = postService.createPost(member.getId(), sampleRequest());
 
-        assertThat(res.getStatus()).isEqualTo(PostStatus.DRAFT);
+        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
         assertThat(res.getAuthorName()).isEqualTo("시현");
         assertThat(res.getAuthorPart()).isEqualTo("BE");
-        assertThat(res.getPublishedAt()).isNull();
+        assertThat(res.getPublishedAt()).isNotNull();
         assertThat(res.getSlug()).isNotBlank();
     }
 
@@ -73,20 +73,19 @@ class PostServiceTest {
 
     @Test
     void getPublishedPosts_ReturnsOnlyPublished() {
-        PostDetailResponse draft = postService.createPost(member.getId(), sampleRequest());
-        PostDetailResponse toPublish = postService.createPost(anotherMember.getId(), sampleRequest());
-        postService.updateStatus(toPublish.getId(), PostStatus.PUBLISHED);
+        PostDetailResponse visible = postService.createPost(member.getId(), sampleRequest());
+        PostDetailResponse toHide = postService.createPost(anotherMember.getId(), sampleRequest());
+        postService.updateStatus(toHide.getId(), PostStatus.HIDDEN);
 
         Page<PostSummaryResponse> page = postService.getPublishedPosts(PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
-        assertThat(page.getContent().get(0).getId()).isEqualTo(toPublish.getId());
+        assertThat(page.getContent().get(0).getId()).isEqualTo(visible.getId());
     }
 
     @Test
     void getPublishedPost_PublishedPost_ReturnsDetail() {
         PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
-        postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
 
         PostDetailResponse res = postService.getPublishedPost(created.getSlug());
 
@@ -95,27 +94,17 @@ class PostServiceTest {
     }
 
     @Test
-    void getPublishedPost_DraftSlug_ThrowsNotFound() {
-        PostDetailResponse draft = postService.createPost(member.getId(), sampleRequest());
-
-        assertThatThrownBy(() -> postService.getPublishedPost(draft.getSlug()))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    @Test
-    void updateStatus_DraftToPublished_SetsPublishedAt() {
+    void getPublishedPost_HiddenSlug_ThrowsNotFound() {
         PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(created.getId(), PostStatus.HIDDEN);
 
-        PostSummaryResponse res = postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
-
-        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
-        assertThat(res.getPublishedAt()).isNotNull();
+        assertThatThrownBy(() -> postService.getPublishedPost(created.getSlug()))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     void updateStatus_PublishedToHidden_PreservesPublishedAt() {
         PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
-        postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
         LocalDateTime publishedAt = postRepository.findById(created.getId()).orElseThrow().getPublishedAt();
 
         postService.updateStatus(created.getId(), PostStatus.HIDDEN);
@@ -125,10 +114,20 @@ class PostServiceTest {
     }
 
     @Test
-    void updateStatus_InvalidTransition_ThrowsIllegalState() {
+    void updateStatus_HiddenToPublished_ReturnsPublished() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(created.getId(), PostStatus.HIDDEN);
+
+        PostSummaryResponse res = postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
+
+        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
+    }
+
+    @Test
+    void updateStatus_PublishedToPublished_ThrowsIllegalState() {
         PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
 
-        assertThatThrownBy(() -> postService.updateStatus(created.getId(), PostStatus.HIDDEN))
+        assertThatThrownBy(() -> postService.updateStatus(created.getId(), PostStatus.PUBLISHED))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

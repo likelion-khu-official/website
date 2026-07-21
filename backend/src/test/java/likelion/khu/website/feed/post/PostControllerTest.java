@@ -44,9 +44,7 @@ class PostControllerTest {
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
         req.setContent("본문");
-        PostDetailResponse res = postService.createPost(member.getId(), req);
-        postService.updateStatus(res.getId(), PostStatus.PUBLISHED);
-        return res.getId();
+        return postService.createPost(member.getId(), req).getId();
     }
 
     @Test
@@ -56,7 +54,7 @@ class PostControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"제목\",\"content\":\"본문\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.authorName").value("시현"))
                 .andExpect(jsonPath("$.authorPart").value("BE"))
                 .andExpect(jsonPath("$.slug").isNotEmpty());
@@ -81,11 +79,9 @@ class PostControllerTest {
 
     @Test
     void listPosts_ReturnsOnlyPublished() throws Exception {
-        PostCreateRequest req = new PostCreateRequest();
-        req.setTitle("초안");
-        req.setContent("내용");
-        postService.createPost(member.getId(), req);  // draft — 목록에 안 나옴
-        createPublishedPost();                         // published — 목록에 나옴
+        Long id = createPublishedPost();
+        postService.updateStatus(id, PostStatus.HIDDEN);  // 숨김 — 목록에 안 나옴
+        createPublishedPost();                             // published — 목록에 나옴
 
         mockMvc.perform(get("/api/posts"))
                 .andExpect(status().isOk())
@@ -104,27 +100,26 @@ class PostControllerTest {
     }
 
     @Test
-    void getPost_DraftSlug_Returns404() throws Exception {
-        PostCreateRequest req = new PostCreateRequest();
-        req.setTitle("초안");
-        req.setContent("내용");
-        PostDetailResponse draft = postService.createPost(member.getId(), req);
+    void getPost_HiddenSlug_Returns404() throws Exception {
+        Long id = createPublishedPost();
+        String slug = postService.getAdminPosts(org.springframework.data.domain.PageRequest.of(0, 1))
+                .getContent().get(0).getSlug();
+        postService.updateStatus(id, PostStatus.HIDDEN);
 
-        mockMvc.perform(get("/api/posts/{slug}", draft.getSlug()))
+        mockMvc.perform(get("/api/posts/{slug}", slug))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     @WithMockAdminUser(role = "SUPER_ADMIN")
-    void updateStatus_DraftToPublished_Returns200() throws Exception {
+    void updateStatus_PublishedToHidden_Returns200() throws Exception {
         Long id = postService.createPost(member.getId(), sampleRequest()).getId();
 
         mockMvc.perform(patch("/api/admin/posts/{id}/status", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"PUBLISHED\"}"))
+                        .content("{\"status\":\"HIDDEN\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PUBLISHED"))
-                .andExpect(jsonPath("$.publishedAt").isNotEmpty());
+                .andExpect(jsonPath("$.status").value("HIDDEN"));
     }
 
     @Test
@@ -134,7 +129,7 @@ class PostControllerTest {
 
         mockMvc.perform(patch("/api/admin/posts/{id}/status", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"HIDDEN\"}"))
+                        .content("{\"status\":\"PUBLISHED\"}"))
                 .andExpect(status().isBadRequest());
     }
 

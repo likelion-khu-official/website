@@ -1,9 +1,7 @@
 package likelion.khu.website.feed.comment;
 
 import likelion.khu.website.feed.post.PostService;
-import likelion.khu.website.feed.post.PostStatus;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
-import likelion.khu.website.feed.post.dto.PostDetailResponse;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
@@ -44,9 +42,7 @@ class CommentControllerTest {
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
         req.setContent("본문");
-        PostDetailResponse post = postService.createPost(member.getId(), req);
-        postService.updateStatus(post.getId(), PostStatus.PUBLISHED);
-        return post.getId();
+        return postService.createPost(member.getId(), req).getId();
     }
 
     @Test

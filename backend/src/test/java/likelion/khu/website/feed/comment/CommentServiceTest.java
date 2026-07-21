@@ -6,7 +6,6 @@ import likelion.khu.website.feed.post.PostRepository;
 import likelion.khu.website.feed.post.PostService;
 import likelion.khu.website.feed.post.PostStatus;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
-import likelion.khu.website.feed.post.dto.PostDetailResponse;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
@@ -46,9 +45,7 @@ class CommentServiceTest {
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
         req.setContent("본문");
-        PostDetailResponse post = postService.createPost(member.getId(), req);
-        postService.updateStatus(post.getId(), PostStatus.PUBLISHED);
-        return post.getId();
+        return postService.createPost(member.getId(), req).getId();
     }
 
     private CommentCreateRequest commentRequest(String nickname, String content) {
@@ -76,13 +73,11 @@ class CommentServiceTest {
     }
 
     @Test
-    void create_DraftPost_ThrowsNotFound() {
-        PostCreateRequest req = new PostCreateRequest();
-        req.setTitle("초안");
-        req.setContent("내용");
-        Long draftId = postService.createPost(member.getId(), req).getId();
+    void create_HiddenPost_ThrowsNotFound() {
+        Long hiddenId = createPublishedPost();
+        postService.updateStatus(hiddenId, PostStatus.HIDDEN);
 
-        assertThatThrownBy(() -> commentService.create(draftId, commentRequest(null, "댓글")))
+        assertThatThrownBy(() -> commentService.create(hiddenId, commentRequest(null, "댓글")))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
