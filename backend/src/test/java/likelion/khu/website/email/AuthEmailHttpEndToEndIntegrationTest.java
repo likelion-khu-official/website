@@ -14,14 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -43,36 +36,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * EmailService 목 없이 email_log까지 실제로 남기는 전체 경로는 어느 쪽도 검증한 적이 없었다
  * (backend/docs/email-module.md "아직 못 메꾼 빈틈" 표에도 있던 갭).
  */
-@Testcontainers
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("prod")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class AuthEmailHttpEndToEndIntegrationTest {
-
-    @Container
-    static final GenericContainer<?> mailpit =
-            new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.21"))
-                    .withExposedPorts(1025, 8025)
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/cert.pem"), "/mailpit-tls/cert.pem")
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/key.pem"), "/mailpit-tls/key.pem")
-                    .withCommand(
-                            "--smtp-tls-cert", "/mailpit-tls/cert.pem",
-                            "--smtp-tls-key", "/mailpit-tls/key.pem",
-                            "--smtp-require-starttls",
-                            "--smtp-auth-accept-any"
-                    );
-
-    @DynamicPropertySource
-    static void mailProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.mail.host", mailpit::getHost);
-        registry.add("spring.mail.port", () -> mailpit.getMappedPort(1025));
-        registry.add("spring.mail.username", () -> "mailpit-test-user");
-        registry.add("spring.mail.password", () -> "mailpit-test-pass");
-        registry.add("spring.mail.properties.mail.smtp.auth", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
-    }
+class AuthEmailHttpEndToEndIntegrationTest extends MailpitContainerSupport {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();

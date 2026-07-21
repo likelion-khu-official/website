@@ -14,11 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -43,36 +38,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 조회도 매 테스트가 자기만의 수신자 주소로 필터링해서 봐서(awaitEmailLogFor) 같은 컨텍스트를
  * 재사용해도 두 테스트의 결과가 섞이지 않는다.
  */
-@Testcontainers
 @SpringBootTest
 @AutoConfigureMockMvc
-class AuthEmailHttpFailureIntegrationTest {
-
-    @Container
-    static final GenericContainer<?> mailpit =
-            new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.21"))
-                    .withExposedPorts(1025, 8025)
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/cert.pem"), "/mailpit-tls/cert.pem")
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/key.pem"), "/mailpit-tls/key.pem")
-                    .withCommand(
-                            "--smtp-tls-cert", "/mailpit-tls/cert.pem",
-                            "--smtp-tls-key", "/mailpit-tls/key.pem",
-                            "--smtp-require-starttls",
-                            "--smtp-auth-accept-any"
-                    );
+class AuthEmailHttpFailureIntegrationTest extends MailpitContainerSupport {
 
     @DynamicPropertySource
-    static void mailProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.mail.host", mailpit::getHost);
-        registry.add("spring.mail.port", () -> mailpit.getMappedPort(1025));
-        registry.add("spring.mail.username", () -> "mailpit-test-user");
-        registry.add("spring.mail.password", () -> "mailpit-test-pass");
-        registry.add("spring.mail.properties.mail.smtp.auth", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
-        // 컨테이너를 내린 뒤 연결 실패를 빠르게 확인 — EmailServiceFailureIntegrationTest와 동일 값.
-        registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
-        registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
+    static void fastFailureTimeoutProperties(DynamicPropertyRegistry registry) {
+        fastFailureTimeouts(registry);
     }
 
     @Autowired MockMvc mockMvc;
@@ -104,8 +76,13 @@ class AuthEmailHttpFailureIntegrationTest {
         assertThat(invitationRepository.findByEmailAndStatus(to, InvitationStatus.PENDING)).isEmpty();
     }
 
+    // forgot은 초대와 달리 502로 새지 않는다 — #90 스펙(계정 열거 방지)이 상태 코드 레벨에서도
+    // 지켜져야 해서(#123 리뷰, ParkIlha), SMTP 장애 중에도 존재하는 이메일이 (없는 이메일과 다르게)
+    // 502를 받으면 그 자체가 "이 이메일 등록돼 있음"을 흘리는 사이드채널이 된다. 그래서 forgot은
+    // AdminPasswordResetService에서 EmailSendException을 삼키고 항상 200 + 동일 메시지로 응답하되,
+    // email_log FAILURE 기록·토큰 롤백은 그대로 유지되는지 확인한다.
     @Test
-    void forgot_SmtpServerUnreachable_ViaRealHttp_Returns502AndStillLogsFailure() throws Exception {
+    void forgot_SmtpServerUnreachable_ViaRealHttp_Returns200ButStillLogsFailureAndRollsBackToken() throws Exception {
         String to = "http-failure-reset@khu.ac.kr";
         Admin admin = adminRepository.save(
                 Admin.register(to, "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
@@ -114,8 +91,7 @@ class AuthEmailHttpFailureIntegrationTest {
         mockMvc.perform(post("/api/admin/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + to + "\"}"))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.code").value("EMAIL_SEND_FAILED"));
+                .andExpect(status().isOk());
 
         List<EmailLog> logs = awaitEmailLogFor(to);
         assertThat(logs).hasSize(1);
