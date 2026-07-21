@@ -40,7 +40,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * AuthEmailHttpEndToEndIntegrationTest와 달리 @ActiveProfiles("prod")·@DirtiesContext는
  * 의도적으로 뺐다 — 여기선 메일 제목(prod와 stage 접두어 차이)을 검증하지 않고, email_log
  * 조회도 매 테스트가 자기만의 수신자 주소로 필터링해서 봐서(awaitEmailLogFor) 같은 컨텍스트를
- * 재사용해도 두 테스트의 결과가 섞이지 않는다.
+ * 재사용해도 두 테스트의 결과가 섞이지 않는다. @DirtiesContext가 없으니 static mailpit 컨테이너도
+ * 두 테스트 메서드가 그대로 공유하는데(첫 테스트가 stop()해두면 두 번째 테스트 시작 시점에도 계속
+ * 꺼진 채) — 이것도 안전하다. 이 클래스의 테스트는 전부 "mailpit이 꺼져 있어야" 성립하는 시나리오라
+ * 두 번째 mailpit.stop() 호출은 이미 꺼진 컨테이너에 대한 멱등 호출일 뿐(EmailServiceFailureTransactionBoundaryIntegrationTest와 동일 근거).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
