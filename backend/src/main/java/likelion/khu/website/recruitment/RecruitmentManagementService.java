@@ -38,7 +38,14 @@ public class RecruitmentManagementService {
     // 단일 커넥션 데드락 회피, email-module.md 트랜잭션 경계 절 참고), 밖이면 그 자리에서 바로
     // 저장한다. sendToAllSubscribers()는 RecruitmentOpenEmailEventListener의 @Async 스레드에서
     // 실행되므로 거기도 활성 트랜잭션이 없어 매번 후자(즉시 동기 저장) 경로를 탄다 — 기존과 동일.
-    public RecruitmentStatusResponse open() {
+    //
+    // synchronized: 아래 "읽고(findOrCreate) → 확인(isOpen) → 쓰기(save)"가 한 덩어리로 원자적이어야
+    // 멱등 가드가 의미가 있다. 그렇지 않으면 두 요청이 거의 동시에 들어왔을 때 둘 다 markOpened() 이전
+    // isOpen()==false를 읽어버려 이벤트가 두 번 발행되고 구독자 전원이 안내 메일을 중복으로 받는다
+    // (#124 리뷰에서 발견). 이 앱은 SQLite 단일 파일·HikariCP 풀 크기 1(application.yml)로 애초에
+    // 단일 인스턴스 배포를 전제하므로, synchronized(= 이 빈 인스턴스 기준 락)만으로 충분하다 —
+    // 여러 인스턴스로 수평 확장하게 되면 DB 레벨 락(@Version 등)으로 다시 가야 한다.
+    public synchronized RecruitmentStatusResponse open() {
         RecruitmentStatus status = findOrCreate();
         // "닫힘→열림 전이일 때만" — 이미 열려있으면(open()을 두 번 눌러도) 이 if를 안 타서
         // 이벤트 자체가 발행되지 않는다. 완료기준의 "중복 발송 방지"는 이 한 줄이 전부다.

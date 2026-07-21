@@ -9,9 +9,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -85,6 +95,49 @@ class RecruitmentManagementControllerTest {
                 .andExpect(jsonPath("$.open").value(true));
 
         verify(emailService, times(1)).sendRecruitmentOpenEmail(anyString(), anyString());
+    }
+
+    // 완료기준 — "같은 발송을 두 번 트리거해도 중복 발송되지 않는다"를 동시 요청으로 확인.
+    // 위 open_AlreadyOpen_DoesNotResend는 MockMvc 요청을 순차 실행해서 두 요청 사이에 항상
+    // save()가 끼어드므로 read-check-write 경합을 재현하지 못한다 — 이 테스트는 CountDownLatch로
+    // N개 스레드를 동시에 풀어 실제 경합을 유도한다(open()이 synchronized가 아니면 여러 스레드가
+    // markOpened() 이전 isOpen()==false를 같이 읽어 이벤트가 여러 번 발행됨).
+    @Test
+    @WithMockAdminUser(role = "SUPER_ADMIN")
+    void open_ConcurrentTriggers_SendsOnlyOnce() throws Exception {
+        subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
+
+        int concurrentRequests = 10;
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentRequests);
+        CountDownLatch ready = new CountDownLatch(concurrentRequests);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < concurrentRequests; i++) {
+                futures.add(executor.submit(() -> {
+                    // 워커 스레드는 테스트 스레드와 별개라 SecurityContextHolder(기본 THREADLOCAL)를
+                    // 못 보므로, @WithMockAdminUser가 테스트 스레드에 심어둔 컨텍스트를 직접 복사한다.
+                    SecurityContextHolder.setContext(securityContext);
+                    ready.countDown();
+                    start.await();
+                    mockMvc.perform(patch("/api/admin/recruitment/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"open\":true}"));
+                    return null;
+                }));
+            }
+            ready.await();
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdown();
+        }
+
+        // 구독자는 1명뿐이므로 open()이 두 번 이상 이벤트를 발행했다면 이 한 명에게 여러 번 발송된다.
+        verify(emailService, timeout(2000).times(1)).sendRecruitmentOpenEmail(anyString(), anyString());
     }
 
     @Test
