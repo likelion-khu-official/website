@@ -37,6 +37,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * EmailServiceFailureIntegrationTest와 같은 이유로 별도 클래스로 분리(컨테이너를 실제로
  * 내려야 해서 같은 클래스의 다른(성공) 테스트와 컨테이너 상태를 공유하면 안 됨).
+ *
+ * AuthEmailHttpEndToEndIntegrationTest와 달리 @ActiveProfiles("prod")·@DirtiesContext는
+ * 의도적으로 뺐다 — 여기선 메일 제목(prod와 stage 접두어 차이)을 검증하지 않고, email_log
+ * 조회도 매 테스트가 자기만의 수신자 주소로 필터링해서 봐서(awaitEmailLogFor) 같은 컨텍스트를
+ * 재사용해도 두 테스트의 결과가 섞이지 않는다.
  */
 @Testcontainers
 @SpringBootTest
