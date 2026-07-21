@@ -48,16 +48,10 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
-                // 매직링크 토큰 — 운영진 인증 붙기 전까지 임시 공개
-                // TODO: 운영진 인증 도입되면 발급(POST)은 운영진 전용으로 좁히기
-                .requestMatchers("/api/feed/tokens/**").permitAll()
-                // 피드 이미지 업로드 — 매직링크 글쓰기 흐름 자체가 비인증이라 임시 공개
-                // TODO: 남용 방지용 인증/레이트리밋 필요해지면 여기에 추가
-                .requestMatchers("/api/feed/images/**").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
-                // 피드 글 — 공개 읽기 + 매직링크 제출
-                .requestMatchers("/api/posts/**").permitAll()
+                // 피드 글 — GET(목록·상세)은 공개, POST(글 작성)는 로그인 멤버 전용(#115)
+                .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
                 // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
                 .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*").permitAll()
                 // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
