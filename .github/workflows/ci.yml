@@ -17,7 +17,27 @@ permissions:
   pull-requests: write
 
 jobs:
-  build-and-test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: 변경 경로 감지
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'shared/**'
+            frontend:
+              - 'frontend/**'
+              - 'shared/**'
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: 소스코드 체크아웃
@@ -38,17 +58,60 @@ jobs:
           chmod +x gradlew
           ./gradlew compileJava test
 
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node 20 세팅
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 의존성 설치
+        working-directory: frontend
+        run: npm ci
+
+      - name: 린트
+        working-directory: frontend
+        run: npm run lint
+
+      - name: 빌드 (타입체크 포함)
+        working-directory: frontend
+        run: npm run build
+
+  comment:
+    needs: [changes, backend, frontend]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
       - name: PR 코멘트
-        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const success = '${{ job.status }}' === 'success';
+            const backendRan = '${{ needs.changes.outputs.backend }}' === 'true';
+            const frontendRan = '${{ needs.changes.outputs.frontend }}' === 'true';
+            const backendResult = '${{ needs.backend.result }}';
+            const frontendResult = '${{ needs.frontend.result }}';
+
+            const failed = (backendRan && backendResult !== 'success') || (frontendRan && frontendResult !== 'success');
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const note = '> 이 빌드는 현재 브랜치를 머지 대상 브랜치와 합친 상태에서 돌린 결과입니다.';
-            const body = success
-              ? `✅ **빌드 통합 성공**\n\n리뷰어 중 한 명이 승인하면 머지할 수 있습니다.\n\n${note}`
-              : `❌ **빌드 통합 실패**\n\n머지 대상 브랜치와 합치는 과정에서 빌드가 실패해 머지할 수 없습니다. [로그](${runUrl})를 확인하고 수정 후 다시 푸시해주세요.\n\n${note}`;
+
+            const parts = [];
+            if (backendRan) parts.push(`백엔드 ${backendResult === 'success' ? '✅' : '❌'}`);
+            if (frontendRan) parts.push(`프론트엔드 ${frontendResult === 'success' ? '✅' : '❌'}`);
+            const summary = parts.join(' · ');
+
+            const body = failed
+              ? `❌ **빌드 통합 실패**\n\n${summary}\n\n머지 대상 브랜치와 합치는 과정에서 빌드가 실패해 머지할 수 없습니다. [로그](${runUrl})를 확인하고 수정 후 다시 푸시해주세요.\n\n${note}`
+              : `✅ **빌드 통합 성공**\n\n${summary}\n\n리뷰어 중 한 명이 승인하면 머지할 수 있습니다.\n\n${note}`;
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
