@@ -30,6 +30,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * #113의 실제 목적(email_log 실패 임계치 알림)은 "발송이 실패해도 email_log에 FAILURE가
  * 안정적으로 남는가"에 의존하므로, 성공 경로보다 오히려 이 실패 경로가 더 핵심적이다.
  *
+ * 여기서 다루는 "실패"는 딱 하나 — SMTP 서버 자체에 연결이 안 되는 경우(mailpit.stop()으로
+ * 재현, 운영 환경 기준으론 OCI Email Delivery 장애에 해당). 이메일 주소 형식 오류처럼 발송
+ * *이전* 단계에서 걸러지는 클라이언트 쪽 실패는 별개 대상이라 EmailServiceTest에서 이미 다룬다.
+ *
  * EmailServiceFailureIntegrationTest와 같은 이유로 별도 클래스로 분리(컨테이너를 실제로
  * 내려야 해서 같은 클래스의 다른(성공) 테스트와 컨테이너 상태를 공유하면 안 됨).
  *
