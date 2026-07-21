@@ -67,4 +67,5 @@ tasks.named('test') {
 	def cores = Runtime.runtime.availableProcessors()
 	def isCi = System.getenv('CI') != null
 	maxParallelForks = isCi ? Math.max(1, cores) : Math.max(1, (int) (cores / 2))
+	println "[디버그] cores=${cores} isCi=${isCi} maxParallelForks=${maxParallelForks}"
 }
