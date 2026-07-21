@@ -1,56 +1,63 @@
 ## 구현 현황
 
-<pre>
-🦁 <a href="pm/features/README.md">사이트</a>
-│
-├─ <a href="pm/features/공개-사이트.md">공개 사이트</a>  /
-│  ├─ <a href="pm/features/랜딩.md">🟢 랜딩</a>
-│  │   ├─ <a href="pm/features/랜딩-히어로소개통계세션.md">🟢 히어로 · 소개 · 통계 · 세션</a>
-│  │   └─ <a href="pm/features/랜딩-연간활동계획.md">🟡 연간 활동계획</a>
-│  ├─ <a href="pm/features/프로젝트-쇼케이스.md">🟡 프로젝트 쇼케이스</a>
-│  │   ├─ <a href="pm/features/프로젝트-목록.md">🟡 목록  /projects</a>
-│  │   └─ <a href="pm/features/프로젝트-상세.md">🟡 상세  /projects/:id</a>
-│  ├─ <a href="pm/features/멤버-로스터.md">🟡 멤버 로스터</a>  /members
-│  │   ├─ <a href="pm/features/멤버카드.md">🟢 멤버 카드</a>
-│  │   └─ <a href="pm/features/로스터-탭.md">🟡 로스터 탭</a>
-│  ├─ <a href="pm/features/운영진-소개.md">🟡 운영진 소개</a>
-│  │   └─ <a href="pm/features/운영진-카드.md">🟡 운영진 카드</a>
-│  ├─ <a href="pm/features/블로그.md">🟡 블로그</a>
-│  │   ├─ <a href="pm/features/블로그-목록.md">🟢 목록  /blog</a>
-│  │   ├─ <a href="pm/features/블로그-글상세.md">🟢 글 상세  /blog/:slug</a>
-│  │   └─ <a href="pm/features/블로그-익명댓글.md">🟢 익명 댓글</a>
-│  └─ <a href="pm/features/모집.md">모집</a>
-│      ├─ <a href="pm/features/모집-알림.md">🟡 모집 알림 신청</a>
-│      └─ <a href="pm/features/지원폼.md">⚪ 지원폼</a>
-│          ├─ <a href="pm/features/지원폼-공통질문.md">⚪ 공통 질문</a>
-│          ├─ <a href="pm/features/지원폼-세션별질문.md">⚪ 세션별 질문</a>
-│          └─ <a href="pm/features/지원폼-개인정보동의.md">⚪ 개인정보 동의 · 접수</a>
-│
-├─ <a href="pm/features/계정-인증.md">인증 · 계정</a>
-│  ├─ <a href="pm/features/로그인.md">🟡 로그인 (학번 + 비밀번호)</a>
-│  ├─ <a href="pm/features/첫로그인-비번변경.md">🟡 첫 로그인 비밀번호 변경</a>
-│  ├─ <a href="pm/features/비번-초기화.md">🟡 비밀번호 초기화</a>
-│  └─ <a href="pm/features/역할-4종.md">🟡 역할 4종</a>
-│
-├─ <a href="pm/features/멤버-영역.md">멤버 영역</a>  /member
-│  ├─ <a href="pm/features/글쓰기.md">🟡 글쓰기</a>
-│  ├─ <a href="pm/features/내글-수정삭제.md">🟢 내 글 수정 · 삭제</a>
-│  ├─ <a href="pm/features/내프로필-편집.md">🟡 내 프로필 편집</a>
-│  └─ <a href="pm/features/내프로젝트.md">🟡 내 프로젝트</a>
-│
-├─ <a href="pm/features/어드민.md">어드민</a>  /admin
-│  ├─ <a href="pm/features/멤버-관리.md">🔵 멤버 관리</a>
-│  ├─ <a href="pm/features/운영진-소개-관리.md">🟡 운영진 소개 관리</a>
-│  ├─ <a href="pm/features/모니터링-검수.md">🟡 모니터링 · 검수</a>
-│  ├─ <a href="pm/features/명단-열람.md">🔵 명단 열람</a>
-│  └─ <a href="pm/features/모집-관리.md">🟡 모집 관리</a>
-│
-└─ <a href="pm/features/최고관리자.md">최고관리자</a>
-   ├─ <a href="pm/features/임명-회수.md">🟡 관리자 임명 · 회수</a>
-   └─ <a href="pm/features/최고관리자-승계.md">🔵 최고관리자 승계</a>
-</pre>
+### 개발 지표
 
-<sub>상태 · 🟢 완료 · 🟡 진행 중 · 🔵 계획 · ⚪ 미착수</sub>
+<sub>2026-07-18 · 익명 방문자 관점 GWT 실집계 · 산출 정의: [pm/docs/metrics.md](pm/docs/metrics.md) — 검증 결과가 바뀐 턴에 함께 갱신 (지도와 동일 규칙)</sub>
+
+| 지표 | 값 | 읽는 법 |
+|---|---|---|
+| **검증 커버리지** | **69 %** — 66/96 | 전체 시나리오 중 pass/fail로 실제 확인된 비율 |
+| **pass율** | **86 %** — 57/66 | 검증된 것 중 통과 — 반드시 커버리지와 쌍으로 읽는다 |
+| **fail** | **9건** — 이슈 연결 4 · 미등록 5 | 미등록 fail이 곧 다음 미션 후보 |
+
+### 기능 지도
+
+| 기능 | 상태 | 검증 (pass/전체) |
+|---|:---:|:---:|
+| 🦁&nbsp;[사이트](pm/features/README.md) | &nbsp; | — |
+| ├─&nbsp;[공개 사이트](pm/features/공개-사이트.md)&nbsp;&nbsp;<sub>`/`</sub> | &nbsp; | — |
+| │&nbsp;&nbsp;├─&nbsp;[랜딩](pm/features/랜딩.md) | 🟢 | [**9/9**](pm/features/랜딩.md) |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─&nbsp;[히어로 · 소개 · 통계 · 세션](pm/features/랜딩-히어로소개통계세션.md) | 🟢 | [**8/8**](pm/qa/verification/랜딩-히어로소개통계세션.md) |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[연간 활동계획](pm/features/랜딩-연간활동계획.md) | 🟡 | [**1/1**](pm/qa/verification/랜딩-연간활동계획.md) |
+| │&nbsp;&nbsp;├─&nbsp;[프로젝트 쇼케이스](pm/features/프로젝트-쇼케이스.md) | 🟡 | [**5/6**](pm/features/프로젝트-쇼케이스.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─&nbsp;[목록  /projects](pm/features/프로젝트-목록.md) | 🟡 | [**4/5**](pm/qa/verification/프로젝트-목록.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[상세  /projects/:id](pm/features/프로젝트-상세.md) | 🟡 | [**3/4**](pm/qa/verification/프로젝트-상세.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[멤버 로스터](pm/features/멤버-로스터.md)&nbsp;&nbsp;<sub>`/members`</sub> | 🟡 | [**4/5**](pm/features/멤버-로스터.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─&nbsp;[멤버 카드](pm/features/멤버카드.md) | 🟢 | [**1/1**](pm/qa/verification/멤버카드.md) |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[로스터 탭](pm/features/로스터-탭.md) | 🟡 | [**3/4**](pm/qa/verification/로스터-탭.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[운영진 소개](pm/features/운영진-소개.md) | 🟡 | [**0/1**](pm/qa/verification/운영진-소개.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[운영진 카드](pm/features/운영진-카드.md) | 🟡 | [**0/1**](pm/qa/verification/운영진-카드.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[블로그](pm/features/블로그.md) | 🟡 | [**18/21**](pm/features/블로그.md)<br/><sub>fail 3</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─&nbsp;[목록  /blog](pm/features/블로그-목록.md) | 🟢 | [**6/7**](pm/qa/verification/블로그-목록.md)<br/><sub>fail 1</sub> |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├─&nbsp;[글 상세  /blog/:slug](pm/features/블로그-글상세.md) | 🟢 | [**6/6**](pm/qa/verification/블로그-글상세.md) |
+| │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[익명 댓글](pm/features/블로그-익명댓글.md) | 🟢 | [**6/8**](pm/qa/verification/블로그-익명댓글.md)<br/><sub>fail 2</sub> |
+| │&nbsp;&nbsp;└─&nbsp;[모집](pm/features/모집.md) | &nbsp; | [**9/14**](pm/features/모집.md)<br/><sub>fail 3 · 미실행 2</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[모집 알림 신청](pm/features/모집-알림.md) | 🟡 | [**9/12**](pm/qa/verification/모집-알림.md)<br/><sub>fail 3</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[지원폼](pm/features/지원폼.md) | ⚪ | [**0/2**](pm/qa/verification/지원폼.md)<br/><sub>미실행 2</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[공통 질문](pm/features/지원폼-공통질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-공통질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[세션별 질문](pm/features/지원폼-세션별질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-세션별질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[개인정보 동의 · 접수](pm/features/지원폼-개인정보동의.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-개인정보동의.md)<br/><sub>미실행 1</sub> |
+| ├─&nbsp;[인증 · 계정](pm/features/계정-인증.md) | &nbsp; | — |
+| │&nbsp;&nbsp;├─&nbsp;[로그인 (학번 + 비밀번호)](pm/features/로그인.md) | 🟡 | [**5/5**](pm/qa/verification/로그인.md) |
+| │&nbsp;&nbsp;├─&nbsp;[첫 로그인 비밀번호 변경](pm/features/첫로그인-비번변경.md) | 🟡 | [**1/1**](pm/qa/verification/첫로그인-비번변경.md) |
+| │&nbsp;&nbsp;├─&nbsp;[비밀번호 초기화](pm/features/비번-초기화.md) | 🟡 | [**3/3**](pm/qa/verification/비번-초기화.md) |
+| │&nbsp;&nbsp;└─&nbsp;[역할 4종](pm/features/역할-4종.md) | 🟡 | [**1/1**](pm/qa/verification/역할-4종.md) |
+| ├─&nbsp;[멤버 영역](pm/features/멤버-영역.md)&nbsp;&nbsp;<sub>`/member`</sub> | &nbsp; | — |
+| │&nbsp;&nbsp;├─&nbsp;[글쓰기](pm/features/글쓰기.md) | 🟡 | [**6/8**](pm/qa/verification/글쓰기.md)<br/><sub>fail 2</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[내 글 수정 · 삭제](pm/features/내글-수정삭제.md) | 🔵 | [**1/1**](pm/qa/verification/내글-수정삭제.md) |
+| │&nbsp;&nbsp;├─&nbsp;[내 프로필 편집](pm/features/내프로필-편집.md) | 🟡 | [**0/1**](pm/qa/verification/내프로필-편집.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;└─&nbsp;[내 프로젝트](pm/features/내프로젝트.md) | 🟡 | [**1/1**](pm/qa/verification/내프로젝트.md) |
+| ├─&nbsp;[어드민](pm/features/어드민.md)&nbsp;&nbsp;<sub>`/admin`</sub> | &nbsp; | — |
+| │&nbsp;&nbsp;├─&nbsp;[멤버 관리](pm/features/멤버-관리.md) | 🟡 | [**1/1**](pm/qa/verification/멤버-관리.md) |
+| │&nbsp;&nbsp;├─&nbsp;[운영진 소개 관리](pm/features/운영진-소개-관리.md) | 🟡 | [**0/1**](pm/qa/verification/운영진-소개-관리.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[모니터링 · 검수](pm/features/모니터링-검수.md) | 🟡 | [**1/2**](pm/qa/verification/모니터링-검수.md)<br/><sub>fail 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[명단 열람](pm/features/명단-열람.md) | 🔵 | [**0/1**](pm/qa/verification/명단-열람.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;└─&nbsp;[모집 관리](pm/features/모집-관리.md) | 🟡 | [**1/1**](pm/qa/verification/모집-관리.md) |
+| └─&nbsp;[최고관리자](pm/features/최고관리자.md) | &nbsp; | — |
+| &nbsp;&nbsp;&nbsp;├─&nbsp;[관리자 임명 · 회수](pm/features/임명-회수.md) | 🟡 | [**1/1**](pm/qa/verification/임명-회수.md) |
+| &nbsp;&nbsp;&nbsp;└─&nbsp;[최고관리자 승계](pm/features/최고관리자-승계.md) | 🔵 | [**0/1**](pm/qa/verification/최고관리자-승계.md)<br/><sub>미실행 1</sub> |
+
+<sub>상태 · 🟢 완료 · 🟡 진행 중 · 🔵 계획 · ⚪ 미착수 &nbsp;·&nbsp; 검증 · 숫자 클릭 = ID별 결과·근거, — = 이 노드에 직접 걸린 GWT 없음</sub>
 
 각 노드를 클릭하면 해당 기능의 문서(개요·진행 상태)로 이동하며, 문서 상단 경로와 `하위` 목록으로 트리를 오르내릴 수 있습니다.
 **기능의 정식 명세·정책은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)를 정본으로 합니다. 구현이나 논의에 앞서 반드시 위키를 먼저 확인해 주세요.**

@@ -58,4 +58,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// 클래스 단위로 별도 JVM에 나눠 병렬 실행 — @SpringBootTest 클래스마다 자기 JVM/자기
+	// jdbc:sqlite::memory: 인스턴스를 가지므로 안전하다(같은 JVM 안에서 여러 스레드가 컨텍스트를
+	// 공유하는 JUnit5 네이티브 병렬 실행보다 격리가 확실해 이쪽을 골랐다).
+	// CI(ubuntu-latest, 4 vCPU)에 맞추되 상한 4 — 코어가 적은 로컬 환경에서 과다구독 안 되도록.
+	maxParallelForks = Math.max(1, Math.min(4, (int) (Runtime.runtime.availableProcessors() / 2)))
 }
