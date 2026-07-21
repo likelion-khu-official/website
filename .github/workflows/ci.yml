@@ -52,11 +52,18 @@ jobs:
       - name: Gradle 세팅
         uses: gradle/actions/setup-gradle@v4
 
+      - name: (디버그) 러너 코어 수 확인
+        run: |
+          echo "CI=$CI"
+          nproc
+
       - name: 빌드 + 테스트
         working-directory: backend
         run: |
           chmod +x gradlew
-          ./gradlew compileJava test
+          ./gradlew compileJava test --info 2>&1 | tee /tmp/test-info.log
+          echo "--- Gradle Test Executor 프로세스 수 ---"
+          grep -c "Starting process 'Gradle Test Executor" /tmp/test-info.log || true
 
   frontend:
     needs: changes
