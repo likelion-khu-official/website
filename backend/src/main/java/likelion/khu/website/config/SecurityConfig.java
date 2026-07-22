@@ -50,6 +50,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/notifications/subscribe").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
+
+                // 운영진 소개 공개 목록
+                .requestMatchers("/api/staff").permitAll()
+
                 // 피드 글 — GET(목록·상세)은 공개, POST(글 작성)는 로그인 멤버 전용(#115)
                 .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
                 // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
