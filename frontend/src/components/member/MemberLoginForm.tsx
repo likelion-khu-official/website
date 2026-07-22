@@ -12,10 +12,13 @@ const ROLE_HOME: Record<MemberAuthRole, string> = {
   MEMBER: '/member',
 };
 
-/** '/'로 시작하는 내부 경로만 허용 — '//evil.com'처럼 '/'로 시작하지만 실제로는
- * 프로토콜 상대 URL(외부로 튀는 open redirect)인 경우를 막는다. */
+/** '/'로 시작하는 내부 경로만 허용 — '//evil.com'이나 '/\evil.com'처럼 '/'로 시작하지만
+ * 실제로는 프로토콜 상대 URL(브라우저가 '\'를 '/'로 정규화해 외부로 튀는 open redirect)인
+ * 경우를 막는다. */
 function isSafeReturnTo(value: string | null): value is string {
-  return !!value && value.startsWith('/') && !value.startsWith('//');
+  if (!value || !value.startsWith('/')) return false;
+  const second = value[1];
+  return second !== '/' && second !== '\\';
 }
 
 function loginErrorMessage(err: unknown): string {
