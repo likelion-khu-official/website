@@ -51,11 +51,11 @@
 | │&nbsp;&nbsp;├─&nbsp;[멤버 관리](pm/features/멤버-관리.md) | 🟡 | [**1/1**](pm/qa/verification/멤버-관리.md) |
 | │&nbsp;&nbsp;├─&nbsp;[운영진 소개 관리](pm/features/운영진-소개-관리.md) | 🟡 | [**0/1**](pm/qa/verification/운영진-소개-관리.md)<br/><sub>미실행 1</sub> |
 | │&nbsp;&nbsp;├─&nbsp;[모니터링 · 검수](pm/features/모니터링-검수.md) | 🟡 | [**1/2**](pm/qa/verification/모니터링-검수.md)<br/><sub>fail 1</sub> |
-| │&nbsp;&nbsp;├─&nbsp;[명단 열람](pm/features/명단-열람.md) | 🔵 | [**0/1**](pm/qa/verification/명단-열람.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[명단 열람](pm/features/명단-열람.md) | 🟡 | [**0/1**](pm/qa/verification/명단-열람.md)<br/><sub>미실행 1</sub> |
 | │&nbsp;&nbsp;└─&nbsp;[모집 관리](pm/features/모집-관리.md) | 🟡 | [**1/1**](pm/qa/verification/모집-관리.md) |
 | └─&nbsp;[최고관리자](pm/features/최고관리자.md) | &nbsp; | — |
 | &nbsp;&nbsp;&nbsp;├─&nbsp;[관리자 임명 · 회수](pm/features/임명-회수.md) | 🟡 | [**1/1**](pm/qa/verification/임명-회수.md) |
-| &nbsp;&nbsp;&nbsp;└─&nbsp;[최고관리자 승계](pm/features/최고관리자-승계.md) | 🔵 | [**0/1**](pm/qa/verification/최고관리자-승계.md)<br/><sub>미실행 1</sub> |
+| &nbsp;&nbsp;&nbsp;└─&nbsp;[최고관리자 승계](pm/features/최고관리자-승계.md) | 🟡 | [**0/1**](pm/qa/verification/최고관리자-승계.md)<br/><sub>미실행 1</sub> |
 
 <sub>상태 · 🟢 완료 · 🟡 진행 중 · 🔵 계획 · ⚪ 미착수 &nbsp;·&nbsp; 검증 · 숫자 클릭 = ID별 결과·근거, — = 이 노드에 직접 걸린 GWT 없음</sub>
 
