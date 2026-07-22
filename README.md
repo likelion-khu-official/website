@@ -33,10 +33,10 @@
 | │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[익명 댓글](pm/features/블로그-익명댓글.md) | 🟢 | [**6/8**](pm/qa/verification/블로그-익명댓글.md)<br/><sub>fail 2</sub> |
 | │&nbsp;&nbsp;└─&nbsp;[모집](pm/features/모집.md) | &nbsp; | [**9/14**](pm/features/모집.md)<br/><sub>fail 3 · 미실행 2</sub> |
 | │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[모집 알림 신청](pm/features/모집-알림.md) | 🟡 | [**9/12**](pm/qa/verification/모집-알림.md)<br/><sub>fail 3</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[지원폼](pm/features/지원폼.md) | ⚪ | [**0/2**](pm/qa/verification/지원폼.md)<br/><sub>미실행 2</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[공통 질문](pm/features/지원폼-공통질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-공통질문.md)<br/><sub>미실행 1</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[세션별 질문](pm/features/지원폼-세션별질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-세션별질문.md)<br/><sub>미실행 1</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[개인정보 동의 · 접수](pm/features/지원폼-개인정보동의.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-개인정보동의.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[지원폼](pm/features/지원폼.md) | 🟡 | [**0/2**](pm/qa/verification/지원폼.md)<br/><sub>미실행 2</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[공통 질문](pm/features/지원폼-공통질문.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-공통질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[세션별 질문](pm/features/지원폼-세션별질문.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-세션별질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[개인정보 동의 · 접수](pm/features/지원폼-개인정보동의.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-개인정보동의.md)<br/><sub>미실행 1</sub> |
 | ├─&nbsp;[인증 · 계정](pm/features/계정-인증.md) | &nbsp; | — |
 | │&nbsp;&nbsp;├─&nbsp;[로그인 (학번 + 비밀번호)](pm/features/로그인.md) | 🟡 | [**5/5**](pm/qa/verification/로그인.md) |
 | │&nbsp;&nbsp;├─&nbsp;[첫 로그인 비밀번호 변경](pm/features/첫로그인-비번변경.md) | 🟡 | [**1/1**](pm/qa/verification/첫로그인-비번변경.md) |
