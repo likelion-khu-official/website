@@ -1,14 +1,12 @@
 package likelion.khu.website.feed.post;
 
-import likelion.khu.website.feed.MagicLinkToken;
-import likelion.khu.website.feed.MagicLinkTokenRepository;
-import likelion.khu.website.feed.MagicLinkTokenService;
-import likelion.khu.website.feed.dto.MagicLinkTokenIssueRequest;
-import likelion.khu.website.feed.exception.MagicLinkTokenAlreadyUsedException;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
-import likelion.khu.website.feed.post.dto.PostStatusUpdateRequest;
 import likelion.khu.website.feed.post.dto.PostSummaryResponse;
+import likelion.khu.website.member.Member;
+import likelion.khu.website.member.MemberRepository;
+import likelion.khu.website.member.MemberRole;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +16,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,12 +26,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PostServiceTest {
 
     @Autowired PostService postService;
-    @Autowired MagicLinkTokenService magicLinkTokenService;
-    @Autowired MagicLinkTokenRepository tokenRepository;
     @Autowired PostRepository postRepository;
+    @Autowired MemberRepository memberRepository;
 
-    private String issueToken() {
-        return magicLinkTokenService.issue(new MagicLinkTokenIssueRequest("시현")).getToken();
+    private Member member;
+    private Member anotherMember;
+
+    @BeforeEach
+    void setUp() {
+        member = memberRepository.save(Member.create(
+                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "20240001", "01012345678", "hash"));
+        anotherMember = memberRepository.save(Member.create(
+                "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
+                "20240002", "01087654321", "hash"));
     }
 
     private PostCreateRequest sampleRequest() {
@@ -43,53 +50,42 @@ class PostServiceTest {
     }
 
     @Test
-    void createPost_ValidToken_CreatesDraftPost() {
-        String token = issueToken();
-        PostDetailResponse res = postService.createPost(token, sampleRequest());
+    void createPost_LoggedInMember_CreatesPublishedWithAuthorInfo() {
+        PostDetailResponse res = postService.createPost(member.getId(), sampleRequest());
 
-        assertThat(res.getStatus()).isEqualTo(PostStatus.DRAFT);
+        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
         assertThat(res.getAuthorName()).isEqualTo("시현");
-        assertThat(res.getPublishedAt()).isNull();
+        assertThat(res.getAuthorPart()).isEqualTo("BE");
+        assertThat(res.getPublishedAt()).isNotNull();
         assertThat(res.getSlug()).isNotBlank();
     }
 
     @Test
-    void createPost_UsedToken_ThrowsAlreadyUsed() {
-        String token = issueToken();
-        postService.createPost(token, sampleRequest());
+    void createPost_MemberNoRoles_AuthorPartIsNull() {
+        Member noRoleMember = memberRepository.save(Member.create(
+                "역할없음", Set.of(), 13, "⭐", null, null, "admin@khu.ac.kr",
+                "20240003", "01011112222", "hash"));
 
-        assertThatThrownBy(() -> postService.createPost(token, sampleRequest()))
-                .isInstanceOf(MagicLinkTokenAlreadyUsedException.class);
-    }
+        PostDetailResponse res = postService.createPost(noRoleMember.getId(), sampleRequest());
 
-    @Test
-    void createPost_ExpiredToken_ThrowsExpired() {
-        MagicLinkToken expired = tokenRepository.save(
-                new MagicLinkToken("expired-token", "시현", LocalDateTime.now().minusMinutes(1)));
-
-        assertThatThrownBy(() -> postService.createPost(expired.getToken(), sampleRequest()))
-                .isInstanceOf(likelion.khu.website.feed.exception.MagicLinkTokenExpiredException.class);
+        assertThat(res.getAuthorPart()).isNull();
     }
 
     @Test
     void getPublishedPosts_ReturnsOnlyPublished() {
-        String t1 = issueToken();
-        String t2 = magicLinkTokenService.issue(new MagicLinkTokenIssueRequest("선우")).getToken();
-        PostDetailResponse draft = postService.createPost(t1, sampleRequest());
-        PostDetailResponse toPublish = postService.createPost(t2, sampleRequest());
-        postService.updateStatus(toPublish.getId(), PostStatus.PUBLISHED);
+        PostDetailResponse visible = postService.createPost(member.getId(), sampleRequest());
+        PostDetailResponse toHide = postService.createPost(anotherMember.getId(), sampleRequest());
+        postService.updateStatus(toHide.getId(), PostStatus.HIDDEN);
 
         Page<PostSummaryResponse> page = postService.getPublishedPosts(PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
-        assertThat(page.getContent().get(0).getId()).isEqualTo(toPublish.getId());
+        assertThat(page.getContent().get(0).getId()).isEqualTo(visible.getId());
     }
 
     @Test
     void getPublishedPost_PublishedPost_ReturnsDetail() {
-        String token = issueToken();
-        PostDetailResponse created = postService.createPost(token, sampleRequest());
-        postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
 
         PostDetailResponse res = postService.getPublishedPost(created.getSlug());
 
@@ -98,30 +94,17 @@ class PostServiceTest {
     }
 
     @Test
-    void getPublishedPost_DraftSlug_ThrowsNotFound() {
-        String token = issueToken();
-        PostDetailResponse draft = postService.createPost(token, sampleRequest());
+    void getPublishedPost_HiddenSlug_ThrowsNotFound() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(created.getId(), PostStatus.HIDDEN);
 
-        assertThatThrownBy(() -> postService.getPublishedPost(draft.getSlug()))
+        assertThatThrownBy(() -> postService.getPublishedPost(created.getSlug()))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
-    void updateStatus_DraftToPublished_SetsPublishedAt() {
-        String token = issueToken();
-        PostDetailResponse created = postService.createPost(token, sampleRequest());
-
-        PostSummaryResponse res = postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
-
-        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
-        assertThat(res.getPublishedAt()).isNotNull();
-    }
-
-    @Test
     void updateStatus_PublishedToHidden_PreservesPublishedAt() {
-        String token = issueToken();
-        PostDetailResponse created = postService.createPost(token, sampleRequest());
-        postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
         LocalDateTime publishedAt = postRepository.findById(created.getId()).orElseThrow().getPublishedAt();
 
         postService.updateStatus(created.getId(), PostStatus.HIDDEN);
@@ -131,11 +114,20 @@ class PostServiceTest {
     }
 
     @Test
-    void updateStatus_InvalidTransition_ThrowsIllegalState() {
-        String token = issueToken();
-        PostDetailResponse created = postService.createPost(token, sampleRequest());
+    void updateStatus_HiddenToPublished_ReturnsPublished() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(created.getId(), PostStatus.HIDDEN);
 
-        assertThatThrownBy(() -> postService.updateStatus(created.getId(), PostStatus.HIDDEN))
+        PostSummaryResponse res = postService.updateStatus(created.getId(), PostStatus.PUBLISHED);
+
+        assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
+    }
+
+    @Test
+    void updateStatus_PublishedToPublished_ThrowsIllegalState() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+
+        assertThatThrownBy(() -> postService.updateStatus(created.getId(), PostStatus.PUBLISHED))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

@@ -27,6 +27,7 @@ export interface PostSummary {
   summary: string | null;
   thumbnailUrl: string | null;
   authorName: string;
+  authorPart: string | null; // 작성자 파트 (BE/FE/PM 등), 파트 없는 멤버는 null
   status: PostStatus;
   publishedAt: string | null; // ISO 8601
   createdAt: string;
@@ -39,7 +40,7 @@ export interface PostDetail extends PostSummary {
   commentCount: number;
 }
 
-/** POST /api/posts — 글 작성 요청 (헤더: X-Magic-Token) */
+/** POST /api/posts — 글 작성 요청 (인증: 멤버 로그인 쿠키, 작성자는 세션에서 자동 결정) */
 export interface PostCreateRequest {
   title: string;
   summary?: string;
@@ -66,24 +67,6 @@ export interface Comment {
 export interface CommentCreateRequest {
   nickname?: string;          // 선택, 최대 50자
   content: string;            // 필수, 최대 300자
-}
-
-/** POST /api/feed/tokens — 매직링크 토큰 발급 */
-export interface MagicLinkTokenIssueRequest {
-  authorName: string;
-}
-
-export interface MagicLinkTokenIssueResponse {
-  token: string;
-  authorName: string;
-  expiresAt: string; // ISO-8601
-}
-
-/** GET /api/feed/tokens/:token — 매직링크 토큰 상태 확인 (소모하지 않음) */
-export interface MagicLinkTokenStatusResponse {
-  authorName: string;
-  valid: boolean;
-  reason: "USED" | "EXPIRED" | null;
 }
 
 /**

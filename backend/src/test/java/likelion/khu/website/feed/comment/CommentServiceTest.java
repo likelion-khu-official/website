@@ -1,15 +1,15 @@
 package likelion.khu.website.feed.comment;
 
-import likelion.khu.website.feed.MagicLinkTokenService;
 import likelion.khu.website.feed.comment.dto.CommentCreateRequest;
 import likelion.khu.website.feed.comment.dto.CommentResponse;
-import likelion.khu.website.feed.dto.MagicLinkTokenIssueRequest;
-import likelion.khu.website.feed.post.Post;
 import likelion.khu.website.feed.post.PostRepository;
 import likelion.khu.website.feed.post.PostService;
 import likelion.khu.website.feed.post.PostStatus;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
-import likelion.khu.website.feed.post.dto.PostDetailResponse;
+import likelion.khu.website.member.Member;
+import likelion.khu.website.member.MemberRepository;
+import likelion.khu.website.member.MemberRole;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +17,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,16 +30,22 @@ class CommentServiceTest {
     @Autowired CommentRepository commentRepository;
     @Autowired PostService postService;
     @Autowired PostRepository postRepository;
-    @Autowired MagicLinkTokenService magicLinkTokenService;
+    @Autowired MemberRepository memberRepository;
+
+    private Member member;
+
+    @BeforeEach
+    void setUp() {
+        member = memberRepository.save(Member.create(
+                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "20240001", "01012345678", "hash"));
+    }
 
     private Long createPublishedPost() {
-        String token = magicLinkTokenService.issue(new MagicLinkTokenIssueRequest("시현")).getToken();
         PostCreateRequest req = new PostCreateRequest();
         req.setTitle("제목");
         req.setContent("본문");
-        PostDetailResponse post = postService.createPost(token, req);
-        postService.updateStatus(post.getId(), PostStatus.PUBLISHED);
-        return post.getId();
+        return postService.createPost(member.getId(), req).getId();
     }
 
     private CommentCreateRequest commentRequest(String nickname, String content) {
@@ -66,14 +73,11 @@ class CommentServiceTest {
     }
 
     @Test
-    void create_DraftPost_ThrowsNotFound() {
-        String token = magicLinkTokenService.issue(new MagicLinkTokenIssueRequest("시현")).getToken();
-        PostCreateRequest req = new PostCreateRequest();
-        req.setTitle("초안");
-        req.setContent("내용");
-        Long draftId = postService.createPost(token, req).getId();
+    void create_HiddenPost_ThrowsNotFound() {
+        Long hiddenId = createPublishedPost();
+        postService.updateStatus(hiddenId, PostStatus.HIDDEN);
 
-        assertThatThrownBy(() -> commentService.create(draftId, commentRequest(null, "댓글")))
+        assertThatThrownBy(() -> commentService.create(hiddenId, commentRequest(null, "댓글")))
                 .isInstanceOf(ResponseStatusException.class);
     }
 

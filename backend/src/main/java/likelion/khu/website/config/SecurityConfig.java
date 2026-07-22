@@ -3,6 +3,7 @@ package likelion.khu.website.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import likelion.khu.website.admin.auth.JwtAuthenticationFilter;
+import likelion.khu.website.member.auth.MemberPasswordGuardFilter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                             JwtAuthenticationFilter jwtAuthenticationFilter,
+                                            MemberPasswordGuardFilter memberPasswordGuardFilter,
                                             ObjectMapper objectMapper) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
@@ -46,23 +48,25 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
-                // 매직링크 토큰 — 운영진 인증 붙기 전까지 임시 공개
-                // TODO: 운영진 인증 도입되면 발급(POST)은 운영진 전용으로 좁히기
-                .requestMatchers("/api/feed/tokens/**").permitAll()
-                // 피드 이미지 업로드 — 매직링크 글쓰기 흐름 자체가 비인증이라 임시 공개
-                // TODO: 남용 방지용 인증/레이트리밋 필요해지면 여기에 추가
-                .requestMatchers("/api/feed/images/**").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
+
                 // 운영진 소개 공개 목록
                 .requestMatchers("/api/staff").permitAll()
-                // 피드 글 — 공개 읽기 + 매직링크 제출
-                .requestMatchers("/api/posts/**").permitAll()
+
+                // 피드 글 — GET(목록·상세)은 공개, POST(글 작성)는 로그인 멤버 전용(#115)
+                .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
+                // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
+                .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*").permitAll()
                 // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
                 .requestMatchers("/api/posts/*/comments/**").permitAll()
                 // 어드민 로그인/로그아웃/리프레시 — SecurityContext가 아니라 refresh_token 쿠키 자체 내용으로
                 // 동작(만료된 access 토큰으로도 로그아웃·리프레시가 가능해야 함)이라 matcher 자체는 permitAll()
                 .requestMatchers("/api/admin/auth/**").permitAll()
+                // 멤버 로그인/로그아웃/리프레시 — 위 어드민 auth와 같은 이유로 permitAll(). 단 비번 변경
+                // (/api/member/auth/password)은 본인 인증이 필요해 여기 포함하지 않는다(#117).
+                .requestMatchers(HttpMethod.POST, "/api/member/auth/login", "/api/member/auth/logout",
+                        "/api/member/auth/refresh").permitAll()
                 // 초대 수락 흐름 — 가입 전(계정 자체가 없음), 토큰이 자격증명 역할
                 .requestMatchers(HttpMethod.GET, "/api/admin/invitations/*/verify").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/admin/invitations/*/accept").permitAll()
@@ -85,7 +89,8 @@ public class SecurityConfig {
                 .accessDeniedHandler((request, response, accessDeniedException) ->
                     writeJsonError(response, objectMapper, 403, "FORBIDDEN", "권한이 없어요."))
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(memberPasswordGuardFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

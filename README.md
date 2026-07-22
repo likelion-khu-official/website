@@ -33,10 +33,10 @@
 | │&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─&nbsp;[익명 댓글](pm/features/블로그-익명댓글.md) | 🟢 | [**6/8**](pm/qa/verification/블로그-익명댓글.md)<br/><sub>fail 2</sub> |
 | │&nbsp;&nbsp;└─&nbsp;[모집](pm/features/모집.md) | &nbsp; | [**9/14**](pm/features/모집.md)<br/><sub>fail 3 · 미실행 2</sub> |
 | │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[모집 알림 신청](pm/features/모집-알림.md) | 🟡 | [**9/12**](pm/qa/verification/모집-알림.md)<br/><sub>fail 3</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[지원폼](pm/features/지원폼.md) | ⚪ | [**0/2**](pm/qa/verification/지원폼.md)<br/><sub>미실행 2</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[공통 질문](pm/features/지원폼-공통질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-공통질문.md)<br/><sub>미실행 1</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[세션별 질문](pm/features/지원폼-세션별질문.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-세션별질문.md)<br/><sub>미실행 1</sub> |
-| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[개인정보 동의 · 접수](pm/features/지원폼-개인정보동의.md) | ⚪ | [**0/1**](pm/qa/verification/지원폼-개인정보동의.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[지원폼](pm/features/지원폼.md) | 🟡 | [**0/2**](pm/qa/verification/지원폼.md)<br/><sub>미실행 2</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[공통 질문](pm/features/지원폼-공통질문.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-공통질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─&nbsp;[세션별 질문](pm/features/지원폼-세션별질문.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-세션별질문.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─&nbsp;[개인정보 동의 · 접수](pm/features/지원폼-개인정보동의.md) | 🟡 | [**0/1**](pm/qa/verification/지원폼-개인정보동의.md)<br/><sub>미실행 1</sub> |
 | ├─&nbsp;[인증 · 계정](pm/features/계정-인증.md) | &nbsp; | — |
 | │&nbsp;&nbsp;├─&nbsp;[로그인 (학번 + 비밀번호)](pm/features/로그인.md) | 🟡 | [**5/5**](pm/qa/verification/로그인.md) |
 | │&nbsp;&nbsp;├─&nbsp;[첫 로그인 비밀번호 변경](pm/features/첫로그인-비번변경.md) | 🟡 | [**1/1**](pm/qa/verification/첫로그인-비번변경.md) |
@@ -51,11 +51,11 @@
 | │&nbsp;&nbsp;├─&nbsp;[멤버 관리](pm/features/멤버-관리.md) | 🟡 | [**1/1**](pm/qa/verification/멤버-관리.md) |
 | │&nbsp;&nbsp;├─&nbsp;[운영진 소개 관리](pm/features/운영진-소개-관리.md) | 🟡 | [**0/1**](pm/qa/verification/운영진-소개-관리.md)<br/><sub>미실행 1</sub> |
 | │&nbsp;&nbsp;├─&nbsp;[모니터링 · 검수](pm/features/모니터링-검수.md) | 🟡 | [**1/2**](pm/qa/verification/모니터링-검수.md)<br/><sub>fail 1</sub> |
-| │&nbsp;&nbsp;├─&nbsp;[명단 열람](pm/features/명단-열람.md) | 🔵 | [**0/1**](pm/qa/verification/명단-열람.md)<br/><sub>미실행 1</sub> |
+| │&nbsp;&nbsp;├─&nbsp;[명단 열람](pm/features/명단-열람.md) | 🟡 | [**0/1**](pm/qa/verification/명단-열람.md)<br/><sub>미실행 1</sub> |
 | │&nbsp;&nbsp;└─&nbsp;[모집 관리](pm/features/모집-관리.md) | 🟡 | [**1/1**](pm/qa/verification/모집-관리.md) |
 | └─&nbsp;[최고관리자](pm/features/최고관리자.md) | &nbsp; | — |
 | &nbsp;&nbsp;&nbsp;├─&nbsp;[관리자 임명 · 회수](pm/features/임명-회수.md) | 🟡 | [**1/1**](pm/qa/verification/임명-회수.md) |
-| &nbsp;&nbsp;&nbsp;└─&nbsp;[최고관리자 승계](pm/features/최고관리자-승계.md) | 🔵 | [**0/1**](pm/qa/verification/최고관리자-승계.md)<br/><sub>미실행 1</sub> |
+| &nbsp;&nbsp;&nbsp;└─&nbsp;[최고관리자 승계](pm/features/최고관리자-승계.md) | 🟡 | [**0/1**](pm/qa/verification/최고관리자-승계.md)<br/><sub>미실행 1</sub> |
 
 <sub>상태 · 🟢 완료 · 🟡 진행 중 · 🔵 계획 · ⚪ 미착수 &nbsp;·&nbsp; 검증 · 숫자 클릭 = ID별 결과·근거, — = 이 노드에 직접 걸린 GWT 없음</sub>
 
