@@ -17,6 +17,8 @@ import type {
   AdminRoleUpdateRequest,
   AdminRoleUpdateResponse,
 } from '@shared/types/admin';
+import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
+import type { MemberPasswordResetResponse, MemberOffboardResponse } from '@shared/types/member-auth';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -193,6 +195,48 @@ export function updateAdminRole(id: number, body: AdminRoleUpdateRequest) {
     `/admins/${id}/role`,
     { method: 'PATCH', body: JSON.stringify(body) },
     '역할 변경에 실패했어요.',
+    true
+  );
+}
+
+// ── 멤버 관리 (#145) ──────────────────────────────────────────────
+
+export function listMembers() {
+  return request<MemberAdminSummary[]>('/members', {}, '멤버 목록을 불러오지 못했어요.', true);
+}
+
+export function createMember(body: MemberCreateRequest) {
+  return request<MemberAdminSummary>(
+    '/members',
+    { method: 'POST', body: JSON.stringify(body) },
+    '등록에 실패했어요.',
+    true
+  );
+}
+
+export function updateMember(id: number, body: MemberUpdateRequest) {
+  return request<MemberAdminSummary>(
+    `/members/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+    '수정에 실패했어요.',
+    true
+  );
+}
+
+export function resetMemberPassword(id: number) {
+  return request<MemberPasswordResetResponse>(
+    `/members/${id}/password/reset`,
+    { method: 'POST' },
+    '비밀번호 초기화에 실패했어요.',
+    true
+  );
+}
+
+export function offboardMember(id: number) {
+  return request<MemberOffboardResponse>(
+    `/members/${id}/offboard`,
+    { method: 'POST' },
+    '오프보딩에 실패했어요.',
     true
   );
 }

@@ -1,5 +1,6 @@
 package likelion.khu.website.member;
 
+import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
@@ -43,8 +44,16 @@ public class MemberService {
                 .toList();
     }
 
+    // 관리자 전용 목록 — studentId·오프보딩 상태 포함(#145).
+    @Transactional(readOnly = true)
+    public List<MemberAdminResponse> getAllForAdmin() {
+        return memberRepository.findAllByOrderByCreatedAtAsc().stream()
+                .map(MemberAdminResponse::from)
+                .toList();
+    }
+
     @Transactional
-    public MemberResponse create(MemberCreateRequest request, String createdBy) {
+    public MemberAdminResponse create(MemberCreateRequest request, String createdBy) {
         if (memberRepository.existsByStudentId(request.getStudentId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 학번이에요.");
         }
@@ -56,14 +65,14 @@ public class MemberService {
                 request.getStudentId(), request.getPhone(), passwordEncoder.encode(request.getPhone())
         );
         memberRepository.save(member);
-        return MemberResponse.from(member);
+        return MemberAdminResponse.from(member);
     }
 
     @Transactional
-    public MemberResponse update(Long id, MemberUpdateRequest request, String updatedBy) {
+    public MemberAdminResponse update(Long id, MemberUpdateRequest request, String updatedBy) {
         Member member = memberRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요."));
         member.update(request.getName(), request.getRoles(), request.getPhotoUrl(), request.getJoinReason(), updatedBy);
-        return MemberResponse.from(member);
+        return MemberAdminResponse.from(member);
     }
 }

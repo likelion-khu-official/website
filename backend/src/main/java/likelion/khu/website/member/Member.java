@@ -58,6 +58,10 @@ public class Member {
 
     private LocalDateTime lockedUntil;
 
+    // 오프보딩(소프트 딜리트) 시각. null이면 재적 중 — 계정으로 로그인만 막고 글·프로젝트 등
+    // 다른 테이블의 기록은 건드리지 않는다(#145).
+    private LocalDateTime offboardedAt;
+
     @Column(nullable = false)
     private String createdBy;
 
@@ -133,6 +137,16 @@ public class Member {
         this.mustChangePassword = true;
         this.failedLoginAttempts = 0;
         this.lockedUntil = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean isOffboarded() {
+        return offboardedAt != null;
+    }
+
+    // 졸업·탈퇴 처리 — 계정 자체는 지우지 않는다(글·프로젝트 등 다른 테이블이 이 id를 계속 참조).
+    public void offboard() {
+        this.offboardedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 }

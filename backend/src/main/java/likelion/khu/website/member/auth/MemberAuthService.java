@@ -55,6 +55,11 @@ public class MemberAuthService {
         Member member = memberRepository.findByStudentId(studentId)
                 .orElseThrow(() -> new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요."));
 
+        // 오프보딩된 계정 — "이 학번은 탈퇴했다"를 알려주지 않기 위해 미존재·오답과 같은 에러로 처리(#145).
+        if (member.isOffboarded()) {
+            throw new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요.");
+        }
+
         if (member.isLocked()) {
             throw new AccountLockedException();
         }
@@ -133,6 +138,17 @@ public class MemberAuthService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
         member.resetPasswordByAdmin(passwordEncoder.encode(member.getPhone()));
+        revokeAllTokensFor(member.getId());
+    }
+
+    // 관리자(ADMIN 이상)가 졸업·탈퇴한 부원을 오프보딩 — 로그인만 막고 기존 글·프로젝트 등
+    // 다른 테이블의 기록은 그대로 둔다(#145). 세션도 즉시 끊어야 하므로 비번 초기화와 동일하게
+    // refresh token을 전부 회수한다.
+    @Transactional
+    public void offboard(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        member.offboard();
         revokeAllTokensFor(member.getId());
     }
 

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.member.auth.MemberAuthService;
 import likelion.khu.website.member.auth.dto.MemberSuccessResponse;
+import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
@@ -28,9 +29,16 @@ public class MemberController {
         return memberService.getAll();
     }
 
+    // 관리자 화면 전용 목록 — 공개 목록과 달리 studentId·오프보딩 상태를 포함한다(#145).
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @GetMapping("/api/admin/members")
+    public List<MemberAdminResponse> adminList() {
+        return memberService.getAllForAdmin();
+    }
+
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/api/admin/members")
-    public ResponseEntity<MemberResponse> create(
+    public ResponseEntity<MemberAdminResponse> create(
             @Valid @RequestBody MemberCreateRequest request,
             Authentication authentication) {
         AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
@@ -40,7 +48,7 @@ public class MemberController {
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PatchMapping("/api/admin/members/{id}")
-    public MemberResponse update(
+    public MemberAdminResponse update(
             @PathVariable Long id,
             @Valid @RequestBody MemberUpdateRequest request,
             Authentication authentication) {
@@ -53,6 +61,14 @@ public class MemberController {
     @PostMapping("/api/admin/members/{id}/password/reset")
     public MemberSuccessResponse resetPassword(@PathVariable Long id) {
         memberAuthService.resetPasswordByAdmin(id);
+        return new MemberSuccessResponse();
+    }
+
+    // 오프보딩(소프트 딜리트) — 위키 "정보구조와 권한" 기준 관리자 관리 기능이라 ADMIN 이상(#145).
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PostMapping("/api/admin/members/{id}/offboard")
+    public MemberSuccessResponse offboard(@PathVariable Long id) {
+        memberAuthService.offboard(id);
         return new MemberSuccessResponse();
     }
 }
