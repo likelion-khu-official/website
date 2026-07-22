@@ -3,6 +3,7 @@ package likelion.khu.website.recruitment;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,12 @@ public class RecruitmentManagementService {
 
     public RecruitmentStatusResponse getStatus() {
         return toResponse(findOrCreate());
+    }
+
+    // 공개 방문자용 — 랜딩·/recruit 페이지가 평소/모집중 화면을 가르는 데만 쓴다(#151).
+    // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
+    public RecruitmentPublicStatusResponse getPublicStatus() {
+        return new RecruitmentPublicStatusResponse(findOrCreate().isOpen());
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)

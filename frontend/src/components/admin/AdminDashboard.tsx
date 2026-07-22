@@ -260,7 +260,15 @@ export default function AdminDashboard() {
         </ul>
       )}
 
-      <p className="mt-10 text-center text-xs text-muted">다음 관리 기능이 여기에 추가될 예정이에요.</p>
+      <div className="mt-10 flex justify-center">
+        <button
+          type="button"
+          onClick={() => router.push('/admin/recruitment')}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          모집 관리로 이동
+        </button>
+      </div>
     </div>
   );
 }

@@ -15,3 +15,8 @@ export interface RecruitmentStatusResponse {
 export interface RecruitmentStatusUpdateRequest {
   open: boolean;
 }
+
+/** GET /api/recruitment/status — 공개, 비인증. 랜딩·/recruit 페이지가 평소/모집중을 가르는 데 씀. subscriberCount 없음(#151) */
+export interface PublicRecruitmentStatusResponse {
+  open: boolean;
+}
