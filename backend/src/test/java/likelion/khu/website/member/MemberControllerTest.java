@@ -77,9 +77,19 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
     }
 
-    @WithMockUser(roles = "ADMIN")
+    // 위키 "정보구조와 권한" 기준 등록은 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
     @Test
-    void createMember_NotSuperAdmin_Returns403() throws Exception {
+    void createMember_ByRegularAdmin_Returns201() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void createMember_ByMember_Returns403() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
@@ -156,9 +166,21 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.cohort").value(13));
     }
 
-    @WithMockUser(roles = "ADMIN")
+    // 위키 "정보구조와 권한" 기준 수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
     @Test
-    void updateMember_NotSuperAdmin_Returns403() throws Exception {
+    void updateMember_ByRegularAdmin_Returns200() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(patch("/api/admin/members/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"수정시도\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void updateMember_ByMember_Returns403() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)

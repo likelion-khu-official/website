@@ -11,7 +11,6 @@ import {
   offboardMember,
   AdminApiError,
 } from '@/lib/adminApi';
-import type { AdminAccount } from '@shared/types/admin';
 import type { MemberAdminSummary, MemberRole } from '@shared/types/member';
 
 const ROLE_OPTIONS: MemberRole[] = ['PM', 'FE', 'BE', 'DESIGN', 'INFRA'];
@@ -21,7 +20,6 @@ const emptyForm = { name: '', studentId: '', phone: '', cohort: '', roles: [] as
 export default function MemberManagement() {
   const router = useRouter();
 
-  const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
   const [members, setMembers] = useState<MemberAdminSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -45,9 +43,8 @@ export default function MemberManagement() {
       setLoading(true);
       setLoadError('');
       try {
-        const session = await refreshSession();
+        await refreshSession();
         if (cancelled) return;
-        setCurrentAdmin(session.admin);
         const list = await listMembers();
         if (cancelled) return;
         setMembers(list);
@@ -174,8 +171,6 @@ export default function MemberManagement() {
     );
   }
 
-  const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
-
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -191,18 +186,16 @@ export default function MemberManagement() {
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">부원 목록</h2>
-        {isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setCreateOpen((v) => !v)}
-            className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
-          >
-            {createOpen ? '닫기' : '+ 부원 등록'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setCreateOpen((v) => !v)}
+          className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          {createOpen ? '닫기' : '+ 부원 등록'}
+        </button>
       </div>
 
-      {isSuperAdmin && createOpen && (
+      {createOpen && (
         <form
           onSubmit={handleCreateSubmit}
           className="mb-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4"
@@ -332,7 +325,7 @@ export default function MemberManagement() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {isSuperAdmin && !member.offboarded && (
+                      {!member.offboarded && (
                         <button
                           type="button"
                           disabled={busy}

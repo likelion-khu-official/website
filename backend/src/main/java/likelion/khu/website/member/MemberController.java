@@ -36,7 +36,9 @@ public class MemberController {
         return memberService.getAllForAdmin();
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    // 위키 "정보구조와 권한" 기준 — 멤버 등록·수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다.
+    // 최고관리자만의 배타적 권한은 관리자 임명·회수·승계뿐(#145).
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     @PostMapping("/api/admin/members")
     public ResponseEntity<MemberAdminResponse> create(
             @Valid @RequestBody MemberCreateRequest request,
@@ -46,7 +48,7 @@ public class MemberController {
                 .body(memberService.create(request, admin.getEmail()));
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     @PatchMapping("/api/admin/members/{id}")
     public MemberAdminResponse update(
             @PathVariable Long id,
