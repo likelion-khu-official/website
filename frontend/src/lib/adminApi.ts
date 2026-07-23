@@ -17,6 +17,7 @@ import type {
   AdminRoleUpdateRequest,
   AdminRoleUpdateResponse,
 } from '@shared/types/admin';
+import type { RecruitmentStatusResponse, RecruitmentStatusUpdateRequest } from '@shared/types/recruitment';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -193,6 +194,21 @@ export function updateAdminRole(id: number, body: AdminRoleUpdateRequest) {
     `/admins/${id}/role`,
     { method: 'PATCH', body: JSON.stringify(body) },
     '역할 변경에 실패했어요.',
+    true
+  );
+}
+
+// ── 모집 관리 (#151) ──────────────────────────────────────────────
+
+export function getRecruitmentStatus() {
+  return request<RecruitmentStatusResponse>('/recruitment/status', {}, '모집 상태를 불러오지 못했어요.', true);
+}
+
+export function updateRecruitmentStatus(body: RecruitmentStatusUpdateRequest) {
+  return request<RecruitmentStatusResponse>(
+    '/recruitment/status',
+    { method: 'PATCH', body: JSON.stringify(body) },
+    '모집 상태 변경에 실패했어요.',
     true
   );
 }

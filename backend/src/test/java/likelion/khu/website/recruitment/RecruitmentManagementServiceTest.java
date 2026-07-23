@@ -2,6 +2,7 @@ package likelion.khu.website.recruitment;
 
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -10,6 +11,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -49,5 +51,15 @@ class RecruitmentManagementServiceTest {
         assertThatCode(service::sendToAllSubscribers).doesNotThrowAnyException();
 
         verifyNoInteractions(emailService);
+    }
+
+    // #154 결정(B) — 지원폼(#152)이 준비되지 않은 환경(기본값)에서는 open()이 상태를 바꾸거나
+    // 메일 이벤트를 발행하기 전에 막혀야 한다. applicationFormReady는 기본값(false)을 그대로 둬서
+    // "아직 세팅 안 한 환경 = 막힘"이 기본 동작임도 함께 확인한다.
+    @Test
+    void open_ApplicationFormNotReady_ThrowsAndDoesNotChangeState() {
+        assertThatThrownBy(service::open).isInstanceOf(RecruitmentProductionHoldException.class);
+
+        verifyNoInteractions(statusRepository, eventPublisher);
     }
 }

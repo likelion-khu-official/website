@@ -3,7 +3,9 @@ package likelion.khu.website.recruitment;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,8 +28,22 @@ public class RecruitmentManagementService {
     @Value("${app.public-site-url}")
     private String publicSiteUrl;
 
+    // 지원폼(#152)이 완성되기 전까지 모집 열기를 막는 스위치(이슈 #154 PM 결정: B — prod에서는
+    // 지원폼 없이 모집을 열지 않는다, 스테이지에서만 검증). 기본값 false라 운영(.env.prod)은
+    // 이 값을 명시적으로 켜기 전까지 항상 막혀 있고, 검증 환경(스테이지 .env.stage·테스트)만
+    // true로 열어 관리자 화면·안내 메일 발송을 미리 확인한다. #152가 끝나면 .env.prod에서
+    // 이 값을 true로 바꾸는 것으로 운영 오픈을 허용한다 — 코드 변경이 필요 없다.
+    @Value("${app.recruitment.application-form-ready:false}")
+    private boolean applicationFormReady;
+
     public RecruitmentStatusResponse getStatus() {
         return toResponse(findOrCreate());
+    }
+
+    // 공개 방문자용 — 랜딩·/recruit 페이지가 평소/모집중 화면을 가르는 데만 쓴다(#151).
+    // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
+    public RecruitmentPublicStatusResponse getPublicStatus() {
+        return new RecruitmentPublicStatusResponse(findOrCreate().isOpen());
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)
@@ -51,6 +67,9 @@ public class RecruitmentManagementService {
     // 단일 인스턴스 배포를 전제하므로, synchronized(= 이 빈 인스턴스 기준 락)만으로 충분하다 —
     // 여러 인스턴스로 수평 확장하게 되면 DB 레벨 락(@Version 등)으로 다시 가야 한다.
     public synchronized RecruitmentStatusResponse open() {
+        if (!applicationFormReady) {
+            throw new RecruitmentProductionHoldException();
+        }
         RecruitmentStatus status = findOrCreate();
         // "닫힘→열림 전이일 때만" — 이미 열려있으면(open()을 두 번 눌러도) 이 if를 안 타서
         // 이벤트 자체가 발행되지 않는다. 완료기준의 "중복 발송 방지"는 이 한 줄이 전부다.
