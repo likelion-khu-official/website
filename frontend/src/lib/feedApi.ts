@@ -5,7 +5,6 @@ import type {
   PostCreateRequest,
   Comment,
   CommentCreateRequest,
-  MagicLinkTokenStatusResponse,
   FeedImageUploadResponse,
 } from '@shared/types/feed';
 
@@ -65,13 +64,6 @@ export async function createComment(
     body: JSON.stringify(body),
   });
   return parseJsonOrThrow(res, '댓글 작성에 실패했어요.');
-}
-
-export async function getTokenStatus(token: string): Promise<MagicLinkTokenStatusResponse> {
-  const res = await fetch(`/api/feed/tokens/${encodeURIComponent(token)}`, {
-    cache: 'no-store',
-  });
-  return parseJsonOrThrow(res, '토큰 상태를 확인하지 못했어요.');
 }
 
 export async function createPost(body: PostCreateRequest, token: string): Promise<PostDetail> {

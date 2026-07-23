@@ -156,11 +156,28 @@ jobs:
             rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
 
       - name: 스모크 테스트
+        # localhost가 아니라 실제 공개 도메인(nginx 뒤)으로 찌른다 — 헬스체크는 "앱이 떴다"만
+        # 보장하지만, 이건 DNS·TLS·nginx 라우팅까지 포함해 실제 클라이언트가 겪는 경로 그대로
+        # 검증한다. 인증 없이 이미 공개돼 있는 조회 엔드포인트만 대상(어드민류 제외).
         run: |
-          BASE_URL="http://${{ secrets.OCI_HOST }}:${{ steps.config.outputs.port }}"
-          echo "=== 스모크 테스트 시작 ==="
-          # 엔드포인트 구현 후 아래에 추가
-          # curl -sf "$BASE_URL/api/..." && echo "✅ [엔드포인트]" || { echo "❌ [엔드포인트]"; exit 1; }
+          BASE_URL="https://api.${{ steps.config.outputs.env }}.likelion-khu.com"
+          echo "=== 스모크 테스트 시작 (${BASE_URL}) ==="
+
+          FAILED=0
+          for path in /api/members /api/staff /api/posts /api/projects; do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL$path" || echo "000")
+            if [ "$STATUS" == "200" ]; then
+              echo "✅ [$path] HTTP $STATUS"
+            else
+              echo "❌ [$path] HTTP ${STATUS}"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" == "1" ]; then
+            echo "=== 스모크 테스트 실패 ==="
+            exit 1
+          fi
           echo "=== 스모크 테스트 완료 ==="
 
       - name: 롤백

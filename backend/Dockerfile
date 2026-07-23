@@ -1,4 +1,7 @@
-FROM gradle:8-jdk21-alpine AS builder
+# 빌드 스테이지는 빌드 머신 아키텍처(BUILDPLATFORM, GH 러너는 amd64)로 고정 —
+# Java는 바이트코드로 컴파일되므로 QEMU arm64 에뮬레이션 위에서 돌릴 필요가 없다.
+# 최종 런타임 이미지만 buildx가 지정한 --platform(arm64)을 그대로 따른다.
+FROM --platform=$BUILDPLATFORM gradle:8-jdk21-alpine AS builder
 WORKDIR /workspace
 
 # 의존성만 먼저 복사 — 소스 변경 시에도 이 레이어는 캐시 히트

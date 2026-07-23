@@ -51,6 +51,19 @@ class AdminAuthControllerTest {
                 .andExpect(cookie().httpOnly("access_token", true));
     }
 
+    // 위 테스트는 SUPER_ADMIN만 로그인시켜서 role 값이 우연히 항상 "SUPER_ADMIN"으로만 검증돼
+    // 있었다(#132) — ADMIN 계정으로도 응답 바디의 role이 실제 역할값을 그대로 반영하는지 확인.
+    @Test
+    void login_ValidCredentials_AdminRole_ReturnsRoleAdminNotSuperAdmin() throws Exception {
+        createAdmin("admin@khu.ac.kr", "password1", AdminRole.ADMIN);
+
+        mockMvc.perform(post("/api/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"admin@khu.ac.kr\",\"password\":\"password1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin.role").value("ADMIN"));
+    }
+
     @Test
     void login_WrongPassword_Returns401() throws Exception {
         createAdmin("super2@khu.ac.kr", "password1", AdminRole.SUPER_ADMIN);

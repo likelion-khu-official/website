@@ -1,10 +1,12 @@
 package likelion.khu.website.feed.post;
 
-import likelion.khu.website.feed.MagicLinkTokenService;
 import likelion.khu.website.feed.comment.CommentRepository;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
 import likelion.khu.website.feed.post.dto.PostSummaryResponse;
+import likelion.khu.website.member.Member;
+import likelion.khu.website.member.MemberRepository;
+import likelion.khu.website.member.MemberRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,13 +23,20 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
-    private final MagicLinkTokenService magicLinkTokenService;
+    private final MemberRepository memberRepository;
 
     @Transactional
-    public PostDetailResponse createPost(String magicToken, PostCreateRequest request) {
-        String authorName = magicLinkTokenService.consume(magicToken);
+    public PostDetailResponse createPost(Long memberId, PostCreateRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요."));
+        String authorName = member.getName();
+        String authorPart = member.getRoles().stream()
+                .findFirst()
+                .map(MemberRole::name)
+                .orElse(null);
         String slug = generateSlug();
-        Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(), authorName, request.getThumbnailUrl());
+        Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(),
+                authorName, authorPart, request.getThumbnailUrl());
         postRepository.save(post);
         return PostDetailResponse.from(post, 0);
     }
