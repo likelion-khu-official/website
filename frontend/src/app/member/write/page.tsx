@@ -6,12 +6,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function WritePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const { token } = await searchParams;
-
-  return <WriteForm token={token ?? null} />;
+export default function WritePage() {
+  return <WriteForm />;
 }

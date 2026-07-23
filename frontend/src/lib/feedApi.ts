@@ -66,10 +66,10 @@ export async function createComment(
   return parseJsonOrThrow(res, '댓글 작성에 실패했어요.');
 }
 
-export async function createPost(body: PostCreateRequest, token: string): Promise<PostDetail> {
+export async function createPost(body: PostCreateRequest): Promise<PostDetail> {
   const res = await fetch('/api/posts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Magic-Token': token },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   return parseJsonOrThrow(res, '글 작성에 실패했어요.');

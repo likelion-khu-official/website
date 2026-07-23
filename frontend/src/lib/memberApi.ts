@@ -4,6 +4,7 @@ import type {
   MemberLoginResponse,
   MemberChangePasswordRequest,
   MemberChangePasswordResponse,
+  MemberMeResponse,
 } from '@shared/types/member-auth';
 
 /**
@@ -61,5 +62,13 @@ export function changePassword(body: MemberChangePasswordRequest) {
     '/auth/password',
     { method: 'PATCH', body: JSON.stringify(body) },
     '비밀번호 변경에 실패했어요.'
+  );
+}
+
+export function getCurrentMember() {
+  return request<MemberMeResponse>(
+    '/auth/me',
+    { method: 'GET' },
+    '로그인 상태를 확인하지 못했어요.'
   );
 }
