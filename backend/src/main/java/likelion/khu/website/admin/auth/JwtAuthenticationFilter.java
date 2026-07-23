@@ -38,10 +38,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(Claims claims) {
+        Boolean mustChangePassword = claims.get("mcp", Boolean.class);
         AdminPrincipal principal = new AdminPrincipal(
                 Long.valueOf(claims.getSubject()),
                 claims.get("email", String.class),
-                claims.get("role", String.class));
+                claims.get("role", String.class),
+                Boolean.TRUE.equals(mustChangePassword));
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + principal.getRole()));
         var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);

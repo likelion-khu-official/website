@@ -17,6 +17,7 @@ public class PostDetailResponse {
     private String content;
     private String thumbnailUrl;
     private String authorName;
+    private String authorPart;
     private PostStatus status;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
@@ -27,7 +28,7 @@ public class PostDetailResponse {
         return new PostDetailResponse(
                 post.getId(), post.getSlug(), post.getTitle(),
                 post.getSummary(), post.getContent(), post.getThumbnailUrl(),
-                post.getAuthorName(), post.getStatus(),
+                post.getAuthorName(), post.getAuthorPart(), post.getStatus(),
                 post.getPublishedAt(), post.getCreatedAt(), post.getUpdatedAt(),
                 commentCount);
     }

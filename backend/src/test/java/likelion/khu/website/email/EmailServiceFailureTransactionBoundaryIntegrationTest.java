@@ -6,11 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,34 +27,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * 컨테이너 하나를 공유해도 안전하다(두 번째 mailpit.stop() 호출은 이미 꺼진 컨테이너에 대한
  * 멱등 호출일 뿐).
  */
-@Testcontainers
 @SpringBootTest
-class EmailServiceFailureTransactionBoundaryIntegrationTest {
-
-    @Container
-    static final GenericContainer<?> mailpit =
-            new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.21"))
-                    .withExposedPorts(1025, 8025)
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/cert.pem"), "/mailpit-tls/cert.pem")
-                    .withCopyFileToContainer(MountableFile.forClasspathResource("mailpit-tls/key.pem"), "/mailpit-tls/key.pem")
-                    .withCommand(
-                            "--smtp-tls-cert", "/mailpit-tls/cert.pem",
-                            "--smtp-tls-key", "/mailpit-tls/key.pem",
-                            "--smtp-require-starttls",
-                            "--smtp-auth-accept-any"
-                    );
+class EmailServiceFailureTransactionBoundaryIntegrationTest extends MailpitContainerSupport {
 
     @DynamicPropertySource
-    static void mailProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.mail.host", mailpit::getHost);
-        registry.add("spring.mail.port", () -> mailpit.getMappedPort(1025));
-        registry.add("spring.mail.username", () -> "mailpit-test-user");
-        registry.add("spring.mail.password", () -> "mailpit-test-pass");
-        registry.add("spring.mail.properties.mail.smtp.auth", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> "true");
-        registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
-        registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
-        registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
+    static void fastFailureTimeoutProperties(DynamicPropertyRegistry registry) {
+        fastFailureTimeouts(registry);
     }
 
     @Autowired

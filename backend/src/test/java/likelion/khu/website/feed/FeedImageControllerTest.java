@@ -1,5 +1,6 @@
 package likelion.khu.website.feed;
 
+import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.storage.OciStorageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ class FeedImageControllerTest {
     OciStorageService storageService;
 
     @Test
+    @WithMockAdminUser(role = "MEMBER")
     void upload_ValidImage_Returns200WithUrl() throws Exception {
         when(storageService.upload(any(), anyString())).thenReturn("https://cdn.example.com/feed/images/abc.png");
         MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
@@ -37,6 +39,7 @@ class FeedImageControllerTest {
     }
 
     @Test
+    @WithMockAdminUser(role = "MEMBER")
     void upload_DisallowedContentType_Returns400() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "notice.pdf", "application/pdf", "data".getBytes());
 
@@ -47,11 +50,20 @@ class FeedImageControllerTest {
     }
 
     @Test
+    @WithMockAdminUser(role = "MEMBER")
     void upload_EmptyFile_Returns400() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", new byte[0]);
 
         mockMvc.perform(multipart("/api/feed/images").file(file))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void upload_Unauthenticated_Returns401() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+
+        mockMvc.perform(multipart("/api/feed/images").file(file))
+                .andExpect(status().isUnauthorized());
     }
 }

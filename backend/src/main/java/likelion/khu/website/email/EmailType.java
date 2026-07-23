@@ -6,7 +6,8 @@ package likelion.khu.website.email;
 public enum EmailType {
 
     INVITE("email/invite", "[멋쟁이사자처럼 경희대] 운영진 초대"),
-    PASSWORD_RESET("email/password-reset", "[멋쟁이사자처럼 경희대] 비밀번호 재설정");
+    PASSWORD_RESET("email/password-reset", "[멋쟁이사자처럼 경희대] 비밀번호 재설정"),
+    RECRUITMENT_OPEN("email/recruitment-open", "[멋쟁이사자처럼 경희대] 모집이 시작됐어요!");
 
     private final String templateName; // Thymeleaf 템플릿 경로
     private final String subject; // 메일 제목(Subject 헤더) — final: 생성자에서 한 번 세팅되면 이후 불변

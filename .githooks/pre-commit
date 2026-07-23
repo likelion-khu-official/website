@@ -9,7 +9,10 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect --staged --config "$REPO_ROOT/.gitleaks.toml" --redact -v
 elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  docker run --rm -v "$REPO_ROOT:/repo" zricethezav/gitleaks:latest \
+  # MSYS_NO_PATHCONV=1: Git Bash(Windows)가 컨테이너 내부 경로(/repo)를 호스트 경로로
+  # 오인해 자동 변환하는 걸 막는다 — 안 붙이면 --config /repo/.gitleaks.toml이
+  # C:/Program Files/Git/repo/.gitleaks.toml로 뒤바뀌어 gitleaks가 설정을 못 찾고 죽는다.
+  MSYS_NO_PATHCONV=1 docker run --rm -v "$REPO_ROOT:/repo" zricethezav/gitleaks:latest \
     protect --source /repo --staged --config /repo/.gitleaks.toml --redact -v
 else
   # gitleaks 바이너리도 없고, docker는 없거나 데몬이 안 떠 있음 — 도구를 못 쓰는 상황에서

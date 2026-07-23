@@ -6,14 +6,13 @@ import likelion.khu.website.member.dto.MemberUpdateRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -21,12 +20,15 @@ class MemberServiceTest {
 
     @Autowired MemberService memberService;
     @Autowired MemberRepository memberRepository;
+    @Autowired PasswordEncoder passwordEncoder;
 
     private MemberCreateRequest sampleRequest() {
         MemberCreateRequest req = new MemberCreateRequest();
         req.setName("시현");
         req.setRoles(Set.of(MemberRole.BE));
         req.setCohort(13);
+        req.setStudentId("2020000001");
+        req.setPhone("01000000001");
         return req;
     }
 
@@ -37,6 +39,18 @@ class MemberServiceTest {
         assertThat(res.getEmoji()).isNotBlank();
         assertThat(MemberService.EMOJI_POOL).contains(res.getEmoji());
     }
+
+    @Test
+    void create_SetsInitialPasswordFromPhoneAndRequiresChange() {
+        memberService.create(sampleRequest(), "admin@likelion.org");
+
+        Member saved = memberRepository.findByStudentId("2020000001").orElseThrow();
+        assertThat(saved.isMustChangePassword()).isTrue();
+        assertThat(passwordEncoder.matches("01000000001", saved.getPasswordHash())).isTrue();
+    }
+
+    // 학번 중복 시 409는 MemberControllerTest.createMember_DuplicateStudentId_Returns409가
+    // 실제 HTTP 상태코드까지 더 강하게 검증한다 — 여기선 중복 검증하지 않는다.
 
     @Test
     void create_StoresCreatedBy() {
@@ -76,6 +90,8 @@ class MemberServiceTest {
         req1.setName("첫째");
         MemberCreateRequest req2 = sampleRequest();
         req2.setName("둘째");
+        req2.setStudentId("2020000002");
+        req2.setPhone("01000000002");
         memberService.create(req1, "admin@likelion.org");
         memberService.create(req2, "admin@likelion.org");
 
@@ -102,14 +118,8 @@ class MemberServiceTest {
         assertThat(updated.getJoinReason()).isEqualTo("개발이 좋아서");
     }
 
-    @Test
-    void update_NonExistentId_ThrowsNotFound() {
-        MemberUpdateRequest update = new MemberUpdateRequest();
-        update.setName("없는사람");
-
-        assertThatThrownBy(() -> memberService.update(9999L, update, "admin@likelion.org"))
-                .isInstanceOf(ResponseStatusException.class);
-    }
+    // 존재하지 않는 id 404는 MemberControllerTest.updateMember_NonExistentId_Returns404가
+    // 실제 HTTP 상태코드까지 더 강하게 검증한다 — 여기선 중복 검증하지 않는다.
 
     @Test
     void update_UpdatesUpdatedBy() {

@@ -83,6 +83,8 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/.env.stage.example` | stage 환경변수 템플릿 |
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
+| `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
+| `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
 | `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
