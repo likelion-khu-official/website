@@ -17,6 +17,7 @@ public class Project {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false)
@@ -30,7 +31,7 @@ public class Project {
     private Integer cohort;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "project_tech_stack", joinColumns = @JoinColumn(name = "project_id"))
+    @CollectionTable(name = "project_tech_stack", joinColumns = @JoinColumn(name = "project_id", columnDefinition = "bigint"))
     @Column(name = "tech")
     private Set<String> techStack = new HashSet<>();
 

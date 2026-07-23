@@ -27,6 +27,9 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.xerial:sqlite-jdbc'
 	implementation 'org.hibernate.orm:hibernate-community-dialects'
+	// #133 — ddl-auto:update가 DDL 실패를 삼키던 문제 해결. SQLite는 flyway-core에 기본 포함(별도 유료
+	// 모듈 불필요, H2와 함께 core에 남아있는 파일DB 예외).
+	implementation 'org.flywaydb:flyway-core'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'

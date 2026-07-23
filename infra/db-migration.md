@@ -96,7 +96,7 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 
 1. `.env.stage` 에 `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR=true` 추가
 2. `.env.prod` 에 `SPRING_FLYWAY_CLEAN_DISABLED=true` 추가
-3. `application.yml` 에서 `ddl-auto: update` → `none` 으로 변경 요청 (백엔드 소관)
+3. `application.yml` 에서 `ddl-auto: update` → ~~`none`~~ **`validate`로 변경**(백엔드 소관, 2026-07-23 실제 도입 시 `none`에서 상향) — 마이그레이션이 엔티티 매핑과 실제로 맞는지 기동 시점에 검증해서, 안 맞으면 기동 자체가 실패한다(→ CD 헬스체크 실패 → 자동 롤백). `none`은 검증을 아예 안 해서 마이그레이션이 잘못돼도 앱이 그냥 뜨고 실제 요청이 그 컬럼을 건드릴 때에야 터진다 — #133의 "DDL 실패가 조용히 묻힌다"는 문제를 그대로 남기는 셈이라 상향했다.
 
 서버 재배포 없이 env 파일만 수정해도 되지만, `ddl-auto` 변경은 백엔드 코드 변경이라 CD가 돌아야 한다.
 
@@ -118,13 +118,22 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 - `flyway_schema_history` 테이블 stage·prod 둘 다 없음 — Flyway 미도입 재확인.
 - **도입 시점 판단**: 지금(개발 중) 말고 **실제 운영 시작 전**으로 미루기로 함. prod가 사실상 비어있는 지금이 베이스라인 부담이 제일 적은 타이밍이라, 이 창을 넘기지 않는 게 중요 — `main` 머지로 prod에 실데이터가 쌓이기 시작하면 그때부턴 stage처럼 베이스라인 처리가 필요해짐.
 
+## 진행 상황 (2026-07-23) — 도입 완료
+
+#133(stage `members.student_id` ALTER 실패 → 조용한 500) 계기로 실제 도입. 이 문서가 예상 못 했던 것들:
+
+- **prod가 그 사이 dev를 훨씬 못 따라간 상태였다** — Flyway 붙이기 전에 dev→main 승격(#161)으로 먼저 스키마·기능을 맞췄다. 그 과정에서 `members.student_id` ALTER가 prod에서도 똑같이 실패해 실제 배포 사고가 한 번 났고(수동 롤백 후 패치, 상세는 `pm/docs/learnings.md`), CD 롤백 마커 타이밍 버그(#162)도 이때 같이 발견·수정됐다.
+- **`ddl-auto: none`이 아니라 `validate`로 갔다** — 이 문서 초안은 `none`을 전제했지만, `none`은 마이그레이션이 틀려도 기동은 성공하고 실제 요청이 그 컬럼을 건드릴 때에야 터진다 — #133이 지적한 "DDL 실패가 조용히 묻힌다"는 문제를 그대로 남긴다. `validate`는 기동 시점에 엔티티-DB 불일치를 잡아 배포 자체를 막는다.
+- **`validate` 도입 중 별도의 Hibernate dialect 버그를 발견·우회했다** — `org.hibernate.community.dialect.SQLiteDialect`가 `@GeneratedValue(IDENTITY)` PK를 생성할 땐 SQLite의 rowid 별칭 규칙에 맞춰 `integer`로 만들면서, 검증할 땐 그걸 모르고 일반 규칙(`Long`→`bigint`)으로 비교해 자기가 방금 만든 테이블조차 자기 검증에 실패하는 구조적 버그였다(빈 DB로 재현 확인). PK 필드엔 `@Column(columnDefinition = "integer")`, 그 PK를 참조하는 FK 필드엔 반대로 실제 물리 상태(`bigint`)에 맞춰 `columnDefinition = "bigint"`를 명시해 우회 — SQLite는 PK가 아닌 컬럼에서 `integer`/`bigint` 타입 이름 차이가 기능적으로 없다는 점을 활용했다(총 14개 엔티티 PK + FK 8곳).
+- **baseline은 실제 stage DB 사본으로 실측 검증했다** — 로컬에 stage.db를 복사해 `ddl-auto=validate`로 직접 띄워보고 통과를 확인한 뒤에야 baseline SQL을 확정했다(눈으로 스키마 diff 뜨는 것보다 훨씬 확실).
+
 ---
 
-## 백엔드가 할 일
+## 백엔드가 한 일 (실제 구현)
 
 ```gradle
 // build.gradle
-implementation 'org.flywaydb:flyway-core'
+implementation 'org.flywaydb:flyway-core'   // SQLite는 core에 기본 포함, 별도 유료 모듈 불필요
 ```
 
 ```yaml
@@ -132,9 +141,10 @@ implementation 'org.flywaydb:flyway-core'
 spring:
   jpa:
     hibernate:
-      ddl-auto: none   # update에서 변경
+      ddl-auto: validate   # update에서 변경 — none이 아니라 validate로 간 이유는 위 "진행 상황" 참고
   flyway:
-    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1   # V1(baseline.sql)까지는 이미 적용된 걸로 간주 — 기존 stage/prod엔 재실행 안 됨
 ```
 
-첫 마이그레이션 파일(`V1__init.sql`)에 전체 CREATE TABLE 넣으면 끝.
+`db/migration/V1__baseline.sql`에 현재 엔티티 매핑이 실제로 생성하는 전체 CREATE TABLE을 담았다(`ddl-auto=create`로 빈 DB에 직접 띄워 Hibernate가 낸 SQL을 그대로 캡처). 테스트(`src/test/resources/application.yml`)는 여전히 `create-drop` + `spring.flyway.enabled: false`로 격리된 `:memory:` DB를 매번 새로 만든다 — Flyway와 충돌 방지.
