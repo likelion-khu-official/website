@@ -24,6 +24,7 @@ import likelion.khu.website.project.exception.NotProjectParticipantException;
 import likelion.khu.website.project.exception.ParticipantMemberNotFoundException;
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -187,6 +188,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
+    }
+
+    // ── 모집 관리(#151) — 지원폼(#152) 완성 전까지 모집 열기를 막을 때(이슈 #154 결정) ──
+
+    @ExceptionHandler(RecruitmentProductionHoldException.class)
+    public ResponseEntity<Map<String, Object>> handleRecruitmentProductionHold(RecruitmentProductionHoldException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "RECRUITMENT_PRODUCTION_HOLD"));
     }
 
     private Map<String, Object> errorBody(String message, String code) {

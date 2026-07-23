@@ -43,6 +43,11 @@ app:
   frontend-base-url: https://admin.likelion-khu.com
   public-site-url: https://dev.likelion-khu.com
   cookie-secure: true
+  # 기존 RecruitmentManagementControllerTest 등은 모집 열기가 항상 성공한다고 가정하므로,
+  # 여기서는 검증 환경으로 간주해 true로 둔다 — 막힘 자체를 확인하는 테스트는
+  # @TestPropertySource로 이 값만 개별 오버라이드한다.
+  recruitment:
+    application-form-ready: true
 
 oci-storage:
   endpoint: https://test.compat.objectstorage.ap-tokyo-1.oraclecloud.com
