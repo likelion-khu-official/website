@@ -153,8 +153,6 @@ jobs:
             done
             echo "✅ 헬스체크 통과"
 
-            rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
-
       - name: 스모크 테스트
         # localhost가 아니라 실제 공개 도메인(nginx 뒤)으로 찌른다 — 헬스체크는 "앱이 떴다"만
         # 보장하지만, 이건 DNS·TLS·nginx 라우팅까지 포함해 실제 클라이언트가 겪는 경로 그대로
@@ -179,6 +177,21 @@ jobs:
             exit 1
           fi
           echo "=== 스모크 테스트 완료 ==="
+
+      # 롤백용 이전 태그 마커는 스모크 테스트까지 전부 통과한 뒤에만 지운다 — 헬스체크
+      # 직후에 지우면(예전 방식) 그 다음 스텝인 스모크 테스트가 실패해도 롤백 스텝이
+      # ".prev_backend_tag_*가 없다"며 그냥 스킵돼버린다(실제로 이렇게 한 번 무력화된 적 있음,
+      # #133 dev→main 승격 중 prod에서 실측). 이 스텝은 스모크 테스트가 실패하면(=job 실패)
+      # 자동으로 스킵되므로 마커가 그대로 남아 롤백 스텝이 정상 작동한다.
+      - name: 배포 확정 (롤백 마커 정리)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            cd ${{ secrets.OCI_DEPLOY_PATH }}
+            rm -f .prev_backend_tag_${{ steps.config.outputs.env }}
 
       - name: 롤백
         if: failure()
