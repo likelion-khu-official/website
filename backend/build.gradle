@@ -67,4 +67,16 @@ tasks.named('test') {
 	def cores = Runtime.runtime.availableProcessors()
 	def isCi = System.getenv('CI') != null
 	maxParallelForks = isCi ? Math.max(1, cores) : Math.max(1, (int) (cores / 2))
+
+	// CI 매트릭스 샤딩용 — 클래스 목록을 하드코딩하면 새 패키지가 생겼을 때 조용히 어느 샤드에도
+	// 안 걸려 CI에서 아예 안 도는 사고가 날 수 있다. 대신 이미 쓰고 있는 이름 규칙(무거운 컨테이너
+	// 기반 테스트는 *IntegrationTest로 끝남)으로 갈라서, 새 테스트는 이름만 붙이면 자동으로
+	// 맞는 샤드에 들어가고 안 붙이면 기본값(unit 샤드)으로 빠지되 어쨌든 항상 둘 중 하나는 탄다.
+	def shard = findProperty('testShard')
+	if (shard == 'integration') {
+		filter { includeTestsMatching '*IntegrationTest' }
+	} else if (shard == 'unit') {
+		filter { excludeTestsMatching '*IntegrationTest' }
+	}
+	// testShard 프로퍼티 없이 로컬에서 './gradlew test' 실행 시엔 필터 없이 전체 실행(기존 동작 유지).
 }
