@@ -78,3 +78,8 @@ export interface MemberMeResponse {
 export interface MemberPasswordResetResponse {
   success: true;
 }
+
+/** POST /api/admin/members/:id/offboard — 관리자(ADMIN 이상)가 소프트 딜리트. 로그인만 막고 기록은 남는다(#145). */
+export interface MemberOffboardResponse {
+  success: true;
+}

@@ -1,8 +1,9 @@
 package likelion.khu.website.member;
 
 import likelion.khu.website.admin.WithMockAdminUser;
+import likelion.khu.website.member.auth.MemberAuthService;
+import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
-import likelion.khu.website.member.dto.MemberResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -24,6 +25,7 @@ class MemberControllerTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired MemberService memberService;
+    @Autowired MemberAuthService memberAuthService;
 
     private Long createMember() {
         MemberCreateRequest req = new MemberCreateRequest();
@@ -32,7 +34,7 @@ class MemberControllerTest {
         req.setCohort(13);
         req.setStudentId("2020123456");
         req.setPhone("01000000000");
-        MemberResponse res = memberService.create(req, "admin@likelion.org");
+        MemberAdminResponse res = memberService.create(req, "admin@likelion.org");
         return res.getId();
     }
 
@@ -75,9 +77,19 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
     }
 
-    @WithMockUser(roles = "ADMIN")
+    // 위키 "정보구조와 권한" 기준 등록은 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
     @Test
-    void createMember_NotSuperAdmin_Returns403() throws Exception {
+    void createMember_ByRegularAdmin_Returns201() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void createMember_ByMember_Returns403() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
@@ -154,9 +166,21 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.cohort").value(13));
     }
 
-    @WithMockUser(roles = "ADMIN")
+    // 위키 "정보구조와 권한" 기준 수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
     @Test
-    void updateMember_NotSuperAdmin_Returns403() throws Exception {
+    void updateMember_ByRegularAdmin_Returns200() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(patch("/api/admin/members/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"수정시도\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void updateMember_ByMember_Returns403() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)
@@ -243,5 +267,83 @@ class MemberControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    // ── GET /api/admin/members ───────────────────────────────────────
+
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void adminList_ByRegularAdmin_IncludesStudentId() throws Exception {
+        createMember();
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentId").value("2020123456"))
+                .andExpect(jsonPath("$[0].offboarded").value(false));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void adminList_ByMember_Returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminList_Unauthenticated_Returns4xx() throws Exception {
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    // ── POST /api/admin/members/{id}/offboard ────────────────────────
+
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void offboard_ByRegularAdmin_Returns200AndMarksOffboarded() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(jsonPath("$[0].offboarded").value(true));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void offboard_ByMember_Returns403() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void offboard_Unauthenticated_Returns4xx() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void offboard_NonExistentId_Returns404() throws Exception {
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", 9999L))
+                .andExpect(status().isNotFound());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void offboardedMember_CannotLogin() throws Exception {
+        Long id = createMember();
+        memberAuthService.offboard(id);
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01000000000\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 }

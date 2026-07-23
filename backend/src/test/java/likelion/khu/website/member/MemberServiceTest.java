@@ -1,6 +1,7 @@
 package likelion.khu.website.member;
 
 import likelion.khu.website.member.dto.MemberCreateRequest;
+import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class MemberServiceTest {
 
     @Test
     void create_AssignsRandomEmoji() {
-        MemberResponse res = memberService.create(sampleRequest(), "admin@likelion.org");
+        MemberAdminResponse res = memberService.create(sampleRequest(), "admin@likelion.org");
 
         assertThat(res.getEmoji()).isNotBlank();
         assertThat(MemberService.EMOJI_POOL).contains(res.getEmoji());
@@ -63,23 +64,23 @@ class MemberServiceTest {
 
     @Test
     void create_CohortIsImmutable_NotInUpdateDto() {
-        MemberResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setName("시현(수정)");
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getCohort()).isEqualTo(13);
     }
 
     @Test
     void create_EmojiIsImmutable_NotInUpdateDto() {
-        MemberResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
         String originalEmoji = created.getEmoji();
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setName("시현(수정)");
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getEmoji()).isEqualTo(originalEmoji);
     }
@@ -107,11 +108,11 @@ class MemberServiceTest {
         MemberCreateRequest createReq = sampleRequest();
         createReq.setPhotoUrl("https://example.com/photo.jpg");
         createReq.setJoinReason("개발이 좋아서");
-        MemberResponse created = memberService.create(createReq, "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(createReq, "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setName("시현(수정)");
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getName()).isEqualTo("시현(수정)");
         assertThat(updated.getPhotoUrl()).isEqualTo("https://example.com/photo.jpg");
@@ -123,7 +124,7 @@ class MemberServiceTest {
 
     @Test
     void update_UpdatesUpdatedBy() {
-        MemberResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setName("수정됨");
@@ -138,7 +139,7 @@ class MemberServiceTest {
     void create_RolesAreStoredCorrectly() {
         MemberCreateRequest req = sampleRequest();
         req.setRoles(Set.of(MemberRole.BE, MemberRole.PM));
-        MemberResponse res = memberService.create(req, "admin@likelion.org");
+        MemberAdminResponse res = memberService.create(req, "admin@likelion.org");
 
         assertThat(res.getRoles()).containsExactlyInAnyOrder(MemberRole.BE, MemberRole.PM);
     }
@@ -147,11 +148,11 @@ class MemberServiceTest {
     void update_EmptyPhotoUrl_ClearsPhoto() {
         MemberCreateRequest createReq = sampleRequest();
         createReq.setPhotoUrl("https://example.com/photo.jpg");
-        MemberResponse created = memberService.create(createReq, "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(createReq, "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setPhotoUrl("");
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getPhotoUrl()).isNull();
     }
@@ -160,23 +161,34 @@ class MemberServiceTest {
     void update_NullPhotoUrl_KeepsExistingPhoto() {
         MemberCreateRequest createReq = sampleRequest();
         createReq.setPhotoUrl("https://example.com/photo.jpg");
-        MemberResponse created = memberService.create(createReq, "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(createReq, "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setName("이름만바꿈");
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getPhotoUrl()).isEqualTo("https://example.com/photo.jpg");
     }
 
     @Test
     void update_Roles_ReplacesExistingRoles() {
-        MemberResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
+        MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
         update.setRoles(Set.of(MemberRole.FE, MemberRole.PM));
-        MemberResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getRoles()).containsExactlyInAnyOrder(MemberRole.FE, MemberRole.PM);
+    }
+
+    @Test
+    void getAllForAdmin_IncludesStudentIdAndOffboardedFlag() {
+        memberService.create(sampleRequest(), "admin@likelion.org");
+
+        List<MemberAdminResponse> all = memberService.getAllForAdmin();
+
+        assertThat(all).hasSize(1);
+        assertThat(all.get(0).getStudentId()).isEqualTo("2020000001");
+        assertThat(all.get(0).isOffboarded()).isFalse();
     }
 }
