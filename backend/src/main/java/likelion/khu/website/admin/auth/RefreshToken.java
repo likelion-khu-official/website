@@ -19,9 +19,10 @@ public class RefreshToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "bigint")
     private Long adminId;
 
     // 원문 JWT가 아니라 SHA-256 해시만 저장 — DB가 유출돼도 직접 재생 가능한 토큰을 내주지 않기 위함.

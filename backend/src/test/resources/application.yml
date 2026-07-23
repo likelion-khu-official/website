@@ -13,6 +13,12 @@ spring:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
 
+  # 테스트는 각 클래스마다 격리된 :memory: DB를 create-drop으로 즉시 만든다(#133 이전부터의 방식) —
+  # Flyway가 classpath에 있다는 이유만으로 자동 실행되면 V1__baseline.sql이 먼저 테이블을 만들고
+  # 그다음 create-drop이 또 만들려다 "table already exists"로 충돌한다.
+  flyway:
+    enabled: false
+
   mail:
     host: localhost
     port: 3025
