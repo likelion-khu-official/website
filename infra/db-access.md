@@ -64,6 +64,12 @@ echo 'command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh",no-pty,no-ag
 
 **주의 — 같은 공개키를 여러 줄(stage용 한 줄, prod용 한 줄) 등록해서 둘 다 주려던 이전 방식은 실제로 동작 안 한다:** OpenSSH는 같은 공개키가 `authorized_keys`에 여러 줄이면 처음 매치되는 한 줄만 적용하고 나머지는 무시한다(2026-07-04 실측 확인). 그래서 지금은 `command=`에 db 경로를 고정하지 않고, 스크립트가 `SSH_ORIGINAL_COMMAND`(클라이언트가 `ssh dbclient@host stage`처럼 요청한 값)로 stage/prod를 선택한다 — 한 줄로 충분.
 
+**주의 — `dbclient-sqlite-guard.sh`가 git에서 실행권한(+x) 없이 커밋되면, 재배포 때마다 forced command가 조용히 `Permission denied`로 죽는다(2026-07-24 실제 발생):** 등록된 키를 가진 팀원 전원이 접속 시도 시 pubkey 인증은 성공하고 세션도 열리는데, forced command exec 단계에서 즉시 disconnect되는 증상이었다. 원인은 두 가지가 겹쳐 있었다:
+1. `dbclient-sqlite-guard.sh`가 git에 `100644`(비실행)로 커밋돼 있었음 — 서버에서 과거 누군가 수동으로 걸어둔 `chmod +x`가 있었을 수 있지만, 그 뒤 재체크아웃(`git pull`/재배포)이 한 번이라도 지나가면 git이 기억하는 644로 조용히 되돌아간다. **`backup-db.sh`에서 이미 07-13에 겪은 것과 완전히 같은 패턴**(`pm/docs/learnings.md` 참고) — cron이 아니라 SSH forced command가 실행 주체였을 뿐, "서버에 지금 실행권한이 있다는 사실이 git에도 그렇게 기록돼 있다는 뜻은 아니다"는 교훈이 여기도 그대로 적용됨.
+2. `/home/ubuntu` 자체 권한 확인 중, `dbclient`에게 통과(traverse) 권한이 이미 **개별 ACL**(`setfacl -m u:dbclient:x /home/ubuntu` 방식, `user:dbclient:--x`)로 걸려 있는 걸 뒤늦게 발견했다 — 즉 디렉터리 통과는 원래부터 문제가 아니었다. 진단 중 실수로 `chmod o+x /home/ubuntu`(전체 other 대상)를 걸었다가, 그 결과로 `dbclient`뿐 아니라 서버의 다른 로컬 계정(`opc`)까지 `/home/ubuntu`를 통과할 수 있게 될 뻔했다 — 정확히 [`pm/docs/learnings.md`](../pm/docs/learnings.md)에 이미 기록된 "`chmod o+x`는 형제 디렉터리까지 다 뚫는다" 사고를 그대로 재현할 뻔한 것. `chmod o-x`로 즉시 되돌리고 기존 ACL만 남겨 최소권한을 유지했다.
+
+**수정:** 서버에서 `sudo chmod 755 dbclient-sqlite-guard.sh` + 레포에 `git update-index --chmod=+x infra/dbclient-sqlite-guard.sh`로 실행권한을 **git 트리 자체에 커밋** — 다음 재배포부터는 체크아웃이 벗겨내지 못한다. → forced command로 쓰는 스크립트를 새로 추가하거나 수정할 때는 항상 `git ls-tree HEAD -- <path>`로 커밋된 모드가 `100755`인지 확인할 것. 그리고 제한 계정에 상위 디렉터리 접근을 열어줄 땐 `chmod o+x`(전체 공개) 전에 반드시 `getfacl`로 이미 걸린 개별 ACL이 없는지 먼저 확인 — 있다면 그걸로 충분한지부터 보고, 새로 열더라도 `setfacl -m u:계정:x`로 계정 단위로만 좁힐 것.
+
 **현재 등록 상태(2026-07-04):** 안시현(키 2개 모두 등록), 김우진(PM) — stage+prod 조회+작성 등록 완료. 신선우는 GitHub에 등록된 SSH 키가 없어 아직 미등록(본인이 키 생성 후 `.pub` 전달 대기 중).
 
 ---
