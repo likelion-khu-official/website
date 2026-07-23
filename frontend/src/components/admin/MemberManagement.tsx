@@ -326,17 +326,15 @@ export default function MemberManagement() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {!member.offboarded && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => startEdit(member)}
-                          className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
-                        >
-                          수정
-                        </button>
-                      )}
-                      {!member.offboarded && (
                         <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => startEdit(member)}
+                            className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+                          >
+                            수정
+                          </button>
                           <button
                             type="button"
                             disabled={busy}
