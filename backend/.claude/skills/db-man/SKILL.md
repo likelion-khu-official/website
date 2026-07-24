@@ -94,6 +94,6 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
 ## 참고 문서
 
 - `backend/CLAUDE.md` — 스키마 변경 규칙 요약
-- `infra/db-migration.md` — Flyway 설계·환경별 안전장치(`SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` 등)
+- `infra/db-migration.md` — Flyway 설계·환경별 안전장치(stage는 `FlywayConfig.java`의 `@Profile("stage")` 커스텀 전략, prod는 `SPRING_FLYWAY_CLEAN_DISABLED=true`)
 - `infra/db-access.md` — DB 접속 방법·`dbclient` 권한 경계
 - `pm/docs/learnings.md` — #133 사고 타임라인 + SQLiteDialect 버그 발견 경위
