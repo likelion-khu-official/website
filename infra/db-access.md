@@ -74,6 +74,45 @@ echo 'command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh",no-pty,no-ag
 
 ---
 
+## GUI 뷰어 (sqlite-web) — 조회 전용, dbclient CLI와 함께 쓰기
+
+**목적:** `dbclient` CLI는 결과가 터미널 텍스트로만 나와서 스키마·데이터를 훑어보기 불편하다. 백엔드 개발자가 "참고용으로 보기 좋게" 볼 수 있도록 read-only 웹 GUI([sqlite-web](https://github.com/coleifer/sqlite-web))를 별도 경로로 추가했다. **조작(INSERT/UPDATE/DELETE)은 여전히 `dbclient` CLI로만** — GUI는 보기 전용이다.
+
+**계정을 분리한 이유:** sqlite-web 같은 범용 GUI 도구는 "DML은 되고 DDL은 안 되고" 같은 문장 단위 구분을 못 한다(전체 read-only냐 read-write냐 둘 중 하나). `dbclient`가 힘들게 갖춘 DDL 차단(`ALTER`/`CREATE`/`DROP` 금지)을 GUI에도 그대로 얹으려면 sqlite-web 자체를 포크해서 같은 차단 로직을 또 심어야 하는데, 그러면 차단 로직이 두 군데(bash wrapper + 포크한 Python)에 중복돼 한쪽만 고치고 한쪽을 놓치는 사고 위험이 생긴다. 그래서 GUI는 아예 **전체 read-only**로만 열고(`-r` 플래그 + `:ro` 볼륨 마운트 이중 방어), 조작은 기존 `dbclient` 경로를 그대로 쓰게 분리했다.
+
+**구성:**
+- `docker-compose.yml`의 `sqlite-web-stage`(포트 8090)·`sqlite-web-prod`(포트 8091) 서비스 — `127.0.0.1`에만 바인딩(공인 포트 아님, OCI Security List 변경 없음).
+- 전용 SSH 계정 `dbtunnel` — **셸 없음(`nologin`)**, `dbaccess` 그룹 소속 아님(DB 파일에 직접 손 안 댐), `permitopen="127.0.0.1:8090"`/`"127.0.0.1:8091"`로 포워딩 대상을 그 두 포트로만 제한. `dbclient`의 `no-port-forwarding`과 정반대로 "포워딩만 되고 그 외엔 아무것도 안 되는" 계정이다.
+- 개발자는 `ssh -L 8090:127.0.0.1:8090 dbtunnel@호스트`로 터널을 열고 브라우저에서 `http://127.0.0.1:8090` 접속.
+- 로컬 스킬 [`infra/db-dev-ui.sh`](./db-dev-ui.sh)가 tmux로 "조회(터널)"+"조작(dbclient CLI)" 두 세션을 한 창(분할 pane)에 띄운다 — 서버 쪽 권한 모델은 안 건드리고 화면만 합친 것. 사용법: `infra/db-dev-ui.sh stage` 또는 `prod`. tmux가 없으면(Windows, WSL 미설치) Windows Terminal(`wt.exe`) 분할로 대체하거나, 그것도 없으면 두 명령을 안내만 하고 끝난다.
+- **두 세션은 서로 독립이다** — `dbtunnel` 터널을 먼저 열어야 `dbclient` CLI가 열리는 게 아니라, 완전히 별개의 SSH 인증(각자 다른 키)으로 동시에 붙는 것뿐이다.
+
+**`dbtunnel` 계정 생성 (서버에서 인프라 오너가 직접 실행 — Claude에게 자동화 안 시킴, 공유 서버에 새 SSH 접근 수단을 만드는 일이라 사람이 직접):**
+```bash
+sudo useradd -m -s /usr/sbin/nologin -c "sqlite-web tunnel-only account" dbtunnel
+sudo mkdir -p /home/dbtunnel/.ssh
+sudo chmod 700 /home/dbtunnel/.ssh
+sudo chown dbtunnel:dbtunnel /home/dbtunnel/.ssh
+```
+팀원 공개키 등록 (`dbclient`와 동일한 공개키 재활용 — 같은 사람이 조회+조작 둘 다 하므로):
+```bash
+echo 'command="echo tunnel-only-account",no-pty,no-agent-forwarding,no-X11-forwarding,no-user-rc,permitopen="127.0.0.1:8090",permitopen="127.0.0.1:8091" ssh-ed25519 AAAA...받은공개키... 이름' \
+  | sudo tee -a /home/dbtunnel/.ssh/authorized_keys
+sudo chmod 600 /home/dbtunnel/.ssh/authorized_keys
+sudo chown dbtunnel:dbtunnel /home/dbtunnel/.ssh/authorized_keys
+```
+**접근 대상은 `dbclient`와 동일** — 기본: 백엔드(신선우·안시현) + PM(김우진). `dbclient` 등록 시 같이 등록.
+
+**배포(컨테이너 기동, 인프라 오너가 직접 — infra/ 변경은 CD paths 필터 밖이라 자동 배포 안 됨):**
+```bash
+cd /home/ubuntu/website/infra
+docker compose up -d sqlite-web-stage sqlite-web-prod
+```
+
+**주의 — 이 PR은 `dev`와 `main` 양쪽에 다 들어가야 안전하다.** CD의 `git checkout -f $TARGET_BRANCH`는 stage/prod 구분 없이 서버의 같은 워킹 디렉터리 하나를 공유한다(2026-07-24 dbclient forced command 사고에서 실측). `docker-compose.yml` 변경을 `dev`에만 머지하면, 다음 `main` 배포(prod 백엔드 머지) 때 `git checkout -f main`이 이 서비스 정의가 없는 예전 `docker-compose.yml`로 조용히 되돌린다 — 컨테이너 자체는 계속 떠 있어도, 이후 `docker compose up -d`를 다시 돌리는 순간 정의가 사라진 걸로 취급될 수 있다. `dev`에 머지되면 되도록 빨리 `main`으로도 승격할 것.
+
+---
+
 ## Flyway 기준 — 해도 되는 것 / 하면 안 되는 것
 
 **현재 상태(2026-07-04 확인): 아직 Flyway 아니고 `ddl-auto: update`다.** 백엔드가 Flyway PR을 머지하기 전까지는, 앱이 재기동될 때마다 Hibernate가 엔티티 클래스를 보고 그때그때 스키마를 자동으로 맞춘다 — "머지된 마이그레이션만 한 번 적용"이 아니라 **재기동마다 매번** 일어난다(수동 재기동 포함). 아래 표·이유는 Flyway가 실제로 붙은 뒤를 기준으로 쓴 것이고, 진행 상황은 [`db-migration.md`](./db-migration.md)의 "진행 상황" 참고 — 인프라는 백엔드 Flyway PR 머지 타이밍에 맞춰 `.env.stage`/`.env.prod`를 수정할 예정으로 대기 중이다.
