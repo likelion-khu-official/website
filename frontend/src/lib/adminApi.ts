@@ -17,6 +17,7 @@ import type {
   AdminRoleUpdateRequest,
   AdminRoleUpdateResponse,
 } from '@shared/types/admin';
+import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -193,6 +194,28 @@ export function updateAdminRole(id: number, body: AdminRoleUpdateRequest) {
     `/admins/${id}/role`,
     { method: 'PATCH', body: JSON.stringify(body) },
     '역할 변경에 실패했어요.',
+    true
+  );
+}
+
+// ── 블로그 관리 (사후 숨김·재게시) ──────────────────────────────────
+
+/** 전체 글 목록 — DRAFT·PUBLISHED·HIDDEN 모두. 공개 목록과 달리 상태로 필터하지 않는다. */
+export function getAdminPosts(page = 0) {
+  return request<SpringPage<PostSummary>>(
+    `/posts?page=${page}`,
+    {},
+    '글 목록을 불러오지 못했어요.',
+    true
+  );
+}
+
+/** 상태 전이 — 게시(PUBLISHED)·숨김(HIDDEN). 되돌리기 가능. */
+export function updatePostStatus(id: number, status: PostStatus) {
+  return request<PostSummary>(
+    `/posts/${id}/status`,
+    { method: 'PATCH', body: JSON.stringify({ status }) },
+    '상태 변경에 실패했어요.',
     true
   );
 }
