@@ -34,3 +34,25 @@ services:
       - ./data:/app/data
       - ./logs/prod:/app/logs
     restart: unless-stopped
+
+  # 개발자용 DB 조회 GUI — dbclient(SQL 조작)와 별개 경로.
+  # -r(앱 레벨) + :ro 마운트(OS 레벨) 이중으로 read-only 강제 — DDL은 물론 DML도 여기선 불가,
+  # 조작은 여전히 dbclient CLI로만. 127.0.0.1 바인딩이라 dbtunnel 계정의 SSH 포트포워딩을
+  # 거쳐야만 닿는다(공인 포트 아님). 상세: infra/db-access.md
+  sqlite-web-stage:
+    image: ghcr.io/coleifer/sqlite-web:latest
+    command: ["/data/stage.db", "-H", "0.0.0.0", "-p", "8080", "-r"]
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - ./data:/data:ro
+    restart: unless-stopped
+
+  sqlite-web-prod:
+    image: ghcr.io/coleifer/sqlite-web:latest
+    command: ["/data/prod.db", "-H", "0.0.0.0", "-p", "8080", "-r"]
+    ports:
+      - "127.0.0.1:8091:8080"
+    volumes:
+      - ./data:/data:ro
+    restart: unless-stopped
