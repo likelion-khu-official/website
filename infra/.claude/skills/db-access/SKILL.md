@@ -66,15 +66,30 @@ description: >-
 
 **"GUI 열어줘 / 터널 열어줘" (Claude가 그 자리에서 직접 열어주기)**
 → `infra/db-dev-ui.sh`를 본인이 터미널에서 직접 돌리는 대신, 지금 이 대화의 Claude Code가 바로 SSH 터널을 열고 URL만 알려주는 방식. tmux 유무와 무관하게 모든 OS에서 동작하고, 특히 **Windows는 WSL 없이 네이티브 OpenSSH로 충분**하다(2026-07-24 실측: WSL 경유는 Git Bash의 경로 변환·DrvFs 권한(`/mnt/c`가 chmod 안 먹음) 때문에 오히려 더 복잡했고, PowerShell 내장 `ssh.exe`가 바로 됐다).
-**이 요청이 올 때마다(스킬이 미리 알아서 하는 게 아니라) 매번:** ① 요청자가 `dbtunnel`에 등록됐는지 확인 ② 대상 env(`stage`=8090 / `prod`=8091, 특히 **`prod`는 열기 전 한 번 더 확인** — dbclient prod DML과 같은 원칙) ③ 개인키 경로를 모르면 물어본다(보통 `~/.ssh/id_ed25519`) — 이 셋을 확인한 뒤에만 아래를 실행한다:
-1. 백그라운드 터널 생성:
+
+**이 GUI가 뭘 할 수 있고 없는지 — 매번 이 표를 같이 출력해서 안내한다(2026-07-24 실측 검증됨, `docker exec`로 쓰기 시도 → `Read-only file system` 확인):**
+
+| 경로 | SELECT | DML(INSERT/UPDATE/DELETE) | DDL(ALTER/CREATE/DROP) |
+|---|---|---|---|
+| GUI(sqlite-web, 이 터널) | ✅ | ❌ | ❌ |
+| `dbclient` CLI | ✅ | ✅ | ❌ |
+
+GUI는 순수 조회 전용이고, 조작(DML)은 `dbclient` CLI로만 가능하다는 걸 요청자가 매번 헷갈리지 않게 이 표로 짚어준다.
+
+**이 요청이 올 때마다(스킬이 미리 알아서 하는 게 아니라) 매번:** ① 요청자가 `dbtunnel`(조회)·`dbclient`(조작) 둘 다 등록됐는지 확인 ② 대상 env(`stage`=8090 / `prod`=8091, 특히 **`prod`는 열기 전 한 번 더 확인** — dbclient prod DML과 같은 원칙) ③ 개인키 경로를 모르면 물어본다(보통 `~/.ssh/id_ed25519`) — 이 셋을 확인한 뒤에만 아래를 실행한다.
+
+**GUI(조회)와 dbclient(조작)를 항상 같이 띄운다** — `db-dev-ui.sh`의 원래 설계 의도(tmux 분할창 하나에 조회+조작)를 그대로 따른다. tmux가 없는 Windows에서도 "GUI 터널만 열고 조작은 나중에 따로 요청하면 그때 처리"가 아니라, **처음부터 둘 다** 연다(2026-07-24, 사용자가 dbclient도 같이 뜨길 기대했는데 안 떠서 지적함 — 그 뒤로 항상 페어로 열도록 수정):
+1. 조회용 백그라운드 터널:
    - **Windows(PowerShell)**: `& ssh.exe -f -N -L <PORT>:127.0.0.1:<PORT> -o StrictHostKeyChecking=accept-new -i "$env:USERPROFILE\.ssh\<개인키>" dbtunnel@<호스트>`
    - **Mac/Linux(Bash)**: `ssh -f -N -L <PORT>:127.0.0.1:<PORT> -o StrictHostKeyChecking=accept-new -i ~/.ssh/<개인키> dbtunnel@<호스트>`
-2. `curl -sI`(Mac/Linux) 또는 `Invoke-WebRequest`(Windows)로 `http://127.0.0.1:<PORT>/`가 실제로 200을 주는지 확인한 뒤에만 "브라우저에서 `http://127.0.0.1:<PORT>` 열어보세요"라고 안내한다 — 확인 없이 URL만 던지지 않는다.
-3. 세션 종료 요청이 오면 **문자열 매칭(`pkill -f "ssh ..."`)으로 죽이지 않는다** — 그 명령 자체가 자기 자신의 프로세스 목록과 매칭돼 의도치 않게 죽는 사고가 났다(2026-07-24 실측). 포트로 소유 프로세스를 찾아서 죽인다:
+2. 조작용 인터랙티브 `dbclient` 세션을 **별도 터미널 창으로 같이** 연다(사용자가 직접 SQL을 타이핑할 수 있게):
+   - **Windows(PowerShell)**: `Start-Process powershell -ArgumentList '-NoExit','-Command',"ssh.exe -i \"<개인키 경로>\" dbclient@<호스트> <env>"`
+   - **Mac/Linux, tmux 있으면**: `infra/db-dev-ui.sh <env>`를 그대로 실행해 tmux 분할창으로; tmux 없으면 새 터미널 탭(`wt.exe new-tab` 등)이나 안내 텍스트로 대체.
+3. `curl -sI`(Mac/Linux) 또는 `Invoke-WebRequest`(Windows)로 `http://127.0.0.1:<PORT>/`가 실제로 200을 주는지 확인한 뒤에만 "브라우저에서 `http://127.0.0.1:<PORT>` 열어보세요, dbclient 창은 따로 떴습니다"라고 안내한다 — 확인 없이 URL만 던지지 않는다.
+4. 세션 종료 요청이 오면 **문자열 매칭(`pkill -f "ssh ..."`)으로 죽이지 않는다** — 그 명령 자체가 자기 자신의 프로세스 목록과 매칭돼 의도치 않게 죽는 사고가 났다(2026-07-24 실측). 포트로 소유 프로세스를 찾아서 죽인다:
    - Windows: `Stop-Process -Id (Get-NetTCPConnection -LocalPort <PORT>).OwningProcess -Force`
    - Mac/Linux: `lsof -ti tcp:<PORT> | xargs kill`
-4. 조작(SQL 실행)이 필요하면 위 "이거 조회/등록/수정해줘" 절차를 그대로 이어서 쓴다 — 터널(조회)과 dbclient(조작)는 여전히 별개 세션이다.
+   dbclient 창은 사용자가 직접 닫게 안내(별도 프로세스라 포트 기준 종료 대상이 아님).
 
 **"백업 있나요 / 서버 죽으면 데이터 날아가나요"**
 → "백업 전략" 섹션 기준으로 답한다: 매일 1회(cron, 03:00 KST) prod·stage 스냅샷을 떠서 프라이빗 버킷(`likelion-backups`)에 자동 업로드 중이고, 실제 복원 검증(integrity_check + 테이블 확인)까지 마친 상태 — "설계만 있고 미구현"이 아니라 실제 동작 중임을 정확히 전달. 단, 그날 자정~장애 시점 사이 변경은 마지막 백업 이후분이라 유실될 수 있다는 한계는 정직하게 같이 밝힌다.
