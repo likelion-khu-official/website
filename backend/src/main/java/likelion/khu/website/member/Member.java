@@ -17,6 +17,7 @@ public class Member {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false)
@@ -24,7 +25,7 @@ public class Member {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "member_roles", joinColumns = @JoinColumn(name = "member_id"))
+    @CollectionTable(name = "member_roles", joinColumns = @JoinColumn(name = "member_id", columnDefinition = "bigint"))
     @Column(name = "role")
     private Set<MemberRole> roles = new HashSet<>();
 

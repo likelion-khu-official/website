@@ -115,7 +115,7 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 ## Flyway 기준 — 해도 되는 것 / 하면 안 되는 것
 
-**현재 상태(2026-07-04 확인): 아직 Flyway 아니고 `ddl-auto: update`다.** 백엔드가 Flyway PR을 머지하기 전까지는, 앱이 재기동될 때마다 Hibernate가 엔티티 클래스를 보고 그때그때 스키마를 자동으로 맞춘다 — "머지된 마이그레이션만 한 번 적용"이 아니라 **재기동마다 매번** 일어난다(수동 재기동 포함). 아래 표·이유는 Flyway가 실제로 붙은 뒤를 기준으로 쓴 것이고, 진행 상황은 [`db-migration.md`](./db-migration.md)의 "진행 상황" 참고 — 인프라는 백엔드 Flyway PR 머지 타이밍에 맞춰 `.env.stage`/`.env.prod`를 수정할 예정으로 대기 중이다.
+**현재 상태(2026-07-23 도입 완료): Flyway 적용됨, `ddl-auto: validate`.** `update`가 SQLite `ALTER TABLE`의 `UNIQUE` 컬럼 추가 실패를 조용히 삼켜 스키마 드리프트를 냈던 게 #133 — 이제 스키마 변경은 `backend/src/main/resources/db/migration/V{n}__*.sql`로만 하고, JPA는 그 결과가 엔티티 매핑과 실제로 맞는지 기동 시점에 검증만 한다(안 맞으면 기동 자체가 실패 → CD 헬스체크 실패 → 자동 롤백). stage·prod는 이미 V1과 동일한 스키마였어서 baseline-on-migrate로 "적용됨"만 기록했고(V1 자체는 재실행 안 됨), 새로 뜨는 빈 DB만 V1이 실제로 실행돼 스키마를 만든다. 아래 표·이유는 그대로 유효.
 
 마이그레이션 파일 자체의 규칙은 [`db-migration.md`](./db-migration.md) 참고(`V{n}__설명.sql`, 머지된 파일 수정 금지). 여기는 **sqlite3로 직접 SQL 실행할 때** 기준.
 

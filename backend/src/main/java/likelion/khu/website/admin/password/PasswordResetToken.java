@@ -20,12 +20,13 @@ public class PasswordResetToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false, unique = true)
     private String token;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "bigint")
     private Long adminId;
 
     @Column(nullable = false)
