@@ -54,7 +54,7 @@ claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는
 > **레포 밖에서 일하는 팀(디자인=Figma)**에는 `brief.md`를 *가리키지* 말고, 필요한 맥락(무엇·왜·누구·범위)을 본문에 풀어 넣어 **자기완결**로 만든다. 레포에서 일하는 팀(FE·BE·인프라)은 `brief.md` 참조로 충분.
 
 ## GitHub 렌더링 (정돈된 모양으로)
-- 제목은 `## [팀] — 미션 한 줄`, 한두 문장 인트로, 그 아래 구분선(`---`).
+- 제목은 `## [분야] — 미션 한 줄`(분야 = `BE`/`FE`/`인프라`/`디자인`), 한두 문장 인트로, 그 아래 구분선(`---`).
 - **`Done`**은 체크박스로: `- [ ] …` (GitHub에서 실제 체크 가능).
 - **`Why it matters`**는 `> [!IMPORTANT]` 콜아웃 박스로.
 - **`Notes`**의 핵심 가이드(결정 성격·타임박스 등)는 `> [!TIP]`/`> [!NOTE]` 콜아웃, 나머지는 일반 불릿.
@@ -76,7 +76,7 @@ claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는
 루브릭을 못 채우면 PM에게 1개 질문으로 메꿔라(특히 완료기준이 두루뭉술할 때).
 
 ## 필드 (GitHub 사이드바 / gh 플래그)
-- 제목: `[팀] <미션 한 줄> (~목표일)`   (팀 = 디자인/FE/BE/인프라)
+- 제목: `[분야] <미션 한 줄>`  — 분야 접두어는 표준 코드 **`[BE]`·`[FE]`·`[인프라]`·`[디자인]`**(한글 팀명 아님). **날짜는 제목에 넣지 않는다** — 목표일은 보드 필드(`mission-fields.sh`)에 산다(제목="무엇", 일정·상태=보드). 라우팅 라벨은 여전히 한글 팀명(`백엔드`/`프론트`/`인프라`/`디자인`) — 접두어(표시)와 라벨(라우팅)은 다른 층이다.
 - **어사인 = 특정 1인의 handle.** "해당 팀"이 아니라 *그 미션을 실제로 할 한 사람*을 지목한다. 이 assignee가 라우팅의 전부다 — 클레임(claim-mission)이 `assignee == 내 handle`인 이슈만 가져가기 때문에, 팀만 맞고 사람이 비면 아무도 못 받는다.
   - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[백엔드]` 미션이면 assignee의 team이 `백엔드`).
   - **디자인 예외**(`handle: null`): GitHub 계정이 없어 assignee를 못 건다. 이슈에 assignee 없이 두거나 GitHub 이슈 자체를 만들지 않고, 미션 본문을 카톡·Figma 링크로 공유한다(아래 "레포 밖 팀" 경로). 이 경로는 claim-mission 대상이 아니다 — 깨지 말 것.
@@ -120,7 +120,7 @@ GitHub이 번호의 단일 진실 → **던진 뒤 번호를 붙인다**(미리 
 던지기 전 **assignee를 roster에서 확정**한다: `pm/roster.yml`에서 대상자의 `handle`을 찾고, 그 사람의 `team`이 미션 팀과 일치하는지 확인(불일치·미지정이면 PM에게 누구인지 1개 질문). `handle: null`(디자인)이면 assignee를 걸지 않고 레포 밖 경로(카톡·Figma)로 공유 — `gh issue create`를 돌리지 않는다.
 ```
 gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --label <팀> \
-  --title "[팀] … (~목표일)" --body-file pm/missions/<slug>/proposal.md
+  --title "[분야] …" --body-file pm/missions/<slug>/proposal.md
 ```
 던지고 나면 — **아래 5개는 한 묶음. 4를 빼먹으면 미션이 보드 밖에 떠서 칸반에 안 보인다(실제로 한 번 났다).**
 1. 반환된 이슈 번호 #n으로 폴더 rename: `pm/missions/<slug>/` → `pm/missions/<n>-<slug>/`.
