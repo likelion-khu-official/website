@@ -1,35 +1,41 @@
 <div align="center">
 
-# 🎫 &nbsp; [**나의 티켓 — 여기서 시작**](https://github.com/orgs/likelion-khu-official/projects/1/views/5)
-
-**내가 할 일이 여기 다 모여 있어요.** 로그인하면 각자 자기 티켓만 보입니다.
-Claude Code를 쓴다면 그냥 한 마디 — `"나한테 할당된 미션 수행하자"`
+# 프로젝트 진행 바로가기
 
 </div>
+
+| 🎫 [**내 티켓 보기**](https://github.com/orgs/likelion-khu-official/projects/1/views/5) | 🗺️ [**로드맵 보기**](https://github.com/orgs/likelion-khu-official/projects/1) |
+| :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **내가 지금 무엇을 해야 하는지** 확인합니다.                                                        | **팀 전체가 어디까지 왔는지** 확인합니다.<br/>Epic부터 Story, Sub-task까지 진행 상황을 한눈에 봅니다.     |
+
+
+> Claude Code로 내 티켓을 시작하려면 `"나한테 할당된 미션 수행하자"`라고 말하면 됩니다.
 
 ---
 
 ## 우리가 일하는 법 — 티켓 (Jira 방식)
 
-모든 일을 **티켓(GitHub 이슈)**으로 관리해요. Jira처럼 **4단계**로 쌓이고, 위가 아래를 품습니다. **아래가 다 끝나면 위가 자동으로 "완료"로 채워져요** — 상태를 손으로 관리할 필요가 없습니다.
+모든 일을 **티켓(GitHub 이슈)**으로 관리해요. **4단계**로 쌓이고, 위가 아래를 품습니다. **아래가 다 끝나면 위가 자동으로 "완료"로 채워져요** — 상태를 손으로 관리할 필요가 없습니다.
 
-| 단계 | 한마디로 | 예시 |
-|:--|:--|:--|
-| 🟪 **Epic** | 큰 묶음 (테마) | 프로젝트 쇼케이스 |
-| 🟩 **Story** | 사용자가 실제로 쓰는 **기능 하나** | "방문자가 프로젝트 목록을 볼 수 있다" |
+
+| 단계             | 한마디로                             | 예시                     |
+| :-------------- | :-------------------------------- | :---------------------- |
+| 🟪 **Epic**    | 큰 묶음 (테마)                        | 프로젝트 쇼케이스              |
+| 🟩 **Story**   | 사용자가 실제로 쓰는 **기능 하나**            | "방문자가 프로젝트 목록을 볼 수 있다" |
 | ⬜ **Sub-task** | 그 기능을 만드는 **내 분야 작업** — 내가 맡는 티켓 | 목록 화면(FE) · 목록 API(BE) |
-| 🟨 **Task** | 기능은 아니지만 해야 하는 **기술 작업** | 인프라 셋업 |
+| 🟨 **Task**    | 기능은 아니지만 해야 하는 **기술 작업**         | 인프라 셋업                 |
+
 
 > 타입(Epic/Story/…)은 GitHub 이슈에 **뱃지**로 붙고, 분야(FE·BE·인프라·디자인)는 **라벨**로 붙습니다.
 
-### 어디서 보나
+### 더 찾아보기
 
-| 링크 | 무엇 |
-|:--|:--|
-| 👤 [**나의 티켓**](https://github.com/orgs/likelion-khu-official/projects/1/views/5) | **← 여기서 시작.** 내가 맡은 티켓만 (각자 자기 것) |
-| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 팀 전체가 어디까지 왔나 (Epic ▸ Story ▸ Sub-task) |
-| 🗺️ [Epic 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) · 📖 [Story 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 테마·기능별로 |
-| 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 굴러가는 작업 (Sub-task / Task) |
+
+| 링크                                                                                                                                                                                                 | 무엇                           |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| 🗺️ [Epic 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) · 📖 [Story 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 테마·기능별로                      |
+| 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap)                                                                                                    | 지금 굴러가는 작업 (Sub-task / Task) |
+
 
 테마 라벨(`area:*`)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
 
@@ -60,16 +66,16 @@ Claude Code를 쓴다면 그냥 한 마디 — `"나한테 할당된 미션 수�
 
 <sub>[멋쟁이사자처럼 · 경희대](https://github.com/likelion-khu-official) / 공식 사이트</sub>
 
-# 🦁 &nbsp; Official Website
+# 🦁 &amp;nbsp; Official Website
 
 **동아리의 얼굴을 만듭니다.**
 한 기수가 쓰고 버리는 사이트가 아니라, 계속 쌓아 올릴 자산을.
 
 <br/>
 
-[![Live](https://img.shields.io/badge/site-likelion--khu.com-000000?style=for-the-badge)](https://likelion-khu-website.vercel.app)
-&nbsp;
-[![Status](https://img.shields.io/badge/v1-in_progress-1f6feb?style=for-the-badge)](https://github.com/likelion-khu-official/website)
+![Live](https://img.shields.io/badge/site-likelion--khu.com-000000?style=for-the-badge)
+&amp;nbsp;
+![Status](https://img.shields.io/badge/v1-in_progress-1f6feb?style=for-the-badge)
 
 <br/>
 
@@ -87,61 +93,56 @@ Claude Code를 쓴다면 그냥 한 마디 — `"나한테 할당된 미션 수�
 <br/>
 
 <table>
+
 <tr>
+
 <td width="33%" valign="top">
 
 ### 01 · 얼굴
+
 누가 와도 5초 만에
 "이런 곳이구나"가
 전해진다.
 
 </td>
+
 <td width="33%" valign="top">
 
 ### 02 · 연결
+
 지금의 관심이
 휘발되지 않고
 다음 모집으로 이어진다.
 
 </td>
+
 <td width="33%" valign="top">
 
 ### 03 · 축적
+
 프로젝트 · 사람 · 글이
 기수를 넘어
 계속 쌓인다.
 
 </td>
+
 </tr>
+
 </table>
-
----
-
-## 일하는 방식 — AI-native
-
-**사람이 결정하고, AI가 구현합니다.** 그 원칙이 실제 작업 흐름으로 굴러갑니다.
-
-```
-PM이 미션 발행          무엇을 · 왜 · 완료 기준
-   → 팀원이 수령         어떻게는 팀원이 정한다
-      → R → P → I → Q    리서치 · 설계 · 구현 · QA
-         → PR → 머지
-```
-
-PM은 두 게이트(설계 승인 · 최종 검수)에서만 개입하고, 그 사이는 팀원과 AI가 자율로 돕니다.
-그래서 8명이 훨씬 큰 팀의 속도로 만듭니다.
 
 ---
 
 ## 팀
 
-| 역할 | 멤버 |
-|:--|:--|
-| **PM** | 김우진 |
-| **디자인** | 김영웅 · 유한솔 |
+
+| 역할        | 멤버        |
+| :--------- | :--------- |
+| **PM**    | 김우진       |
+| **디자인**   | 김영웅 · 유한솔 |
 | **프론트엔드** | 박일하 · 김현정 |
-| **백엔드** | 신선우 · 안시현 |
-| **인프라** | 장찬욱 |
+| **백엔드**   | 신선우 · 안시현 |
+| **인프라**   | 장찬욱       |
+
 
 ---
 
@@ -174,5 +175,7 @@ pm/          기획 · 운영
 <br/>
 
 <div align="center">
+
 <sub>© 멋쟁이사자처럼 경희대 · Built to last, not to reset.</sub>
+
 </div>
