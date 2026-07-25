@@ -3,7 +3,7 @@ name: tidy-missions
 description: >-
   완료됐거나 닫혔지만 뒷정리가 안 된 미션들을 일괄 정리한다. Use when PM(김우진)이 "완료된 미션
   정리하자 / 미션 정리해줘 / 끝난 미션들 마무리하자"라고 할 때. GitHub에서 닫힌 roadmap 이슈를
-  찾아 각각의 미션 박스(pm/missions/<n>-<slug>/result.md)가 채워졌는지, 보드 Status가 Done인지,
+  찾아 각각의 번호별 미션 박스 result.md가 채워졌는지, 보드 Status가 Done인지,
   상위 Story가 하위 미션 롤업을 반영하는지(다 닫혔으면 Story도, 그 Story들이 다 닫혔으면 테마 Epic도 닫혔는지) 확인·보정하고, 재사용할 통찰은
   pm/docs/learnings.md로 졸업시킨다. 미션을 새로 쓰거나 발주하는 건 mission 스킬(이건 뒷정리 전용).
 ---
@@ -28,7 +28,7 @@ gh issue list --repo likelion-khu-official/website --label roadmap --state close
 ```
 gh issue view <n> --repo likelion-khu-official/website --json projectItems
 ```
-Status가 Done이 아니면 project-board 스킬 좌표로 Done으로 옮긴다. (이슈는 닫혔는데 보드만 Todo/In Progress에 남아있는 게 실제로 발생하는 어긋남이다.)
+Status가 Done이 아니면 project-board 스킬 좌표로 Done으로 옮긴다. (이슈는 닫혔는데 보드만 Todo에 남아있는 게 실제로 발생하는 어긋남이다.)
 
 ### 3) 각 미션의 결과를 채운다
 이슈 본문·코멘트·연결된 PR을 읽는다:

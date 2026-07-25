@@ -33,7 +33,7 @@ description: >-
 ### Step 0-a — 로컬 토큰 자동 발견 (NO_IDENTITY면 인터뷰 전에 먼저)
 `scripts/discover-token.sh` 를 돌린다. 이 머신에 이미 쓸 수 있는 GitHub 토큰(대개 `gh` 로그인)이 있으면 찾아 신원 파일을 자동으로 만든다 — 초보에게 PAT를 만들라고 하기 전에 마찰을 없앤다.
 - `FOUND:<login>` → 머신에 유효 토큰이 있었다. `<login>`이 `pm/roster.yml`에 있는지 확인하고, 사용자에게 **"이 계정(<login>)으로 진행할게요, 맞죠?"** 한 번만 확인. 맞으면 `check-identity.sh` 재확인 → Step 1. (roster에 없거나 "아니오"면 그 파일을 지우고 아래 인터뷰로.)
-- `FOUND:<login>:MISSING_PROJECT_SCOPE` → 위와 같되, **"이 토큰엔 보드 이동 권한(project)이 안 보여요 — 나중에 착수(Step 2)나 마감(Step 4)이 막히면 토큰에 project 권한을 더해주세요"** 라고 미리 귀띔.
+- `FOUND:<login>:MISSING_PROJECT_SCOPE` → 위와 같되, **"이 토큰엔 보드 이동 권한(project)이 안 보여요 — 나중에 마감(Step 3)이 막히면 토큰에 project 권한을 더해주세요"** 라고 미리 귀띔.
 - `NONE` → 머신에 쓸 토큰이 없다. 아래 인터뷰로.
 
 ### Step 0-b 인터뷰 (로컬에 토큰이 없을 때만 — 아주 친절히)
@@ -61,10 +61,7 @@ description: >-
 - **1개:** 그 미션으로 진행. 제목·`Deliverable`·`Done`을 사람 말로 요약해 "이 미션 맞죠?" 한 번 확인.
 - **N개:** 제목으로 목록을 보여주고 어느 미션부터 할지 고르게 한다(있으면 `AskUserQuestion` 등 선택지 툴을 쓴다).
 
-### Step 2 — 착수 (보드 한 칸)
-고른 미션 #n에 대해 `scripts/start-mission.sh <n>` → 보드 카드 Todo→In Progress. (착수 표시. 완료 마감은 Step 4에서 **미션을 연 이 사람**이 한다.)
-
-### Step 3 — 수행: R → P → 【RP 게이트】 → I → Q → 【IQ 게이트】  (순서 고정 · 게이트는 하드 스톱)
+### Step 2 — 수행: R → P → 【RP 게이트】 → I → Q → 【IQ 게이트】  (순서 고정 · 게이트는 하드 스톱)
 
 먼저 `kb/loop.md`(루프 규약)·`kb/mindset.md`(우리 규모 개발 철학)를 적재. 각 페이즈에서 렌즈 kb를 **필요할 때만** 얕게 읽는다. **순서를 지켜라 — 게이트를 통과하기 전엔 다음 단계로 못 넘어간다.**
 
@@ -83,21 +80,21 @@ description: >-
 6. **【IQ 게이트】 — 채간 사람 본인의 셀프 검토** *(역시 PM 보고 아님)*
    - **㉠ 리뷰포인트** — "① Done 항목별 충족(체크리스트로) ② 남은 구멍·리스크 ③ 산출물이 어디에 남나".
    - **㉡ 네 권장 판단 + 셀프 QA 결과**를 체크리스트로 딱 보여준다.
-   - **㉢ 확인** — "미션 Done 다 채웠어요, **이대로 마감할까요?**" → OK → **Step 4**. 되돌림 → I로.
+   - **㉢ 확인** — "미션 Done 다 채웠어요, **이대로 마감할까요?**" → OK → **Step 3**. 되돌림 → I로.
 
 > **게이트 원칙:** 두 게이트 다 = **채간 사람 본인의 검토**(PM 아님). 사이 구간(R→P, I→Q)은 AI 자율. 사람은 맥락이 없으니 항상 *㉠리뷰포인트 → ㉡네 권장 답 → ㉢"이거 맞아요?"* 형식으로 차려주고 **확인만** 받는다. 판정 기준은 언제나 그 미션의 `Done`·`Notes`.
 
-### Step 4 — 마감 (IQ 게이트 통과 후 · 반드시 실행)
+### Step 3 — 마감 (IQ 게이트 통과 후 · 반드시 실행)
 
 **미션은 연 사람이 닫는다.** IQ를 통과하면 곧바로, 순서대로:
 1. **산출물 마무리** — 코드 미션이면 `scripts/create-pr.sh "<제목>" "<본문>"` (브랜치 push + 리뷰용 PR, base=dev). 반환된 URL을 사람에게 "리뷰용 PR 올렸어요" + 링크로. 코드가 아니면 미션이 요구한 산출물(문서·URL 등)을 확정.
    > **PR 본문 원칙 — 친절하되 극단 추상화·간결.** 리뷰어가 30초에 *무엇을·왜*를 잡게 3~5줄. 삽질 과정·배관·파일 나열 금지. "이 미션이 뭘 이뤘나 + 어디를 보면 되나"만. (스킬의 추상화 원칙은 PR에서도 유지된다.)
 2. **미션 닫기** — `scripts/close-mission.sh <n> "<한 줄 마감 코멘트>"` → 보드 카드 Done + 이슈 close(코멘트에 무엇을 했는지 한 줄). PR을 올렸으면 코멘트에 PR 링크.
 3. **결과 상자 기록(필수)** — 이 미션 상자의 `pm/missions/<n>-<slug>/result.md`를 채운다: **산출물**(PR 링크·무엇이 남았나), **결정**(이 미션에서 갈린 판단), **배운 것**. 다음에도 쓸 통찰은 `pm/docs/learnings.md`로 **졸업**시킨다(상자엔 이 미션 고유 결과만). **빈 stub로 두고 이슈만 닫지 마라** — 이 상자가 다음 세션 AI가 먹을 맥락이고, 비면 "닫혔는데 무엇을 남겼는지 모르는" 미션이 된다. (PM측 `mission` 스킬의 "결과 정리 / 미션 닫아"와 같은 일 — 코드 미션은 연 사람이 여기서 한다.)
-4. **현황은 자동 롤업 — 손으로 안 고친다.** 미션(Sub-task)을 닫으면(위 close-mission) 이 미션이 sub-issue로 달린 상위 Story의 진행률이 GitHub에서 자동으로 갱신된다. 예전의 손유지 상태 트리(`pm/features`·README)는 폐기됐다 — 상태 색을 칠할 일이 없다. (그 Story의 하위 미션(Sub-task)이 이번으로 다 닫혔으면 Story도 닫히고, 그 Story가 속한 테마 Epic의 Story가 전부 닫혔으면 PM이 project-board/tidy-missions로 Epic을 닫는다 — 팀원은 여기까지 안 해도 된다.)
+4. **현황은 자동 롤업 — 손으로 안 고친다.** 보드 Status는 끝나지 않은 `Todo`와 끝난 `Done`만 쓴다. 미션(Sub-task)을 닫으면(위 close-mission) 이 미션이 sub-issue로 달린 상위 Story의 진행률이 GitHub에서 자동으로 갱신된다. 예전의 손유지 상태 트리(`pm/features`·README)는 폐기됐다 — 상태 색을 칠할 일이 없다. (그 Story의 하위 미션(Sub-task)이 이번으로 다 닫혔으면 Story도 닫히고, 그 Story가 속한 테마 Epic의 Story가 전부 닫혔으면 PM이 project-board/tidy-missions로 Epic을 닫는다 — 팀원은 여기까지 안 해도 된다.)
 5. **결과 요약** — 사람에게 쉬운 말로: *뭘 했고 · 산출물이 어디 있고 · 미션은 닫혔다 · 트리 노드가 어떻게 바뀌었다.* 끝.
 
-> 이 전체 흐름(신원 → 페치 → 착수 → 수행 → 마감)은 **오차 없이 순서대로** 돈다. 게이트는 하드 스톱, Step 4의 닫기는 필수 실행 — **건너뛰지 마라.**
+> 이 전체 흐름(신원 → 페치 → 수행 → 마감)은 **오차 없이 순서대로** 돈다. 게이트는 하드 스톱, Step 3의 닫기는 필수 실행 — **건너뛰지 마라.**
 
 ### 막히면
 PM 결정이 필요한 벽(범위·우선순위·제품방향·크로스팀)에 부딪히면 → **ask-pm 스킬**로 에스컬레이트. 기술적 how-to·버그는 팀의 학습이니 직접 푼다.
@@ -105,7 +102,7 @@ PM 결정이 필요한 벽(범위·우선순위·제품방향·크로스팀)에 
 ---
 
 ## 파일 지도
-- `scripts/check-identity.sh` · `discover-token.sh` · `fetch-my-mission.sh` · `start-mission.sh` · `create-pr.sh` · `close-mission.sh` — 배관. gh·PAT·보드 좌표를 여기 가둔다.
+- `scripts/check-identity.sh` · `discover-token.sh` · `fetch-my-mission.sh` · `create-pr.sh` · `close-mission.sh` — 배관. gh·PAT·보드 좌표를 여기 가둔다.
 - `kb/contract.md` — 발주↔클레임 불변식(단일 진실).
 - `kb/mindset.md` · `loop.md` · `gates.md` — 철학·루프·게이트.
 - `kb/research.md` · `plan.md` · `implement.md` · `qa.md` — 각 페이즈 렌즈.

@@ -75,8 +75,6 @@
 <br/>
 
 ![Live](https://img.shields.io/badge/site-likelion--khu.com-000000?style=for-the-badge)
-&amp;nbsp;
-![Status](https://img.shields.io/badge/v1-in_progress-1f6feb?style=for-the-badge)
 
 <br/>
 
