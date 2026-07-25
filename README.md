@@ -1,32 +1,56 @@
-## 구현 현황
+<div align="center">
 
-### 개발 지표
+# 🎫 &nbsp; [**나의 티켓 — 여기서 시작**](https://github.com/orgs/likelion-khu-official/projects/1/views/5)
 
-<sub>2026-07-18 · 익명 방문자 관점 GWT 실집계 · 산출 정의: [pm/docs/metrics.md](pm/docs/metrics.md) — 검증 결과가 바뀐 턴에 함께 갱신 (지도와 동일 규칙)</sub>
+**내가 할 일이 여기 다 모여 있어요.** 로그인하면 각자 자기 티켓만 보입니다.
+Claude Code를 쓴다면 그냥 한 마디 — `"나한테 할당된 미션 수행하자"`
+
+</div>
+
+---
+
+## 우리가 일하는 법 — 티켓 (Jira 방식)
+
+모든 일을 **티켓(GitHub 이슈)**으로 관리해요. Jira처럼 **4단계**로 쌓이고, 위가 아래를 품습니다. **아래가 다 끝나면 위가 자동으로 "완료"로 채워져요** — 상태를 손으로 관리할 필요가 없습니다.
+
+| 단계 | 한마디로 | 예시 |
+|:--|:--|:--|
+| 🟪 **Epic** | 큰 묶음 (테마) | 프로젝트 쇼케이스 |
+| 🟩 **Story** | 사용자가 실제로 쓰는 **기능 하나** | "방문자가 프로젝트 목록을 볼 수 있다" |
+| ⬜ **Sub-task** | 그 기능을 만드는 **내 분야 작업** — 내가 맡는 티켓 | 목록 화면(FE) · 목록 API(BE) |
+| 🟨 **Task** | 기능은 아니지만 해야 하는 **기술 작업** | 인프라 셋업 |
+
+> 타입(Epic/Story/…)은 GitHub 이슈에 **뱃지**로 붙고, 분야(FE·BE·인프라·디자인)는 **라벨**로 붙습니다.
+
+### 어디서 보나
+
+| 링크 | 무엇 |
+|:--|:--|
+| 👤 [**나의 티켓**](https://github.com/orgs/likelion-khu-official/projects/1/views/5) | **← 여기서 시작.** 내가 맡은 티켓만 (각자 자기 것) |
+| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 팀 전체가 어디까지 왔나 (Epic ▸ Story ▸ Sub-task) |
+| 🗺️ [Epic 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) · 📖 [Story 목록](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 테마·기능별로 |
+| 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 굴러가는 작업 (Sub-task / Task) |
+
+테마 라벨(`area:*`)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
+
+**스펙(무엇이어야 하나)의 정본은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)**입니다. 각 Story가 위키를 링크하고, "됐다"의 판정(검증 결과)은 [`pm/qa/`](pm/qa/)에 남습니다. 구현·논의 전에 위키를 먼저 확인해 주세요.
+
+> 💡 **기획에서 빠진 게 보이면 편하게 [티켓을 만들어 주세요](https://github.com/likelion-khu-official/website/issues/new).** 아직 Story가 없는 기능, 지금 필요한데 아무도 안 맡은 것, "이건 어떻게 동작해야 하지?" 싶은 애매한 지점 — 뭐든 좋아요.
+
+<details>
+<summary>📊 개발 지표 (2026-07-18 스냅샷)</summary>
+
+<br/>
+
+<sub>익명 방문자 관점 GWT 실집계 · 산출 정의: [pm/docs/metrics.md](pm/docs/metrics.md)</sub>
 
 | 지표 | 값 | 읽는 법 |
 |---|---|---|
 | **검증 커버리지** | **69 %** — 66/96 | 전체 시나리오 중 pass/fail로 실제 확인된 비율 |
 | **pass율** | **86 %** — 57/66 | 검증된 것 중 통과 — 반드시 커버리지와 쌍으로 읽는다 |
-| **fail** | **9건** — 이슈 연결 4 · 미등록 5 | 미등록 fail이 곧 다음 미션 후보 |
+| **fail** | **9건** — 이슈 연결 4 · 미등록 5 | 미등록 fail이 곧 다음 티켓 후보 |
 
-### 제품 지도
-
-사이트의 기능은 GitHub 이슈 계층으로 관리합니다 — **Epic**(테마) ▸ **Story**(방문자·멤버가 실제로 겪는 기능 한 조각, 예: "방문자가 프로젝트 목록을 볼 수 있다") ▸ **Sub-task**(그 Story의 분야별 작업 — 팀원이 맡아 굴림) / **Task**(사용자 향이 아닌 순수 기술작업). 타입은 GitHub 네이티브 Issue Type으로 표시되고, 하위가 sub-issue로 달려 진행률이 자동 롤업됩니다. 그래서 "어디까지 왔나"는 이 README가 아니라 살아 있는 GitHub에서 봅니다.
-
-| 어디서 | 무엇을 |
-|---|---|
-| 👤 [**나의 티켓**](https://github.com/orgs/likelion-khu-official/projects/1/views/5) | **먼저 여기서 시작하세요.** 나에게 배정된 티켓만 모은 보드 — 로그인하면 각자 자기 것만 보입니다(Jira의 "My Issues"). 또는 Claude Code에 `"나한테 할당된 미션 수행하자"` |
-| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마·기능별로 어디까지 왔는지 한눈에 (Epic ▸ Story ▸ Sub-task) |
-| 🗺️ [전체 Epic](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) | 사이트의 테마 |
-| 📖 [전체 Story](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 사용자에게 보이는 기능 슬라이스 |
-| 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 팀이 굴리는 미션 티켓 (Sub-task / Task) |
-
-테마(`area:*` 라벨)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
-
-**기능의 정식 명세·정책은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)를 정본으로 합니다.** 각 Story는 스펙을 위키로 링크만 걸고, "됐다"의 판정(검증 결과)은 [`pm/qa/`](pm/qa/)에 남습니다. 구현이나 논의에 앞서 위키를 먼저 확인해 주세요.
-
-> 💡 **기획에서 빠진 게 보이면 편하게 [이슈를 던지세요](https://github.com/likelion-khu-official/website/issues/new).** 아직 Story가 없는 기능, 지금 필요한데 미션이 안 걸린 것, "이건 어떻게 동작해야 하지?" 싶은 애매한 지점 — 뭐든 좋아요. 완성된 제안이 아니어도 됩니다.
+</details>
 
 ---
 
