@@ -12,19 +12,20 @@
 
 ### 제품 지도
 
-사이트의 기능은 **Epic 이슈**로 관리합니다. Epic 하나 = 방문자·멤버가 실제로 겪는 기능 한 조각(예: "방문자가 프로젝트 목록을 볼 수 있다")이고, 그 밑에 분야별 **미션(Story)**이 sub-issue로 달려 진행률이 자동으로 롤업됩니다. 그래서 "어디까지 왔나"는 이 README가 아니라 살아 있는 GitHub에서 봅니다.
+사이트의 기능은 GitHub 이슈 계층으로 관리합니다 — **Epic**(테마) ▸ **Story**(방문자·멤버가 실제로 겪는 기능 한 조각, 예: "방문자가 프로젝트 목록을 볼 수 있다") ▸ **Sub-task**(그 Story의 분야별 작업 — 팀원이 맡아 굴림) / **Task**(사용자 향이 아닌 순수 기술작업). 타입은 GitHub 네이티브 Issue Type으로 표시되고, 하위가 sub-issue로 달려 진행률이 자동 롤업됩니다. 그래서 "어디까지 왔나"는 이 README가 아니라 살아 있는 GitHub에서 봅니다.
 
 | 어디서 | 무엇을 |
 |---|---|
-| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마별로 묶어 각 기능이 어디까지 왔는지 한눈에 |
-| 🗺️ [전체 Epic](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+label%3Aepic) | 사이트의 모든 기능 슬라이스 |
-| 🎫 [열린 미션](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 팀이 굴리는 실작업(Story) |
+| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마·기능별로 어디까지 왔는지 한눈에 |
+| 🗺️ [전체 Epic](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) | 사이트의 테마 |
+| 📖 [전체 Story](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 사용자에게 보이는 기능 슬라이스 |
+| 🎫 [열린 작업](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 팀이 굴리는 미션(Sub-task/Task) |
 
-테마(`area:*` 라벨)로 영역별로 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
+테마(`area:*` 라벨)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
 
-**기능의 정식 명세·정책은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)를 정본으로 합니다.** 각 Epic은 스펙을 위키로 링크만 걸고, "됐다"의 판정(검증 결과)은 [`pm/qa/`](pm/qa/)에 남습니다. 구현이나 논의에 앞서 위키를 먼저 확인해 주세요.
+**기능의 정식 명세·정책은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)를 정본으로 합니다.** 각 Story는 스펙을 위키로 링크만 걸고, "됐다"의 판정(검증 결과)은 [`pm/qa/`](pm/qa/)에 남습니다. 구현이나 논의에 앞서 위키를 먼저 확인해 주세요.
 
-> 💡 **기획에서 빠진 게 보이면 편하게 [이슈를 던지세요](https://github.com/likelion-khu-official/website/issues/new).** 아직 Epic이 없는 기능, 지금 필요한데 미션이 안 걸린 것, "이건 어떻게 동작해야 하지?" 싶은 애매한 지점 — 뭐든 좋아요. 완성된 제안이 아니어도 됩니다.
+> 💡 **기획에서 빠진 게 보이면 편하게 [이슈를 던지세요](https://github.com/likelion-khu-official/website/issues/new).** 아직 Story가 없는 기능, 지금 필요한데 미션이 안 걸린 것, "이건 어떻게 동작해야 하지?" 싶은 애매한 지점 — 뭐든 좋아요. 완성된 제안이 아니어도 됩니다.
 
 ---
 

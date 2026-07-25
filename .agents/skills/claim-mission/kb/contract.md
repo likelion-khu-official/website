@@ -2,6 +2,15 @@
 
 이 문서가 단일 진실이다. 발주 쪽(PM용 `mission` 스킬)과 받는 쪽(`claim-mission`)이 **같은 약속**을 봐야 QA에서 안 터진다. 약속이 어긋나면(라벨을 바꾼다, 라우팅을 assignee 말고 다른 걸로 한다 등) 미션이 큐에 안 잡히거나 엉뚱한 사람에게 간다.
 
+## 계층 모델 — 4단 (GitHub Native Issue Type 기준)
+Jira식 4계층을 GitHub **네이티브 Issue Type**으로 그대로 쓴다. 담당 팀(BE/FE/인프라/디자인)은 제목 접두사가 아니라 **라벨**, 이슈 종류는 제목 접두사가 아니라 **네이티브 Issue Type 뱃지**다.
+- **Epic** (테마, 예: 프로젝트 쇼케이스·블로그·모집) — 큰 묶음. 담당자 없음.
+- **Story** — 사용자 향 기능 슬라이스 하나(예: "방문자가 프로젝트 목록을 볼 수 있다"). 왜·완료기준·위키 스펙 링크를 들고 있다. 테마 Epic의 sub-issue.
+- **Sub-task** — 이 스킬이 다루는 **미션 그 자체**. 팀원이 채가 R→P→I→Q로 미는 단위. Story의 sub-issue.
+- **Task** — 사용자 스토리가 없는 순수 기술 작업(스택 셋업·인프라 등)의 미션. Story 밑에 안 달리고 독립.
+
+즉 **미션 = 네이티브 Issue Type `Sub-task`(또는 순수 기술 작업이면 `Task`), 미션의 상위(Target) = `Story`**, Story의 상위 = 테마 `Epic`. (예전엔 슬라이스를 Epic, 미션을 Story로 불렀는데 — 지금은 이 4단이 정본.)
+
 ## 대상 레포·보드
 - 레포: `github.com/likelion-khu-official/website`
 - 조직 Projects v2: **project #1** (owner `likelion-khu-official`, id `PVT_kwDOEZZ_V84BbPtZ`)
