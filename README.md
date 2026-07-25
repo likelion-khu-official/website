@@ -16,6 +16,7 @@
 
 | 어디서 | 무엇을 |
 |---|---|
+| 👤 [**내 할 일**](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+assignee%3A%40me) | **나에게 배정된 열린 작업** — 로그인하면 각자 자기 것만 보입니다. (또는 Claude Code에 `"나한테 할당된 미션 수행하자"`) |
 | 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마·기능별로 어디까지 왔는지 한눈에 |
 | 🗺️ [전체 Epic](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) | 사이트의 테마 |
 | 📖 [전체 Story](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 사용자에게 보이는 기능 슬라이스 |
