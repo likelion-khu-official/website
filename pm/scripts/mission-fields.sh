@@ -7,13 +7,13 @@
 #
 # 사용:
 #   GH_HOST=github.com GH_TOKEN=<token> pm/scripts/mission-fields.sh \
-#       <issue#> <디자인|프론트|백엔드|인프라> <시작 YYYY-MM-DD> <목표 YYYY-MM-DD>
+#       <issue#> <디자인|FE|BE|인프라> <시작 YYYY-MM-DD> <목표 YYYY-MM-DD>
 #
-# 예: ... mission-fields.sh 78 프론트 2026-07-05 2026-07-12
+# 예: ... mission-fields.sh 78 FE 2026-07-05 2026-07-12
 set -euo pipefail
 
 ISSUE="${1:?issue number}"
-TEAM="${2:?team (디자인|프론트|백엔드|인프라)}"
+TEAM="${2:?team (디자인|FE|BE|인프라)}"
 START="${3:?start date YYYY-MM-DD}"
 TARGET="${4:?target date YYYY-MM-DD}"
 
@@ -26,10 +26,10 @@ F_TARGET=PVTF_lADOEZZ_V84BbPtZzhWBlF4
 
 case "$TEAM" in
   디자인) OPT=2171eaba;;
-  프론트) OPT=a2398a16;;
-  백엔드) OPT=c2387007;;
+  FE) OPT=a2398a16;;
+  BE) OPT=c2387007;;
   인프라) OPT=7d9a54b6;;
-  *) echo "알 수 없는 팀: $TEAM (디자인|프론트|백엔드|인프라)"; exit 1;;
+  *) echo "알 수 없는 팀: $TEAM (디자인|FE|BE|인프라)"; exit 1;;
 esac
 
 # 이슈 번호 → 프로젝트 아이템 id (이슈는 보드에 자동 추가됨)

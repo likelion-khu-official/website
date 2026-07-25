@@ -20,7 +20,7 @@ description: >-
 
 | 필드 | field-id | 옵션 (이름 = option-id) |
 |---|---|---|
-| **Team** | `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` | 디자인 `2171eaba` · 프론트 `a2398a16` · 백엔드 `c2387007` · 인프라 `7d9a54b6` |
+| **Team** | `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` | 디자인 `2171eaba` · FE `a2398a16` · BE `c2387007` · 인프라 `7d9a54b6` |
 | **Status** | `PVTSSF_lADOEZZ_V84BbPtZzhWBlCY` | Todo `f75ad846` · In Progress `47fc9ee4` · Done `98236657` |
 | **시작일** | `PVTF_lADOEZZ_V84BbPtZzhWBlF0` | (date) |
 | **목표일** | `PVTF_lADOEZZ_V84BbPtZzhWBlF4` | (date) |

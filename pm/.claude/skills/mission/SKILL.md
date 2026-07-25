@@ -2,7 +2,7 @@
 name: mission
 description: >-
   Write a high-quality PM mission (roadmap work-item) assigning work to a team
-  (디자인/프론트/백엔드/인프라). Use when the PM(김우진) wants to assign work, draft or
+  (디자인/FE/BE/인프라). Use when the PM(김우진) wants to assign work, draft or
   throw a roadmap issue, or says "미션 만들어 / 이슈 만들어 / 일 줘 / 일감". Also manages the
   mission's whole lifecycle in its box (pm/missions/<n>-<slug>/): "던져"(throw), "로그
   남겨"(log progress), "결과 정리 / 미션 닫아"(write result). Produces the 4-section body
@@ -32,7 +32,7 @@ PM이 한 팀에 줄 일을 *미션*으로 쓴다. 단계 지시가 아니라 **
 
 ## 실행 앵커 헤더 (claim-mission 대상 팀은 본문 맨 위 필수)
 
-claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는 **맨 위 첫 줄**에 이 헤더를 넣는다. 미션을 받은 팀원이 뭘 할지 즉시 알게 하는 실행 앵커다.
+claim-mission이 도는 팀(FE·BE·인프라)의 `proposal.md`는 **맨 위 첫 줄**에 이 헤더를 넣는다. 미션을 받은 팀원이 뭘 할지 즉시 알게 하는 실행 앵커다.
 
 ```
 > 🦁 **이 미션 수행** — Claude Code에게 **"나한테 할당된 미션 수행하자"**라고 하면 신원 확인 후 이 미션을 받아 R→P→I→Q로 진행합니다.
@@ -76,16 +76,16 @@ claim-mission이 도는 팀(프론트·백엔드·인프라)의 `proposal.md`는
 루브릭을 못 채우면 PM에게 1개 질문으로 메꿔라(특히 완료기준이 두루뭉술할 때).
 
 ## 필드 (GitHub 사이드바 / gh 플래그)
-- 제목: `[분야] <미션 한 줄>`  — 분야 접두어는 표준 코드 **`[BE]`·`[FE]`·`[인프라]`·`[디자인]`**(한글 팀명 아님). **날짜는 제목에 넣지 않는다** — 목표일은 보드 필드(`mission-fields.sh`)에 산다(제목="무엇", 일정·상태=보드). 라우팅 라벨은 여전히 한글 팀명(`백엔드`/`프론트`/`인프라`/`디자인`) — 접두어(표시)와 라벨(라우팅)은 다른 층이다.
+- 제목: `[분야] <미션 한 줄>`  — 분야 접두어는 표준 코드 **`[BE]`·`[FE]`·`[인프라]`·`[디자인]`**(한글 팀명 아님). **날짜는 제목에 넣지 않는다** — 목표일은 보드 필드(`mission-fields.sh`)에 산다(제목="무엇", 일정·상태=보드). 라우팅 라벨도 같은 코드(`BE`/`FE`/`인프라`/`디자인`)를 쓴다 — 제목 접두어와 라벨이 이제 같은 표기다.
 - **어사인 = 특정 1인의 handle.** "해당 팀"이 아니라 *그 미션을 실제로 할 한 사람*을 지목한다. 이 assignee가 라우팅의 전부다 — 클레임(claim-mission)이 `assignee == 내 handle`인 이슈만 가져가기 때문에, 팀만 맞고 사람이 비면 아무도 못 받는다.
-  - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[백엔드]` 미션이면 assignee의 team이 `백엔드`).
+  - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[BE]` 미션이면 assignee의 team이 `BE`).
   - **디자인 예외**(`handle: null`): GitHub 계정이 없어 assignee를 못 건다. 이슈에 assignee 없이 두거나 GitHub 이슈 자체를 만들지 않고, 미션 본문을 카톡·Figma 링크로 공유한다(아래 "레포 밖 팀" 경로). 이 경로는 claim-mission 대상이 아니다 — 깨지 말 것.
 - **인당 열린 미션 1개(원칙).** 새로 발주하기 전에 그 사람 앞으로 이미 열린(roadmap 라벨 + open 상태) 미션이 있는지 확인한다:
   ```
   gh issue list --repo likelion-khu-official/website --assignee <handle> --label roadmap --state open
   ```
   이미 있으면 **PM에게 한 번 확인**한다 — "○○님은 지금 #n을 진행 중이에요. 이것도 같이 맡길까요, 아니면 다른 사람/다음으로 미룰까요?" 겹치기로 확정되면 진행하되, 조용히 겹치게 두지 않는다.
-- **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`프론트`/`백엔드`/`인프라`)
+- **요청자(작성자) = 김우진(@xhae123)** · 라벨: `roadmap` + **팀 라벨**(`디자인`/`FE`/`BE`/`인프라`)
   - 이 두 라벨이 **미션 뱃지**다. 클레임은 `roadmap` 라벨로 "이건 미션 이슈"임을 식별한다 — 유지 필수.
 - Team · 목표일: GitHub Projects 필드(생성 후 설정)
 

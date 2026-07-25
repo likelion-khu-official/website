@@ -7,7 +7,7 @@
 - 조직 Projects v2: **project #1** (owner `likelion-khu-official`, id `PVT_kwDOEZZ_V84BbPtZ`)
 
 ## 명부 (단일 진실)
-- `pm/roster.yml` — `members[].{name, handle, team}`. `team ∈ {디자인,프론트,백엔드,인프라,PM}`.
+- `pm/roster.yml` — `members[].{name, handle, team}`. `team ∈ {디자인,FE,BE,인프라,PM}`.
 - `handle: null` = GitHub 계정 없음(디자인) → **claim-mission 대상 아님**(디자인은 카톡/Figma 경로).
 - 이름·팀은 roster에만. 개인 신원 파일엔 안 적고 handle로 파생(drift 방지).
 
@@ -17,14 +17,14 @@
 - PAT 스코프: **repo + project**(이슈 읽기 + 보드 카드 쓰기). 값은 어떤 로그에도 출력 금지.
 
 ## 라우팅·뱃지
-- 미션 뱃지 = 라벨 **`roadmap`** + **팀 라벨**(`프론트`/`백엔드`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
+- 미션 뱃지 = 라벨 **`roadmap`** + **팀 라벨**(`FE`/`BE`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
 - 라우팅 = **GitHub assignee**. 클레임은 `assignee == 내 handle` 인 이슈를 가져온다.
 - 클레임 쿼리: `state:open` + `label:roadmap` + `assignee:<내 handle>`.
 
 ## 보드 좌표 (Projects v2)
 - `PROJ_NUM=1` · `OWNER=likelion-khu-official` · `PROJ_ID=PVT_kwDOEZZ_V84BbPtZ`
 - Status 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlCY` — Todo `f75ad846` · In Progress `47fc9ee4` · Done `98236657`
-- Team 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` — 프론트 `a2398a16` · 백엔드 `c2387007` · 인프라 `7d9a54b6` · 디자인 `2171eaba`
+- Team 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` — FE `a2398a16` · BE `c2387007` · 인프라 `7d9a54b6` · 디자인 `2171eaba`
 - (id가 안 맞으면 `gh project field-list 1 --owner likelion-khu-official --format json` 로 갱신.)
 
 ## 인증

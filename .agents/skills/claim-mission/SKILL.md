@@ -1,7 +1,7 @@
 ---
 name: claim-mission
 description: >-
-  팀원(프론트/백엔드/인프라)이 자기에게 배정된 미션을 받아 진행한다. Use when a team member
+  팀원(FE/BE/인프라)이 자기에게 배정된 미션을 받아 진행한다. Use when a team member
   says "나한테 할당된 미션 수행하자 / 내 미션 하자 / 미션 받아서 하자 / claim mission". 신원 확인(Step 0) →
   내게 assign 된 roadmap 이슈를 가져와 → R(research)→P(plan)→I(implementation)→Q(qa)
   루프로 진행한다. 인간은 RP 게이트와 IQ 게이트 두 곳에서만 승인/되돌림(human-on-the-loop),
