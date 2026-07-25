@@ -155,7 +155,7 @@ gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --l
 ## 스텁 템플릿 (던질 때 생성)
 `log.md`:
 ```
-# 진행 로그 — #<n> <팀> · <미션 한 줄>
+# 진행 로그 — #<n> <분야> · <미션 한 줄>
 
 > PM이 판단·결정한 것만 시간순. GitHub 코멘트 복붙 아님.
 > 형식: `## YYYY-MM-DD` 아래 일어난 일 / 결정 / 왜.
@@ -164,7 +164,7 @@ gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --l
 ```
 `result.md`:
 ```
-# 결과 — #<n> <팀> · <미션 한 줄>
+# 결과 — #<n> <분야> · <미션 한 줄>
 
 > 미션이 닫힐 때 채운다. 재사용할 통찰은 pm/docs/learnings.md로 졸업.
 
