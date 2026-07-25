@@ -79,7 +79,7 @@ claim-mission이 도는 팀(FE·BE·인프라)의 `proposal.md`는 **맨 위 첫
 ## 필드 (GitHub 사이드바 / gh 플래그)
 - 제목: `<미션 한 줄>` — **타입·분야 접두어를 붙이지 않는다.** 타입은 GitHub 네이티브 Issue Type(Sub-task/Task) 뱃지로, 분야는 라벨(`BE`/`FE`/`인프라`/`디자인`)로 표시된다. **날짜도 제목에 안 넣는다** — 목표일은 보드 필드(`mission-fields.sh`)에 산다(제목="무엇", 타입·분야·일정=필드/라벨).
 - **어사인 = 특정 1인의 handle.** "해당 팀"이 아니라 *그 미션을 실제로 할 한 사람*을 지목한다. 이 assignee가 라우팅의 전부다 — 클레임(claim-mission)이 `assignee == 내 handle`인 이슈만 가져가기 때문에, 팀만 맞고 사람이 비면 아무도 못 받는다.
-  - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 팀과 **일치**하는지 확인한다(예: `[BE]` 미션이면 assignee의 team이 `BE`).
+  - handle은 **`pm/roster.yml`에서 조회**한다(하드코딩 금지 — 이름·팀·handle의 단일 진실). 대상자의 `members[].handle`을 쓰고, 그 사람의 `team`이 미션 분야와 **일치**하는지 확인한다(예: 분야 라벨이 `BE`인 미션이면 assignee의 team이 `BE`).
   - **디자인 예외**(`handle: null`): GitHub 계정이 없어 assignee를 못 건다. 이슈에 assignee 없이 두거나 GitHub 이슈 자체를 만들지 않고, 미션 본문을 카톡·Figma 링크로 공유한다(아래 "레포 밖 팀" 경로). 이 경로는 claim-mission 대상이 아니다 — 깨지 말 것.
 - **인당 열린 미션 1개(원칙).** 새로 발주하기 전에 그 사람 앞으로 이미 열린(roadmap 라벨 + open 상태) 미션이 있는지 확인한다:
   ```
@@ -90,7 +90,7 @@ claim-mission이 도는 팀(FE·BE·인프라)의 `proposal.md`는 **맨 위 첫
   - 이 두 라벨이 **미션 뱃지**다. 클레임은 `roadmap` 라벨로 "이건 미션 이슈"임을 식별한다 — 유지 필수.
 - Team · 목표일: GitHub Projects 필드(생성 후 설정)
 
-> **발주 ↔ 클레임 계약 (요약):** 팀원은 Claude Code에서 `claim-mission`을 돌려, 로컬 신원(`/.identity.local.yml`)의 handle이 `roster.yml`의 누구인지 대조한 뒤 `assignee == 내 handle` + `roadmap` 라벨인 이슈를 자기 미션으로 가져간다. 그래서 발주가 (1) assignee를 **정확한 1인 handle**로, (2) `roadmap`+팀 라벨을, (3) 본문 맨 위에 **실행 앵커 헤더**(위 "실행 앵커 헤더" 참고)를 심어야 클레임이 미션을 찾고 바로 실행에 들어간다. 발주자(PM)는 개인 `/.identity.local.yml`에 관여하지 않는다.
+> **발주 ↔ 클레임 계약 (요약):** 팀원은 Claude Code에서 `claim-mission`을 돌려, 로컬 신원(`/.identity.local.yml`)의 handle이 `roster.yml`의 누구인지 대조한 뒤 `assignee == 내 handle` + `roadmap` 라벨인 이슈를 자기 미션으로 가져간다. 그래서 발주가 (1) assignee를 **정확한 1인 handle**로, (2) `roadmap`+분야 라벨을, (3) 본문 맨 위에 **실행 앵커 헤더**(위 "실행 앵커 헤더" 참고)를 심어야 클레임이 미션을 찾고 바로 실행에 들어간다. 발주자(PM)는 개인 `/.identity.local.yml`에 관여하지 않는다.
 
 ---
 
@@ -120,10 +120,10 @@ GitHub이 번호의 단일 진실 → **던진 뒤 번호를 붙인다**(미리 
 
 던지기 전 **assignee를 roster에서 확정**한다: `pm/roster.yml`에서 대상자의 `handle`을 찾고, 그 사람의 `team`이 미션 팀과 일치하는지 확인(불일치·미지정이면 PM에게 누구인지 1개 질문). `handle: null`(디자인)이면 assignee를 걸지 않고 레포 밖 경로(카톡·Figma)로 공유 — `gh issue create`를 돌리지 않는다.
 ```
-gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --label <팀> \
+gh issue create --assignee <roster에서 찾은 1인 handle> --label roadmap --label <분야> \
   --title "…" --body-file pm/missions/<slug>/proposal.md
 ```
-던지고 나면 — **아래 5개는 한 묶음. 4를 빼먹으면 미션이 보드 밖에 떠서 칸반에 안 보인다(실제로 한 번 났다).**
+던지고 나면 — **아래 6개는 한 묶음. 4를 빼먹으면 미션이 보드 밖에, 6을 빼먹으면 Story/롤업 밖에 떠서 안 보인다(실제로 한 번 났다).**
 1. 반환된 이슈 번호 #n으로 폴더 rename: `pm/missions/<slug>/` → `pm/missions/<n>-<slug>/`.
 2. proposal.md 맨 위에 이슈 URL 한 줄 박기.
 3. `log.md`·`result.md` 스텁 생성(아래 템플릿).

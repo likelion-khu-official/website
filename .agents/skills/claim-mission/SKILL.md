@@ -18,7 +18,7 @@ description: >-
 ---
 
 ## 계약 (어기면 QA에서 터진다)
-불변식 전문은 `kb/contract.md`. 핵심만: 레포 `likelion-khu-official/website`, 보드 project #1. 라우팅 = **assignee**. 미션 뱃지 = 라벨 `roadmap` + 팀 라벨. 신원 = 레포 루트 `/.identity.local.yml`(키 `github_handle`·`pat`, gitignore됨). 이름·팀은 여기 안 적고 `pm/roster.yml`에서 handle로 파생.
+불변식 전문은 `kb/contract.md`. 핵심만: 레포 `likelion-khu-official/website`, 보드 project #1. 라우팅 = **assignee**. 미션 뱃지 = 라벨 `roadmap` + 분야 라벨. 신원 = 레포 루트 `/.identity.local.yml`(키 `github_handle`·`pat`, gitignore됨). 이름·팀은 여기 안 적고 `pm/roster.yml`에서 handle로 파생.
 
 ---
 

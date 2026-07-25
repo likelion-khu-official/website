@@ -26,7 +26,7 @@ Jira식 4계층을 GitHub **네이티브 Issue Type**으로 그대로 쓴다. �
 - PAT 스코프: **repo + project**(이슈 읽기 + 보드 카드 쓰기). 값은 어떤 로그에도 출력 금지.
 
 ## 라우팅·뱃지
-- 미션 뱃지 = 라벨 **`roadmap`** + **팀 라벨**(`FE`/`BE`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
+- 미션 뱃지 = 라벨 **`roadmap`** + **분야 라벨**(`FE`/`BE`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
 - 라우팅 = **GitHub assignee**. 클레임은 `assignee == 내 handle` 인 이슈를 가져온다.
 - 클레임 쿼리: `state:open` + `label:roadmap` + `assignee:<내 handle>`.
 

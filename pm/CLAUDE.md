@@ -20,7 +20,7 @@
 
 ## 미션 이슈 발주 (필수 3단계)
 미션을 GitHub 이슈로 쏠 때 `gh issue create`는 **① Projects 커스텀 필드(Team·시작일·목표일)도, ② 상위 Story 연결·네이티브 타입(Sub-task/Task) 지정도** 자동으로 안 한다(이슈는 보드에 자동 추가되고 Status=Todo까지만). 그래서 발주는 **항상 3단계가 한 세트**:
-1. `gh issue create …` (제목·본문·라벨·어사인) — 라벨은 `roadmap` + 팀 라벨(미션 뱃지, claim-mission이 이걸로 찾는다).
+1. `gh issue create …` (제목·본문·라벨·어사인) — 라벨은 `roadmap` + 분야 라벨(미션 뱃지, claim-mission이 이걸로 찾는다).
 2. `pm/scripts/mission-fields.sh <issue#> <디자인|FE|BE|인프라> <시작 YYYY-MM-DD> <목표 YYYY-MM-DD>` — Team·시작일·목표일 세팅.
 3. **상위 Story에 sub-issue로 걸고 네이티브 타입을 지정한다** — 이 미션이 전진시키는 기능 슬라이스의 Story 이슈 밑에 연결(`pm/scripts/link-subissue.sh <Story#> <미션#>`)하고, 타입을 Sub-task로 찍는다(`gh api -X PATCH /repos/likelion-khu-official/website/issues/<미션#> -f type=Sub-task`; 순수 기술작업이면 `type=Task`, 그 경우 Story 없이 테마 Epic 밑이거나 무부모). Story가 없으면 mission 스킬이 그 기능의 Story(+상위 테마 Epic)를 먼저 만든다.
 2·3번을 빠뜨리면 미션이 보드/Story 밖에 떠서 안 보인다(2번 누락은 2026-07-05 실제 발생). 발주했으면 반드시 3단계까지 — Story·Epic 지연생성 규칙은 mission 스킬.
