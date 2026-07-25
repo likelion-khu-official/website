@@ -31,7 +31,7 @@ class MemberControllerTest {
     private Long createMember() {
         MemberCreateRequest req = new MemberCreateRequest();
         req.setName("시현");
-        req.setRoles(Set.of(MemberRole.BE));
+        req.setRoles(Set.of(MemberRole.BACKEND));
         req.setCohort(13);
         req.setStudentId("2020123456");
         req.setPhone("01000000000");

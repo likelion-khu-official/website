@@ -38,11 +38,11 @@ class PostControllerTest {
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", "https://example.com/sihyeon.png",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", "https://example.com/sihyeon.png",
                 null, "컴퓨터공학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
         anotherMember = memberRepository.save(Member.create(
-                "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
+                "선우", Set.of(MemberRole.BACKEND), 13, "🐯", null, null, "admin@khu.ac.kr",
                 "20240002", "01087654321", "hash"));
     }
 
@@ -62,7 +62,7 @@ class PostControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.authorName").value("시현"))
-                .andExpect(jsonPath("$.authorPart").value("BE"))
+                .andExpect(jsonPath("$.authorPart[0]").value("BACKEND"))
                 .andExpect(jsonPath("$.authorEmoji").value("🦁"))
                 .andExpect(jsonPath("$.authorPhotoUrl").value("https://example.com/sihyeon.png"))
                 .andExpect(jsonPath("$.slug").isNotEmpty());

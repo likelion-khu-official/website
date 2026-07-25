@@ -27,7 +27,7 @@ export interface PostSummary {
   summary: string | null;
   thumbnailUrl: string | null;
   authorName: string;
-  authorPart: string | null; // 작성자 파트 (BE/FE/PM 등), 파트 없는 멤버는 null
+  authorPart: string[]; // 작성자 역할 목록 (예: ["BACKEND"]), 없으면 빈 배열
   /** 공개 동의한 작성자의 프로필. 사진을 우선 사용하고 없으면 emoji를 쓴다. */
   authorEmoji: string | null;
   authorPhotoUrl: string | null;

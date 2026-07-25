@@ -37,7 +37,7 @@ class ProjectControllerTest {
 
     private Member createMember(String studentId, String name) {
         Member member = Member.create(
-                name, Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@likelion.org",
+                name, Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@likelion.org",
                 studentId, "01000000000", passwordEncoder.encode("01000000000"));
         return memberRepository.save(member);
     }
