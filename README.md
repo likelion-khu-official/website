@@ -16,11 +16,11 @@
 
 | 어디서 | 무엇을 |
 |---|---|
-| 👤 [**내 할 일**](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+assignee%3A%40me) | **나에게 배정된 열린 작업** — 로그인하면 각자 자기 것만 보입니다. (또는 Claude Code에 `"나한테 할당된 미션 수행하자"`) |
-| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마·기능별로 어디까지 왔는지 한눈에 |
+| 👤 [**나의 티켓**](https://github.com/orgs/likelion-khu-official/projects/1/views/5) | **먼저 여기서 시작하세요.** 나에게 배정된 티켓만 모은 보드 — 로그인하면 각자 자기 것만 보입니다(Jira의 "My Issues"). 또는 Claude Code에 `"나한테 할당된 미션 수행하자"` |
+| 📋 [로드맵 보드](https://github.com/orgs/likelion-khu-official/projects/1) | 테마·기능별로 어디까지 왔는지 한눈에 (Epic ▸ Story ▸ Sub-task) |
 | 🗺️ [전체 Epic](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AEpic) | 사이트의 테마 |
 | 📖 [전체 Story](https://github.com/likelion-khu-official/website/issues?q=is%3Aissue+type%3AStory) | 사용자에게 보이는 기능 슬라이스 |
-| 🎫 [열린 작업](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 팀이 굴리는 미션(Sub-task/Task) |
+| 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap) | 지금 팀이 굴리는 미션 티켓 (Sub-task / Task) |
 
 테마(`area:*` 라벨)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
 
