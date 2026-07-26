@@ -103,7 +103,7 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
 | `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 담당자 역량 체크리스트 · 알람별 대응 절차 · 백엔드/프론트 협업 인터페이스. infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 이 역할의 마인드셋·지표부터 담당자 역량 체크리스트·알람별 대응 절차·평소 루틴·백엔드/프론트 협업 인터페이스까지. infra 바뀌면 같은 PR에서 이 문서도 갱신 |
 | `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
 | `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
@@ -196,7 +196,7 @@ http {
 
 ## 수동 배포·롤백
 
-명령어·절차는 [`RUNBOOK.md`](./RUNBOOK.md#3-자주-쓰는-명령-cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
+명령어·절차는 [`RUNBOOK.md`](./RUNBOOK.md#5-자주-쓰는-명령-cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
 
 ## 미결 사항
 
@@ -204,5 +204,5 @@ http {
 
 > 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
 
-- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md) 3절 참고.
+- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md) 5절 참고.
 - **`infra/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/cleanup-old-logs.sh`로 `100755` 확인.

@@ -79,4 +79,4 @@ prod 컨테이너 재생성 작업 중 태그 미지정으로 약 2~3분간 실�
 | ④ 백업 확신 | ✅ 같은 패턴(custom metric + Absence Alarm)으로 완료 — [`observability.md`](./observability.md) |
 | ⑤ 알림 위치·판단 근거 문서화 | ✅ 이 문서(①②) + [`observability.md`](./observability.md)(③④) |
 
-**DOWN 알림 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md) "2-5. UptimeRobot — DOWN" 절
+**DOWN 알림 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md) "4-5. UptimeRobot — DOWN" 절
