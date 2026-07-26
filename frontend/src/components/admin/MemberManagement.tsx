@@ -298,7 +298,7 @@ export default function MemberManagement() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || editForm.roles.length === 0}
                         onClick={() => handleEditSubmit(member.id)}
                         className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white hover:bg-white/20 disabled:opacity-40"
                       >

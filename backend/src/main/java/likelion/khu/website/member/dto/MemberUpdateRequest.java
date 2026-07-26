@@ -13,6 +13,7 @@ public class MemberUpdateRequest {
 
     @Size(min = 1)
     private String name;
+    @Size(min = 1)
     private Set<MemberRole> roles;
     private String photoUrl;
     private String joinReason;
