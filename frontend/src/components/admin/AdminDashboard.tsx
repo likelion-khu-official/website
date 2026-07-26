@@ -261,6 +261,16 @@ export default function AdminDashboard() {
         </ul>
       )}
 
+      <div className="mt-10 flex justify-center">
+        <button
+          type="button"
+          onClick={() => router.push('/admin/members')}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          멤버 관리로 이동
+        </button>
+      </div>
+
       <div className="mt-10 border-t border-white/10 pt-6">
         <h2 className="mb-3 text-lg font-semibold text-white">콘텐츠 관리</h2>
         <Link
