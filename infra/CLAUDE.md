@@ -73,7 +73,7 @@ DNS (호스팅케이알, 네임서버 ns1~4.hosting.co.kr — 2026-07-26 dig 실
   api.prod.likelion-khu.com      A     → 168.138.202.82 (이 OCI 인스턴스)
   api.stage.likelion-khu.com     A     → 168.138.202.82 (이 OCI 인스턴스)
   likelion-khu.com               TXT   → SPF(`email-delivery.md` 참고), 별도 `_dmarc` TXT도 등록됨
-  ※ 스테이징 프론트 랜덤 서브도메인은 의도적으로 여기 비공개(`pm/docs/ops.md` 참고) — 값은 ops.local
+  ※ 프론트 스테이징 도메인은 `dev.likelion-khu.com`(고정 이름, `uptime-monitoring.md`에 이미 공개돼 있음) — Vercel이 서빙, 이 서버 nginx/인증서와 무관
   ※ CAA 레코드 없음(어떤 CA든 이 도메인 인증서 발급 가능) — 지금 위험도는 낮지만 강화하려면 CAA로 Let's Encrypt만 허용하는 걸 검토 가능
 
 Vercel → 프론트엔드 (인프라 무관)
@@ -136,14 +136,7 @@ http {
 }
 ```
 
-**인증서가 2개 발급돼 있다(`sudo certbot certificates`로 확인) — 실제로 쓰는 건 하나뿐이다:**
-
-| Certificate Name | Domains(SAN) | nginx가 참조하나 |
-|---|---|---|
-| `likelion-khu.com-0001` | `likelion-khu.com`, `api.prod.likelion-khu.com`, `api.stage.likelion-khu.com` | ✅ 위 설정이 실제로 이걸 씀 |
-| `likelion-khu.com` | `likelion-khu.com`, 스테이징 프론트 랜덤 서브도메인(비공개) | ❌ 이 nginx.conf 어디서도 참조 안 됨 — 프론트는 Vercel이라 이 서버 nginx가 SSL 종단할 이유가 없음 |
-
-두 번째 lineage는 이름(`likelion-khu.com`)이 첫 번째와 헷갈리기 쉽고 용도가 불분명하다 — 과거 설정 시행착오의 흔적으로 추정되나 확실친 않음. 실제로 안 쓰이는 걸로 보이니 삭제해도 되는지는 장찬욱이 판단(`sudo certbot delete --cert-name likelion-khu.com`로 제거 가능, 삭제 전 정말 아무 것도 참조 안 하는지 재확인).
+**인증서는 `likelion-khu.com-0001` lineage 하나만 있다** (`Domains: likelion-khu.com api.prod.likelion-khu.com api.stage.likelion-khu.com`). 한때 `likelion-khu.com`이라는 이름의 두 번째 lineage가 더 있었는데(프론트 스테이징 서브도메인 포함, 용도 불분명), 이 nginx.conf 어디서도 참조되지 않는 걸 확인하고 2026-07-26 `sudo certbot delete --cert-name likelion-khu.com`로 정리했다 — 삭제 후 prod·stage 헬스체크 정상 확인.
 
 ---
 
