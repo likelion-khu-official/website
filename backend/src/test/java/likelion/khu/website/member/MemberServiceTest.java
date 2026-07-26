@@ -45,7 +45,7 @@ class MemberServiceTest {
     void create_SetsInitialPasswordFromPhoneAndRequiresChange() {
         memberService.create(sampleRequest(), "admin@likelion.org");
 
-        Member saved = memberRepository.findByStudentId("2020000001").orElseThrow();
+        Member saved = memberRepository.findAllByStudentId("2020000001").get(0);
         assertThat(saved.isMustChangePassword()).isTrue();
         assertThat(passwordEncoder.matches("01000000001", saved.getPasswordHash())).isTrue();
     }

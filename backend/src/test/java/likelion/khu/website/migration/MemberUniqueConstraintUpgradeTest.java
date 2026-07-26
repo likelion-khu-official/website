@@ -79,7 +79,7 @@ class MemberUniqueConstraintUpgradeTest {
     void v2PreservesExistingRowAndAllowsReEnrollmentAfterOffboarding() {
         // 파일 준비는 이미 prepareUpgradedFileThenBoot()에서 끝났다 — 여기선 준비된 DB 위에서
         // 실제 애플리케이션 계층(Repository·Service)으로 기존 행 보존과 재입부만 확인한다.
-        Member existing = memberRepository.findByStudentId("2020009999").orElseThrow();
+        Member existing = memberRepository.findAllByStudentId("2020009999").get(0);
         assertThat(existing.getCohort()).isEqualTo(13);
         assertThat(existing.getName()).isEqualTo("기존행");
         assertThat(existing.getOffboardedAt()).isNull();
@@ -96,5 +96,13 @@ class MemberUniqueConstraintUpgradeTest {
 
         assertThat(reEnrolled.getCohort()).isEqualTo(14);
         assertThat(reEnrolled.getId()).isNotEqualTo(existing.getId());
+
+        // 한 학번이 이제 row 2개(오프보딩된 13기 + 활동 중인 14기)를 갖는다 — 이 조회가 다중
+        // 결과를 실제로 정상 리턴하는지(Optional 기반 메서드였다면 여기서 예외로 터졌을 상황)
+        // 직접 확인한다.
+        assertThat(memberRepository.findAllByStudentId("2020009999"))
+                .hasSize(2)
+                .extracting(Member::getCohort)
+                .containsExactlyInAnyOrder(13, 14);
     }
 }

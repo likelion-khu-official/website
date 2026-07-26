@@ -45,3 +45,25 @@
 **테스트 빈틈 1건 발견 → 단위 테스트 추가로 메움.** `MemberAuthService`(오프보딩·로그인차단·비번초기화)에 DB 없이 도는 순수 단위 테스트가 하나도 없었다. 추가하는 과정에서 `Member.create()`가 id를 채우지 않는다는 점을 놓쳐 토큰 폐기가 실제로는 검증되지 않는 상태로 테스트가 "통과"할 뻔한 걸 잡았다(T14) — 이 자체가 단위 테스트 계층이 없었을 때의 리스크를 보여준다.
 
 <sub>실행 2026-07-23 · 방법 MockMvc 기반 블랙박스(소켓 HTTP 아님, 사유는 상단 방법론 참고) + 신규 Mockito 단위 테스트 · 브랜치 feat/145-admin-member-manage(PR #155)</sub>
+
+## 후속(2026-07-26) — 학번 unique 재설계 + 실제 마이그레이션 검증
+
+위 QA엔 없던 시나리오가 PR #155 리뷰에서 나왔다: "14기 오프보딩 후 15기로 재입부하면 어떻게 되나?" 확인해보니 학번에 전역 unique가 걸려 있어 오프보딩된 학번이 **영구 재사용 불가**였다(오프보딩은 로그인만 막는 소프트 딜리트라 row가 DB에 남는데, 그 학번으로 다시는 등록을 못 함). 위 표의 T6(학번 중복 등록 409)는 여전히 맞는 동작이지만, "오프보딩된 뒤에도" 그런지는 안 다뤘던 갭.
+
+**고친 것**: 학번 unique를 `(학번, 기수)` 복합키로 바꿨다. "동시에 두 기수로 활동 중일 순 없다"는 불변식은 별도로(활동 중=오프보딩 안 된 레코드 존재 여부) 체크한다.
+
+**애플리케이션 코드만 고치면 안 됐던 이유**: 이 레포는 Flyway(#133)로 스키마를 관리해서, 엔티티 애노테이션만 고치면 실제 stage/prod DB엔 전혀 반영이 안 된다 — 실제 파일 SQLite로 재현해서 원본 `SQLITE_CONSTRAINT_UNIQUE` 예외까지 확인했다. 그래서 `V2__member_offboarding_and_cohort_unique.sql`(테이블 재생성 패턴 — SQLite는 기존 컬럼의 unique 제약을 ALTER로 못 바꿈)을 추가하고, "이미 앞 버전까지 적용된 실데이터 DB에 새 마이그레이션이 얹히는" 실제 배포 경로까지 재현하는 재사용 테스트 도구(`MigrationUpgradeHarness`)로 검증했다.
+
+**연관 리스크도 같이 잡음**: 학번 하나가 이제 여러 row(재입부 이력)를 가질 수 있는데, 기존 `MemberRepository.findByStudentId`가 `Optional<Member>`(단일 결과 기대)였다 — 재입부가 실제로 일어난 학번을 조회하면 `IncorrectResultSizeDataAccessException`으로 터질 뻔한 지뢰였다. `findAllByStudentId`(List 반환)로 바꾸고 호출부(테스트)도 다 맞춰 고쳤다. 로그인 조회(`findByStudentIdAndOffboardedAtIsNull`)는 원래도 활동 중인 것 하나로 좁혀서 조회해 이 문제가 없었다.
+
+| ID | 시나리오 | 기대 | 결과 |
+|---|---|---|---|
+| T17 | 활동 중인 학번을 다른 기수로 중복 등록 시도 | 409 | ✅ |
+| T18 | 14기 오프보딩 후 15기로 같은 학번 재등록 | 201 | ✅ |
+| T19 | 재입부 후 — 새 계정(새 기수)으로는 로그인, 옛 계정 비번으로는 여전히 차단 | 새 계정 200 / 옛 계정 401 | ✅ |
+| T20 | (마이그레이션) V1만 적용된 실데이터 DB에 V2를 얹었을 때 기존 행 보존 + 재입부 성공 | 데이터 보존, 재입부 성공 | ✅ — `MemberUniqueConstraintUpgradeTest`(실제 Flyway 경로) |
+| T21 | 재입부로 학번 하나가 row 2개가 된 상태에서 `findAllByStudentId` 조회 | 예외 없이 2건 리턴 | ✅ |
+
+실제 GitHub Actions CI(backend unit/integration·frontend·gitleaks)까지 그린 확인.
+
+<sub>실행 2026-07-26 · 방법 로컬 MockMvc + Mockito 단위 테스트 + 실제 파일 SQLite(Flyway) 재현 + GitHub Actions CI · 브랜치 feat/145-admin-member-manage(PR #155)</sub>
