@@ -48,32 +48,43 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
    ALTER TABLE members_new RENAME TO members;
    ```
 
-4. **`@GeneratedValue(IDENTITY)` PK ↔ FK 타입 짝 맞추기** — `org.hibernate.community.dialect.SQLiteDialect`는 생성 시엔 identity PK를 SQLite rowid 별칭 규칙에 맞춰 `integer`로 만들지만, 검증 시엔 그걸 모르고 일반 규칙(`Long`→`bigint`)으로 비교하는 dialect 자체 버그가 있다(#133에서 실측 확인). 그래서 이 레포 엔티티는:
+4. **재생성 패턴(3번) 마이그레이션은 "빈 DB에 적용"만으론 안 끝난다 — 실데이터가 있는 상태에 얹었을 때도 검증한다.** `SchemaMigrationConsistencyIntegrationTest`(6번)는 빈 DB 기준이라 "기존 행이 안 깨지는지", "예전 버전 데이터 위에서 재생성이 실제로 되는지"는 못 잡는다(#145 PR #155 리뷰에서 실측 — 코드는 맞는데 기존 DB에 얹으면 그 자리에서 깨지는 걸 뒤늦게 발견). `MigrationUpgradeHarness`(`backend/src/test/java/likelion/khu/website/migration/MigrationUpgradeHarness.java`)로 커밋 가능한 테스트를 써서 검증한다 — git으로 옛 엔티티를 체크아웃하거나 별도 worktree를 팔 필요 없다(머지된 마이그레이션 파일은 절대 안 바뀌므로 그 시점 스키마를 raw SQL로 그대로 재현하면 충분):
+   ```java
+   MigrationUpgradeHarness.migrateTo(dbUrl, "직전버전");      // 이 변경 배포 직전 상태 재현
+   MigrationUpgradeHarness.execute(dbUrl, "insert into ...");  // 그 시점에 있었을 법한 실데이터 raw SQL로 심기
+   MigrationUpgradeHarness.migrateToLatest(dbUrl);             // 이 PR이 실제 배포되는 순간 재현
+   // 이어서 @SpringBootTest(ddl-auto=validate, flyway.enabled=false)로 같은 파일을 열어
+   // Repository/Service로 "기존 행 보존" + "의도한 동작"을 확인한다.
+   ```
+   예제 겸 참고용 완성 테스트: `MemberUniqueConstraintUpgradeTest`(같은 디렉터리). 정말로 위험한 변경(대상 테이블 실데이터가 많거나 FK가 복잡)이면 이 harness로도 안심이 안 되니 아래 "막히면"의 실제 stage DB 사본 방식을 추가로 쓴다 — harness는 "매번 손으로 재현하지 않게" 하는 것이지 실제 사본 검증을 완전히 대체하진 않는다.
+
+5. **`@GeneratedValue(IDENTITY)` PK ↔ FK 타입 짝 맞추기** — `org.hibernate.community.dialect.SQLiteDialect`는 생성 시엔 identity PK를 SQLite rowid 별칭 규칙에 맞춰 `integer`로 만들지만, 검증 시엔 그걸 모르고 일반 규칙(`Long`→`bigint`)으로 비교하는 dialect 자체 버그가 있다(#133에서 실측 확인). 그래서 이 레포 엔티티는:
    - PK 필드: `@Column(columnDefinition = "integer")`
    - 그 PK를 참조하는 FK 필드(`@JoinColumn`/일반 `Long xxxId`): `columnDefinition = "bigint"`(SQLite는 PK가 아닌 컬럼에서 `integer`/`bigint` 타입 이름 차이가 기능적으로 없다는 걸 이용)
    새 엔티티를 만들 때 이 패턴을 안 따르면 `validate`가 기동 시점에 바로 실패한다 — 기존 엔티티(`Member`, `Post` 등)를 템플릿으로 삼을 것.
 
-5. **로컬에서 즉시 검증**
+6. **로컬에서 즉시 검증**
    ```bash
    cd backend && ./gradlew test --tests "*SchemaMigrationConsistencyIntegrationTest*"
    ```
    빈 DB에 `db/migration/`의 모든 SQL을 실제로 적용한 뒤 `ddl-auto=validate`로 엔티티 매핑과 대조한다. 여기서 실패하면 SQL이나 엔티티 어노테이션이 서로 안 맞는 것 — PR 올리기 전에 반드시 통과시킬 것. (전체 스위트: `./gradlew test`)
 
-6. **enum 값 추가/변경은 `validate`도 로컬 테스트도 못 잡는다 — 수동으로 확인할 것.** `@Enumerated(EnumType.STRING)` 필드는 SQL에서 `CHECK (col IN ('A','B',...))`로 박히는데, Hibernate의 스키마 검증은 컬럼 존재·타입만 보지 CHECK 제약 **안의 값 목록**은 안 본다 — enum에 새 값을 추가하고 그 CHECK를 갱신하는 마이그레이션(재생성 패턴, 아래)을 빠뜨려도 앱은 멀쩡히 뜬다. 그 값으로 실제 INSERT/UPDATE가 일어나는 순간에야 DB가 CHECK 위반으로 터진다. **enum 값을 바꿀 땐 항상 마이그레이션에 CHECK 갱신도 같이 넣을 것** — 자동으로 안 잡히니 직접 챙겨야 한다.
+7. **enum 값 추가/변경은 `validate`도 로컬 테스트도 못 잡는다 — 수동으로 확인할 것.** `@Enumerated(EnumType.STRING)` 필드는 SQL에서 `CHECK (col IN ('A','B',...))`로 박히는데, Hibernate의 스키마 검증은 컬럼 존재·타입만 보지 CHECK 제약 **안의 값 목록**은 안 본다 — enum에 새 값을 추가하고 그 CHECK를 갱신하는 마이그레이션(재생성 패턴, 위 4번)을 빠뜨려도 앱은 멀쩡히 뜬다. 그 값으로 실제 INSERT/UPDATE가 일어나는 순간에야 DB가 CHECK 위반으로 터진다. **enum 값을 바꿀 땐 항상 마이그레이션에 CHECK 갱신도 같이 넣을 것** — 자동으로 안 잡히니 직접 챙겨야 한다.
 
-7. **Flyway 마이그레이션은 CD 롤백으로 안 되돌아간다.** CD의 자동 롤백(#158~#162)은 "이전 컨테이너 이미지로 교체"일 뿐 — 이미 실행된 마이그레이션(테이블·컬럼 변경)은 DB에 그대로 남는다. 위험한 변경이 배포된 뒤 코드만 롤백되면, 옛 코드가 새 스키마를 상대해야 하는 애매한 상태가 될 수 있다. 그래서:
+8. **Flyway 마이그레이션은 CD 롤백으로 안 되돌아간다.** CD의 자동 롤백(#158~#162)은 "이전 컨테이너 이미지로 교체"일 뿐 — 이미 실행된 마이그레이션(테이블·컬럼 변경)은 DB에 그대로 남는다. 위험한 변경이 배포된 뒤 코드만 롤백되면, 옛 코드가 새 스키마를 상대해야 하는 애매한 상태가 될 수 있다. 그래서:
    - 가능하면 **확장 먼저, 정리는 나중에**(expand-contract) 패턴을 쓴다 — 컬럼 삭제 대신: ①새 컬럼 추가(nullable, 이 상태로 배포·안정화 확인) → ②코드가 새 컬럼을 쓰도록 전환 → ③한참 뒤 별도 마이그레이션으로 옛 컬럼 제거. 각 단계가 그 자체로 안전해서, 어느 시점에 코드만 롤백돼도 스키마와 안 어긋난다.
    - 파괴적 변경(`DROP TABLE`/`DROP COLUMN`, 기존 데이터 있는 컬럼에 `NOT NULL` 추가, 타입 축소)은 되돌릴 SQL을 마이그레이션과 별도로 PR에 같이 적어둘 것 — Flyway가 자동으로 안 해주니 사람이 필요할 때 수동 실행할 수 있게.
    - PR 설명에 무엇이 바뀌는지, 기존 데이터는 어떻게 되는지 명시하고 인프라(장찬욱)·PM(김우진)에게 리뷰 요청.
 
-8. **로컬 개발 DB가 Flyway 도입 이전 파일이면 baseline이 깨질 수 있다.** stage/prod는 실제 DB 사본으로 baseline이 실측 검증됐지만, 각자 로컬 SQLite 파일은 그런 검증을 거치지 않았다 — 기동이 안 되면 로컬 DB 파일만 지우고(`rm` 대상 경로는 `.env`/`DB_PATH` 참고) 재기동하면 Flyway가 처음부터 새로 만든다. 실제 데이터를 보존해야 하는 상황이 아니라면 이게 제일 빠르다.
+9. **로컬 개발 DB가 Flyway 도입 이전 파일이면 baseline이 깨질 수 있다.** stage/prod는 실제 DB 사본으로 baseline이 실측 검증됐지만, 각자 로컬 SQLite 파일은 그런 검증을 거치지 않았다 — 기동이 안 되면 로컬 DB 파일만 지우고(`rm` 대상 경로는 `.env`/`DB_PATH` 참고) 재기동하면 Flyway가 처음부터 새로 만든다. 실제 데이터를 보존해야 하는 상황이 아니라면 이게 제일 빠르다.
 
-9. **PR 본문에 체크 블록 포함**
+10. **PR 본문에 체크 블록 포함**
    ```markdown
    ## 스키마 변경 체크
    - [x] 엔티티 수정
    - [x] db/migration/V{n}__설명.sql 추가
    - [x] SchemaMigrationConsistencyIntegrationTest 로컬 통과
+   - [x] (재생성 패턴이면) MigrationUpgradeHarness로 기존 데이터 위 업그레이드 검증
    - [x] enum 값 변경 시 CHECK 제약도 같이 갱신했는지 확인
    - [x] (파괴적 변경 시) 영향 범위 + 되돌릴 SQL 명시, 리뷰 요청
    ```
@@ -83,7 +94,7 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
 - ❌ psql/sqlite3로 stage·prod DB에 스키마 직접 반영 — Flyway가 배포 시 자동으로 함, 이 레포엔 필요 없고 `dbclient`로는 기술적으로도 막혀 있음
 - ❌ 엔티티 설계 판단(FK 방향, 정규화, 1:1 vs 1:N 등) — 백엔드 팀원·리뷰어 판단 영역
 - ❌ 이미 머지된 마이그레이션 파일 수정 — 새 파일을 추가해서 고친다
-- ❌ 로컬 검증(5번) 없이 PR 올리기
+- ❌ 로컬 검증(6번) 없이 PR 올리기
 - ❌ 체크섬 불일치(`FlywayValidateException`, "checksum mismatch") 상황에서 `flyway repair`나 히스토리 테이블을 직접 손대기 — 원인(머지된 파일이 사후 수정됐는지 등)부터 파악해야 하니 인프라(장찬욱)에게 먼저 알림
 
 ## 막히면
