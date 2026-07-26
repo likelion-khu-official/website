@@ -46,17 +46,35 @@ GitHub Actions
   ※ CD 트리거 paths 필터: backend/**, shared/** — infra/ 변경만으로는 CD 안 돌아감
 
 OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
-  docker compose (단일 파일: infra/docker-compose.yml)
+  docker compose (단일 파일: infra/docker-compose.yml, 2026-07-26 실측 = 5개 서비스)
     ├── nginx (80/443)       → HTTP→HTTPS 리다이렉트 + SSL 종단 (Let's Encrypt, 만료 2026-09-27)
     │     api.prod.likelion-khu.com  → backend-prod:8080
     │     api.stage.likelion-khu.com → backend-stage:8080
     ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
-    └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
+    ├── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
+    ├── sqlite-web-stage     → 조회 전용 GUI, 127.0.0.1:8090에만 바인딩 (공인 포트 아님)
+    └── sqlite-web-prod      → 조회 전용 GUI, 127.0.0.1:8091에만 바인딩 (공인 포트 아님)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
+  ※ sqlite-web-*는 dbtunnel 계정의 SSH 포트포워딩으로만 접근(db-access.md 참고) — nginx 안 거침, 공인 인터넷 노출 없음
+
+크론(서버 실측, 2026-07-26 — crontab -l 그대로):
+  0 18 * * *   backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
+  */5 * * * *  push-disk-metric.py       → 디스크 사용률 custom metric
+  */5 * * * *  push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
+  ※ 셋 다 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest
   backend:prod-{sha} / backend:prod-latest
+
+DNS (호스팅케이알, 네임서버 ns1~4.hosting.co.kr — 2026-07-26 dig 실측):
+  likelion-khu.com               A     → Vercel(프론트) — MX 없음(수신 메일함 없음, 발신 전용 Email Delivery만)
+  www.likelion-khu.com           CNAME → Vercel
+  api.prod.likelion-khu.com      A     → 168.138.202.82 (이 OCI 인스턴스)
+  api.stage.likelion-khu.com     A     → 168.138.202.82 (이 OCI 인스턴스)
+  likelion-khu.com               TXT   → SPF(`email-delivery.md` 참고), 별도 `_dmarc` TXT도 등록됨
+  ※ 스테이징 프론트 랜덤 서브도메인은 의도적으로 여기 비공개(`pm/docs/ops.md` 참고) — 값은 ops.local
+  ※ CAA 레코드 없음(어떤 CA든 이 도메인 인증서 발급 가능) — 지금 위험도는 낮지만 강화하려면 CAA로 Let's Encrypt만 허용하는 걸 검토 가능
 
 Vercel → 프론트엔드 (인프라 무관)
 ```
@@ -90,9 +108,42 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
-| `infra/push-disk-metric.py` / `infra/push-backup-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
+| `infra/push-disk-metric.py` / `infra/push-backup-metric.py` / `infra/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
+
+---
+
+## nginx 설정 — 실제 값 (2026-07-26 서버 실측)
+
+`infra/nginx.conf`는 gitignore라 레포엔 없다 — 여기가 실제 구조를 확인할 수 있는 유일한 곳이니 nginx를 바꾸면 이 절도 같이 갱신할 것.
+
+```
+http {
+  client_max_body_size 6m;   # 백엔드 멀티파트 한도(5MB)보다 살짝 크게 — 백엔드가 자기 한도 초과 시
+                             # 친절한 JSON 에러를 낼 기회를 주기 위함(nginx가 먼저 뚝 끊지 않도록)
+
+  server { listen 80; server_name api.prod.likelion-khu.com api.stage.likelion-khu.com;
+           return 301 https://$host$request_uri; }   # 80은 리다이렉트만, 실제 라우팅 없음
+
+  server { listen 443 ssl; server_name api.prod.likelion-khu.com;
+           ssl_certificate/key: likelion-khu.com-0001 lineage
+           location / { proxy_pass http://backend-prod:8080; ... X-Forwarded-* 헤더 } }
+
+  server { listen 443 ssl; server_name api.stage.likelion-khu.com;
+           ssl_certificate/key: likelion-khu.com-0001 lineage (위와 동일 인증서, SAN에 둘 다 포함)
+           location / { proxy_pass http://backend-stage:8080; ... X-Forwarded-* 헤더 } }
+}
+```
+
+**인증서가 2개 발급돼 있다(`sudo certbot certificates`로 확인) — 실제로 쓰는 건 하나뿐이다:**
+
+| Certificate Name | Domains(SAN) | nginx가 참조하나 |
+|---|---|---|
+| `likelion-khu.com-0001` | `likelion-khu.com`, `api.prod.likelion-khu.com`, `api.stage.likelion-khu.com` | ✅ 위 설정이 실제로 이걸 씀 |
+| `likelion-khu.com` | `likelion-khu.com`, 스테이징 프론트 랜덤 서브도메인(비공개) | ❌ 이 nginx.conf 어디서도 참조 안 됨 — 프론트는 Vercel이라 이 서버 nginx가 SSL 종단할 이유가 없음 |
+
+두 번째 lineage는 이름(`likelion-khu.com`)이 첫 번째와 헷갈리기 쉽고 용도가 불분명하다 — 과거 설정 시행착오의 흔적으로 추정되나 확실친 않음. 실제로 안 쓰이는 걸로 보이니 삭제해도 되는지는 장찬욱이 판단(`sudo certbot delete --cert-name likelion-khu.com`로 제거 가능, 삭제 전 정말 아무 것도 참조 안 하는지 재확인).
 
 ---
 
@@ -161,3 +212,4 @@ Vercel → 프론트엔드 (인프라 무관)
 > 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
 
 - **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md) 3절 참고.
+- **`infra/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/cleanup-old-logs.sh`로 `100755` 확인.

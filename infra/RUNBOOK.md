@@ -68,7 +68,7 @@ ssh likelion-oci 'docker image prune -f'
 ssh likelion-oci 'df -h /'   # 정리 후 재확인
 ```
 
-**다음**: 그래도 안 줄면 `infra/logs/{stage,prod}/`의 오래된 로그 파일을 수동 삭제(자동 정리 cron 없음, `logging.md` 미결 사항). 며칠 내 재발하거나 200GB에 근접하는 추세면 김우진 공유 — 블록 볼륨 확장은 무료 한도(200GB) 안인지 먼저 확인.
+**다음**: `infra/logs/{stage,prod}/`의 30일 넘은 로그는 `cleanup-old-logs.sh`가 매일 자동으로 지운다(2026-07-26 추가) — 그런데도 안 줄면 원인이 로그가 아니라 다른 것(도커 이미지·볼륨 등)이라는 뜻이니 위 `docker system df` 결과부터 다시 볼 것. 며칠 내 재발하거나 200GB에 근접하는 추세면 김우진 공유 — 블록 볼륨 확장은 무료 한도(200GB) 안인지 먼저 확인.
 
 ### 2-2. OCI Monitoring — 메모리 사용률 85% 초과 (CRITICAL)
 
