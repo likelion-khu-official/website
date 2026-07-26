@@ -19,7 +19,7 @@ REPO="$OWNER/website"
 PROJ_NUM=1
 PROJ_ID=PVT_kwDOEZZ_V84BbPtZ
 F_STATUS=PVTSSF_lADOEZZ_V84BbPtZzhWBlCY
-OPT_DONE=98236657   # Todo=f75ad846 · In Progress=47fc9ee4 · Done=98236657
+OPT_DONE=98236657   # Todo=f75ad846 · Done=98236657
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo "gh project item-edit --project-id $PROJ_ID --id <ITEM_ID(issue #$ISSUE)> --field-id $F_STATUS --single-select-option-id $OPT_DONE"

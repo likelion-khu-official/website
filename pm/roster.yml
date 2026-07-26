@@ -22,16 +22,16 @@ members:
     team: 디자인
   - name: 박일하
     handle: ParkIlha
-    team: 프론트
+    team: FE
   - name: 김현정
     handle: hjdd0309
-    team: 프론트
+    team: FE
   - name: 신선우
     handle: sunwoo1256
-    team: 백엔드
+    team: BE
   - name: 안시현
     handle: xihxxn
-    team: 백엔드
+    team: BE
   - name: 장찬욱
     handle: cjang3285
-    team: 백엔드  # 원래 인프라 — #117·#119·#83 등 백엔드를 맡아와, 2026-07-22 백엔드로 이동(어드민 풀스택 배분). 인프라 작업은 팀 공동 대응.
+    team: BE  # 원래 인프라 — #117·#119·#83 등 백엔드를 맡아와, 2026-07-22 백엔드로 이동(어드민 풀스택 배분). 인프라 작업은 팀 공동 대응.
