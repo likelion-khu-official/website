@@ -151,6 +151,33 @@ class MemberControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    // 한 사람이 동시에 두 기수로 활동 중일 순 없다 — 기수가 달라도 이미 활동 중인 학번이면 막는다(#155 리뷰).
+    @WithMockAdminUser
+    @Test
+    void createMember_SameStudentIdDifferentCohortWhileStillActive_Returns409() throws Exception {
+        createMember();
+
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"또다른시현\",\"roles\":[\"BE\"],\"cohort\":14,\"studentId\":\"2020123456\",\"phone\":\"01099998888\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    // 14기로 활동하다 오프보딩된 뒤 15기로 재입부하는 시나리오(#155 리뷰) — 같은 학번이라도
+    // 기수가 다르면 새로 등록할 수 있어야 한다.
+    @WithMockAdminUser
+    @Test
+    void createMember_SameStudentIdNewCohortAfterOffboarding_Returns201() throws Exception {
+        Long oldId = createMember();
+        memberAuthService.offboard(oldId);
+
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"시현\",\"roles\":[\"BE\"],\"cohort\":14,\"studentId\":\"2020123456\",\"phone\":\"01000000000\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.cohort").value(14));
+    }
+
     // ── PATCH /api/admin/members/{id} ────────────────────────────────
 
     @WithMockAdminUser
@@ -339,6 +366,34 @@ class MemberControllerTest {
     void offboardedMember_CannotLogin() throws Exception {
         Long id = createMember();
         memberAuthService.offboard(id);
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01000000000\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    // 14기 오프보딩 후 15기로 재입부한 뒤 — 새 계정(새 전화번호=초기 비번)으로는 로그인되고,
+    // 옛 14기 계정 비번으로는 여전히 막혀야 한다(#155 리뷰 시나리오).
+    @WithMockAdminUser
+    @Test
+    void reEnrolledMember_LogsInWithNewAccount_OldAccountStillBlocked() throws Exception {
+        Long oldId = createMember();
+        memberAuthService.offboard(oldId);
+
+        MemberCreateRequest reEnroll = new MemberCreateRequest();
+        reEnroll.setName("시현");
+        reEnroll.setRoles(Set.of(MemberRole.BE));
+        reEnroll.setCohort(14);
+        reEnroll.setStudentId("2020123456");
+        reEnroll.setPhone("01011112222");
+        memberService.create(reEnroll, "admin@likelion.org");
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01011112222\"}"))
+                .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/member/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

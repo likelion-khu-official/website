@@ -52,13 +52,11 @@ public class MemberAuthService {
 
     @Transactional(noRollbackFor = {InvalidCredentialsException.class, AccountLockedException.class})
     public LoginResult login(String studentId, String rawPassword) {
-        Member member = memberRepository.findByStudentId(studentId)
+        // 학번은 (학번, 기수) 유니크라 오프보딩된 과거 기수 row가 남아있을 수 있다 — 활동 중인
+        // 계정만 찾는다. 못 찾으면(미존재든 전부 오프보딩됐든) "이 학번은 탈퇴했다"를 알려주지
+        // 않기 위해 미존재·오답과 같은 에러로 처리(#145).
+        Member member = memberRepository.findByStudentIdAndOffboardedAtIsNull(studentId)
                 .orElseThrow(() -> new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요."));
-
-        // 오프보딩된 계정 — "이 학번은 탈퇴했다"를 알려주지 않기 위해 미존재·오답과 같은 에러로 처리(#145).
-        if (member.isOffboarded()) {
-            throw new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요.");
-        }
 
         if (member.isLocked()) {
             throw new AccountLockedException();

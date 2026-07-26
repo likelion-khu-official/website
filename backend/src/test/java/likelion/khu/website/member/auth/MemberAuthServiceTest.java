@@ -67,13 +67,11 @@ class MemberAuthServiceTest {
         return member;
     }
 
-    // 오프보딩된 계정은 비밀번호가 맞아도 틀려도 상관없이 막혀야 한다 — passwordEncoder까지
-    // 가지도 않고 그 앞에서 걸러지는지(계정 존재 여부 비노출 순서)를 직접 확인한다.
+    // 오프보딩된 계정은 findByStudentIdAndOffboardedAtIsNull에 애초에 안 걸린다 — 미존재와
+    // 같은 경로로 막혀 passwordEncoder까지 가지 않는지(계정 존재 여부 비노출)를 확인한다.
     @Test
     void login_OffboardedMember_ThrowsBeforeCheckingPassword() {
-        Member member = sampleMember();
-        member.offboard();
-        when(memberRepository.findByStudentId("2020000001")).thenReturn(Optional.of(member));
+        when(memberRepository.findByStudentIdAndOffboardedAtIsNull("2020000001")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login("2020000001", "01000000001"))
                 .isInstanceOf(InvalidCredentialsException.class);
@@ -85,7 +83,7 @@ class MemberAuthServiceTest {
     void login_LockedMember_ThrowsAccountLockedEvenWithCorrectPassword() {
         Member member = sampleMember();
         member.recordFailedLogin(1, Duration.ofMinutes(15)); // maxAttempts=1 → 즉시 잠금
-        when(memberRepository.findByStudentId("2020000001")).thenReturn(Optional.of(member));
+        when(memberRepository.findByStudentIdAndOffboardedAtIsNull("2020000001")).thenReturn(Optional.of(member));
 
         assertThatThrownBy(() -> service.login("2020000001", "01000000001"))
                 .isInstanceOf(AccountLockedException.class);
@@ -96,7 +94,7 @@ class MemberAuthServiceTest {
     @Test
     void login_WrongPassword_RecordsFailedAttemptAndThrows() {
         Member member = sampleMember();
-        when(memberRepository.findByStudentId("2020000001")).thenReturn(Optional.of(member));
+        when(memberRepository.findByStudentIdAndOffboardedAtIsNull("2020000001")).thenReturn(Optional.of(member));
         when(passwordEncoder.matches("wrong", "hashed-phone")).thenReturn(false);
 
         assertThatThrownBy(() -> service.login("2020000001", "wrong"))
@@ -107,7 +105,7 @@ class MemberAuthServiceTest {
 
     @Test
     void login_NonExistentStudentId_ThrowsSameErrorAsWrongPassword() {
-        when(memberRepository.findByStudentId("nope")).thenReturn(Optional.empty());
+        when(memberRepository.findByStudentIdAndOffboardedAtIsNull("nope")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login("nope", "anything"))
                 .isInstanceOf(InvalidCredentialsException.class)

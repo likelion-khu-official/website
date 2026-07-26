@@ -54,7 +54,13 @@ public class MemberService {
 
     @Transactional
     public MemberAdminResponse create(MemberCreateRequest request, String createdBy) {
-        if (memberRepository.existsByStudentId(request.getStudentId())) {
+        // 한 사람이 동시에 두 기수로 활동 중일 순 없다 — 기수가 달라도 활동 중인 계정이 이미
+        // 있으면 막는다(재등록하려면 먼저 오프보딩부터).
+        if (memberRepository.existsByStudentIdAndOffboardedAtIsNull(request.getStudentId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 활동 중인 학번이에요. 먼저 오프보딩해주세요.");
+        }
+        // 오프보딩된 뒤 같은 기수로 다시 등록하려는 경우까지 막는다(학번+기수 조합 자체의 중복).
+        if (memberRepository.existsByStudentIdAndCohort(request.getStudentId(), request.getCohort())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 학번이에요.");
         }
         String emoji = EMOJI_POOL.get(RANDOM.nextInt(EMOJI_POOL.size()));
