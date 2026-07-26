@@ -52,6 +52,8 @@ OCI Notifications (ONS)
 
 **git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) `git pull`이 조용히 실패해 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복). `infra/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
 
+**알려진 사각지대(2026-07-26 발견)**: 이 알람은 `git status --porcelain`(작업트리의 미커밋 변경)만 본다 — **서버 로컬 브랜치가 이미 커밋된 채로 `origin`과 갈라져 있는 것(diverged)은 전혀 못 잡는다.** 실제로 서버의 `dev`가 `origin/dev`와 26개(로컬 전용) vs 16개(origin 전용) 커밋으로 분기돼 있었는데, 워킹트리는 clean이라 이 알람은 계속 OK였다. 원인은 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 쌓인 것으로 추정(`pm/docs/learnings.md`의 "OCI 서버 배포 키 read-only" 항목 참고). 대응은 [`RUNBOOK.md`](./RUNBOOK.md) 3절 참고.
+
 ### 알람 튜닝 사고 모델 — 쿼리 윈도우 · pending-duration · cron 주기의 관계
 
 커스텀 메트릭 알람을 튜닝할 때 서로 얽혀 있는 변수 4개:
@@ -105,6 +107,7 @@ python3 -m venv ~/oci-monitor-venv
 - **어디로**: ONS Topic `likelion-ops-alerts` 구독자(동아리 메일, PM 메일)
 - **판단 근거**: 메일 제목/본문에 어떤 Alarm이 왜 울렸는지 그대로 담겨 있음(위 표의 body 텍스트). 디스크/메모리는 "지금 값이 임계치를 넘었다", 백업은 "마지막 성공 신호로부터 26시간 지났다"
 - **확인 방법**: OCI 콘솔 `Observability & Management → Monitoring → Alarm Definitions`(컴파트먼트는 루트, 리전은 `ap-tokyo-1`로 맞출 것 — 안 그러면 안 보임, 실제로 헷갈렸던 지점)
+- **알람 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md#2-알람-대응-절차-runbook)
 
 ## 실측 검증 (2026-07-08)
 
