@@ -9,18 +9,18 @@ export default function Recruit() {
   return (
     <section
       id="recruit"
-      className="recruit-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-14 px-6 py-24 overflow-hidden"
+      className="recruit-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:gap-14 sm:px-8 sm:py-24"
     >
       {/* 문구 */}
-      <div className="relative flex flex-col items-center gap-2 text-center">
+      <div className="relative flex max-w-[1180px] flex-col items-center gap-2 text-balance text-center">
         <p
-          className="text-accent font-bold"
+          className="break-keep font-bold text-accent"
           style={{ fontSize: 'clamp(24px, 3vw, 52px)', letterSpacing: '-2px', lineHeight: 1.35 }}
         >
           아이디어를 현실로 만드는 여정,
         </p>
         <p
-          className="text-white font-bold"
+          className="break-keep font-bold text-white"
           style={{ fontSize: 'clamp(24px, 3vw, 52px)', letterSpacing: '-2px', lineHeight: 1.35 }}
         >
           경희대학교 멋쟁이사자처럼과 함께할 아기사자를 기다립니다.
@@ -34,7 +34,7 @@ export default function Recruit() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-full border border-white/10 bg-white/[0.07] text-muted hover:text-white hover:bg-white/[0.12] transition-colors"
+          className="min-h-11 rounded-full border border-white/10 bg-white/[0.07] text-muted outline-none transition-colors hover:bg-white/[0.12] hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
           style={{
             padding: 'clamp(14px, 1.4vw, 22px) clamp(32px, 3.2vw, 56px)',
             fontSize: 'clamp(16px, 1.35vw, 24px)',

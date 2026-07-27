@@ -155,7 +155,7 @@ export default function WriteForm() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-1 text-2xl font-bold text-white">글쓰기</h1>
       <p className="mb-8 text-sm text-muted">{authorName} 님으로 작성해요.</p>
 
@@ -163,7 +163,7 @@ export default function WriteForm() {
         <button
           type="button"
           onClick={() => setPreview((v) => !v)}
-          className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10"
+          className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
         >
           {preview ? '편집으로 돌아가기' : '미리보기'}
         </button>
@@ -171,7 +171,7 @@ export default function WriteForm() {
 
       {preview ? (
         <article>
-          <h2 className="mb-4 text-2xl font-bold text-white">{title || '(제목 없음)'}</h2>
+          <h2 className="mb-4 break-keep text-2xl font-bold text-white">{title || '(제목 없음)'}</h2>
           {thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -196,7 +196,7 @@ export default function WriteForm() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           </div>
 
@@ -210,7 +210,7 @@ export default function WriteForm() {
               onChange={(e) => setContent(e.target.value)}
               required
               rows={12}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           </div>
 
@@ -225,7 +225,7 @@ export default function WriteForm() {
           <button
             type="submit"
             disabled={submitting || imageUploading}
-            className="self-start rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+            className="min-h-11 self-stretch rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 sm:self-start"
           >
             {submitting ? '등록 중…' : imageUploading ? '이미지 업로드 중…' : '글 등록'}
           </button>

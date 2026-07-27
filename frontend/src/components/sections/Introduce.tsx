@@ -13,7 +13,7 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative min-h-screen w-full flex flex-col items-center justify-center px-6 py-24 overflow-hidden"
+      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-8 sm:py-24"
     >
       {/* KHU at Likelion 로고 블록 */}
       <div className="flex flex-col items-center gap-1" style={gremlin}>
@@ -52,22 +52,23 @@ export default function Introduce() {
 
       {/* 헤드라인 — 두 문구가 번갈아 크로스페이드 전환 */}
       <div
-        className="relative w-full text-center"
+        className="relative min-h-32 w-full max-w-[960px] text-center sm:min-h-28"
         style={{
           marginTop: 'clamp(36px, 5vh, 72px)',
-          minHeight: 'clamp(66px, 7.5vh, 108px)',
         }}
       >
         <p
-          className="headline-swap headline-swap--a font-semibold text-white"
+          className="headline-swap headline-swap--a text-balance break-keep font-semibold text-white"
           style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
         >
-          <span className="text-accent">코딩이 처음이더라도</span> 프론트∙백엔드 개발부터
-          <br />
-          기획∙디자인까지 함께 성장하는
+          <span className="inline-block text-accent">코딩이 처음이더라도</span>{' '}
+          <span className="inline-block">프론트·백엔드 개발부터</span>
+          <br className="hidden sm:block" />
+          <span className="inline-block">기획·디자인까지</span>{' '}
+          <span className="inline-block">함께 성장하는</span>
         </p>
         <p
-          className="headline-swap headline-swap--b font-semibold text-white"
+          className="headline-swap headline-swap--b text-balance break-keep font-semibold text-white"
           style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
         >
           <span className="text-accent">아이디어</span>를
@@ -78,28 +79,28 @@ export default function Introduce() {
 
       {/* 통계 카드 */}
       <div
-        className="w-[82%] max-w-[1417px] rounded-[20px] bg-[rgba(0,0,0,0.13)] backdrop-blur-[22px] flex items-center justify-around flex-wrap gap-y-8"
-        style={{ marginTop: 'clamp(48px, 8vh, 108px)', padding: 'clamp(36px, 5vh, 64px) clamp(24px, 3vw, 60px)' }}
+        className="grid w-full max-w-[1417px] grid-cols-2 items-start gap-x-4 gap-y-10 rounded-[20px] bg-[rgba(0,0,0,0.13)] px-4 py-9 backdrop-blur-[22px] sm:w-[90%] sm:px-8 sm:py-12 lg:w-[82%] lg:grid-cols-4 lg:px-[clamp(24px,3vw,60px)] lg:py-[clamp(36px,5vh,64px)]"
+        style={{ marginTop: 'clamp(48px, 8vh, 108px)' }}
       >
         {stats.map((s) => (
-          <div key={s.label} className="flex flex-col items-center gap-3">
+          <div key={s.label} className="flex min-w-0 flex-col items-center gap-3 text-center">
             <p
-              className="text-[#cdcdcd] font-medium"
-              style={{ fontSize: 'clamp(16px, 1.9vw, 28px)', letterSpacing: '-0.7px' }}
+              className="break-keep font-medium text-[#cdcdcd]"
+              style={{ fontSize: 'clamp(14px, 1.9vw, 28px)', letterSpacing: '-0.7px' }}
             >
               {s.label}
             </p>
             <p className="leading-none whitespace-nowrap font-semibold">
               <span
                 className="text-accent"
-                style={{ fontSize: 'clamp(46px, 6vw, 86px)', letterSpacing: '-2.15px' }}
+                style={{ fontSize: 'clamp(38px, 6vw, 86px)', letterSpacing: '-2.15px' }}
               >
                 <CountUp end={s.value} />
               </span>
               <span
                 className="text-[#bbbbbb]"
                 style={{
-                  fontSize: s.super ? 'clamp(34px, 4.4vw, 64px)' : 'clamp(22px, 2.8vw, 40px)',
+                  fontSize: s.super ? 'clamp(28px, 4.4vw, 64px)' : 'clamp(20px, 2.8vw, 40px)',
                   letterSpacing: s.super ? '-1.6px' : '-1px',
                   verticalAlign: s.super ? 'top' : 'baseline',
                   marginLeft: '2px',

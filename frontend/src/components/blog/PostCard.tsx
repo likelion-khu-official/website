@@ -8,7 +8,7 @@ export default function PostCard({ post }: { post: PostSummary }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
-      className="group flex flex-col overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03] transition-colors hover:border-accent/40 hover:bg-white/[0.06]"
+      className="group flex flex-col overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03] outline-none transition-colors hover:border-accent/40 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="aspect-[16/9] w-full shrink-0 overflow-hidden bg-gradient-to-br from-[#3a3a3a] to-[#1c1c1c]">
         {post.thumbnailUrl ? (
@@ -21,7 +21,7 @@ export default function PostCard({ post }: { post: PostSummary }) {
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">
-        <h2 className="line-clamp-2 text-lg font-bold text-white">{post.title}</h2>
+        <h2 className="line-clamp-2 break-keep text-lg font-bold text-white">{post.title}</h2>
         {post.summary ? (
           <p className="line-clamp-2 text-sm text-muted">{post.summary}</p>
         ) : null}

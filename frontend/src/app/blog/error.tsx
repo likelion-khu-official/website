@@ -7,7 +7,7 @@ export default function BlogError({ reset }: { error: Error & { digest?: string 
       <button
         type="button"
         onClick={reset}
-        className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+        className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
       >
         다시 시도
       </button>

@@ -22,7 +22,7 @@ export default async function MembersPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background px-5 pb-24 pt-8 sm:px-10 lg:px-16">
+    <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-background px-5 pb-24 pt-8 sm:px-10 lg:px-16">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_-10%,rgba(255,80,0,0.3),transparent_60%)]"
@@ -31,7 +31,7 @@ export default async function MembersPage() {
       <div className="relative mx-auto max-w-[1320px]">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-white/55 transition-colors hover:text-white"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-white/55 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
         >
           <span aria-hidden>←</span>
           홈으로
@@ -39,10 +39,10 @@ export default async function MembersPage() {
 
         <header className="pb-12 pt-16 text-center sm:pb-16 sm:pt-24">
           <p className="text-sm font-semibold tracking-[0.18em] text-accent">OUR MEMBERS</p>
-          <h1 className="mt-4 text-[clamp(36px,5vw,72px)] font-bold tracking-[-0.055em] text-white">
+          <h1 className="mt-4 text-balance break-keep text-[clamp(36px,5vw,72px)] font-bold tracking-[-0.055em] text-white">
             함께 배우고 만드는 사람들
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/55 sm:text-base">
+          <p className="mx-auto mt-5 max-w-2xl text-balance break-keep text-sm leading-7 text-white/55 sm:text-base">
             서로 다른 전공과 관심사를 연결해 아이디어를 실제 서비스로 완성합니다.
           </p>
         </header>
@@ -57,8 +57,7 @@ export default async function MembersPage() {
           </div>
         ) : (
           <div
-            className="grid grid-cols-[repeat(2,156px)] justify-center gap-y-[38px] sm:grid-cols-[repeat(auto-fit,156px)]"
-            style={{ columnGap: 'clamp(8px, calc(100vw - 352px), 38px)' }}
+            className="grid grid-cols-2 justify-center gap-x-3 gap-y-8 sm:grid-cols-[repeat(auto-fit,minmax(144px,156px))] sm:gap-x-[38px] sm:gap-y-[38px]"
           >
             {members.map((member, index) => (
               <MemberCard key={member.id} member={member} colorIndex={index} />

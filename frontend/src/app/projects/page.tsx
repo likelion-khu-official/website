@@ -19,7 +19,7 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <main className="relative mx-auto min-h-[calc(100vh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-6 pb-28 pt-14 sm:px-10 lg:px-16 lg:pt-24">
+    <main className="relative mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-12 sm:px-10 sm:pb-28 sm:pt-14 lg:px-16 lg:pt-24">
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-[-400px] -z-0 h-[780px] w-[1050px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.33),rgba(19,19,19,0)_68%)] blur-2xl"
@@ -29,12 +29,12 @@ export default async function ProjectsPage() {
         <p className="mb-5 text-sm font-semibold uppercase tracking-[0.2em] text-accent">
           Our projects
         </p>
-        <h1 className="break-words text-[clamp(42px,7vw,88px)] font-semibold leading-[0.98] tracking-[-0.065em] sm:break-keep">
+        <h1 className="break-keep break-words text-[clamp(42px,7vw,88px)] font-semibold leading-[0.98] tracking-[-0.065em]">
           아이디어를
           <br />
           세상에 꺼내는 사람들
         </h1>
-        <p className="mt-7 max-w-xl break-words text-base leading-7 text-white/55 sm:break-keep sm:text-lg sm:leading-8">
+        <p className="mt-7 max-w-xl break-keep break-words text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
           문제를 발견하고, 팀을 만들고, 실제로 작동하는 서비스까지. 멋쟁이사자처럼
           경희대가 함께 완성한 결과물입니다.
         </p>

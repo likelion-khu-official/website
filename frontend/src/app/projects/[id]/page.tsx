@@ -59,7 +59,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   const endDate = formatDate(project.endDate);
 
   return (
-    <main className="relative mx-auto w-full min-w-0 max-w-[1440px] overflow-hidden px-6 pb-32 pt-12 sm:px-10 lg:px-16 lg:pt-20">
+    <main className="relative mx-auto w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-10 sm:px-10 sm:pb-32 sm:pt-12 lg:px-16 lg:pt-20">
       <div
         aria-hidden
         className="pointer-events-none absolute right-[-240px] top-[-320px] h-[720px] w-[720px] rounded-full bg-[radial-gradient(circle,rgba(176,34,12,0.24),transparent_68%)] blur-2xl"
@@ -67,7 +67,7 @@ export default async function ProjectDetailPage({ params }: Props) {
 
       <Link
         href="/projects"
-        className="relative inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
+        className="relative inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-white/45 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <span aria-hidden>←</span> 모든 프로젝트
       </Link>
@@ -80,7 +80,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           <h1 className="break-words text-[clamp(48px,8vw,112px)] font-semibold leading-[0.88] tracking-[-0.065em]">
             {project.title}
           </h1>
-          <p className="mt-8 max-w-3xl break-words text-lg leading-8 text-white/65 sm:break-keep sm:text-2xl sm:leading-10">
+          <p className="mt-8 max-w-3xl break-keep break-words text-lg leading-8 text-white/65 sm:text-2xl sm:leading-10">
             {project.summary}
           </p>
         </div>
@@ -172,7 +172,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               href={project.githubUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-accent hover:text-white"
+              className="mt-10 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#131313]"
             >
               GitHub에서 보기 <span aria-hidden>↗</span>
             </a>

@@ -14,7 +14,7 @@ function StaffPhoto({ staff }: { staff: Staff }) {
 
 function LeaderCard({ staff }: { staff: Staff }) {
   return (
-    <article className="grid grid-cols-1 gap-5 rounded-[24px] border border-accent/25 bg-black/25 p-5 backdrop-blur sm:grid-cols-[minmax(180px,38%)_1fr]">
+    <article className="grid grid-cols-1 gap-5 rounded-[24px] border border-accent/25 bg-black/25 p-4 backdrop-blur sm:grid-cols-[minmax(180px,38%)_1fr] sm:p-5">
       <div className="aspect-[4/3] sm:aspect-auto sm:min-h-[260px]">
         <StaffPhoto staff={staff} />
       </div>
@@ -34,7 +34,7 @@ function LeaderCard({ staff }: { staff: Staff }) {
 
 function StaffCard({ staff }: { staff: Staff }) {
   return (
-    <article className="grid grid-cols-[96px_minmax(0,1fr)] gap-4 rounded-[22px] border border-accent/20 bg-black/25 p-4 backdrop-blur sm:grid-cols-[132px_minmax(0,1fr)]">
+    <article className="grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-[22px] border border-accent/20 bg-black/25 p-3 backdrop-blur min-[360px]:grid-cols-[96px_minmax(0,1fr)] min-[360px]:gap-4 min-[360px]:p-4 sm:grid-cols-[132px_minmax(0,1fr)]">
       <div className="aspect-square sm:aspect-[4/5]">
         <StaffPhoto staff={staff} />
       </div>
@@ -69,7 +69,7 @@ export default async function Members() {
   return (
     <section
       id="members"
-      className="members-bg relative min-h-screen w-full overflow-hidden px-6 py-24 sm:px-10 lg:px-16"
+      className="members-bg relative min-h-screen min-h-[100svh] w-full overflow-hidden px-5 py-20 sm:px-10 sm:py-24 lg:px-16"
     >
       <div className="members-glow-base" />
       <div className="members-glow-accent" />
@@ -80,7 +80,7 @@ export default async function Members() {
             운영진 소개
           </p>
           <p
-            className="max-w-[1000px] font-semibold text-accent"
+            className="max-w-[1000px] text-balance break-keep font-semibold text-accent"
             style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
           >
             경희대학교 멋쟁이사자처럼 14기 운영진을 소개합니다.
@@ -102,7 +102,7 @@ export default async function Members() {
                 <LeaderCard key={person.id} staff={person} />
               ))}
             </div>
-            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
               {team.map((person) => (
                 <StaffCard key={person.id} staff={person} />
               ))}
@@ -113,7 +113,7 @@ export default async function Members() {
         <div className="mt-12 text-center">
           <Link
             href="/members"
-            className="inline-flex rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent transition-colors hover:bg-accent hover:text-white"
+            className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             14기 멤버 전체 보기
           </Link>
