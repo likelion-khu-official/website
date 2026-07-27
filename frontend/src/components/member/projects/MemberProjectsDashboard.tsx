@@ -1,0 +1,193 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import type { MemberAccount } from '@shared/types/member-auth';
+import type { MemberProjectSummary } from '@shared/types/project';
+import {
+  deleteProject,
+  getCurrentMember,
+  getMemberProjects,
+  MemberApiError,
+} from '@/lib/memberApi';
+import MemberProjectHeader from './MemberProjectHeader';
+
+const PAGE_PATH = '/member/projects';
+
+function sendToLogin(router: ReturnType<typeof useRouter>) {
+  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
+}
+
+export default function MemberProjectsDashboard() {
+  const router = useRouter();
+  const [member, setMember] = useState<MemberAccount | null>(null);
+  const [projects, setProjects] = useState<MemberProjectSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [{ member: currentMember }, projectList] = await Promise.all([
+        getCurrentMember(),
+        getMemberProjects(),
+      ]);
+      if (currentMember.mustChangePassword) {
+        sendToLogin(router);
+        return;
+      }
+      setMember(currentMember);
+      setProjects(projectList);
+    } catch (err) {
+      if (err instanceof MemberApiError && err.status === 401) {
+        sendToLogin(router);
+        return;
+      }
+      setError(err instanceof Error ? err.message : '내 프로젝트를 불러오지 못했어요.');
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [load]);
+
+  async function handleDelete(project: MemberProjectSummary) {
+    const confirmed = window.confirm(
+      `“${project.title}” 프로젝트를 삭제할까요?\n\n삭제하면 DB에서 완전히 제거되며 되돌릴 수 없습니다.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(project.id);
+    setError('');
+    try {
+      await deleteProject(project.id);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+    } catch (err) {
+      if (err instanceof MemberApiError && err.status === 401) {
+        sendToLogin(router);
+        return;
+      }
+      setError(err instanceof Error ? err.message : '프로젝트 삭제에 실패했어요.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl">
+      <MemberProjectHeader memberName={member?.name} />
+
+      <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+            Member workspace
+          </p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
+            내 프로젝트
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-white/45">
+            내가 참여한 프로젝트를 등록하고 함께 관리할 수 있어요.
+          </p>
+        </div>
+        <Link
+          href="/member/projects/new"
+          className="inline-flex w-fit items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff6a26]"
+        >
+          <span aria-hidden>＋</span> 새 프로젝트
+        </Link>
+      </div>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-8 flex items-center justify-between gap-4 rounded-2xl border border-red-400/20 bg-red-400/[0.07] px-5 py-4 text-sm text-red-200"
+        >
+          <span>{error}</span>
+          <button type="button" onClick={() => void load()} className="shrink-0 underline">
+            다시 시도
+          </button>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+          {[0, 1].map((item) => (
+            <div
+              key={item}
+              className="h-52 animate-pulse rounded-3xl border border-white/5 bg-white/[0.035]"
+            />
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="mt-10 flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 px-6 text-center">
+          <p className="text-lg font-semibold">아직 참여 중인 프로젝트가 없어요.</p>
+          <p className="mt-2 text-sm text-white/40">새 프로젝트를 등록하면 즉시 공개돼요.</p>
+        </div>
+      ) : (
+        <ul className="mt-10 grid gap-5 sm:grid-cols-2">
+          {projects.map((project) => (
+            <li
+              key={project.id}
+              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition hover:border-white/20"
+            >
+              <div className="flex gap-5 p-5">
+                <div className="aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-2xl bg-white/[0.05]">
+                  {project.representativeImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={project.representativeImageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-accent">{project.cohort}기</span>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                        project.hidden
+                          ? 'bg-amber-400/10 text-amber-300'
+                          : 'bg-emerald-400/10 text-emerald-300'
+                      }`}
+                    >
+                      {project.hidden ? '숨김' : '공개'}
+                    </span>
+                  </div>
+                  <h2 className="mt-3 truncate text-xl font-semibold tracking-[-0.03em]">
+                    {project.title}
+                  </h2>
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/45">
+                    {project.summary}
+                  </p>
+                </div>
+              </div>
+              <div className="flex border-t border-white/10">
+                <Link
+                  href={`/member/projects/${project.id}/edit`}
+                  className="flex-1 px-5 py-3.5 text-center text-sm text-white/65 transition hover:bg-white/[0.05] hover:text-white"
+                >
+                  수정
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(project)}
+                  disabled={deletingId === project.id}
+                  className="flex-1 border-l border-white/10 px-5 py-3.5 text-sm text-red-300/75 transition hover:bg-red-400/[0.06] hover:text-red-200 disabled:opacity-40"
+                >
+                  {deletingId === project.id ? '삭제 중…' : '삭제'}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
