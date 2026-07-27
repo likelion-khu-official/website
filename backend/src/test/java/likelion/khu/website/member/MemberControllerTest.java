@@ -13,6 +13,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -34,6 +35,8 @@ class MemberControllerTest {
         req.setCohort(13);
         req.setStudentId("2020123456");
         req.setPhone("01000000000");
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
         MemberAdminResponse res = memberService.create(req, "admin@likelion.org");
         return res.getId();
     }
@@ -59,7 +62,11 @@ class MemberControllerTest {
         mockMvc.perform(get("/api/members"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].createdBy").doesNotExist())
-                .andExpect(jsonPath("$[0].updatedBy").doesNotExist());
+                .andExpect(jsonPath("$[0].updatedBy").doesNotExist())
+                .andExpect(jsonPath("$[0].studentId").doesNotExist())
+                .andExpect(jsonPath("$[0].phone").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsent").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsentedAt").doesNotExist());
     }
 
     // ── POST /api/admin/members ───────────────────────────────────────
@@ -74,7 +81,19 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.name").value("선우"))
                 .andExpect(jsonPath("$.cohort").value(13))
                 .andExpect(jsonPath("$.emoji").isNotEmpty())
+                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMember_ConsentWithoutTimestamp_Returns400() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13," +
+                                "\"studentId\":\"2020111111\",\"phone\":\"01011112222\"," +
+                                "\"publicationConsent\":true}"))
+                .andExpect(status().isBadRequest());
     }
 
     // 위키 "정보구조와 권한" 기준 등록은 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).

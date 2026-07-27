@@ -16,7 +16,10 @@ export interface Staff {
   sortOrder: number;
 }
 
-/** POST /api/admin/staff — 최고관리자 전용. 사진은 /api/feed/images로 먼저 업로드해 URL을 받는다 */
+/**
+ * POST /api/admin/staff — 최고관리자 전용.
+ * phone은 저장만 하고 응답하지 않으며, publicationConsent=true이면 publicationConsentedAt도 함께 보낸다.
+ */
 export interface StaffCreateRequest {
   name: string;
   position: string;
@@ -25,12 +28,27 @@ export interface StaffCreateRequest {
   photoUrl: string;
   introduction?: string;
   sortOrder: number;
+  studentId?: string;
+  phone?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
 }
 
-/** PATCH /api/admin/staff/{id} — 최고관리자 전용. name·department·admissionYear는 등록 후 불변이라 DTO에 없음 */
+/** PATCH /api/admin/staff/{id} — 최고관리자 전용. name·department·admissionYear는 등록 후 불변 */
 export interface StaffUpdateRequest {
   position?: string;
   photoUrl?: string;
   introduction?: string;
   sortOrder?: number;
+  studentId?: string;
+  phone?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
+}
+
+/** GET /api/admin/staff와 관리자 생성·수정 응답. phone은 저장만 하고 응답하지 않는다. */
+export interface StaffAdminSummary extends Staff {
+  studentId: string | null;
+  publicationConsent: boolean;
+  publicationConsentedAt: string | null;
 }
