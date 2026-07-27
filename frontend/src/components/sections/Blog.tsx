@@ -17,6 +17,11 @@ export default async function Blog() {
       id="blog"
       className="blog-bg relative min-h-screen min-h-[100svh] overflow-hidden px-5 py-20 sm:px-10 sm:py-28 lg:px-16 lg:py-36"
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-380px] h-[760px] w-[1050px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.3),rgba(19,19,19,0)_68%)] blur-2xl"
+      />
+
       <div className="relative mx-auto w-full max-w-[1440px]">
         <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
@@ -50,14 +55,16 @@ export default async function Blog() {
             <p className="mt-2 text-sm text-white/40">곧 멤버들의 기록으로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div
-            className={`mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 ${
-              posts.length > 2 ? 'lg:grid-cols-3' : ''
-            }`}
-          >
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+          <div className="mt-10">
+            <PostCard post={posts[0]} featured priority />
+
+            {posts.length > 1 ? (
+              <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-14 border-t border-white/10 pt-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
+                {posts.slice(1).map((post, index) => (
+                  <PostCard key={post.id} post={post} priority={index < 2} />
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
