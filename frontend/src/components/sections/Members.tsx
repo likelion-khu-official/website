@@ -75,7 +75,7 @@ export default async function Members() {
       <div className="members-glow-accent" />
 
       <div className="relative z-[1] mx-auto max-w-[1390px]">
-        <header className="flex flex-col items-center gap-4 text-center">
+        <header className="scroll-reveal flex flex-col items-center gap-4 text-center">
           <p className="text-white" style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}>
             운영진 소개
           </p>
@@ -98,19 +98,33 @@ export default async function Members() {
         ) : (
           <>
             <div className="mt-16 grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {leaders.map((person) => (
-                <LeaderCard key={person.id} staff={person} />
+              {leaders.map((person, index) => (
+                <div
+                  key={person.id}
+                  className="scroll-reveal member-card-reveal"
+                  style={{ '--reveal-y': `${34 + index * 12}px` } as React.CSSProperties}
+                >
+                  <LeaderCard staff={person} />
+                </div>
               ))}
             </div>
             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-              {team.map((person) => (
-                <StaffCard key={person.id} staff={person} />
+              {team.map((person, index) => (
+                <div
+                  key={person.id}
+                  className="scroll-reveal member-card-reveal"
+                  style={{
+                    '--reveal-y': `${34 + ((index + leaders.length) % 4) * 10}px`,
+                  } as React.CSSProperties}
+                >
+                  <StaffCard staff={person} />
+                </div>
               ))}
             </div>
           </>
         )}
 
-        <div className="mt-12 text-center">
+        <div className="scroll-reveal mt-12 text-center">
           <Link
             href="/members"
             className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"

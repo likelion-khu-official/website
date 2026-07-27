@@ -23,7 +23,7 @@ export default async function Project() {
       />
 
       <div className="relative mx-auto w-full max-w-[1440px]">
-        <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="scroll-reveal grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
               Our projects
@@ -56,7 +56,13 @@ export default async function Project() {
         ) : (
           <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
             {projects.map((project, index) => (
-              <ProjectCard key={project.id} project={project} compact priority={index < 3} />
+              <div
+                key={project.id}
+                className="scroll-reveal project-card-reveal"
+                style={{ '--reveal-y': `${32 + (index % 3) * 10}px` } as React.CSSProperties}
+              >
+                <ProjectCard project={project} compact priority={index < 3} />
+              </div>
             ))}
           </div>
         )}
