@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 const revealSelector = '.scroll-reveal';
 
-function setupHeroFallback() {
+function setupHeroMotion() {
   const shell = document.querySelector<HTMLElement>('.hero-scroll-shell');
   const copy = document.querySelector<HTMLElement>('.hero-copy');
   const mark = document.querySelector<HTMLElement>('.hero-brand-mark');
@@ -65,33 +65,37 @@ export default function HomeMotion() {
       document.querySelectorAll<HTMLElement>(revealSelector),
     );
 
-    if (reducedMotion) return;
-
-    const cleanUpHero = setupHeroFallback();
-    if (!('IntersectionObserver' in window)) return cleanUpHero;
-
     root.classList.add('scroll-reveal-ready');
+    const pendingElements = new Set(revealElements);
+    const cleanUpHero = reducedMotion ? () => {} : setupHeroMotion();
+    let revealFrame = 0;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+    function revealVisibleElements() {
+      revealFrame = 0;
+      const triggerLine = window.innerHeight * 0.92;
 
-          const element = entry.target as HTMLElement;
+      pendingElements.forEach((element) => {
+        const rect = element.getBoundingClientRect();
+        if (rect.top <= triggerLine && rect.bottom >= 0) {
           element.classList.add('is-visible');
-          observer.unobserve(element);
-        });
-      },
-      {
-        rootMargin: '0px 0px -8% 0px',
-        threshold: 0.08,
-      },
-    );
+          pendingElements.delete(element);
+        }
+      });
+    }
 
-    revealElements.forEach((element) => observer.observe(element));
+    function scheduleReveal() {
+      if (revealFrame) return;
+      revealFrame = window.requestAnimationFrame(revealVisibleElements);
+    }
+
+    revealFrame = window.requestAnimationFrame(revealVisibleElements);
+    window.addEventListener('scroll', scheduleReveal, { passive: true });
+    window.addEventListener('resize', scheduleReveal);
 
     return () => {
-      observer.disconnect();
+      window.removeEventListener('scroll', scheduleReveal);
+      window.removeEventListener('resize', scheduleReveal);
+      if (revealFrame) window.cancelAnimationFrame(revealFrame);
       cleanUpHero();
       root.classList.remove('scroll-reveal-ready');
       revealElements.forEach((element) => element.classList.remove('is-visible'));

@@ -390,35 +390,28 @@ textarea {
 }
 
 /* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다. */
-.scroll-reveal {
-  --reveal-x: 0px;
-  --reveal-y: 44px;
-  --reveal-scale: 0.985;
-  --reveal-delay: 0ms;
-}
-
-.scroll-reveal--left {
-  --reveal-x: -42px;
-  --reveal-y: 20px;
-}
-
-.scroll-reveal--right {
-  --reveal-x: 42px;
-  --reveal-y: 20px;
-  --reveal-delay: 140ms;
-}
-
-.scroll-reveal--scale {
-  --reveal-y: 28px;
-  --reveal-scale: 0.97;
-}
-
 .scroll-reveal-ready .scroll-reveal {
   opacity: 0;
-  transform: translate3d(var(--reveal-x), var(--reveal-y), 0) scale(var(--reveal-scale));
+  transform: translate3d(0, 36px, 0) scale(0.99);
+  -webkit-transition:
+    opacity 650ms linear,
+    -webkit-transform 750ms cubic-bezier(0.22, 0.72, 0.2, 1);
   transition:
-    opacity 1.35s linear var(--reveal-delay),
-    transform 1.5s cubic-bezier(0.22, 0.72, 0.2, 1) var(--reveal-delay);
+    opacity 650ms linear,
+    transform 750ms cubic-bezier(0.22, 0.72, 0.2, 1);
+}
+
+.scroll-reveal-ready .scroll-reveal--left {
+  transform: translate3d(-32px, 16px, 0) scale(0.99);
+}
+
+.scroll-reveal-ready .scroll-reveal--right {
+  transform: translate3d(32px, 16px, 0) scale(0.99);
+  transition-delay: 80ms;
+}
+
+.scroll-reveal-ready .scroll-reveal--scale {
+  transform: translate3d(0, 22px, 0) scale(0.975);
 }
 
 .scroll-reveal-ready .scroll-reveal.is-visible {
@@ -429,16 +422,16 @@ textarea {
 .session-card-reveal:nth-child(2),
 .project-card-reveal:nth-child(3n + 2),
 .member-card-reveal:nth-child(even) {
-  --reveal-delay: 100ms;
+  transition-delay: 60ms;
 }
 
 .session-card-reveal:nth-child(3),
 .project-card-reveal:nth-child(3n) {
-  --reveal-delay: 200ms;
+  transition-delay: 120ms;
 }
 
 .session-card-reveal:nth-child(4) {
-  --reveal-delay: 300ms;
+  transition-delay: 180ms;
 }
 
 /* 연간 계획은 부모가 나타난 뒤 선과 끝점이 한 박자 늦게 이어진다. */
@@ -451,8 +444,8 @@ textarea {
     opacity: 0.2;
     transform: scaleX(0);
     transition:
-      opacity 1.6s linear 280ms,
-      transform 1.8s cubic-bezier(0.22, 0.72, 0.2, 1) 280ms;
+      opacity 850ms linear 120ms,
+      transform 1s cubic-bezier(0.22, 0.72, 0.2, 1) 120ms;
   }
 
   .scroll-reveal-ready .timeline-group.is-visible .timeline-line {
@@ -464,8 +457,8 @@ textarea {
     opacity: 0;
     transform: scale(0.35);
     transition:
-      opacity 600ms linear 1.25s,
-      transform 700ms cubic-bezier(0.22, 0.72, 0.2, 1) 1.25s;
+      opacity 300ms linear 650ms,
+      transform 400ms cubic-bezier(0.22, 0.72, 0.2, 1) 650ms;
   }
 
   .scroll-reveal-ready .timeline-group.is-visible .timeline-endpoint {
@@ -491,10 +484,14 @@ textarea {
     transform: none !important;
   }
 
-  .scroll-reveal,
   .timeline-line,
   .timeline-endpoint {
     opacity: 1 !important;
     transform: none !important;
+  }
+
+  .scroll-reveal-ready .scroll-reveal {
+    transform: none !important;
+    transition: opacity 240ms linear !important;
   }
 }
