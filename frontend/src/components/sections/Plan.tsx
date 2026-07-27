@@ -68,14 +68,14 @@ function Timeline({
 }) {
   const isTop = side === 'top';
   return (
-    <div className="relative">
+    <div className={`scroll-reveal timeline-group relative ${isTop ? 'timeline-group--top' : 'timeline-group--bottom'}`}>
       {/* 타임라인 라인 + 끝점 */}
       <div
-        className="absolute top-0 hidden h-[2px] bg-accent md:block"
+        className="timeline-line absolute top-0 hidden h-[2px] origin-left bg-accent md:block"
         style={isTop ? { left: 0, right: '35%' } : { left: '35%', right: 0 }}
       />
       <div
-        className="absolute top-0 hidden h-[13px] w-[13px] -translate-y-1/2 rounded-full bg-accent md:block"
+        className="timeline-endpoint absolute top-0 hidden h-[13px] w-[13px] -translate-y-1/2 rounded-full bg-accent md:block"
         style={isTop ? { left: 'calc(65% - 6.5px)' } : { left: 'calc(35% - 6.5px)' }}
       />
       {/* 월 그리드 */}
@@ -99,7 +99,7 @@ export default function Plan() {
       className="plan-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:px-8 sm:py-24 md:gap-16"
     >
       {/* 헤더 */}
-      <div className="relative flex flex-col items-center gap-4 text-center">
+      <div className="scroll-reveal relative flex flex-col items-center gap-4 text-center">
         <p
           className="text-muted"
           style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}

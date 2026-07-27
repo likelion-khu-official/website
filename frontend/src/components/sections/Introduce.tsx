@@ -13,10 +13,10 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-8 sm:py-24"
+      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-24 sm:px-8 sm:py-28 lg:py-36"
     >
       {/* KHU at Likelion 로고 블록 */}
-      <div className="flex flex-col items-center gap-1" style={gremlin}>
+      <div className="scroll-reveal flex flex-col items-center gap-1" style={gremlin}>
         <p
           className="text-white leading-none"
           style={{ fontSize: 'clamp(30px, 3.2vw, 46px)', letterSpacing: '-1.15px' }}
@@ -50,36 +50,39 @@ export default function Introduce() {
         </div>
       </div>
 
-      {/* 헤드라인 — 두 문구가 번갈아 크로스페이드 전환 */}
-      <div
-        className="relative min-h-32 w-full max-w-[960px] text-center sm:min-h-28"
-        style={{
-          marginTop: 'clamp(36px, 5vh, 72px)',
-        }}
-      >
-        <p
-          className="headline-swap headline-swap--a text-balance break-keep font-semibold text-white"
-          style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
-        >
-          <span className="inline-block text-accent">코딩이 처음이더라도</span>{' '}
-          <span className="inline-block">프론트·백엔드 개발부터</span>
-          <br className="hidden sm:block" />
-          <span className="inline-block">기획·디자인까지</span>{' '}
-          <span className="inline-block">함께 성장하는</span>
-        </p>
-        <p
-          className="headline-swap headline-swap--b text-balance break-keep font-semibold text-white"
-          style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
-        >
-          <span className="text-accent">아이디어</span>를
-          <br />
-          실제로 만들어내는 경험
-        </p>
+      {/* 핵심 메시지 — 시간에 따라 사라지지 않고, 사용자의 스크롤 흐름 안에서 순서대로 읽힌다. */}
+      <div className="mt-[clamp(44px,7vh,88px)] grid w-full max-w-[1180px] gap-8 md:grid-cols-2 md:gap-12">
+        <article className="scroll-reveal scroll-reveal--left border-t border-white/12 pt-5 md:pt-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn together</p>
+          <p
+            className="mt-5 text-balance break-keep font-semibold text-white"
+            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+          >
+            <span className="text-accent">코딩이 처음이더라도</span>
+            <br />
+            개발부터 기획·디자인까지
+            <br />
+            함께 성장합니다.
+          </p>
+        </article>
+        <article className="scroll-reveal scroll-reveal--right border-t border-white/12 pt-5 md:pt-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Build for real</p>
+          <p
+            className="mt-5 text-balance break-keep font-semibold text-white"
+            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+          >
+            머릿속의 <span className="text-accent">아이디어</span>를
+            <br />
+            실제로 작동하는 서비스로
+            <br />
+            만들어냅니다.
+          </p>
+        </article>
       </div>
 
       {/* 통계 카드 */}
       <div
-        className="grid w-full max-w-[1417px] grid-cols-2 items-start gap-x-4 gap-y-10 rounded-[20px] bg-[rgba(0,0,0,0.13)] px-4 py-9 backdrop-blur-[22px] sm:w-[90%] sm:px-8 sm:py-12 lg:w-[82%] lg:grid-cols-4 lg:px-[clamp(24px,3vw,60px)] lg:py-[clamp(36px,5vh,64px)]"
+        className="scroll-reveal scroll-reveal--scale grid w-full max-w-[1417px] grid-cols-2 items-start gap-x-4 gap-y-10 rounded-[20px] border border-white/[0.05] bg-[rgba(0,0,0,0.13)] px-4 py-9 backdrop-blur-[22px] sm:w-[90%] sm:px-8 sm:py-12 lg:w-[82%] lg:grid-cols-4 lg:px-[clamp(24px,3vw,60px)] lg:py-[clamp(36px,5vh,64px)]"
         style={{ marginTop: 'clamp(48px, 8vh, 108px)' }}
       >
         {stats.map((s) => (

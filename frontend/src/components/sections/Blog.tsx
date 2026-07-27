@@ -22,7 +22,7 @@ export default async function Blog() {
         className="pointer-events-none absolute left-1/2 top-[-380px] h-[760px] w-[1050px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.3),rgba(19,19,19,0)_68%)] blur-2xl"
       />
 
-      <div className="relative mx-auto w-full max-w-[1440px]">
+      <div className="scroll-reveal relative mx-auto w-full max-w-[1440px]">
         <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">

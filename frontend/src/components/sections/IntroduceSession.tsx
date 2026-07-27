@@ -68,7 +68,7 @@ export default function IntroduceSession() {
         <div className="session-glow-bottom" />
       </div>
 
-      <div className="relative flex max-w-[1000px] flex-col items-center gap-4 text-center">
+      <div className="scroll-reveal relative flex max-w-[1000px] flex-col items-center gap-4 text-center">
         <p
           className="text-white"
           style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
@@ -86,46 +86,51 @@ export default function IntroduceSession() {
       <div
         className="relative grid w-full max-w-[1417px] grid-cols-1 gap-4 sm:w-[90%] sm:grid-cols-2 sm:gap-6 lg:w-[82%] lg:grid-cols-4 lg:gap-[34px]"
       >
-        {cards.map((card) => (
+        {cards.map((card, index) => (
           <div
             key={card.title}
-            className="group relative aspect-[337.037/260] rounded-[16.85px] bg-[rgba(27,29,31,0.71)] transition-colors duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:bg-[#fdf1e6] sm:aspect-[337.037/382.537] lg:hover:scale-[1.04]"
-            style={{
-              transitionProperty: 'background-color, transform',
-            }}
+            className="scroll-reveal session-card-reveal"
+            style={{ '--reveal-y': `${34 + index * 12}px` } as React.CSSProperties}
           >
-            <div
-              className="absolute flex flex-col gap-3 text-[#9ba5b0] transition-colors duration-300 ease-out group-hover:text-accent sm:gap-4"
-              style={{ left: '11.9%', top: '10.5%', width: '80%' }}
+            <article
+              className="group relative aspect-[337.037/260] rounded-[16.85px] border border-white/[0.04] bg-[rgba(27,29,31,0.71)] transition-colors duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-accent/20 hover:bg-[#fdf1e6] sm:aspect-[337.037/382.537] lg:hover:scale-[1.04]"
+              style={{
+                transitionProperty: 'background-color, border-color, transform',
+              }}
             >
-              <p className="break-keep" style={{ fontSize: 'clamp(18px, 1.7vw, 32px)', letterSpacing: '-0.8px' }}>
-                {card.title}
-              </p>
               <div
-                className="break-keep"
-                style={{ fontSize: 'clamp(13px, 1.05vw, 20px)', letterSpacing: '-0.5px', lineHeight: 1.4 }}
+                className="absolute flex flex-col gap-3 text-[#9ba5b0] transition-colors duration-300 ease-out group-hover:text-accent sm:gap-4"
+                style={{ left: '11.9%', top: '10.5%', width: '80%' }}
               >
-                {card.desc.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
+                <p className="break-keep" style={{ fontSize: 'clamp(18px, 1.7vw, 32px)', letterSpacing: '-0.8px' }}>
+                  {card.title}
+                </p>
+                <div
+                  className="break-keep"
+                  style={{ fontSize: 'clamp(13px, 1.05vw, 20px)', letterSpacing: '-0.5px', lineHeight: 1.4 }}
+                >
+                  {card.desc.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {card.icons.map((icon, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={icon.src}
-                alt=""
-                className="absolute pointer-events-none transition-[filter] duration-300 ease-out group-hover:[filter:sepia(1)_saturate(6)_hue-rotate(-15deg)_brightness(1.05)]"
-                style={{
-                  left: `${(icon.left / CARD_W) * 100}%`,
-                  top: `${ICON_TOP_PCT}%`,
-                  width: `${(icon.width / CARD_W) * 100}%`,
-                  height: `${ICON_H_PCT}%`,
-                }}
-              />
-            ))}
+              {card.icons.map((icon, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={icon.src}
+                  alt=""
+                  className="pointer-events-none absolute transition-[filter] duration-300 ease-out group-hover:[filter:sepia(1)_saturate(6)_hue-rotate(-15deg)_brightness(1.05)]"
+                  style={{
+                    left: `${(icon.left / CARD_W) * 100}%`,
+                    top: `${ICON_TOP_PCT}%`,
+                    width: `${(icon.width / CARD_W) * 100}%`,
+                    height: `${ICON_H_PCT}%`,
+                  }}
+                />
+              ))}
+            </article>
           </div>
         ))}
       </div>

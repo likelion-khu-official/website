@@ -5,6 +5,7 @@
   --foreground: #ffffff;
   --muted: #9aa5b0;
   --accent: #ff5000;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html {
@@ -31,6 +32,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+::selection {
+  background: rgba(255, 80, 0, 0.9);
+  color: #ffffff;
+}
+
 button,
 a,
 input,
@@ -42,6 +48,35 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.site-scroll-progress {
+  transform: scaleX(0);
+}
+
+@keyframes site-scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .site-scroll-progress {
+    animation: site-scroll-progress 1ms linear both;
+    animation-timeline: scroll(root block);
   }
 }
 
@@ -59,8 +94,135 @@ textarea {
    State1(106:82): 위 살짝 + 아래 크게 / State2(Frame25=86:11): 검정 + 왼쪽아래
    State3(Frame26=93:76): 왼쪽위(93:80, 수직 flip) + 하단 밴드(93:79) */
 .hero-thumbnail-bg {
-  position: relative;
   background-color: #131313;
+}
+
+.hero-scroll-shell {
+  background: #131313;
+  view-timeline-name: --hero-scroll;
+  view-timeline-axis: block;
+}
+
+.hero-stage::after {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: min(20vh, 180px);
+  background: linear-gradient(to bottom, transparent, rgba(19, 19, 19, 0.76) 72%, #131313);
+  content: "";
+  pointer-events: none;
+}
+
+.hero-stage {
+  position: sticky;
+}
+
+.hero-brand-mark {
+  position: absolute;
+  top: 13%;
+  right: -12%;
+  width: clamp(340px, 52vw, 900px);
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 80, 0, 0.1));
+  opacity: 0.16;
+  pointer-events: none;
+  mask-image: url("/logo.png");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: url("/logo.png");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.hero-copy,
+.hero-scroll-cue {
+  z-index: 2;
+}
+
+.hero-scroll-cue {
+  opacity: 0.8;
+}
+
+.hero-scroll-arrow {
+  animation: hero-scroll-arrow 1.6s var(--motion-ease-out) infinite;
+}
+
+@keyframes hero-scroll-arrow {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes hero-copy-scroll {
+  0%,
+  32% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0.24;
+    transform: translate3d(0, -9svh, 0) scale(0.88);
+  }
+}
+
+@keyframes hero-mark-scroll {
+  from {
+    opacity: 0.12;
+    transform: translate3d(0, 0, 0) rotate(-4deg) scale(1);
+  }
+  to {
+    opacity: 0.28;
+    transform: translate3d(-9vw, -7svh, 0) rotate(9deg) scale(1.18);
+  }
+}
+
+@keyframes hero-cue-scroll {
+  0%,
+  36% {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-copy {
+      animation: hero-copy-scroll 1ms linear both;
+      animation-range: contain 0% contain 100%;
+      animation-timeline: --hero-scroll;
+    }
+
+    .hero-brand-mark {
+      animation: hero-mark-scroll 1ms linear both;
+      animation-range: contain 0% contain 100%;
+      animation-timeline: --hero-scroll;
+    }
+
+    .hero-scroll-cue {
+      animation: hero-cue-scroll 1ms linear both;
+      animation-range: contain 0% contain 70%;
+      animation-timeline: --hero-scroll;
+    }
+  }
+}
+
+@media (max-width: 639px) {
+  .hero-brand-mark {
+    top: 16%;
+    right: -44%;
+    width: 118vw;
+    opacity: 0.1;
+  }
 }
 
 .hero-glow-layer {
@@ -286,30 +448,128 @@ textarea {
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* Introduce 헤드라인 — 두 문구 크로스페이드 (a: 코딩이 처음이더라도... / b: 아이디어를...) */
-.headline-swap {
-  position: absolute;
-  inset: 0;
-  animation: headline-swap-cycle 10s ease-in-out infinite;
+/* 스크롤 진입 모션 — 미지원 브라우저에서는 기본 정적 레이아웃이 그대로 보인다. */
+.scroll-reveal {
+  --reveal-x: 0px;
+  --reveal-y: 44px;
+  --reveal-scale: 0.985;
 }
-.headline-swap--a {
-  animation-delay: 0s;
+
+.scroll-reveal--left {
+  --reveal-x: -42px;
+  --reveal-y: 20px;
 }
-.headline-swap--b {
-  animation-delay: -5s;
+
+.scroll-reveal--right {
+  --reveal-x: 42px;
+  --reveal-y: 20px;
 }
-@keyframes headline-swap-cycle {
-  0% { opacity: 1; }
-  40% { opacity: 1; }
-  50% { opacity: 0; }
-  90% { opacity: 0; }
-  100% { opacity: 1; }
+
+.scroll-reveal--scale {
+  --reveal-y: 28px;
+  --reveal-scale: 0.97;
 }
-@media (prefers-reduced-motion: reduce) {
-  .headline-swap {
-    animation: none !important;
+
+@keyframes scroll-content-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--reveal-x), var(--reveal-y), 0) scale(var(--reveal-scale));
   }
-  .headline-swap--b {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-reveal {
+      animation: scroll-content-reveal 1ms var(--motion-ease-out) both;
+      animation-range: entry 0% cover 24%;
+      animation-timeline: view(block);
+    }
+
+    .session-card-reveal:nth-child(2),
+    .project-card-reveal:nth-child(3n + 2),
+    .member-card-reveal:nth-child(even) {
+      animation-range: entry 4% cover 27%;
+    }
+
+    .session-card-reveal:nth-child(3),
+    .project-card-reveal:nth-child(3n) {
+      animation-range: entry 7% cover 30%;
+    }
+
+    .session-card-reveal:nth-child(4) {
+      animation-range: entry 10% cover 33%;
+    }
+  }
+}
+
+/* 연간 계획은 선이 먼저 이어지고 월별 정보가 따라오도록 방향성을 준다. */
+@keyframes timeline-line-draw {
+  from {
+    opacity: 0.2;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes timeline-endpoint-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+    .timeline-line {
+      animation: timeline-line-draw 1ms linear both;
+      animation-range: entry 8% cover 36%;
+      animation-timeline: view(block);
+    }
+
+    .timeline-group--bottom .timeline-line {
+      transform-origin: right;
+    }
+
+    .timeline-endpoint {
+      animation: timeline-endpoint-pop 1ms var(--motion-ease-out) both;
+      animation-range: entry 24% cover 40%;
+      animation-timeline: view(block);
+    }
+  }
+}
+
+/* 최근 블로그 레이아웃을 건드리지 않고 랜딩 진입 리듬만 동일하게 맞춘다. */
+.home-blog-chapter {
+  background: #131313;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-scroll-progress {
     display: none;
+  }
+
+  .hero-copy,
+  .hero-brand-mark,
+  .hero-scroll-cue {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .scroll-reveal,
+  .timeline-line,
+  .timeline-endpoint {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

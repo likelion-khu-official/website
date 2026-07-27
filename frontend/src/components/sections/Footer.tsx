@@ -36,7 +36,7 @@ const socials: Social[] = [
 export default function Footer() {
   return (
     <footer className="footer-bg w-full px-6 sm:px-[4vw] py-12 sm:py-16">
-      <div className="mx-auto w-full max-w-[1730px] flex flex-col gap-10">
+      <div className="scroll-reveal mx-auto flex w-full max-w-[1730px] flex-col gap-10">
         <div className="flex flex-wrap items-start justify-between gap-8">
           {/* 브랜드 + 주소 */}
           <div className="flex flex-col gap-5">
