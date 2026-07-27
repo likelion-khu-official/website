@@ -21,6 +21,9 @@ export interface MemberCreateRequest {
   cohort: number;
   photoUrl?: string;
   joinReason?: string;
+  department?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
   studentId: string;
   phone: string;
 }
@@ -31,6 +34,9 @@ export interface MemberUpdateRequest {
   roles?: MemberRole[];
   photoUrl?: string;
   joinReason?: string;
+  department?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
 }
 
 /**
@@ -40,5 +46,8 @@ export interface MemberUpdateRequest {
  */
 export interface MemberAdminSummary extends Member {
   studentId: string;
+  department: string | null;
+  publicationConsent: boolean;
+  publicationConsentedAt: string | null;
   offboarded: boolean;
 }

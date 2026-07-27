@@ -5,6 +5,7 @@ import likelion.khu.website.member.MemberRole;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 // 관리자 전용 응답 — 공개 MemberResponse와 달리 studentId(로그인 아이디)·오프보딩 상태를 담는다.
@@ -19,7 +20,10 @@ public class MemberAdminResponse {
     private String emoji;
     private String photoUrl;
     private String joinReason;
+    private String department;
     private String studentId;
+    private boolean publicationConsent;
+    private LocalDateTime publicationConsentedAt;
     private boolean offboarded;
 
     public static MemberAdminResponse from(Member member) {
@@ -31,7 +35,10 @@ public class MemberAdminResponse {
                 member.getEmoji(),
                 member.getPhotoUrl(),
                 member.getJoinReason(),
+                member.getDepartment(),
                 member.getStudentId(),
+                member.isPublicationConsent(),
+                member.getPublicationConsentedAt(),
                 member.isOffboarded()
         );
     }
