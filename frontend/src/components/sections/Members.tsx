@@ -63,13 +63,14 @@ export default async function Members() {
     failed = true;
   }
 
+  // 랜딩은 대표(회장·부회장) + 세션 리드 한 줄만 티저로 보여주고, 전체는 /members로.
   const leaders = staff.slice(0, 2);
-  const team = staff.slice(2);
+  const team = staff.slice(2, 6);
 
   return (
     <section
       id="members"
-      className="members-bg relative min-h-screen min-h-[100svh] w-full overflow-hidden px-5 py-20 sm:px-10 sm:py-24 lg:px-16"
+      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-hidden px-5 py-16 sm:px-10 sm:py-16 lg:px-16"
     >
       <div className="members-glow-base" />
       <div className="members-glow-accent" />
@@ -97,7 +98,7 @@ export default async function Members() {
           </div>
         ) : (
           <>
-            <div className="mt-16 grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
               {leaders.map((person, index) => (
                 <div
                   key={person.id}
@@ -108,7 +109,7 @@ export default async function Members() {
                 </div>
               ))}
             </div>
-            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {team.map((person, index) => (
                 <div
                   key={person.id}
@@ -124,7 +125,7 @@ export default async function Members() {
           </>
         )}
 
-        <div className="scroll-reveal mt-12 text-center">
+        <div className="scroll-reveal mt-6 text-center">
           <Link
             href="/members"
             className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
