@@ -361,7 +361,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
                 4:5 세로 이미지를 여러 장 올리고 대표 한 장을 선택해 주세요.
               </p>
             </div>
-            <label className="cursor-pointer rounded-full border border-white/15 px-4 py-2.5 text-sm text-white/65 transition hover:border-white/30 hover:text-white">
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-white/15 px-4 py-2.5 text-sm text-white/65 transition hover:border-white/30 hover:text-white focus-within:ring-2 focus-within:ring-accent">
               {uploadingCount > 0 ? `${uploadingCount}개 업로드 중…` : '이미지 추가'}
               <input
                 type="file"
@@ -393,7 +393,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
                     <button
                       type="button"
                       onClick={() => setRepresentative(index)}
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      className={`min-h-11 rounded-full px-2.5 py-1 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                         image.representative
                           ? 'bg-accent text-white'
                           : 'bg-white/10 text-white/65 hover:bg-white/20'
@@ -405,7 +405,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
                       type="button"
                       onClick={() => removeImage(index)}
                       aria-label={`${index + 1}번째 이미지 삭제`}
-                      className="px-2 py-1 text-xs text-red-200/70 hover:text-red-200"
+                      className="min-h-11 min-w-11 rounded-md px-2 py-1 text-xs text-red-200/70 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                     >
                       삭제
                     </button>
@@ -443,7 +443,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
               type="button"
               onClick={addParticipant}
               disabled={!memberToAdd}
-              className="shrink-0 rounded-2xl border border-white/15 px-5 text-sm font-medium transition hover:bg-white/10 disabled:opacity-35"
+              className="min-h-11 shrink-0 rounded-2xl border border-white/15 px-5 text-sm font-medium transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-35"
             >
               추가
             </button>
@@ -468,7 +468,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
                   onChange={(event) =>
                     updateParticipantPart(participant.memberId, event.target.value as ProjectPart)
                   }
-                  className="rounded-xl border border-white/10 bg-[#222] px-3 py-2 text-sm outline-none focus:border-accent/70"
+                  className="min-h-11 rounded-xl border border-white/10 bg-[#222] px-3 py-2 text-sm outline-none focus:border-accent/70"
                   aria-label={`${participantName(participant.memberId)} 프로젝트 파트`}
                 >
                   {PARTS.map((part) => (
@@ -481,7 +481,7 @@ export default function ProjectForm({ currentMember, members, initialProject }: 
                   type="button"
                   onClick={() => removeParticipant(participant.memberId)}
                   disabled={participant.memberId === currentMember.id}
-                  className="px-2 text-left text-xs text-red-200/65 hover:text-red-200 disabled:cursor-not-allowed disabled:text-white/20 sm:text-center"
+                  className="min-h-11 rounded-md px-2 text-left text-xs text-red-200/65 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 disabled:cursor-not-allowed disabled:text-white/20 sm:text-center"
                 >
                   제외
                 </button>

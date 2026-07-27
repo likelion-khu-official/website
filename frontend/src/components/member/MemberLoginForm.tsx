@@ -108,7 +108,7 @@ export default function MemberLoginForm() {
 
   if (step === 'change-password') {
     return (
-      <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center">
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
         <h1 className="mb-1 text-2xl font-bold text-white">비밀번호 변경</h1>
         <p className="mb-8 text-sm text-muted">첫 로그인이에요. 새 비밀번호를 설정해 주세요.</p>
 
@@ -124,7 +124,7 @@ export default function MemberLoginForm() {
               onChange={(e) => setNewPassword(e.target.value)}
               required
               autoComplete="new-password"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <p className="mt-1 text-xs text-muted">8자 이상, 영문과 숫자를 포함해 주세요.</p>
           </div>
@@ -140,7 +140,7 @@ export default function MemberLoginForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               autoComplete="new-password"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           </div>
 
@@ -149,7 +149,7 @@ export default function MemberLoginForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+            className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
           >
             {submitting ? '변경 중…' : '비밀번호 변경'}
           </button>
@@ -159,7 +159,7 @@ export default function MemberLoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
       <h1 className="mb-8 text-2xl font-bold text-white">멤버 로그인</h1>
 
       <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
@@ -174,7 +174,7 @@ export default function MemberLoginForm() {
             onChange={(e) => setStudentId(e.target.value)}
             required
             autoComplete="username"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -189,7 +189,7 @@ export default function MemberLoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -198,7 +198,7 @@ export default function MemberLoginForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           {submitting ? '로그인 중…' : '로그인'}
         </button>
@@ -206,7 +206,7 @@ export default function MemberLoginForm() {
 
       <Link
         href="/member/forgot-password"
-        className="mt-5 text-center text-sm text-muted transition-colors hover:text-white"
+        className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg text-center text-sm text-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
       >
         비밀번호를 잊으셨나요?
       </Link>

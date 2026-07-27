@@ -22,6 +22,10 @@ export default function CountUp({
       (entries) => {
         if (entries[0].isIntersecting && !started.current) {
           started.current = true;
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            setValue(end);
+            return;
+          }
           const start = performance.now();
           const tick = (now: number) => {
             const p = Math.min((now - start) / duration, 1);

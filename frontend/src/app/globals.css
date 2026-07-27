@@ -7,6 +7,12 @@
   --accent: #ff5000;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4rem;
+  overflow-x: clip;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -20,6 +26,23 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 .hero-glow {
@@ -232,6 +255,18 @@ body {
   background-image:
     radial-gradient(40% 45% at 0% 55%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
     radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
+}
+
+.blog-viewport {
+  --blog-card-h: clamp(250px, 70vw, 290px);
+  height: min(600px, 70svh);
+}
+
+@media (min-width: 640px) {
+  .blog-viewport {
+    --blog-card-h: clamp(150px, 19vw, 220px);
+    height: clamp(420px, 56vh, 620px);
+  }
 }
 
 /* Blog 카드 세로 무한 슬라이드 — 사본 2벌을 -50%↔0 으로 이동해 이음매 없이 반복(아래로 흐름) */

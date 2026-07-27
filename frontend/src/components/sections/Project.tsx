@@ -15,14 +15,14 @@ export default async function Project() {
   return (
     <section
       id="project"
-      className="relative min-h-screen overflow-hidden bg-[#131313] px-6 py-28 sm:px-10 lg:px-16 lg:py-36"
+      className="relative min-h-screen min-h-[100svh] overflow-hidden bg-[#131313] px-5 py-20 sm:px-10 sm:py-28 lg:px-16 lg:py-36"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-[-460px] h-[900px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.36),rgba(19,19,19,0)_68%)] blur-2xl"
       />
 
-      <div className="relative mx-auto max-w-[1440px]">
+      <div className="relative mx-auto w-full max-w-[1440px]">
         <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
@@ -38,7 +38,7 @@ export default async function Project() {
           </div>
           <Link
             href="/projects"
-            className="inline-flex w-fit items-center gap-3 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-accent hover:bg-accent"
+            className="inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-accent hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#131313]"
           >
             모든 프로젝트 <span aria-hidden>→</span>
           </Link>

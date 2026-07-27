@@ -157,7 +157,7 @@ export default function MemberCard({
           event.currentTarget.blur();
         }
       }}
-      className="group relative h-[189px] w-[156px] overflow-hidden rounded-[22px] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background"
       style={{ backgroundColor, color }}
     >
       <span className="sr-only">{ROLE_LABELS[primaryRole]} 트랙</span>
@@ -166,32 +166,32 @@ export default function MemberCard({
         className={`absolute inset-0 transition-opacity duration-200 ${open ? 'opacity-0' : 'opacity-100'}`}
         aria-hidden={open}
       >
-        <span className="absolute right-[14px] top-[14px]">
+        <span className="absolute right-[9%] top-[7.4%]">
           <TrackMark role={primaryRole} />
         </span>
 
-        <span className="absolute left-1/2 top-[75px] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
           {member.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={member.photoUrl}
               alt=""
-              className="h-[66px] w-[66px] rounded-full border-[3px] border-white object-cover"
+              className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
             />
           ) : (
-            <span className="select-none text-[58px] leading-none" aria-hidden>
+            <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
               {member.emoji}
             </span>
           )}
         </span>
 
-        <span className="absolute inset-x-3 bottom-[22px] truncate text-center text-[29px] font-bold leading-none tracking-[-0.075em]">
+        <span className="absolute inset-x-3 bottom-[11.6%] truncate text-center text-[clamp(24px,8vw,29px)] font-bold leading-[1.16] tracking-[-0.075em]">
           {member.name}
         </span>
       </span>
 
       <span
-        className={`absolute inset-0 flex flex-col p-[15px] transition-opacity duration-200 ${
+        className={`absolute inset-0 flex flex-col p-3 transition-opacity duration-200 sm:p-[15px] ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         aria-hidden={!open}
@@ -201,11 +201,13 @@ export default function MemberCard({
           <TrackMark role={primaryRole} />
         </span>
         <span className="flex flex-1 items-center">
-          <span className="line-clamp-7 break-keep text-[11px] font-semibold leading-[1.55] tracking-[-0.025em]">
+          <span className="line-clamp-7 break-keep text-[clamp(10px,3vw,11px)] font-semibold leading-[1.5] tracking-[-0.025em]">
             {member.joinReason || '함께 배우고 만들며 성장하고 있어요.'}
           </span>
         </span>
-        <span className="truncate text-[20px] font-bold leading-none tracking-[-0.06em]">{member.name}</span>
+        <span className="truncate text-[clamp(18px,5.5vw,20px)] font-bold leading-[1.16] tracking-[-0.06em]">
+          {member.name}
+        </span>
       </span>
     </button>
   );

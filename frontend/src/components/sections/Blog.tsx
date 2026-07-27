@@ -18,14 +18,16 @@ const CARD =
 
 function BlogCard({ post }: { post: Post }) {
   return (
-    <article className={`${CARD} flex gap-6 sm:gap-8 p-5 sm:p-6 mb-8 h-[var(--blog-card-h)] shrink-0`}>
+    <article
+      className={`${CARD} mb-4 flex h-[var(--blog-card-h)] shrink-0 flex-col gap-4 p-4 sm:mb-8 sm:flex-row sm:gap-8 sm:p-6`}
+    >
       {/* 썸네일 */}
-      <div className="h-full aspect-[16/9] shrink-0 rounded-[14px] bg-gradient-to-br from-[#4a4a4a] to-[#2c2c2c]" />
+      <div className="h-[58%] w-full shrink-0 rounded-[14px] bg-gradient-to-br from-[#4a4a4a] to-[#2c2c2c] sm:h-full sm:w-auto sm:aspect-[16/9]" />
 
       {/* 텍스트 */}
-      <div className="flex flex-1 flex-col justify-between py-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between py-1">
         <p
-          className="text-white font-bold"
+          className="line-clamp-2 break-keep font-bold text-white"
           style={{ fontSize: 'clamp(18px, 1.6vw, 30px)', letterSpacing: '-0.8px' }}
         >
           {post.title}
@@ -48,7 +50,7 @@ export default function Blog({ posts = DEFAULT_POSTS }: { posts?: Post[] }) {
   return (
     <section
       id="blog"
-      className="blog-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-16 px-6 py-24 overflow-hidden"
+      className="blog-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:gap-16 sm:px-8 sm:py-24"
     >
       {/* 헤더 */}
       <div className="relative flex flex-col items-center gap-4 text-center">
@@ -59,7 +61,7 @@ export default function Blog({ posts = DEFAULT_POSTS }: { posts?: Post[] }) {
           멋쟁이 사자처럼 블로그
         </p>
         <p
-          className="text-accent font-semibold"
+          className="max-w-[1000px] text-balance break-keep font-semibold text-accent"
           style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
         >
           동아리 활동 속에서 얻은 인사이트를 기록합니다.
@@ -68,13 +70,7 @@ export default function Blog({ posts = DEFAULT_POSTS }: { posts?: Post[] }) {
 
       {/* 고정 높이 뷰포트 — 카드는 이 칸 '안에서만' 슬라이드된다(페이지 높이 불변) */}
       <div
-        className="blog-viewport group relative w-[82%] max-w-[1417px] overflow-hidden"
-        style={
-          {
-            '--blog-card-h': 'clamp(150px, 19vw, 220px)',
-            height: 'clamp(420px, 56vh, 620px)',
-          } as React.CSSProperties
-        }
+        className="blog-viewport group relative w-full max-w-[1417px] overflow-hidden sm:w-[90%] lg:w-[82%]"
       >
         <div className="blog-track flex flex-col" style={{ animationDuration: duration }}>
           {/* 원본 + 사본(2벌) → -50% 이동 시 이음매 없이 반복 */}

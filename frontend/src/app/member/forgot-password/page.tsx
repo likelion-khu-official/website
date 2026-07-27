@@ -15,7 +15,7 @@ export default function MemberForgotPasswordPage() {
     >
       <Link
         href="/member/login"
-        className="mt-4 inline-block rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+        className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
       >
         로그인 페이지로 이동
       </Link>

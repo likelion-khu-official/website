@@ -137,7 +137,7 @@ export default function AdminDashboard() {
         <button
           type="button"
           onClick={() => setReloadIndex((v) => v + 1)}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           다시 시도
         </button>
@@ -148,12 +148,12 @@ export default function AdminDashboard() {
   const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">어드민 대시보드</h1>
           {currentAdmin && (
-            <p className="mt-1 text-sm text-muted">
+            <p className="mt-1 break-all text-sm text-muted">
               {currentAdmin.name} ({currentAdmin.email}) · {ROLE_LABEL[currentAdmin.role]}
             </p>
           )}
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
         <button
           type="button"
           onClick={handleLogout}
-          className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10"
+          className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
         >
           로그아웃
         </button>
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={() => setInviteOpen((v) => !v)}
-            className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
+            className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
           >
             {inviteOpen ? '닫기' : '+ 초대'}
           </button>
@@ -195,13 +195,13 @@ export default function AdminDashboard() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           </div>
           <button
             type="submit"
             disabled={inviteSubmitting}
-            className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+            className="min-h-11 w-full rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 sm:w-auto"
           >
             {inviteSubmitting ? '보내는 중…' : '초대 보내기'}
           </button>
@@ -228,19 +228,19 @@ export default function AdminDashboard() {
                     {admin.name}
                     {isSelf && <span className="ml-1 text-muted">(나)</span>}
                   </p>
-                  <p className="text-sm text-muted">{admin.email}</p>
+                  <p className="break-all text-sm text-muted">{admin.email}</p>
                   <p className="mt-1 text-xs text-muted">
                     {ROLE_LABEL[admin.role]} · {STATUS_LABEL[admin.status]}
                   </p>
                 </div>
 
                 {isSuperAdmin && !isSelf && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={admin.role}
                       disabled={busy}
                       onChange={(e) => handleRoleChange(admin, e.target.value as AdminRole)}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 disabled:opacity-40"
+                      className="min-h-11 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40"
                     >
                       <option value="ADMIN">운영진</option>
                       <option value="SUPER_ADMIN">최고관리자</option>
@@ -249,7 +249,7 @@ export default function AdminDashboard() {
                       type="button"
                       disabled={busy}
                       onClick={() => handleDelete(admin)}
-                      className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10 disabled:opacity-40"
+                      className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                     >
                       삭제
                     </button>
@@ -265,7 +265,7 @@ export default function AdminDashboard() {
         <button
           type="button"
           onClick={() => router.push('/admin/members')}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           멤버 관리로 이동
         </button>
@@ -275,10 +275,10 @@ export default function AdminDashboard() {
         <h2 className="mb-3 text-lg font-semibold text-white">콘텐츠 관리</h2>
         <Link
           href="/admin/blog"
-          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white transition-colors hover:bg-white/10"
+          className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
         >
           <span>블로그 관리</span>
-          <span className="text-muted">게시된 글 숨김·재게시 →</span>
+          <span className="hidden text-muted sm:inline">게시된 글 숨김·재게시 →</span>
         </Link>
       </div>
     </div>

@@ -47,7 +47,9 @@ export default async function PostPage({ params }: Props) {
   return (
     <article className="mx-auto max-w-3xl">
       <header className="mb-8 flex flex-col gap-3">
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">{post.title}</h1>
+        <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
+          {post.title}
+        </h1>
         <p className="text-sm font-medium text-accent">
           {post.authorName} · {formatDate(post.publishedAt ?? post.createdAt)}
         </p>
@@ -62,7 +64,7 @@ export default async function PostPage({ params }: Props) {
         />
       ) : null}
 
-      <div className="whitespace-pre-wrap break-words text-base leading-relaxed text-white/90">
+      <div className="whitespace-pre-wrap break-words text-[15px] leading-7 text-white/90 sm:text-base sm:leading-relaxed">
         {post.content}
       </div>
 

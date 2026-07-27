@@ -98,7 +98,7 @@ export default function ImageUploader({
       <p className="mb-2 text-sm font-medium text-white">썸네일 이미지 (선택)</p>
 
       {previewUrl ? (
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-full max-w-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={previewUrl}
@@ -113,7 +113,7 @@ export default function ImageUploader({
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute right-2 top-2 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white hover:bg-black/80"
+            className="absolute right-2 top-2 min-h-11 rounded-full bg-black/60 px-3 py-1 text-xs text-white outline-none hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-accent"
           >
             삭제
           </button>
@@ -126,7 +126,7 @@ export default function ImageUploader({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`flex aspect-[16/9] w-full max-w-xs cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed text-center text-xs text-muted transition-colors ${
+          className={`flex min-h-36 w-full max-w-sm cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed px-4 text-center text-xs text-muted outline-none transition-colors focus-within:ring-2 focus-within:ring-accent ${
             dragOver ? 'border-accent bg-accent/5' : 'border-white/20 hover:border-white/40'
           }`}
         >

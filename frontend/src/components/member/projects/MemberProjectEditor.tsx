@@ -94,7 +94,7 @@ export default function MemberProjectEditor({ projectId }: Props) {
           <button
             type="button"
             onClick={() => router.push('/member/projects')}
-            className="mt-5 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/65"
+            className="mt-5 min-h-11 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             내 프로젝트로 돌아가기
           </button>
