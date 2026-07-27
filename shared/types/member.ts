@@ -48,3 +48,19 @@ export interface MemberUpdateRequest {
   photoUrl?: string;
   joinReason?: string;
 }
+
+/** GET /api/admin/members — 관리자 전용 멤버 상세 (studentId·오프보딩 상태 포함) */
+export interface MemberAdminSummary {
+  id: number;
+  name: string;
+  roles: MemberRole[];
+  cohort: number;
+  emoji: string;
+  photoUrl: string | null;
+  joinReason: string | null;
+  department: string | null;
+  studentId: string;
+  publicationConsent: boolean;
+  publicationConsentedAt: string | null;
+  offboarded: boolean;
+}

@@ -17,7 +17,13 @@ import {
   uploadProjectImage,
 } from '@/lib/memberApi';
 
-const PARTS: ProjectPart[] = ['PM', 'FE', 'BE', 'DESIGN', 'AI', 'INFRA'];
+const PARTS: ProjectPart[] = [
+  'PRESIDENT', 'VICE_PRESIDENT',
+  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
+  'PLANNING_HEAD', 'PLANNING_MEMBER',
+  'PR_HEAD', 'PR_MEMBER',
+  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
+];
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
@@ -28,7 +34,7 @@ type Props = {
 };
 
 function suggestedPart(member: Member | undefined): ProjectPart {
-  return member?.roles[0] ?? 'PM';
+  return member?.roles[0] ?? 'BACKEND';
 }
 
 function apiErrorMessage(error: unknown) {
