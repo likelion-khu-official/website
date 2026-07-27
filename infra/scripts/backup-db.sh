@@ -2,7 +2,7 @@
 # SQLite DB(prod/stage) 스냅샷을 떠서 likelion-backups(private) 버킷에 업로드한다.
 # 실행 환경: OCI 서버, cron으로 매일 1회. 설계는 infra/db-access.md "백업 전략" 참고.
 #
-# 업로드는 aws-cli가 아니라 boto3(backup_upload.py)로 한다 — aws-cli v2(awscrt 서명기)가
+# 업로드는 aws-cli가 아니라 boto3(backup_manager.py)로 한다 — aws-cli v2(awscrt 서명기)가
 # OCI S3 호환 엔드포인트에 대해 간헐적으로 SignatureDoesNotMatch를 내는 걸 실측으로 확인함
 # (같은 자격증명·같은 명령이 방금 성공하고 바로 다음 호출에 실패). boto3(classic SigV4)는
 # 반복 테스트에서 안정적이었다. pm/docs/learnings.md 참고.
@@ -44,7 +44,7 @@ backup_one() {
         return 1
     fi
 
-    python3 "$SCRIPT_DIR/backup_upload.py" put "${db_name}/${db_name}-${DATE}.db" "$snapshot"
+    python3 "$SCRIPT_DIR/backup_manager.py" put "${db_name}/${db_name}-${DATE}.db" "$snapshot"
     echo "uploaded: ${db_name}/${db_name}-${DATE}.db"
 
     # 성공 신호 - OCI Monitoring Absence Alarm이 이게 26시간 이상 안 들어오면 알림
@@ -59,5 +59,5 @@ backup_one stage
 find "$LOCAL_BACKUP_DIR" -name "*.db" -mtime +3 -delete
 
 # 원격 보관 30일 — likelion-backups는 prod/stage 우선순위 구분 없이 동일 정책
-python3 "$SCRIPT_DIR/backup_upload.py" rotate prod 30
-python3 "$SCRIPT_DIR/backup_upload.py" rotate stage 30
+python3 "$SCRIPT_DIR/backup_manager.py" rotate prod 30
+python3 "$SCRIPT_DIR/backup_manager.py" rotate stage 30

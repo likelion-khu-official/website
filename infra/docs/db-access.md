@@ -162,13 +162,13 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 **구성:**
 
-1. **스냅샷 방식** — `cp` 대신 SQLite 내장 `.backup` 사용(쓰기 중에도 안전하게 일관된 스냅샷을 뜬다). 업로드 전 `PRAGMA integrity_check`로 스냅샷 자체가 깨지지 않았는지 확인 후에만 올린다. 스크립트: [`infra/scripts/backup-db.sh`](../scripts/backup-db.sh) + [`infra/scripts/backup_upload.py`](../scripts/backup_upload.py).
+1. **스냅샷 방식** — `cp` 대신 SQLite 내장 `.backup` 사용(쓰기 중에도 안전하게 일관된 스냅샷을 뜬다). 업로드 전 `PRAGMA integrity_check`로 스냅샷 자체가 깨지지 않았는지 확인 후에만 올린다. 스크립트: [`infra/scripts/backup-db.sh`](../scripts/backup-db.sh) + [`infra/scripts/backup_manager.py`](../scripts/backup_manager.py).
 2. **주기** — 매일 1회, cron(`0 18 * * *` UTC = 03:00 KST, `ubuntu` 계정).
 3. **보관 위치** — 별도 **프라이빗** OCI Object Storage 버킷 `likelion-backups` (기존 `likelion-stage`/`likelion-prod`는 Public이라 백업 부적합, 그래서 새로 만듦). 접근은 전용 IAM 그룹 `likelion-backup-writer` + 전용 서비스 계정(`backup-svc@likelion-khu.com`)의 Customer Secret Key로만 — 인프라 오너(Administrators) 계정 키는 안 씀(블라스트 반경 최소화).
-4. **업로드는 aws-cli가 아니라 boto3로 한다** — aws-cli v2(awscrt 서명기)가 OCI S3 호환 엔드포인트에 대해 간헐적으로 `SignatureDoesNotMatch`를 내는 걸 실측으로 확인함(같은 자격증명·같은 명령이 방금 성공하고 바로 다음 호출에 실패, 반면 boto3 classic SigV4는 반복 테스트에서 안정적). `backup_upload.py`가 이 방식을 씀.
+4. **업로드는 aws-cli가 아니라 boto3로 한다** — aws-cli v2(awscrt 서명기)가 OCI S3 호환 엔드포인트에 대해 간헐적으로 `SignatureDoesNotMatch`를 내는 걸 실측으로 확인함(같은 자격증명·같은 명령이 방금 성공하고 바로 다음 호출에 실패, 반면 boto3 classic SigV4는 반복 테스트에서 안정적). `backup_manager.py`가 이 방식을 씀.
 5. **보관 기간** — 로컬 최근 3일(`~/backups`) + 원격(버킷) 30일, 오래된 건 스크립트가 자동 rotation.
 6. **검증** — 실제 업로드 후 원격에서 다시 내려받아 별도 경로에서 `PRAGMA integrity_check` + 테이블 목록 확인까지 완료(설계만이 아니라 복원까지 실증).
 
 **자격증명:** 서버의 `infra/.env.backup`(git 제외, `chmod 600`)에 있음 — 템플릿은 [`infra/.env.backup.example`](../.env.backup.example).
 
-**실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화(`backup_upload.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.
+**실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화(`backup_manager.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.

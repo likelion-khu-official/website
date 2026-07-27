@@ -201,7 +201,7 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 
 ### DB 복원 — 백업 스냅샷으로 되돌리기
 
-**언제 쓰나**: 실수로 데이터가 잘못 들어갔거나, 배포·마이그레이션이 데이터를 망가뜨렸거나, DB 자체가 손상됐을 때 — 매일 자동으로 뜨는 백업(`db-access.md` "백업 전략")이 `likelion-backups`라는 별도 저장소(OCI Object Storage 버킷)에 prod·stage 각각 최근 30일치 쌓여 있어서, 그중 하나를 골라 지금의 DB 파일을 통째로 그 시점 것으로 바꿔치기할 수 있다. 아래 절차·명령은 전부 2026-07-27에 실제로 실행해서 결과까지 확인한 것이다(원래 백업 스크립트엔 업로드만 있고 다운로드 기능이 없어서, 이번에 `backup_upload.py`에 `get`(내려받기)·`list`(목록 보기) 명령을 추가했다).
+**언제 쓰나**: 실수로 데이터가 잘못 들어갔거나, 배포·마이그레이션이 데이터를 망가뜨렸거나, DB 자체가 손상됐을 때 — 매일 자동으로 뜨는 백업(`db-access.md` "백업 전략")이 `likelion-backups`라는 별도 저장소(OCI Object Storage 버킷)에 prod·stage 각각 최근 30일치 쌓여 있어서, 그중 하나를 골라 지금의 DB 파일을 통째로 그 시점 것으로 바꿔치기할 수 있다. 아래 절차·명령은 전부 2026-07-27에 실제로 실행해서 결과까지 확인한 것이다(원래 백업 스크립트엔 업로드만 있고 다운로드 기능이 없어서, 이번에 `backup_manager.py`에 `get`(내려받기)·`list`(목록 보기) 명령을 추가했다).
 
 > ⚠️ **한 번 복원하면 되돌릴 수 없다**: 복원은 "그 스냅샷을 뜬 시점 이후에 쌓인 모든 데이터(새 글·댓글·가입 등)를 버리고 그 시점으로 되감는" 것이다. 그래서 최후 수단으로만 쓴다 — 잘못 들어간 데이터 몇 건만 지우면 되는 상황이면 굳이 전체를 되돌리지 말고 `dbclient`로 그 데이터만 `DELETE`/`UPDATE`하는 게 낫다(`db-access.md` Flyway 기준 참고). prod를 복원하기 전엔 반드시 백엔드(신선우·안시현)에게 먼저 알려서, 그 시점 이후 그들이 넣어둔 데이터가 있는지부터 확인할 것.
 >
@@ -211,10 +211,10 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 
 ```bash
 # ① 이 DB(prod 또는 stage)에 어떤 날짜의 백업이 남아있는지 목록으로 확인한다. 2026-07-24 이전 날짜는 위 경고 때문에 고르지 않는다.
-ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && python3 scripts/backup_upload.py list <prod|stage>'
+ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && python3 scripts/backup_manager.py list <prod|stage>'
 
 # ② 고른 백업을 홈 디렉터리의 임시 폴더(~/restore-tmp)에 내려받고, 파일이 안 깨졌는지 검사한다 — 이 단계는 실제 서비스에 아무 영향 없다.
-ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && mkdir -p ~/restore-tmp && python3 scripts/backup_upload.py get <db>/<db>-<날짜>.db ~/restore-tmp/<db>-<날짜>.db && sqlite3 ~/restore-tmp/<db>-<날짜>.db "PRAGMA integrity_check;"'
+ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && mkdir -p ~/restore-tmp && python3 scripts/backup_manager.py get <db>/<db>-<날짜>.db ~/restore-tmp/<db>-<날짜>.db && sqlite3 ~/restore-tmp/<db>-<날짜>.db "PRAGMA integrity_check;"'
 # ↑ 결과가 "ok"인지 반드시 눈으로 확인한 뒤에만 다음 단계로 넘어간다. "ok"가 아니면 다른 날짜로 다시 시도한다.
 
 # ③ 서비스를 멈춘다 — DB 파일을 쓰고 있는 상태에서 교체하면 안 되고, 이 순간부터 재기동 전까지는 요청이 실패한다(다운타임 발생, 아래 "고급" 절차는 이걸 없앤 버전).
@@ -246,7 +246,7 @@ ssh likelion-oci 'curl -s -o /dev/null -w "복원 후:%{http_code}\n" http://loc
 
 ```bash
 # ① 복원할 백업(2026-07-24 이후 것만 — 위 스키마 경고 참고)을, 지금 쓰는 데이터 폴더가 아니라 별도 폴더(data-restore)에 받아 검증해둔다.
-ssh likelion-oci 'cd ~/website/infra && mkdir -p data-restore && set -a && source .env.backup && set +a && python3 scripts/backup_upload.py get <db>/<db>-<날짜>.db data-restore/<db>.db && sqlite3 data-restore/<db>.db "PRAGMA integrity_check;" && sudo chgrp dbaccess data-restore/<db>.db && sudo chmod 660 data-restore/<db>.db'
+ssh likelion-oci 'cd ~/website/infra && mkdir -p data-restore && set -a && source .env.backup && set +a && python3 scripts/backup_manager.py get <db>/<db>-<날짜>.db data-restore/<db>.db && sqlite3 data-restore/<db>.db "PRAGMA integrity_check;" && sudo chgrp dbaccess data-restore/<db>.db && sudo chmod 660 data-restore/<db>.db'
 
 # ② 위에서 준비한 데이터 폴더를 바라보는 컨테이너를 하나 더 띄운다. 기존 backend-<stage|prod>는 이 사이 계속 트래픽을 받고 있고 전혀 영향 없다.
 ssh likelion-oci "cat > ~/website/infra/docker-compose.restore.yml <<'EOF'
