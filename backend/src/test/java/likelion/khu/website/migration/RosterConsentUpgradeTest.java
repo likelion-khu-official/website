@@ -69,7 +69,7 @@ class RosterConsentUpgradeTest {
                 update members
                 set department = '테스트학과',
                     publication_consent = true,
-                    publication_consented_at = '2026-07-01T12:00:00'
+                    publication_consented_at = '1782874800000'
                 where id = 1
                 """
         );
@@ -80,7 +80,7 @@ class RosterConsentUpgradeTest {
                 set student_id = '2026000002',
                     phone = '01000000002',
                     publication_consent = true,
-                    publication_consented_at = '2026-07-01T12:00:00'
+                    publication_consented_at = '1782874800000'
                 where id = 1
                 """
         );
