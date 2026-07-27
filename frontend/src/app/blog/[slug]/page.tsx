@@ -4,6 +4,7 @@ import { getPostBySlug } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 import { formatDate } from '@/lib/formatDate';
 import CommentSection from '@/components/blog/CommentSection';
+import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -55,7 +56,7 @@ export default async function PostPage({ params }: Props) {
         </p>
       </header>
 
-      {post.thumbnailUrl ? (
+      {post.thumbnailUrl && !markdownIncludesImage(post.content, post.thumbnailUrl) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={post.thumbnailUrl}
@@ -64,9 +65,7 @@ export default async function PostPage({ params }: Props) {
         />
       ) : null}
 
-      <div className="whitespace-pre-wrap break-words text-[15px] leading-7 text-white/90 sm:text-base sm:leading-relaxed">
-        {post.content}
-      </div>
+      <MarkdownContent content={post.content} />
 
       <hr className="my-12 border-white/10" />
 

@@ -15,7 +15,16 @@ import type {
   ProjectReplaceRequest,
   ProjectSuccessResponse,
 } from '@shared/types/project';
-import type { FeedImageUploadResponse } from '@shared/types/feed';
+import type {
+  FeedImageUploadResponse,
+  MemberPostSummary,
+  PostCreateRequest,
+  PostDetail,
+  PostErrorCode,
+  PostReplaceRequest,
+  PostSuccessResponse,
+  SpringPage,
+} from '@shared/types/feed';
 
 /**
  * 모든 호출은 /api/member/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -24,11 +33,11 @@ import type { FeedImageUploadResponse } from '@shared/types/feed';
 
 export class MemberApiError extends Error {
   status: number;
-  code: MemberErrorCode | ProjectErrorCode | null;
+  code: MemberErrorCode | ProjectErrorCode | PostErrorCode | null;
   constructor(
     message: string,
     status: number,
-    code: MemberErrorCode | ProjectErrorCode | null = null
+    code: MemberErrorCode | ProjectErrorCode | PostErrorCode | null = null
   ) {
     super(message);
     this.status = status;
@@ -38,7 +47,7 @@ export class MemberApiError extends Error {
 
 async function throwApiError(res: Response, fallbackMessage: string): Promise<never> {
   let message = fallbackMessage;
-  let code: MemberErrorCode | ProjectErrorCode | null = null;
+  let code: MemberErrorCode | ProjectErrorCode | PostErrorCode | null = null;
   try {
     const data = await res.json();
     if (data?.message) message = data.message;
@@ -142,6 +151,49 @@ export function getMemberProjects() {
   );
 }
 
+export function getMemberPosts(page = 0, size = 20) {
+  return request<SpringPage<MemberPostSummary>>(
+    `/posts?page=${page}&size=${size}`,
+    { method: 'GET' },
+    '내 글을 불러오지 못했어요.'
+  );
+}
+
+export function getMemberPost(id: number) {
+  return request<PostDetail>(
+    `/posts/${id}`,
+    { method: 'GET' },
+    '글 편집 정보를 불러오지 못했어요.'
+  );
+}
+
+export function createPost(body: PostCreateRequest) {
+  return request<PostDetail>(
+    '/api/posts',
+    { method: 'POST', body: JSON.stringify(body) },
+    '글 등록에 실패했어요.',
+    false
+  );
+}
+
+export function replacePost(id: number, body: PostReplaceRequest) {
+  return request<PostDetail>(
+    `/api/posts/${id}`,
+    { method: 'PUT', body: JSON.stringify(body) },
+    '글 수정에 실패했어요.',
+    false
+  );
+}
+
+export function deletePost(id: number) {
+  return request<PostSuccessResponse>(
+    `/api/posts/${id}`,
+    { method: 'DELETE' },
+    '글 삭제에 실패했어요.',
+    false
+  );
+}
+
 export function getMemberProject(id: number) {
   return request<ProjectDetail>(
     `/projects/${id}`,
@@ -186,7 +238,7 @@ export function getAllMembers() {
   );
 }
 
-export async function uploadProjectImage(file: File): Promise<FeedImageUploadResponse> {
+export async function uploadMemberImage(file: File): Promise<FeedImageUploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
   const res = await authenticatedFetch('/api/feed/images', {
@@ -196,4 +248,8 @@ export async function uploadProjectImage(file: File): Promise<FeedImageUploadRes
 
   if (!res.ok) return throwApiError(res, '이미지 업로드에 실패했어요.');
   return res.json();
+}
+
+export function uploadProjectImage(file: File) {
+  return uploadMemberImage(file);
 }

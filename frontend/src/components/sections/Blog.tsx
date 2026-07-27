@@ -1,87 +1,65 @@
-export type Post = {
-  title: string;
-  author: string;
-  date: string;
-  thumbnail?: string;
-};
+import Link from 'next/link';
+import PostCard from '@/components/blog/PostCard';
+import { getPosts } from '@/lib/feedApi';
+import { getBaseUrl } from '@/lib/serverBaseUrl';
 
-// 기본 4개 — 나중에 항목을 추가하면 자동으로 슬라이드 루프에 포함된다.
-export const DEFAULT_POSTS: Post[] = [
-  { title: '제목', author: '이름', date: '날짜' },
-  { title: '제목', author: '이름', date: '날짜' },
-  { title: '제목', author: '이름', date: '날짜' },
-  { title: '제목', author: '이름', date: '날짜' },
-];
+export default async function Blog() {
+  let posts = null;
 
-const CARD =
-  'rounded-[20px] border border-[rgba(255,80,0,0.22)] bg-[rgba(18,18,18,0.72)] backdrop-blur-[6px]';
-
-function BlogCard({ post }: { post: Post }) {
-  return (
-    <article
-      className={`${CARD} mb-4 flex h-[var(--blog-card-h)] shrink-0 flex-col gap-4 p-4 sm:mb-8 sm:flex-row sm:gap-8 sm:p-6`}
-    >
-      {/* 썸네일 */}
-      <div className="h-[58%] w-full shrink-0 rounded-[14px] bg-gradient-to-br from-[#4a4a4a] to-[#2c2c2c] sm:h-full sm:w-auto sm:aspect-[16/9]" />
-
-      {/* 텍스트 */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between py-1">
-        <p
-          className="line-clamp-2 break-keep font-bold text-white"
-          style={{ fontSize: 'clamp(18px, 1.6vw, 30px)', letterSpacing: '-0.8px' }}
-        >
-          {post.title}
-        </p>
-        <p
-          className="text-accent font-medium"
-          style={{ fontSize: 'clamp(12px, 0.9vw, 16px)', letterSpacing: '-0.4px' }}
-        >
-          {post.author} / {post.date}
-        </p>
-      </div>
-    </article>
-  );
-}
-
-export default function Blog({ posts = DEFAULT_POSTS }: { posts?: Post[] }) {
-  // 이어붙인 사본으로 이음매 없는 세로 무한 슬라이드. 개수에 비례해 속도 유지.
-  const duration = `${Math.max(posts.length, 1) * 4}s`;
+  try {
+    posts = (await getPosts(0, await getBaseUrl())).content.slice(0, 6);
+  } catch {
+    // 랜딩 전체를 깨지 않고 이 섹션에서만 조회 실패 상태를 보여준다.
+  }
 
   return (
     <section
       id="blog"
-      className="blog-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:gap-16 sm:px-8 sm:py-24"
+      className="blog-bg relative min-h-screen min-h-[100svh] overflow-hidden px-5 py-20 sm:px-10 sm:py-28 lg:px-16 lg:py-36"
     >
-      {/* 헤더 */}
-      <div className="relative flex flex-col items-center gap-4 text-center">
-        <p
-          className="text-white"
-          style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
-        >
-          멋쟁이 사자처럼 블로그
-        </p>
-        <p
-          className="max-w-[1000px] text-balance break-keep font-semibold text-accent"
-          style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
-        >
-          동아리 활동 속에서 얻은 인사이트를 기록합니다.
-        </p>
-      </div>
-
-      {/* 고정 높이 뷰포트 — 카드는 이 칸 '안에서만' 슬라이드된다(페이지 높이 불변) */}
-      <div
-        className="blog-viewport group relative w-full max-w-[1417px] overflow-hidden sm:w-[90%] lg:w-[82%]"
-      >
-        <div className="blog-track flex flex-col" style={{ animationDuration: duration }}>
-          {/* 원본 + 사본(2벌) → -50% 이동 시 이음매 없이 반복 */}
-          {[...posts, ...posts].map((post, i) => (
-            <BlogCard key={i} post={post} />
-          ))}
+      <div className="relative mx-auto w-full max-w-[1440px]">
+        <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+              Our stories
+            </p>
+            <h2 className="mt-5 max-w-4xl break-keep text-[clamp(38px,5.5vw,76px)] font-semibold leading-[1.02] tracking-[-0.06em] text-white">
+              배운 것을 다음 경험으로
+            </h2>
+            <p className="mt-6 max-w-xl break-keep text-base leading-7 text-white/50 sm:text-lg">
+              활동하며 부딪히고 배운 기술과 생각을 기록해 다음 사람의 출발점으로 남깁니다.
+            </p>
+          </div>
+          <Link
+            href="/blog"
+            className="inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-accent hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#131313]"
+          >
+            모든 글 <span aria-hidden>→</span>
+          </Link>
         </div>
 
-        {/* 위·아래 페이드로 칸 경계에서 자연스럽게 사라지게 */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-background to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
+        {posts === null ? (
+          <div className="mt-10 flex min-h-64 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.025] px-6 text-center">
+            <p className="text-sm text-white/45">
+              블로그 글을 불러오지 못했어요. 잠시 후 다시 만나요.
+            </p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="mt-10 flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 px-6 text-center">
+            <p className="text-lg font-semibold text-white">첫 번째 배움을 준비하고 있어요.</p>
+            <p className="mt-2 text-sm text-white/40">곧 멤버들의 기록으로 이 공간을 채울게요.</p>
+          </div>
+        ) : (
+          <div
+            className={`mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 ${
+              posts.length > 2 ? 'lg:grid-cols-3' : ''
+            }`}
+          >
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
