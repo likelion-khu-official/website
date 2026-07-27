@@ -28,6 +28,7 @@
 | [`uptime-monitoring.md`](./uptime-monitoring.md) | UptimeRobot 설계 경위·한계 |
 | [`db-access.md`](./db-access.md) | DB 접속·Flyway 경계·백업 전략 |
 | [`.claude/skills/db-access/SKILL.md`](./.claude/skills/db-access/SKILL.md) | 팀원의 DB 관련 질문(접속법·SQL 허용여부·GUI·공개키 등록)에 이 Claude Code가 `db-access.md` 기반으로 즉답하게 하는 스킬 — 팀원 셀프서비스의 실제 동작 원리, 다음 담당자도 이 스킬을 그대로 물려받아 유지보수한다 |
+| [`../backend/.claude/skills/db-man/SKILL.md`](../backend/.claude/skills/db-man/SKILL.md) | **위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프한 것)지만 장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 관리하는 스킬** — 엔티티 변경 시 마이그레이션 파일을 빠뜨리지 않게, SQLite ALTER 제약·PK/FK 타입 짝·CD 롤백이 스키마까지 되돌리지 않는다는 함정 등을 담고 있다. 인프라 인수인계 시 db-access와 같이 넘겨야 하는 스킬 |
 | [`logging.md`](./logging.md) | 로그 구조 |
 | [`CI-CD.md`](./CI-CD.md) | CI CD 절차 설명 |
 | `pm/docs/learnings.md` "인프라 · CI/CD" 절 | 실제 사고 히스토리 — 같은 함정을 반복하지 않기 위한 원본 |
