@@ -148,4 +148,4 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 **자격증명:** 서버의 `infra/.env.backup`(git 제외, `chmod 600`)에 있음 — 템플릿은 [`infra/.env.backup.example`](./.env.backup.example).
 
-**실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#5-자주-쓰는-명령-cheat-sheet)에 단일화(`backup_upload.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.
+**실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화(`backup_upload.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.

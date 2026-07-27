@@ -79,41 +79,7 @@ DNS (호스팅케이알, 네임서버 ns1~4.hosting.co.kr — 2026-07-26 dig 실
 Vercel → 프론트엔드 (인프라 무관)
 ```
 
-### DNS 레코드가 하는 일 — 요청 흐름 계층별로 왜 이렇게 세팅했나
-
-DNS 레코드는 그냥 "이 이름이 이 IP다"가 아니라, 위 아키텍처의 각 요청 흐름에서 **정확히 어느 지점을 담당하는지**가 따로 있다. 레코드 하나를 지우거나 헷갈리면 어느 계층이 끊기는지 알아야 실수를 안 한다.
-
-**① 사용자 브라우저 → 프론트엔드(Vercel)** — 방문자가 실제로 보는 유일한 도메인
-```
-브라우저 → likelion-khu.com / www.likelion-khu.com (A·CNAME → Vercel) → Next.js 앱
-```
-- `likelion-khu.com`(A)·`www.likelion-khu.com`(CNAME): 둘 다 Vercel — 브라우저 주소창에 찍히는 진짜 진입점. **브라우저는 이 도메인 하나로만 요청하고 `api.*` 도메인은 절대 직접 안 부른다**(②에서 이유가 나온다).
-- `dev.likelion-khu.com`(프론트 스테이징): 같은 계층이지만 dev 환경 — Vercel이 별도 배포로 서빙하며, 이 서버의 nginx·인증서와는 완전히 무관하다.
-
-**② 프론트 서버(Next.js, Vercel) → 백엔드 API(OCI)** — 브라우저가 아니라 서버끼리 통신하는 내부 경로
-```
-Next.js 서버사이드 rewrite(`BACKEND_URL` 환경변수, 서버 전용)
-  → api.prod.likelion-khu.com / api.stage.likelion-khu.com (A → 168.138.202.82, 이 OCI 인스턴스)
-  → nginx가 Host 헤더(server_name)로 prod/stage를 구분해 backend-prod:8080 / backend-stage:8080으로 라우팅
-```
-- `api.prod.likelion-khu.com`·`api.stage.likelion-khu.com`(A): **둘 다 같은 OCI 인스턴스의 같은 IP**를 가리킨다 — 서버가 두 대라서가 아니라, nginx 하나가 도메인(Host 헤더)만으로 prod/stage를 갈라 서로 다른 컨테이너로 보낸다. 이 도메인 두 개가 없으면 nginx가 "이 요청이 prod용인지 stage용인지" 구분할 방법이 없다.
-- 이 요청은 **브라우저가 직접 하는 게 아니라 Next.js 서버(Vercel)가 서버사이드로 대신 호출**한다 — 그래서 브라우저 개발자도구를 열어도 백엔드 주소가 안 보이고 CORS 설정도 불필요하다(브라우저 입장에선 계속 `likelion-khu.com` 하나의 오리진으로만 요청하는 것으로 보임). `api.*` 도메인이 존재하는 이유는 사람이 브라우저로 찾아가라고가 아니라, **nginx가 라우팅 근거로 쓰고 Let's Encrypt 인증서가 이 이름들로 발급돼 있어 HTTPS가 성립**하기 때문이다.
-
-**③ 이메일 발신 계층(OCI Email Delivery)** — "진짜 우리가 보낸 메일"임을 증명하는 계층
-```
-백엔드(Spring Boot) --SMTP--> OCI Email Delivery 릴레이 --실제 발송--> 수신자 메일서버
-                                                              ↑
-                                          SPF/DKIM/DMARC로 발신 신뢰성을 검증
-```
-- `likelion-khu.com`(TXT, SPF): 수신 서버가 "지금 접속한 IP가 이 도메인이 허가한 발신 IP 대역(OCI)에 있나"만 대조하는 레코드 — 없으면 스팸함행 확률이 크게 올라간다(`email-delivery.md`).
-- `mail-tokyo-*._domainkey`(CNAME, DKIM): OCI가 서명한 메일의 공개키를 수신 서버가 실시간으로 조회하게 Oracle 존으로 위임하는 레코드 — 공개키 값 자체는 안 담고 있어서 OCI가 키를 로테이션해도 이 레코드는 안 건드려도 된다.
-- `_dmarc`(TXT): SPF·DKIM 결과가 서로 안 맞을 때(정렬 실패) 뭘 할지(`p=none`=관찰만, 거부/격리 아님)와 실패 리포트를 어디로 보낼지 정의.
-- **MX 레코드는 아예 없다** — 이 도메인은 메일을 "받는" 인프라가 전혀 없고 "보내기"만 한다는 뜻(발신 전용, `email-delivery.md`). `likelion-khu.com`으로 온 메일에 답장한다는 개념 자체가 없다.
-
-**④ 인증서 발급 계층**
-- CAA 레코드 없음 — "이 도메인 인증서는 반드시 특정 CA(Let's Encrypt 등)에서만 발급 가능"처럼 발급 기관을 제한하는 장치가 없다는 뜻. 지금은 위험도가 낮다고 판단해 안 걸어뒀지만, 강화하려면 CAA로 Let's Encrypt만 허용하도록 추가할 수 있다.
-
-**한눈에 요약**: 방문자가 실제로 접속하는 도메인(`likelion-khu.com`/`www`/`dev`, ①)과, 백엔드가 서버간 통신·nginx 라우팅에만 쓰는 내부용 도메인(`api.prod`/`api.stage`, ②)과, 이메일이 "진짜 우리가 보낸 것"이라고 증명하는 레코드(SPF/DKIM/DMARC, ③)는 **같은 존(zone) 안에 있지만 목적이 완전히 다르다.** 이 구분을 알아야 "`api.*` 레코드를 왜 지우면 안 되는지"(브라우저는 안 써도 서버간 통신과 nginx 라우팅이 이걸로 돈다)나 "왜 MX가 없어도 되는지"(원래 수신용 도메인이 아니었다) 같은 질문에 근거를 갖고 답할 수 있다.
+DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설명)는 [`infra/dns.md`](./dns.md) 참고.
 
 ## 브랜치 ↔ 환경 대응
 
@@ -139,11 +105,13 @@ Next.js 서버사이드 rewrite(`BACKEND_URL` 환경변수, 서버 전용)
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
 | `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 이 역할의 마인드셋·지표부터 담당자 역량 체크리스트·알람별 대응 절차·평소 루틴·백엔드/프론트 협업 인터페이스까지. infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신. 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 계정 인벤토리는 `pm/docs/handoff.md` |
 | `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
 | `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
+| [`infra/dns.md`](./dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
+| [`infra/iam.md`](./iam.md) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) + 새 인프라 담당자용 IAM 계정 만들기 절차 |
 | `infra/push-disk-metric.py` / `infra/push-backup-metric.py` / `infra/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
@@ -209,43 +177,7 @@ http {
 
 ---
 
-## OCI IAM 구조 (2026-07-27 실측)
-
-> 테넌시: `kwj_likelion`(Cloud Account Name과 동일). 아래는 `oci iam user/group/dynamic-group/policy list`로 실측한 것 — 콘솔 `Identity & Security`에서도 같은 걸 볼 수 있다. 문서와 실제가 어긋나 있진 않은지, 이런 식으로 가끔 CLI로 직접 대조해볼 것(RUNBOOK 6절 "평소 루틴"과 같은 이유).
-
-### 사용자 (7명)
-
-> 로그인 이메일은 개인정보라 여기 안 적는다(이 레포는 public — `email-delivery.md`가 이미 같은 원칙). OCI 콘솔 `Identity & Security → Domains → Default → Users`에서 실제 목록 확인 가능.
-
-| 사용자 | 소속 그룹 | 콘솔 로그인 | 용도 |
-|---|---|---|---|
-| 장찬욱(인프라 오너) | Administrators | 가능(MFA) | 본인 계정 |
-| 김우진(PM) | Administrators | 가능(MFA) | DB·리소스 직접 확인이 필요한 PM 책임 때문(`db-access.md` "접근 대상" 참고) |
-| 신선우(BE) | be-dev-stage | 가능(MFA) | |
-| 안시현(BE) | be-dev-stage | 가능(MFA) | |
-| 동아리 공용 계정(Outlook — 도메인·호스팅 로그인, UptimeRobot 가입 계정과 동일) | likelion-spring-boot | 가능(MFA 미설정) | 백엔드 Object Storage(likelion-stage/prod 버킷) Customer Secret Key 보유용으로 등록. 다목적 공용 계정 |
-| `backup-svc` (서비스 계정) | likelion-backup-writer | **불가**(설명에 "no console login" 명시, 이메일 필드는 IDCS 필수 요구사항이라 채워둔 것뿐) | 백업 스크립트 전용 — Customer Secret Key만 사용 |
-| `smtp-mailer` (서비스 계정) | email-senders | **불가** | 이메일 발송 전용 — SMTP 자격증명만 사용, 로그인 이메일은 장찬욱 개인 메일에 `+smtp-mailer` 별칭을 붙인 것(`email-delivery.md` 참고, 실주소는 레포에 안 남김) |
-
-### 그룹 · 다이나믹 그룹 · 정책 (최소권한 매핑)
-
-| 그룹 | 멤버 | 정책(Policy) | 실제 권한 |
-|---|---|---|---|
-| `Administrators` | 장찬욱, 김우진 | `Tenant Admin Policy` | `manage all-resources in tenancy` — 테넌시 전체 관리 |
-| `be-dev-stage` | 신선우, 안시현 | `likelion-storage-policy` | `likelion-stage` 버킷만 manage |
-| `likelion-spring-boot` | 동아리 공용 계정 | `likelion-storage-policy` | `likelion-stage`+`likelion-prod` 버킷 manage(백엔드 실제 운영 자격증명 — `be-dev-stage`보다 범위 넓음, prod 포함) |
-| `email-senders` | `smtp-mailer` | `email-senders-policy` | `email-family` 사용(발송만 — 발신주소·도메인 관리 권한 아님) |
-| `likelion-backup-writer` | `backup-svc` | `likelion-backup-policy` | `likelion-backups` 버킷만 manage |
-| `likelion-monitoring-dyngroup`(다이나믹 그룹 — 사람이 아니라 매칭되는 인스턴스 자신) | likelion-prod 인스턴스(instance principal) | `likelion-monitoring-policy` | `metrics` 사용(커스텀 메트릭 전송). 같은 정책의 두 번째 문장(`Allow service monitoring to use ons-topics in tenancy`)은 그룹이 아니라 **Monitoring 서비스 자신**이 Alarm→ONS로 발행하는 데 필요한 서비스 주체용 |
-
-**설계 원칙(실측으로 확인된 패턴)**: 사람 계정(Administrators)과 애플리케이션/서비스 자격증명(smtp-mailer·backup-svc·인스턴스 principal)을 철저히 분리 — 서비스 계정은 전부 콘솔 로그인이 안 되거나(smtp-mailer, backup-svc) 인스턴스 자신의 identity(다이나믹 그룹)를 쓴다. 버킷 접근도 그룹별로 stage만/stage+prod로 나뉘어(`be-dev-stage` vs `likelion-spring-boot`) 한 자격증명이 유출돼도 영향 범위가 제한된다.
-
-### 새 인프라 담당자용 IAM 사용자 만들기 (인수인계 시 실제 절차)
-
-1. **콘솔 로그인 계정 생성**: `Identity & Security → Domains → Default → Users → Add User` — 후임자 본인 이메일로 생성(그 사람이 자기 비밀번호를 직접 설정하는 초대 메일이 감).
-2. **`Administrators` 그룹에 추가** — `Groups → Administrators → Add User to Group`.
-3. **CLI용 API 서명 키 발급** — 후임자 본인이 로그인해서 `우측상단 프로필 → My Profile → API Keys → Add API Key`(로컬에서 만든 공개키를 업로드하거나, 콘솔이 만들어주는 키페어를 다운로드) → 로컬 `~/.oci/config`에 `user`·`fingerprint`·`tenancy`·`region`·`key_file` 채우기(장찬욱 로컬 세팅과 동일 패턴, 위 "OCI CLI 세팅" 참고) → `oci iam user list --query data[0]`로 접속 테스트.
-4. 이 계정은 **서버 SSH 접속과는 완전히 무관**하다 — SSH는 별도로 `ubuntu` 계정 `authorized_keys`에 공개키를 등록해야 한다(`RUNBOOK.md` 8절 "계정 인벤토리" 참고). 콘솔·CLI로 OCI 리소스(Monitoring·Storage 등)는 만질 수 있어도 그걸로 서버(compute 인스턴스) 안에 들어갈 수 있는 건 아니다 — 이 둘을 헷갈리지 말 것.
+OCI IAM 구조(사용자·그룹·정책 매핑, 새 담당자용 IAM 계정 만들기 절차)는 [`infra/iam.md`](./iam.md) 참고.
 
 ---
 
@@ -272,7 +204,7 @@ http {
 
 ## 수동 배포·롤백
 
-명령어·절차는 [`RUNBOOK.md`](./RUNBOOK.md#5-자주-쓰는-명령-cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
+명령어·절차는 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
 
 ## 미결 사항
 
@@ -280,5 +212,5 @@ http {
 
 > 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
 
-- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md) 5절 참고.
+- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
 - **`infra/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/cleanup-old-logs.sh`로 `100755` 확인.
