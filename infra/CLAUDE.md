@@ -111,7 +111,7 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
 | [`infra/dns.md`](./dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
-| [`infra/iam.md`](./iam.md) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) + 새 인프라 담당자용 IAM 계정 만들기 절차 |
+| `infra/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `pm/docs/handoff.md` "계정 인벤토리"에 있음 |
 | `infra/push-disk-metric.py` / `infra/push-backup-metric.py` / `infra/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
@@ -177,7 +177,7 @@ http {
 
 ---
 
-OCI IAM 구조(사용자·그룹·정책 매핑, 새 담당자용 IAM 계정 만들기 절차)는 [`infra/iam.md`](./iam.md) 참고.
+OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `pm/docs/handoff.md` "계정 인벤토리" 참고.
 
 ---
 

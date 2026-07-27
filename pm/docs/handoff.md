@@ -190,7 +190,7 @@
 
 | 계정/자격증명 | 지금 어디 묶여 있나 | 어디 쓰나 | 인수인계 방법 |
 |---|---|---|---|
-| OCI 콘솔 (Administrators 그룹) | 장찬욱·김우진 개인 Oracle Cloud 계정(둘 다 Administrators) | 콘솔 전체(Monitoring·Alarm·IAM·Compute·Storage·Email Delivery), CLI(`~/.oci/config` + API key) | 후임자 **본인 명의로 신규 IAM 사용자 발급** → Administrators 그룹 추가 → 본인이 API 서명키 발급해 로컬 CLI 세팅 — 구체적 절차는 [`infra/iam.md`](../../infra/iam.md#new-user) "새 인프라 담당자용 IAM 사용자 만들기" 참고. 기존 계정의 로그인 자격증명을 그대로 넘기지 않는다 — 사람이 바뀌면 계정도 새로 만든다. **콘솔/CLI 접근과 서버 SSH(`ubuntu`, 아래 항목)는 완전히 별개의 자격증명**이라 둘 다 따로 세팅해야 한다. |
+| OCI 콘솔 (Administrators 그룹) | 장찬욱·김우진 개인 Oracle Cloud 계정(둘 다 Administrators) | 콘솔 전체(Monitoring·Alarm·IAM·Compute·Storage·Email Delivery), CLI(`~/.oci/config` + API key) | 후임자 **본인 명의로 신규 IAM 사용자 발급** → Administrators 그룹 추가 → 본인이 API 서명키 발급해 로컬 CLI 세팅(절차는 아래 참고). 기존 계정의 로그인 자격증명을 그대로 넘기지 않는다 — 사람이 바뀌면 계정도 새로 만든다. **콘솔/CLI 접근과 서버 SSH(`ubuntu`, 아래 항목)는 완전히 별개의 자격증명**이라 둘 다 따로 세팅해야 한다. |
 | 서버 SSH `ubuntu` (sudo) | 장찬욱 로컬 `~/.ssh/oci_server.pem` 하나뿐 | 서버 전체 관리(docker compose·로그·수동 배포 등) | 후임자가 로컬에서 새 키페어 생성 → 공개키를 서버 `authorized_keys`(ubuntu)에 추가 → 접속 확인 후에만 장찬욱 키 제거. **개인키 파일 자체를 복사해서 넘기지 않는다** — `db-access.md`의 "키페어는 본인 소유"와 같은 원칙. |
 | OCI Notifications(ONS) 구독 — 토픽 `likelion-ops-alerts` | **의도적으로 개인 메일 기반** — 현재 장찬욱·김우진 개인 메일이 구독 중. 동아리 공용 Outlook 계정으로 통합을 시도했으나, 구독 확인 메일은 왔는데 실제 알람 메일은 정크함에도 없이 안 왔다(2026-07-27 실측, 원인 미상) — 그래서 포기하고 개인 메일 기반을 유지 중(`pm/docs/learnings.md` "인프라·CI/CD" 참고) | 디스크 80%↑·메모리 85%↑·백업 26h 부재(prod·stage)·git 드리프트 **5개 알람 전부**의 **유일한 도달 경로**(전부 이메일로만 옴) — 이 5개가 전부 **같은 토픽 하나**로만 발행되는 걸 `oci monitoring alarm get`의 `destinations` 필드로 실측 확인(2026-07-27). 그래서 **메일 하나를 이 토픽에 구독시키면 5개 알람 전부를 커버한다** — 알람별로 따로 등록할 필요 없음 | 콘솔 `Notifications → Topics → likelion-ops-alerts`에서 후임자 **개인 메일 하나**를 구독 추가(PENDING → 메일함에서 확인 클릭 → ACTIVE) — 이걸로 5개 알람 전부 끝, 추가 등록 없음. **확인 클릭만으론 검증이 안 된다** — 반드시 알람 하나를 실제로 발동시켜([`infra/RUNBOOK.md`](../../infra/RUNBOOK.md#alarm-memory-85) 메모리 알람 절의 임계치 조정 방식) 최종 수신까지 확인한 뒤에만 이전 담당자 메일을 구독 해지한다. |
 | UptimeRobot(uptimerobot.com) | 동아리 공용 Outlook 계정으로 가입(개인 계정 아님, 2026-07-27 직접 확인) | 외부 가동 감시(FE·BE 서버 up/down), 메일 + Discord 웹훅으로 알림 | 로그인은 이미 공용 계정이라 대시보드 접근 자체는 그대로 전달. **다만 Alert Contact(알림 수신 이메일)은 후임자 개인 메일로 바꿔둘 것** — Discord 웹훅으로도 알림이 오긴 하지만, 채널 하나가 막히는 경우를 대비해 이메일도 개인 것으로 이중화해두는 편이 안전(장찬욱 지시, 2026-07-27). |
@@ -200,6 +200,15 @@
 | `smtp-mailer` (이메일 발송 전용 IAM) | 서버 `.env.stage`/`.env.prod`(레포엔 없음) | 발송 SMTP 인증(prod/stage 자격증명 분리) | 위와 동일 — `ubuntu` 승계로 자동 커버. 로테이션은 Administrators 권한 필요(유저당 자격증명 최대 2개라 이미 꽉 참, 지우고 재발급). |
 | `dbclient`/`dbtunnel` 공개키 등록 권한 | 별도 계정이 아니라 `ubuntu`(서버 sudo)로 직접 등록하는 작업 | 팀원 DB 조회·조작 접근(`db-access.md`) | 별도로 넘길 게 없음 — `ubuntu` SSH가 넘어가면 이 등록 권한도 함께 넘어간다. |
 | 팀 Discord 서버 멤버십 | 서버 자체(계정 아님) | UptimeRobot DOWN/UP 알림이 이 서버 채널에 웹훅으로 옴(`infra/uptime-monitoring.md`) — 이메일과 별개의, 더 빠른(초 단위) 알림 채널 | 후임자를 서버에 초대. 웹훅이 이미 채널에 연결돼 있어 참여만 하면 바로 알림을 받는다 — 별도 설정 불필요. |
+
+**새 인프라 담당자용 IAM 사용자 만들기 (실제 절차)**:
+
+1. **콘솔 로그인 계정 생성**: `Identity & Security → Domains → Default → Users → Add User` — 후임자 본인 이메일로 생성(그 사람이 자기 비밀번호를 직접 설정하는 초대 메일이 감).
+2. **`Administrators` 그룹에 추가** — `Groups → Administrators → Add User to Group`.
+3. **CLI용 API 서명 키 발급** — 후임자 본인이 로그인해서 `우측상단 프로필 → My Profile → API Keys → Add API Key`(로컬에서 만든 공개키를 업로드하거나, 콘솔이 만들어주는 키페어를 다운로드) → 로컬 `~/.oci/config`에 `user`·`fingerprint`·`tenancy`·`region`·`key_file` 채우기(장찬욱 로컬 세팅과 동일 패턴, `infra/CLAUDE.md`의 "OCI CLI 세팅" 참고) → `oci iam user list --query data[0]`로 접속 테스트.
+4. 이 계정은 **서버 SSH 접속과는 완전히 무관**하다 — SSH는 별도로 `ubuntu` 계정 `authorized_keys`에 공개키를 등록해야 한다(위 표). 콘솔·CLI로 OCI 리소스(Monitoring·Storage 등)는 만질 수 있어도 그걸로 서버(compute 인스턴스) 안에 들어갈 수 있는 건 아니다 — 이 둘을 헷갈리지 말 것.
+
+> **실제 그룹·정책·버킷 권한 매핑(누가 뭘 할 수 있는지의 전체 구조)은 이 공개 레포에 안 남긴다** — 그룹명·정책명까지 다 적어두면 "누굴 뚫으면 뭘 얻는지" 지도를 공개하는 셈이라, 인수인계 시점에 장찬욱이 후임자에게 직접(비공개 채널로) 전달한다. 위 계정 인벤토리 표에 있는 "무엇을 어떻게 넘기는지"만으로 인수인계 실무는 충분하고, "왜 이렇게 나눴는지"는 인수인계 대화에서 구두로 전달.
 
 **순서 — 실제로 인수인계할 때**:
 
