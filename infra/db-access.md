@@ -147,3 +147,5 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 6. **검증** — 실제 업로드 후 원격에서 다시 내려받아 별도 경로에서 `PRAGMA integrity_check` + 테이블 목록 확인까지 완료(설계만이 아니라 복원까지 실증).
 
 **자격증명:** 서버의 `infra/.env.backup`(git 제외, `chmod 600`)에 있음 — 템플릿은 [`infra/.env.backup.example`](./.env.backup.example).
+
+**실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#5-자주-쓰는-명령-cheat-sheet)에 단일화(`backup_upload.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.
