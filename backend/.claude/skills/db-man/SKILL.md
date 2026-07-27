@@ -16,7 +16,7 @@ description: >-
 **이 레포는 Flyway(#133)로 스키마를 관리한다 — 엔티티를 고쳤으면 `db/migration/`에
 SQL 파일을 같이 추가하는 게 전부다.** psql 등으로 서버 DB에 직접 반영할 필요가 없다 —
 Flyway가 배포(CD) 시점에 알아서 적용한다. `dbclient` 계정으로도 스키마 변경은 기술적으로
-차단돼 있다(`infra/db-access.md` 참고) — 그쪽으로 우회하지 않는다.
+차단돼 있다(`infra/docs/db-access.md` 참고) — 그쪽으로 우회하지 않는다.
 
 > 다른 레포(tech-blog-be)의 동명 스킬은 Flyway가 없어 psql로 엔티티·DDL 파일·RDS
 > 3곳을 사람이 직접 맞추는 무거운 절차다. 여기는 Flyway가 그 반영 역할을 대신하므로
@@ -94,6 +94,6 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
 ## 참고 문서
 
 - `backend/CLAUDE.md` — 스키마 변경 규칙 요약
-- `infra/db-migration.md` — Flyway 설계·환경별 안전장치(`SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` 등)
-- `infra/db-access.md` — DB 접속 방법·`dbclient` 권한 경계
+- `infra/docs/db-migration.md` — Flyway 설계·환경별 안전장치(`SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` 등)
+- `infra/docs/db-access.md` — DB 접속 방법·`dbclient` 권한 경계
 - `pm/docs/learnings.md` — #133 사고 타임라인 + SQLiteDialect 버그 발견 경위

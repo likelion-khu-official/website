@@ -9,13 +9,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INFRA_DIR="$(dirname "$SCRIPT_DIR")"   # 2026-07-27 infra/scripts/로 이동 — .env.backup·data/는 안 옮겨서 한 단계 위(infra/)를 봐야 함
 
 # 자격증명/엔드포인트 — .env.backup은 git에 안 올라감(.env.backup.example 참고)
 set -a
-source "$SCRIPT_DIR/.env.backup"
+source "$INFRA_DIR/.env.backup"
 set +a
 
-DATA_DIR="$SCRIPT_DIR/data"
+DATA_DIR="$INFRA_DIR/data"
 LOCAL_BACKUP_DIR="$HOME/backups"
 DATE="$(date +%F)"
 

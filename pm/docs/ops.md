@@ -16,7 +16,7 @@
   | CNAME | `www.likelion-khu.com` | Vercel |
   | A | `api.prod.likelion-khu.com` | `168.138.202.82` (OCI 인스턴스) |
   | A | `api.stage.likelion-khu.com` | `168.138.202.82` (OCI 인스턴스, 같은 서버) |
-  | TXT | `likelion-khu.com` | SPF (`infra/email-delivery.md` 참고) |
+  | TXT | `likelion-khu.com` | SPF (`infra/docs/email-delivery.md` 참고) |
   | TXT | `_dmarc.likelion-khu.com` | DMARC(`p=none`, 수신자는 동아리·PM 개인 메일 — 실값은 여기 안 적음) |
   | MX | — | **없음** (수신 메일함 자체가 없음 — 발신 전용 OCI Email Delivery만 씀) |
   | CAA | — | **없음** (어떤 인증기관이든 이 도메인 인증서 발급 가능 — 지금 위험도는 낮으나 강화하려면 Let's Encrypt만 허용하는 CAA 추가를 검토할 수 있음) |
@@ -32,7 +32,7 @@
 - **PR**이면 자동화된 테스트만, **머지 이후** 실제 배포. (동작 정리: PR #40)
 - 현재 이 자동배포는 **백엔드 서버 한정.**
 - 머지 정책: **일반 머지만 허용**(squash·rebase 금지 — 이유는 learnings).
-- **스테이징 도메인:** `dev.likelion-khu.com`(고정 이름, Vercel이 서빙) — `infra/uptime-monitoring.md`에도 모니터링 대상으로 이미 공개돼 있다. (2026-07-26 정정: 예전엔 "랜덤문자열, nginx.conf에 고정, 의도적 비공개"로 적혀 있었으나, 실제 `infra/nginx.conf`는 `api.prod`/`api.stage`(백엔드)만 라우팅하고 프론트 도메인은 관여하지 않는다는 걸 확인 — 프론트는 Vercel이 전담. 장찬욱 확인 완료.)
+- **스테이징 도메인:** `dev.likelion-khu.com`(고정 이름, Vercel이 서빙) — `infra/docs/uptime-monitoring.md`에도 모니터링 대상으로 이미 공개돼 있다. (2026-07-26 정정: 예전엔 "랜덤문자열, nginx.conf에 고정, 의도적 비공개"로 적혀 있었으나, 실제 `infra/nginx.conf`는 `api.prod`/`api.stage`(백엔드)만 라우팅하고 프론트 도메인은 관여하지 않는다는 걸 확인 — 프론트는 Vercel이 전담. 장찬욱 확인 완료.)
 
 ## 프론트 ↔ 백엔드 연결
 - 프론트(Vercel) → `/api/*` 요청을 Next.js 서버사이드 rewrite로 백엔드(OCI)에 프록시. 브라우저는 `likelion-khu.com`으로만 요청, 백엔드 주소 비노출. CORS 불필요. (이유·패턴은 learnings)

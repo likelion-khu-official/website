@@ -6,9 +6,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INFRA_DIR="$(dirname "$SCRIPT_DIR")"   # 2026-07-27 infra/scripts/로 이동 — logs/는 안 옮겨서 한 단계 위(infra/)를 봐야 함
 RETENTION_DAYS=30   # 백업 원격 보관 기간(backup-db.sh)과 동일하게 맞춤
 
-for env_dir in "$SCRIPT_DIR/logs/stage" "$SCRIPT_DIR/logs/prod"; do
+for env_dir in "$INFRA_DIR/logs/stage" "$INFRA_DIR/logs/prod"; do
     if [ -d "$env_dir" ]; then
         find "$env_dir" -name "*.log*" -mtime "+${RETENTION_DAYS}" -print -delete
     fi

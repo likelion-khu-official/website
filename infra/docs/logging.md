@@ -64,7 +64,7 @@
 | `backend/src/main/resources/application.yml` | `logging.file.name`/`logging.logback.rollingpolicy` — 파일 로깅 + 롤링 정책 |
 | `infra/docker-compose.yml` | `backend-stage`/`backend-prod`에 `LOG_FILE_PATH` 환경변수 + `./logs/{stage,prod}:/app/logs` 볼륨 |
 | `infra/logs/{stage,prod}/` | 실제 로그 파일 저장 위치 (서버에만 존재, gitignore) — 파일명 = 배포 태그(`stage-<sha>.log`) |
-| `infra/cleanup-old-logs.sh` | 30일 넘은 로그 파일 자동 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — cron `0 19 * * *` |
+| `infra/scripts/cleanup-old-logs.sh` | 30일 넘은 로그 파일 자동 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — cron `0 19 * * *` |
 
 ## 실측 검증 (2026-07-22)
 

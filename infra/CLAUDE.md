@@ -57,11 +57,11 @@ OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
   ※ sqlite-web-*는 dbtunnel 계정의 SSH 포트포워딩으로만 접근(db-access.md 참고) — nginx 안 거침, 공인 인터넷 노출 없음
 
-크론(서버 실측, 2026-07-26 — crontab -l 그대로):
-  0 18 * * *   backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
-  */5 * * * *  push-disk-metric.py       → 디스크 사용률 custom metric
-  */5 * * * *  push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
-  ※ 셋 다 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행
+크론(서버 실측, 2026-07-26 기준 — 2026-07-27 scripts/ 이동으로 경로만 갱신, 서버 crontab 반영은 별도 확인 필요):
+  0 18 * * *   scripts/backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
+  */5 * * * *  scripts/push-disk-metric.py       → 디스크 사용률 custom metric
+  */5 * * * *  scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
+  ※ 셋 다 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/*
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest
@@ -79,7 +79,7 @@ DNS (호스팅케이알, 네임서버 ns1~4.hosting.co.kr — 2026-07-26 dig 실
 Vercel → 프론트엔드 (인프라 무관)
 ```
 
-DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설명)는 [`infra/dns.md`](./dns.md) 참고.
+DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설명)는 [`infra/docs/dns.md`](./docs/dns.md) 참고.
 
 ## 브랜치 ↔ 환경 대응
 
@@ -104,16 +104,18 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
-| `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신 |
-| [`infra/handoff.md`](./handoff.md) | 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 체크리스트·계정 인벤토리(`pm/docs/handoff.md`의 인프라 절 상세) |
-| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
-| `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
-| `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
-| `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
-| [`infra/dns.md`](./dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
-| `infra/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `infra/handoff.md` "계정 인벤토리"에 있음 |
-| `infra/push-disk-metric.py` / `infra/push-backup-metric.py` / `infra/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
+| `infra/scripts/` | 실행되는 스크립트 전부(배포·백업·메트릭 push 등) — 2026-07-27 문서와 분리 |
+| `infra/docs/` | 이 CLAUDE.md·AGENTS.md·SECURITY.md를 뺀 나머지 인프라 문서 전부 — 2026-07-27 스크립트와 분리(Claude Code가 디렉터리별로 자동 로드하는 CLAUDE.md/AGENTS.md만 `infra/` 루트에 남음) |
+| [`infra/docs/logging.md`](./docs/logging.md) | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
+| [`infra/docs/RUNBOOK.md`](./docs/RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/docs/handoff.md`](./docs/handoff.md) | 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 체크리스트·계정 인벤토리(`pm/docs/handoff.md`의 인프라 절 상세) |
+| [`infra/docs/db-access.md`](./docs/db-access.md) | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
+| `infra/scripts/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
+| [`infra/docs/uptime-monitoring.md`](./docs/uptime-monitoring.md) | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
+| [`infra/docs/observability.md`](./docs/observability.md) | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
+| [`infra/docs/dns.md`](./docs/dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
+| `infra/docs/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `infra/docs/handoff.md` "계정 인벤토리"에 있음 |
+| `infra/scripts/push-disk-metric.py` / `infra/scripts/push-backup-metric.py` / `infra/scripts/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `docs/observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
 
@@ -178,7 +180,7 @@ http {
 
 ---
 
-OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `infra/handoff.md` "계정 인벤토리" 참고.
+OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/docs/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `infra/docs/handoff.md` "계정 인벤토리" 참고.
 
 ---
 
@@ -205,7 +207,7 @@ OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용
 
 ## 수동 배포·롤백
 
-명령어·절차는 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
+명령어·절차는 [`RUNBOOK.md`](./docs/RUNBOOK.md#cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
 
 ## 미결 사항
 
@@ -213,5 +215,5 @@ OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용
 
 > 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
 
-- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
-- **`infra/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/cleanup-old-logs.sh`로 `100755` 확인.
+- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./docs/RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
+- **`infra/scripts/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`docs/observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/scripts/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/scripts/cleanup-old-logs.sh`로 `100755` 확인.

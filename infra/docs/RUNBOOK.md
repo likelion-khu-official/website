@@ -12,8 +12,8 @@
 | [`observability.md`](./observability.md) | 디스크·메모리·백업 알람의 설계 경위·메트릭 조회 함수의 이해 |
 | [`uptime-monitoring.md`](./uptime-monitoring.md) | UptimeRobot 설계 경위·한계 |
 | [`db-access.md`](./db-access.md) | DB 접속·Flyway 경계·백업 전략 |
-| [`.claude/skills/db-access/SKILL.md`](./.claude/skills/db-access/SKILL.md) | 팀원의 DB 관련 질문(접속법·SQL 허용여부·GUI·공개키 등록)에 Claude Code가 `db-access.md` 기반으로 즉답하게 하는 스킬 |
-| [`../backend/.claude/skills/db-man/SKILL.md`](../backend/.claude/skills/db-man/SKILL.md) | 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 관리하는 스킬 — 엔티티 변경 시 마이그레이션 파일을 빠뜨리지 않게 함 |
+| [`infra/.claude/skills/db-access/SKILL.md`](../.claude/skills/db-access/SKILL.md) | 팀원의 DB 관련 질문(접속법·SQL 허용여부·GUI·공개키 등록)에 Claude Code가 `db-access.md` 기반으로 즉답하게 하는 스킬 |
+| [`backend/.claude/skills/db-man/SKILL.md`](../../backend/.claude/skills/db-man/SKILL.md) | 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 관리하는 스킬 — 엔티티 변경 시 마이그레이션 파일을 빠뜨리지 않게 함 |
 | [`logging.md`](./logging.md) | 로그 구조 |
 | [`CI-CD.md`](./CI-CD.md) | CI/CD 절차 설명 |
 | `pm/docs/learnings.md` "인프라 · CI/CD" 절 | 실제 사고 히스토리 — 같은 함정을 반복하지 않기 위한 원본 |
@@ -114,14 +114,14 @@ ssh likelion-oci 'curl -s -o /dev/null -w "재기동 후:%{http_code}\n" http://
 **원인 후보**: cron 자체가 안 돎(권한·환경변수 문제), 스크립트 실행 권한이 벗겨짐(아래 "복구" 참고), 스크립트 내부 에러(과거 실제 사례: CRLF 줄바꿈으로 셔뱅이 깨짐 — `observability.md`의 "발견된 실제 장애" 참고), 버킷 접근 권한 만료.
 
 ```bash
-ssh likelion-oci 'tail -20 ~/backup.log && echo --- && crontab -l | grep backup-db && echo --- && git -C ~/website ls-tree HEAD -- infra/backup-db.sh'
+ssh likelion-oci 'tail -20 ~/backup.log && echo --- && crontab -l | grep backup-db && echo --- && git -C ~/website ls-tree HEAD -- infra/scripts/backup-db.sh'
 # ↑ 마지막 줄이 100755가 아니면(예: 100644) 실행권한이 벗겨진 것 — 아래 "다음" 참고
 
-ssh likelion-oci 'cd ~/website/infra && bash backup-db.sh && echo --- && tail -5 ~/backup.log'
+ssh likelion-oci 'cd ~/website/infra/scripts && bash backup-db.sh && echo --- && tail -5 ~/backup.log'
 # ↑ 수동 1회 실행 — prod·stage 업로드 + 메트릭 전송까지 성공하면 다음 평가 주기에 알람이 OK로 전환된다
 ```
 
-**복구**: 위 `git ls-tree` 결과가 `100644`(실행 권한 없음)로 나왔다면, 서버에는 예전에 걸어둔 `chmod +x`(실행 권한 부여)만 남아있고 정작 git에는 그 실행 권한이 기록돼 있지 않은 상태다. 이럴 땐 `git -C ~/website update-index --chmod=+x infra/backup-db.sh`를 실행해 git에도 실행 권한을 기록한 뒤 커밋하고, **`dev`·`main` 두 브랜치 모두에** 머지해야 한다(한쪽만 하면 나중에 다른 쪽을 배포할 때 그 배포가 다시 덮어써 버린다). 자주 나오는 다른 원인은 줄바꿈 문자(CRLF)가 섞여서 스크립트 맨 앞의 실행 방식 지정(셔뱅)이 깨지는 경우인데, 이건 `.gitattributes` 설정으로 이미 막아뒀으니 혹시 모르니 재확인만 한다. 이 두 가지 다 아니라면(버킷 접근 권한이 만료됐다든지) 근본적인 수정이 필요한 PR을 올려야 한다 — 그 사이엔 급한 대로 하루 더 수동으로 백업을 돌리면서 원인을 조사한다.
+**복구**: 위 `git ls-tree` 결과가 `100644`(실행 권한 없음)로 나왔다면, 서버에는 예전에 걸어둔 `chmod +x`(실행 권한 부여)만 남아있고 정작 git에는 그 실행 권한이 기록돼 있지 않은 상태다. 이럴 땐 `git -C ~/website update-index --chmod=+x infra/scripts/backup-db.sh`를 실행해 git에도 실행 권한을 기록한 뒤 커밋하고, **`dev`·`main` 두 브랜치 모두에** 머지해야 한다(한쪽만 하면 나중에 다른 쪽을 배포할 때 그 배포가 다시 덮어써 버린다). 자주 나오는 다른 원인은 줄바꿈 문자(CRLF)가 섞여서 스크립트 맨 앞의 실행 방식 지정(셔뱅)이 깨지는 경우인데, 이건 `.gitattributes` 설정으로 이미 막아뒀으니 혹시 모르니 재확인만 한다. 이 두 가지 다 아니라면(버킷 접근 권한이 만료됐다든지) 근본적인 수정이 필요한 PR을 올려야 한다 — 그 사이엔 급한 대로 하루 더 수동으로 백업을 돌리면서 원인을 조사한다.
 
 <a id="alarm-git-drift"></a>
 ### 1-4. OCI Monitoring — 배포서버 git 드리프트 감지 (OCI 심각도: CRITICAL / 대응 긴급도: 예방적 경고 — 다음 배포 전까지 시간 여유)
@@ -211,10 +211,10 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 
 ```bash
 # ① 이 DB(prod 또는 stage)에 어떤 날짜의 백업이 남아있는지 목록으로 확인한다. 2026-07-24 이전 날짜는 위 경고 때문에 고르지 않는다.
-ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && python3 backup_upload.py list <prod|stage>'
+ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && python3 scripts/backup_upload.py list <prod|stage>'
 
 # ② 고른 백업을 홈 디렉터리의 임시 폴더(~/restore-tmp)에 내려받고, 파일이 안 깨졌는지 검사한다 — 이 단계는 실제 서비스에 아무 영향 없다.
-ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && mkdir -p ~/restore-tmp && python3 backup_upload.py get <db>/<db>-<날짜>.db ~/restore-tmp/<db>-<날짜>.db && sqlite3 ~/restore-tmp/<db>-<날짜>.db "PRAGMA integrity_check;"'
+ssh likelion-oci 'cd ~/website/infra && set -a && source .env.backup && set +a && mkdir -p ~/restore-tmp && python3 scripts/backup_upload.py get <db>/<db>-<날짜>.db ~/restore-tmp/<db>-<날짜>.db && sqlite3 ~/restore-tmp/<db>-<날짜>.db "PRAGMA integrity_check;"'
 # ↑ 결과가 "ok"인지 반드시 눈으로 확인한 뒤에만 다음 단계로 넘어간다. "ok"가 아니면 다른 날짜로 다시 시도한다.
 
 # ③ 서비스를 멈춘다 — DB 파일을 쓰고 있는 상태에서 교체하면 안 되고, 이 순간부터 재기동 전까지는 요청이 실패한다(다운타임 발생, 아래 "고급" 절차는 이걸 없앤 버전).
@@ -246,7 +246,7 @@ ssh likelion-oci 'curl -s -o /dev/null -w "복원 후:%{http_code}\n" http://loc
 
 ```bash
 # ① 복원할 백업(2026-07-24 이후 것만 — 위 스키마 경고 참고)을, 지금 쓰는 데이터 폴더가 아니라 별도 폴더(data-restore)에 받아 검증해둔다.
-ssh likelion-oci 'cd ~/website/infra && mkdir -p data-restore && set -a && source .env.backup && set +a && python3 backup_upload.py get <db>/<db>-<날짜>.db data-restore/<db>.db && sqlite3 data-restore/<db>.db "PRAGMA integrity_check;" && sudo chgrp dbaccess data-restore/<db>.db && sudo chmod 660 data-restore/<db>.db'
+ssh likelion-oci 'cd ~/website/infra && mkdir -p data-restore && set -a && source .env.backup && set +a && python3 scripts/backup_upload.py get <db>/<db>-<날짜>.db data-restore/<db>.db && sqlite3 data-restore/<db>.db "PRAGMA integrity_check;" && sudo chgrp dbaccess data-restore/<db>.db && sudo chmod 660 data-restore/<db>.db'
 
 # ② 위에서 준비한 데이터 폴더를 바라보는 컨테이너를 하나 더 띄운다. 기존 backend-<stage|prod>는 이 사이 계속 트래픽을 받고 있고 전혀 영향 없다.
 ssh likelion-oci "cat > ~/website/infra/docker-compose.restore.yml <<'EOF'
