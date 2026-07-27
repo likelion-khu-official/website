@@ -10,13 +10,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "members")
+@Table(name = "members", uniqueConstraints = @UniqueConstraint(columnNames = {"student_id", "cohort"}))
 @Getter
 @NoArgsConstructor
 public class Member {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false)
@@ -24,7 +25,7 @@ public class Member {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "member_roles", joinColumns = @JoinColumn(name = "member_id"))
+    @CollectionTable(name = "member_roles", joinColumns = @JoinColumn(name = "member_id", columnDefinition = "bigint"))
     @Column(name = "role")
     private Set<MemberRole> roles = new HashSet<>();
 
@@ -39,8 +40,11 @@ public class Member {
     @Column(columnDefinition = "TEXT")
     private String joinReason;
 
-    // 로그인 아이디. #117 — 계정·인증(학번 로그인) 이전에 만들어진 멤버는 없어 nullable 없이 unique로 둔다.
-    @Column(nullable = false, unique = true)
+    // 로그인 아이디. 학번 자체는 평생 안 바뀌지만 오프보딩 후 다른 기수로 재입부할 수 있어
+    // 학번 단독 unique가 아니라 (학번, 기수) 조합으로 유니크를 건다(#145 PR 리뷰).
+    // "지금 활동 중인 계정은 학번당 하나"라는 불변식은 DB 제약이 아니라 MemberService.create()의
+    // existsByStudentIdAndOffboardedAtIsNull 체크로 지킨다.
+    @Column(nullable = false)
     private String studentId;
 
     @Column(nullable = false)
@@ -57,6 +61,10 @@ public class Member {
     private int failedLoginAttempts;
 
     private LocalDateTime lockedUntil;
+
+    // 오프보딩(소프트 딜리트) 시각. null이면 재적 중 — 계정으로 로그인만 막고 글·프로젝트 등
+    // 다른 테이블의 기록은 건드리지 않는다(#145).
+    private LocalDateTime offboardedAt;
 
     @Column(nullable = false)
     private String createdBy;
@@ -133,6 +141,16 @@ public class Member {
         this.mustChangePassword = true;
         this.failedLoginAttempts = 0;
         this.lockedUntil = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean isOffboarded() {
+        return offboardedAt != null;
+    }
+
+    // 졸업·탈퇴 처리 — 계정 자체는 지우지 않는다(글·프로젝트 등 다른 테이블이 이 id를 계속 참조).
+    public void offboard() {
+        this.offboardedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 }

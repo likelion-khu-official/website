@@ -32,3 +32,13 @@ export interface MemberUpdateRequest {
   photoUrl?: string;
   joinReason?: string;
 }
+
+/**
+ * GET /api/admin/members, POST /api/admin/members, PATCH /api/admin/members/{id} 응답 공용(#145).
+ * 공개 Member와 달리 로그인 아이디(studentId)·오프보딩 여부를 담는다 — phone(초기 비밀번호 원본)은
+ * 화면에 보일 이유가 없어 여기서도 노출하지 않는다.
+ */
+export interface MemberAdminSummary extends Member {
+  studentId: string;
+  offboarded: boolean;
+}

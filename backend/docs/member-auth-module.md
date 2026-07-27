@@ -14,7 +14,7 @@
 |---|---|
 | `member/Member.java` | 기존 프로필 엔티티(#76)에 로그인 필드 추가 — `studentId`(로그인 아이디)·`passwordHash`·`phone`(초기 비번 원본)·`mustChangePassword`·잠금 상태(`failedLoginAttempts`/`lockedUntil`, `Admin`과 동일 패턴) |
 | `member/MemberRepository.java` | `findByStudentId`/`existsByStudentId` 추가 |
-| `member/dto/MemberCreateRequest.java` | `studentId`·`phone` 추가 (기존 `POST /api/admin/members`, SUPER_ADMIN 전용, 그대로 재사용) |
+| `member/dto/MemberCreateRequest.java` | `studentId`·`phone` 추가 (기존 `POST /api/admin/members`, 그대로 재사용 — 권한은 당시 SUPER_ADMIN 전용이었으나 #145에서 ADMIN 이상으로 정정됨, 아래 "설계 결정 6" 참고) |
 | `member/MemberService.create()` | 전화번호를 BCrypt 해시해 초기 비밀번호로 저장, `mustChangePassword=true`로 시작. 학번 중복 시 409 |
 | `member/auth/MemberRefreshToken(Repository)` | `admin.auth.RefreshToken`과 같은 shape, **별도 테이블**(`member_refresh_tokens`) — 이유는 아래 "설계 결정 1" |
 | `member/auth/MemberCookieFactory` | `AdminCookieFactory`와 같은 쿠키(이름 `access_token`/`refresh_token`, HttpOnly+Secure+SameSite=Strict). `access_token`은 Path=`/`로 어드민과 동일하게 겹쳐 쓰고, `refresh_token`만 Path=`/api/member/auth`로 좁혀 어드민 refresh 흐름과 분리 |
@@ -48,6 +48,8 @@ Spring Security `RoleHierarchy`로 "상위 역할이 하위 권한을 자동 포
 
 **6. 비번 초기화를 SUPER_ADMIN이 아니라 ADMIN 이상으로 연 이유**
 `역할-4종.md`가 "관리자 — + 멤버 등록·비번 초기화·..."라고 명시해, 기존 멤버 생성/수정 API(SUPER_ADMIN 전용, #76에서 이미 그렇게 정해짐)와 달리 비번 초기화는 ADMIN도 가능한 걸로 새로 만들었다. 기존 생성/수정 API의 SUPER_ADMIN 제약 자체는 이번 미션 범위가 아니라 손대지 않았다.
+
+> **(2026-07-23 정정, #145)** 위 문단의 "SUPER_ADMIN 전용" 판단 자체가 애초에 `역할-4종.md`·서비스 위키 [정보구조와 권한](https://github.com/likelion-khu-official/website/wiki/정보구조와-권한)과 어긋나 있었다 — 두 문서 다 멤버 등록·수정도 ADMIN 이상 공용 권한이라 명시한다. #145에서 이 제약을 손대지 않기로 한 스코프 판단은 유효했지만, 판단의 근거였던 "SUPER_ADMIN 전용이 맞다"는 전제가 틀렸던 것 — #145가 `MemberController.create/update`를 `hasAnyRole('ADMIN','SUPER_ADMIN')`로 정정했다.
 
 **7. (불확실 — 리뷰 시 확인 필요) "최고관리자 딱 1명" vs 코드의 "최소 1명"**
 `역할-4종.md`엔 최고관리자가 "딱 1명"이라 적혀 있지만, 실제 코드(#97)는 "최소 1명"(현재 선우님·시현님 둘 다 SUPER_ADMIN) 불변식이다. 이번 미션 Notes가 "지금 있는 개념과 자연스럽게 이어져요"라고 해서, **기존 코드의 "최소 1명" 불변식은 그대로 두고 문서 표현 차이는 건드리지 않았다.** 이 미션 Done에 없는 범위라 별도 확인·조정이 필요하면 ask-pm으로 올릴 사안.

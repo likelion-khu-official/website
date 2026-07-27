@@ -85,7 +85,8 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
 | `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 |
+| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
+| `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
 | `infra/push-disk-metric.py` / `infra/push-backup-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
@@ -165,5 +166,6 @@ PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
 - DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03).
 - ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
 - ~~팀원 공개키 등록~~ → 안시현·김우진(PM) 등록 완료(2026-07-04, stage+prod 조회+작성, GitHub 등록 키 재활용). **다음 할 일: 신선우.** GitHub에 등록된 SSH 키가 없어 본인이 새로 생성 후 `.pub` 전달 대기 중.
+- **DB GUI 뷰어(sqlite-web) — dbclient CLI와 별개 조회 경로 (2026-07-24 설계)** — `docker-compose.yml`에 `sqlite-web-stage`/`sqlite-web-prod`(127.0.0.1 바인딩, read-only) 추가, 로컬 tmux 스킬 `infra/db-dev-ui.sh` 작성 완료. **다음 할 일(장찬욱이 서버에서 직접):** `dbtunnel` 시스템 계정 생성 + `authorized_keys` 등록(공유 서버에 새 SSH 접근 수단을 만드는 일이라 자동화 안 하고 수동으로 — 정확한 명령은 `db-access.md`의 "GUI 뷰어" 섹션 참고) → `docker compose up -d sqlite-web-stage sqlite-web-prod`로 기동 → 이 PR을 `dev` 머지 후 되도록 빨리 `main`으로도 승격(안 하면 다음 prod 배포의 `git checkout -f main`이 `docker-compose.yml`을 예전 버전으로 되돌림 — 상세는 `db-access.md`).
 - **이메일 발송 기반 (#75, ~7/6, #74 선행)** — Email Domain·DKIM·Approved Sender·전용 IAM 유저(`smtp-mailer`)·SMTP 자격증명 생성, 호스팅케이알에 SPF·DKIM·DMARC 등록, 테스트 발송까지 전부 완료 — **SPF·DKIM·DMARC 전부 PASS 확인**(2026-07-06). **다음 할 일: `.env.email.local` 자격증명을 신선우·안시현에게 안전한 채널로 전달**(GitHub엔 평문 금지) → 완료되면 이슈 닫기. 브랜치 `infra/#75-email-delivery`. 상세는 [`email-delivery.md`](./email-delivery.md).
 - **관측·알림 기반 (#83, ~7/30)** — 외부 가동 감시(UptimeRobot)·OCI Monitoring/Alarms(디스크·메모리·백업)·재시작 정책 드리프트 수정, 그리고 **3개 항목 실발동 검증까지 전부 완료**(2026-07-09). 재부팅 복구력·디스크/메모리 Alarm·백업 Absence Alarm 셋 다 실측 확인 — 상세는 [`observability.md`](./observability.md#실발동-검증-2026-07-09). 이 검증 과정에서 **실제 백업 장애(backup-db.sh CRLF로 07-08~09 이틀간 백업 무중단 실패)를 발견·수정**했고, 알람 이메일 포맷(ONS_OPTIMIZED)·PM 구독자 추가까지 같이 정리. 브랜치 `infra/#83-observability-alerts`에 커밋 완료, **PR은 아직 안 올림**(김우진 지시 대기) — **다음 할 일: PR 생성 지시가 오면 올리고, 머지 후 이슈 닫기.**

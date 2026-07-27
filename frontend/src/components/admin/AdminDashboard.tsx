@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   refreshSession,
   logout,
@@ -268,6 +269,23 @@ export default function AdminDashboard() {
         >
           모집 관리로 이동
         </button>
+      </div>
+          onClick={() => router.push('/admin/members')}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          멤버 관리로 이동
+        </button>
+      </div>
+
+      <div className="mt-10 border-t border-white/10 pt-6">
+        <h2 className="mb-3 text-lg font-semibold text-white">콘텐츠 관리</h2>
+        <Link
+          href="/admin/blog"
+          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white transition-colors hover:bg-white/10"
+        >
+          <span>블로그 관리</span>
+          <span className="text-muted">게시된 글 숨김·재게시 →</span>
+        </Link>
       </div>
     </div>
   );

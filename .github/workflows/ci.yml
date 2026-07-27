@@ -39,6 +39,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 두 러너에 나눠 돌려 GH 무료 러너 4vCPU 한계를 우회 — 컨테이너 기반 무거운 통합테스트(*IntegrationTest)와
+        # 나머지 단위/슬라이스 테스트를 분리. 분리 기준은 build.gradle의 testShard 필터 참고.
+        shard: [unit, integration]
     steps:
       - name: 소스코드 체크아웃
         uses: actions/checkout@v4
@@ -52,11 +58,11 @@ jobs:
       - name: Gradle 세팅
         uses: gradle/actions/setup-gradle@v4
 
-      - name: 빌드 + 테스트
+      - name: 빌드 + 테스트 (${{ matrix.shard }})
         working-directory: backend
         run: |
           chmod +x gradlew
-          ./gradlew compileJava test
+          ./gradlew compileJava test -PtestShard=${{ matrix.shard }}
 
   frontend:
     needs: changes
