@@ -105,13 +105,14 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
 | `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신. 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 계정 인벤토리는 `pm/docs/handoff.md` |
+| [`infra/RUNBOOK.md`](./RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/handoff.md`](./handoff.md) | 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 체크리스트·계정 인벤토리(`pm/docs/handoff.md`의 인프라 절 상세) |
 | `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
 | `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
 | `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
 | `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
 | [`infra/dns.md`](./dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
-| `infra/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `pm/docs/handoff.md` "계정 인벤토리"에 있음 |
+| `infra/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `infra/handoff.md` "계정 인벤토리"에 있음 |
 | `infra/push-disk-metric.py` / `infra/push-backup-metric.py` / `infra/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
@@ -177,7 +178,7 @@ http {
 
 ---
 
-OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `pm/docs/handoff.md` "계정 인벤토리" 참고.
+OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `infra/handoff.md` "계정 인벤토리" 참고.
 
 ---
 

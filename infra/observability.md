@@ -24,7 +24,7 @@ OCI Monitoring
   └── 전부 같은 ONS Topic으로 발행
 
 OCI Notifications (ONS)
-  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `pm/docs/handoff.md` "계정 인벤토리" 참고)
+  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/handoff.md` "계정 인벤토리" 참고)
 ```
 
 ## IAM — instance principal
