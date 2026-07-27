@@ -392,26 +392,26 @@ textarea {
 /* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다. */
 .scroll-reveal-ready .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 36px, 0) scale(0.99);
+  transform: translate3d(0, 28px, 0) scale(0.99);
   -webkit-transition:
-    opacity 650ms linear,
-    -webkit-transform 750ms cubic-bezier(0.22, 0.72, 0.2, 1);
+    opacity 420ms linear,
+    -webkit-transform 500ms cubic-bezier(0.22, 0.72, 0.2, 1);
   transition:
-    opacity 650ms linear,
-    transform 750ms cubic-bezier(0.22, 0.72, 0.2, 1);
+    opacity 420ms linear,
+    transform 500ms cubic-bezier(0.22, 0.72, 0.2, 1);
 }
 
 .scroll-reveal-ready .scroll-reveal--left {
-  transform: translate3d(-32px, 16px, 0) scale(0.99);
+  transform: translate3d(-24px, 12px, 0) scale(0.99);
 }
 
 .scroll-reveal-ready .scroll-reveal--right {
-  transform: translate3d(32px, 16px, 0) scale(0.99);
-  transition-delay: 80ms;
+  transform: translate3d(24px, 12px, 0) scale(0.99);
+  transition-delay: 40ms;
 }
 
 .scroll-reveal-ready .scroll-reveal--scale {
-  transform: translate3d(0, 22px, 0) scale(0.975);
+  transform: translate3d(0, 18px, 0) scale(0.98);
 }
 
 .scroll-reveal-ready .scroll-reveal.is-visible {
@@ -422,16 +422,16 @@ textarea {
 .session-card-reveal:nth-child(2),
 .project-card-reveal:nth-child(3n + 2),
 .member-card-reveal:nth-child(even) {
-  transition-delay: 60ms;
+  transition-delay: 35ms;
 }
 
 .session-card-reveal:nth-child(3),
 .project-card-reveal:nth-child(3n) {
-  transition-delay: 120ms;
+  transition-delay: 70ms;
 }
 
 .session-card-reveal:nth-child(4) {
-  transition-delay: 180ms;
+  transition-delay: 105ms;
 }
 
 /* 연간 계획은 부모가 나타난 뒤 선과 끝점이 한 박자 늦게 이어진다. */
@@ -444,8 +444,8 @@ textarea {
     opacity: 0.2;
     transform: scaleX(0);
     transition:
-      opacity 850ms linear 120ms,
-      transform 1s cubic-bezier(0.22, 0.72, 0.2, 1) 120ms;
+      opacity 600ms linear 80ms,
+      transform 700ms cubic-bezier(0.22, 0.72, 0.2, 1) 80ms;
   }
 
   .scroll-reveal-ready .timeline-group.is-visible .timeline-line {
@@ -457,8 +457,8 @@ textarea {
     opacity: 0;
     transform: scale(0.35);
     transition:
-      opacity 300ms linear 650ms,
-      transform 400ms cubic-bezier(0.22, 0.72, 0.2, 1) 650ms;
+      opacity 220ms linear 450ms,
+      transform 280ms cubic-bezier(0.22, 0.72, 0.2, 1) 450ms;
   }
 
   .scroll-reveal-ready .timeline-group.is-visible .timeline-endpoint {
@@ -492,6 +492,6 @@ textarea {
 
   .scroll-reveal-ready .scroll-reveal {
     transform: none !important;
-    transition: opacity 240ms linear !important;
+    transition: opacity 160ms linear !important;
   }
 }
