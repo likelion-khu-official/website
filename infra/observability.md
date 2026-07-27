@@ -24,7 +24,7 @@ OCI Monitoring
   └── 전부 같은 ONS Topic으로 발행
 
 OCI Notifications (ONS)
-  └── Topic: likelion-ops-alerts → 이메일 구독(동아리 메일 + PM 메일)
+  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/RUNBOOK.md` 8절 참고)
 ```
 
 ## IAM — instance principal
@@ -104,7 +104,7 @@ python3 -m venv ~/oci-monitor-venv
 
 ## 알림 — 어디로 오고 무엇을 근거로 판단하나
 
-- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(동아리 메일, PM 메일)
+- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(장찬욱·김우진 개인 메일, 2026-07-27 실측 확인 — 이 문서·아래 표에 있던 "동아리 메일" 표기는 실제와 달라 정정함). 디스크·메모리·백업부재(prod/stage)·git드리프트 5개 알람 전부 이 토픽 하나로만 발행되므로(`destinations` 실측 확인), **이메일 하나를 이 토픽에 구독시키면 5개 알람 전부를 받는다** — 알람별로 따로 등록할 필요 없음.
 - **판단 근거**: 메일 제목/본문에 어떤 Alarm이 왜 울렸는지 그대로 담겨 있음(위 표의 body 텍스트). 디스크/메모리는 "지금 값이 임계치를 넘었다", 백업은 "마지막 성공 신호로부터 26시간 지났다"
 - **확인 방법**: OCI 콘솔 `Observability & Management → Monitoring → Alarm Definitions`(컴파트먼트는 루트, 리전은 `ap-tokyo-1`로 맞출 것 — 안 그러면 안 보임, 실제로 헷갈렸던 지점)
 - **알람 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md#4-알람-대응-절차-runbook)
@@ -274,4 +274,4 @@ UptimeRobot(①②)은 이미 Discord 웹훅이 붙어 있어서, 같은 채널�
 - **`SLACK` 프로토콜 → Discord의 Slack 호환 URL**(`.../slack` 접미사): Discord가 Slack 웹훅 포맷을 흉내 낼 수 있다는 점을 이용하려 했으나, OCI가 구독 생성 시점에 endpoint URL이 `https://hooks.slack.com/services/`로 시작하는지 서버 단에서 강제 검증(`InvalidParameter`) — Discord URL은 이 시점에서 바로 거부됨.
 - **`CUSTOM_HTTPS` → Discord 웹훅 URL 직결**: 구독은 생성되지만 `PENDING`에서 못 벗어남. HTTPS 기반 구독은 OCI가 확인용 POST를 endpoint로 보내 승인받는 핸드셰이크가 필요한데, 그 payload가 Discord 웹훅이 기대하는 JSON 스키마(`content`/`embeds` 등)가 아니라서 Discord가 조용히 버림(채널에 아무 것도 안 옴, 실측 확인) — 영원히 PENDING이라 삭제함.
 
-두 실패 모두 원인이 같다: **OCI ONS는 Discord 포맷을 전혀 모른다.** 제대로 연결하려면 ONS 페이로드를 받아 Discord 포맷으로 바꿔 재전송하는 중계(예: Oracle Functions)가 새로 필요한데, 이건 새 리소스를 추가하는 별도 작업 범위라 이번엔 보류 — **현재는 이메일(동아리 메일 + PM 메일)로만 수신**하는 걸로 확정. Discord 연동이 필요해지면 별도 미션으로 다룰 것.
+두 실패 모두 원인이 같다: **OCI ONS는 Discord 포맷을 전혀 모른다.** 제대로 연결하려면 ONS 페이로드를 받아 Discord 포맷으로 바꿔 재전송하는 중계(예: Oracle Functions)가 새로 필요한데, 이건 새 리소스를 추가하는 별도 작업 범위라 이번엔 보류 — **현재는 이메일(장찬욱·김우진 개인 메일)로만 수신**하는 걸로 확정. Discord 연동이 필요해지면 별도 미션으로 다룰 것.
