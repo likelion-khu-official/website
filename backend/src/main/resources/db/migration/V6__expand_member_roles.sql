@@ -42,27 +42,29 @@ drop table project_participants;
 alter table project_participants_new rename to project_participants;
 
 create table posts_new (
-    id            integer      not null primary key autoincrement,
-    slug          varchar(255) not null unique,
-    title         varchar(255) not null,
-    content       TEXT         not null,
-    author_name   varchar(255) not null,
+    id               integer      not null primary key autoincrement,
+    slug             varchar(255) not null unique,
+    title            varchar(255) not null,
+    content          TEXT         not null,
+    author_name      varchar(255) not null,
     author_part_json TEXT,
-    status        varchar(255) not null,
-    summary       TEXT,
-    thumbnail_url varchar(255),
-    published_at  varchar(255),
-    created_at    varchar(255) not null,
-    updated_at    varchar(255) not null
+    author_member_id bigint,
+    status           varchar(255) not null,
+    summary          TEXT,
+    thumbnail_url    varchar(255),
+    published_at     varchar(255),
+    created_at       varchar(255) not null,
+    updated_at       varchar(255) not null
 );
 
-insert into posts_new (id, slug, title, content, author_name, author_part_json,
+insert into posts_new (id, slug, title, content, author_name, author_part_json, author_member_id,
                        status, summary, thumbnail_url, published_at, created_at, updated_at)
 select id, slug, title, content, author_name,
        case when author_part is null or author_part = ''
             then '[]'
             else json_array(author_part)
        end,
+       author_member_id,
        status, summary, thumbnail_url, published_at, created_at, updated_at
 from posts;
 
