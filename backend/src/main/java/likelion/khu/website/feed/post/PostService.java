@@ -17,7 +17,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -36,13 +38,13 @@ public class PostService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
         String authorName = member.getName();
-        String authorPart = member.getRoles().stream()
-                .findFirst()
+        List<String> authorParts = member.getRoles().stream()
+                .sorted(Comparator.comparing(MemberRole::name))
                 .map(MemberRole::name)
-                .orElse(null);
+                .toList();
         String slug = generateSlug();
         Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(),
-                authorName, authorPart, memberId, request.getThumbnailUrl());
+                authorName, authorParts, memberId, request.getThumbnailUrl());
         postRepository.save(post);
         return PostDetailResponse.from(post, member, 0);
     }

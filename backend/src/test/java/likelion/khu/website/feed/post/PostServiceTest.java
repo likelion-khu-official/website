@@ -40,11 +40,11 @@ class PostServiceTest {
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", "https://example.com/sihyeon.png",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", "https://example.com/sihyeon.png",
                 null, "컴퓨터공학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
         anotherMember = memberRepository.save(Member.create(
-                "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
+                "선우", Set.of(MemberRole.BACKEND), 13, "🐯", null, null, "admin@khu.ac.kr",
                 "20240002", "01087654321", "hash"));
     }
 
@@ -61,7 +61,7 @@ class PostServiceTest {
 
         assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
         assertThat(res.getAuthorName()).isEqualTo("시현");
-        assertThat(res.getAuthorPart()).isEqualTo("BE");
+        assertThat(res.getAuthorPart()).containsExactly("BACKEND");
         assertThat(res.getAuthorEmoji()).isEqualTo("🦁");
         assertThat(res.getAuthorPhotoUrl()).isEqualTo("https://example.com/sihyeon.png");
         assertThat(res.getPublishedAt()).isNotNull();
@@ -78,7 +78,7 @@ class PostServiceTest {
 
         PostDetailResponse res = postService.createPost(noRoleMember.getId(), sampleRequest());
 
-        assertThat(res.getAuthorPart()).isNull();
+        assertThat(res.getAuthorPart()).isEmpty();
     }
 
     @Test

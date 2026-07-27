@@ -4,15 +4,29 @@ import { useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
 
 const ROLE_LABELS: Record<MemberRole, string> = {
-  PM: '기획',
-  FE: '프론트엔드',
-  BE: '백엔드',
+  PRESIDENT: '회장',
+  VICE_PRESIDENT: '부회장',
+  BACKEND_LEAD: '백엔드 세션장',
+  FRONTEND_LEAD: '프론트엔드 세션장',
+  DESIGN_LEAD: '디자인 세션장',
+  AI_LEAD: 'AI 세션장',
+  PLANNING_HEAD: '기획부장',
+  PLANNING_MEMBER: '기획부원',
+  PR_HEAD: '홍보부장',
+  PR_MEMBER: '홍보부원',
+  BACKEND: '백엔드',
+  FRONTEND: '프론트엔드',
   DESIGN: '디자인',
   AI: 'AI',
-  INFRA: '인프라',
 };
 
-const ROLE_ORDER: MemberRole[] = ['DESIGN', 'FE', 'BE', 'AI', 'PM', 'INFRA'];
+const ROLE_ORDER: MemberRole[] = [
+  'PRESIDENT', 'VICE_PRESIDENT',
+  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
+  'PLANNING_HEAD', 'PLANNING_MEMBER',
+  'PR_HEAD', 'PR_MEMBER',
+  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
+];
 
 const CARD_COLORS = [
   ['#f47f83', '#111111'],
@@ -65,7 +79,8 @@ function TrackMark({ role }: { role: MemberRole }) {
   };
 
   switch (role) {
-    case 'BE':
+    case 'BACKEND':
+    case 'BACKEND_LEAD':
       return (
         <svg {...props}>
           <ellipse cx="7" cy="4.5" rx="4.2" ry="2" />
@@ -74,6 +89,7 @@ function TrackMark({ role }: { role: MemberRole }) {
         </svg>
       );
     case 'AI':
+    case 'AI_LEAD':
       return (
         <svg {...props}>
           <path d="m9 3 1.1 4 3.9 1.1-3.9 1.1-1.1 4-1.1-4L4 8.1 7.9 7 9 3Z" />
@@ -83,7 +99,8 @@ function TrackMark({ role }: { role: MemberRole }) {
           <path d="m3.8 3.9 2.4 2M14.1 4.8l-2.3 1.6M13.8 13.7l-2.2-2.2" />
         </svg>
       );
-    case 'FE':
+    case 'FRONTEND':
+    case 'FRONTEND_LEAD':
       return (
         <svg {...props}>
           <rect x="1.7" y="2.5" width="14.6" height="13" rx="2.5" />
@@ -91,6 +108,7 @@ function TrackMark({ role }: { role: MemberRole }) {
         </svg>
       );
     case 'DESIGN':
+    case 'DESIGN_LEAD':
       return (
         <svg {...props}>
           <circle cx="3" cy="4" r="1.2" />
@@ -99,18 +117,12 @@ function TrackMark({ role }: { role: MemberRole }) {
           <path d="M4.2 4h3M10.8 4h3M3 5.2c.7 4.7 2.4 7.7 4.8 8.8M15 5.2c-.7 4.7-2.4 7.7-4.8 8.8M7.5 2.8h3v2.4h-3z" />
         </svg>
       );
-    case 'PM':
+    default:
+      // PRESIDENT, VICE_PRESIDENT, PLANNING_*, PR_*
       return (
         <svg {...props}>
           <circle cx="9" cy="9" r="7" />
           <path d="m11.7 6.3-1.6 3.8-3.8 1.6 1.6-3.8 3.8-1.6Z" />
-        </svg>
-      );
-    case 'INFRA':
-      return (
-        <svg {...props}>
-          <path d="M5 12.8h8.2a3 3 0 0 0 .2-6A4.7 4.7 0 0 0 4.5 8 2.4 2.4 0 0 0 5 12.8Z" />
-          <path d="M6.5 15.5h5M8 12.8v2.7M10.5 12.8v2.7" />
         </svg>
       );
   }
@@ -128,7 +140,7 @@ export default function MemberCard({
   const roles = [...member.roles].sort(
     (left, right) => ROLE_ORDER.indexOf(left) - ROLE_ORDER.indexOf(right),
   );
-  const primaryRole = roles[0] ?? 'PM';
+  const primaryRole = roles[0] ?? 'BACKEND';
   const [backgroundColor, color] = CARD_COLORS[colorIndex % CARD_COLORS.length];
 
   return (

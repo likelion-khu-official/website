@@ -61,7 +61,7 @@ class MemberAuthServiceTest {
     // 새는 버그) 테스트에서 직접 채워준다.
     private Member sampleMember() {
         Member member = Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@likelion.org",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@likelion.org",
                 "2020000001", "01000000001", "hashed-phone");
         ReflectionTestUtils.setField(member, "id", 1L);
         return member;
