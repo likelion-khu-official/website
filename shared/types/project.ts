@@ -4,7 +4,7 @@
 // 받은 url을 그대로 담는다 — Member.photoUrl과 같은 패턴.
 
 // member.ts의 MemberRole과 같은 값 — shared/ 파일은 서로 import하지 않는 관례라 그대로 다시 선언한다.
-export type ProjectPart = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'INFRA';
+export type ProjectPart = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'AI' | 'INFRA';
 
 // 인증 필터 레벨(UNAUTHENTICATED/FORBIDDEN — admin.ts/member-auth.ts와 공유)과 프로젝트
 // 도메인 자체의 비즈니스 규칙 위반을 구분한다. 블랙박스 QA에서 후자가 code 없는 Spring 기본

@@ -13,7 +13,7 @@ import {
 } from '@/lib/adminApi';
 import type { MemberAdminSummary, MemberRole } from '@shared/types/member';
 
-const ROLE_OPTIONS: MemberRole[] = ['PM', 'FE', 'BE', 'DESIGN', 'INFRA'];
+const ROLE_OPTIONS: MemberRole[] = ['PM', 'FE', 'BE', 'DESIGN', 'AI', 'INFRA'];
 
 const emptyForm = { name: '', studentId: '', phone: '', cohort: '', roles: [] as MemberRole[] };
 
