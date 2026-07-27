@@ -1,8 +1,13 @@
 package likelion.khu.website.feed.post;
 
+import likelion.khu.website.feed.comment.Comment;
+import likelion.khu.website.feed.comment.CommentRepository;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
+import likelion.khu.website.feed.post.dto.PostReplaceRequest;
 import likelion.khu.website.feed.post.dto.PostSummaryResponse;
+import likelion.khu.website.feed.post.exception.NotPostAuthorException;
+import likelion.khu.website.feed.post.exception.PostNotFoundException;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
@@ -13,7 +18,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -27,6 +31,7 @@ class PostServiceTest {
 
     @Autowired PostService postService;
     @Autowired PostRepository postRepository;
+    @Autowired CommentRepository commentRepository;
     @Autowired MemberRepository memberRepository;
 
     private Member member;
@@ -58,6 +63,8 @@ class PostServiceTest {
         assertThat(res.getAuthorPart()).isEqualTo("BE");
         assertThat(res.getPublishedAt()).isNotNull();
         assertThat(res.getSlug()).isNotBlank();
+        assertThat(postRepository.findById(res.getId()).orElseThrow().getAuthorMemberId())
+                .isEqualTo(member.getId());
     }
 
     @Test
@@ -99,7 +106,7 @@ class PostServiceTest {
         postService.updateStatus(created.getId(), PostStatus.HIDDEN);
 
         assertThatThrownBy(() -> postService.getPublishedPost(created.getSlug()))
-                .isInstanceOf(ResponseStatusException.class);
+                .isInstanceOf(PostNotFoundException.class);
     }
 
     @Test
@@ -129,5 +136,94 @@ class PostServiceTest {
 
         assertThatThrownBy(() -> postService.updateStatus(created.getId(), PostStatus.PUBLISHED))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void getMemberPosts_ReturnsOnlyAuthorsPostsIncludingHidden() {
+        PostDetailResponse ownVisible = postService.createPost(member.getId(), sampleRequest());
+        PostDetailResponse ownHidden = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(ownHidden.getId(), PostStatus.HIDDEN);
+        postService.createPost(anotherMember.getId(), sampleRequest());
+
+        Page<PostSummaryResponse> page = postService.getMemberPosts(member.getId(), PageRequest.of(0, 10));
+
+        assertThat(page.getContent())
+                .extracting(PostSummaryResponse::getId)
+                .containsExactlyInAnyOrder(ownHidden.getId(), ownVisible.getId());
+        assertThat(page.getContent())
+                .anySatisfy(post -> {
+                    assertThat(post.getId()).isEqualTo(ownHidden.getId());
+                    assertThat(post.getStatus()).isEqualTo(PostStatus.HIDDEN);
+                });
+    }
+
+    @Test
+    void getMemberPost_HiddenOwnPost_ReturnsDetail() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        postService.updateStatus(created.getId(), PostStatus.HIDDEN);
+
+        PostDetailResponse result = postService.getMemberPost(created.getId(), member.getId());
+
+        assertThat(result.getStatus()).isEqualTo(PostStatus.HIDDEN);
+    }
+
+    @Test
+    void getMemberPost_OtherAuthorsPost_ThrowsForbidden() {
+        PostDetailResponse created = postService.createPost(anotherMember.getId(), sampleRequest());
+
+        assertThatThrownBy(() -> postService.getMemberPost(created.getId(), member.getId()))
+                .isInstanceOf(NotPostAuthorException.class);
+    }
+
+    @Test
+    void replacePost_OwnPost_ReplacesNullableFieldsAndPreservesIdentity() {
+        PostCreateRequest create = sampleRequest();
+        create.setSummary("기존 요약");
+        create.setThumbnailUrl("https://example.com/old.png");
+        PostDetailResponse created = postService.createPost(member.getId(), create);
+        PostReplaceRequest replace = new PostReplaceRequest();
+        replace.setTitle("바뀐 제목");
+        replace.setSummary(null);
+        replace.setContent("# Markdown 본문");
+        replace.setThumbnailUrl(null);
+
+        PostDetailResponse result = postService.replacePost(created.getId(), member.getId(), replace);
+
+        assertThat(result.getSlug()).isEqualTo(created.getSlug());
+        assertThat(result.getAuthorName()).isEqualTo(created.getAuthorName());
+        assertThat(result.getStatus()).isEqualTo(PostStatus.PUBLISHED);
+        assertThat(result.getTitle()).isEqualTo("바뀐 제목");
+        assertThat(result.getSummary()).isNull();
+        assertThat(result.getContent()).isEqualTo("# Markdown 본문");
+        assertThat(result.getThumbnailUrl()).isNull();
+    }
+
+    @Test
+    void replacePost_OtherAuthorsPost_ThrowsForbidden() {
+        PostDetailResponse created = postService.createPost(anotherMember.getId(), sampleRequest());
+        PostReplaceRequest replace = new PostReplaceRequest();
+        replace.setTitle("바뀐 제목");
+        replace.setContent("본문");
+
+        assertThatThrownBy(() -> postService.replacePost(created.getId(), member.getId(), replace))
+                .isInstanceOf(NotPostAuthorException.class);
+    }
+
+    @Test
+    void deletePost_OwnPost_DeletesPostAndComments() {
+        PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
+        Post post = postRepository.findById(created.getId()).orElseThrow();
+        commentRepository.save(Comment.create(post, "익명", "댓글"));
+
+        postService.deletePost(created.getId(), member.getId());
+
+        assertThat(postRepository.findById(created.getId())).isEmpty();
+        assertThat(commentRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void deletePost_MissingPost_ThrowsNotFound() {
+        assertThatThrownBy(() -> postService.deletePost(999L, member.getId()))
+                .isInstanceOf(PostNotFoundException.class);
     }
 }

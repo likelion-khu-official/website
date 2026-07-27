@@ -16,6 +16,8 @@ import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
+import likelion.khu.website.feed.post.exception.NotPostAuthorException;
+import likelion.khu.website.feed.post.exception.PostNotFoundException;
 import likelion.khu.website.member.exception.MemberNotFoundException;
 import likelion.khu.website.project.exception.DuplicateParticipantException;
 import likelion.khu.website.project.exception.EmptyParticipantsException;
@@ -173,6 +175,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmptyParticipantsException.class)
     public ResponseEntity<Map<String, Object>> handleEmptyParticipants(EmptyParticipantsException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "EMPTY_PARTICIPANTS"));
+    }
+
+    // ── 블로그 멤버 CRUD ────────────────────────────────────────────
+
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePostNotFound(PostNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "POST_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(NotPostAuthorException.class)
+    public ResponseEntity<Map<String, Object>> handleNotPostAuthor(NotPostAuthorException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody(ex.getMessage(), "NOT_POST_AUTHOR"));
     }
 
     // ── 이메일 발송(#123) ── #113 QA에서 발견 — AdminInvitationService.invite()/

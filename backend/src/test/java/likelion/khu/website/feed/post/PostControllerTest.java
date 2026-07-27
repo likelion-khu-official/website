@@ -32,12 +32,16 @@ class PostControllerTest {
     // @DirtiesContext로 DB가 매 테스트마다 초기화되므로 첫 INSERT는 항상 id=1
     // @WithMockAdminUser(id = 1L, role = "MEMBER")와 짝을 맞춘다
     private Member member;
+    private Member anotherMember;
 
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
                 "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
+        anotherMember = memberRepository.save(Member.create(
+                "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
+                "20240002", "01087654321", "hash"));
     }
 
     private Long createPublishedPost() throws Exception {
@@ -75,6 +79,96 @@ class PostControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"\",\"content\":\"본문\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void memberList_ReturnsOwnPostsIncludingHidden() throws Exception {
+        Long ownId = createPublishedPost();
+        postService.updateStatus(ownId, PostStatus.HIDDEN);
+        postService.createPost(anotherMember.getId(), sampleRequest());
+
+        mockMvc.perform(get("/api/member/posts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(ownId))
+                .andExpect(jsonPath("$.content[0].status").value("HIDDEN"));
+    }
+
+    @Test
+    void memberList_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(get("/api/member/posts"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void memberDetail_OtherAuthorsPost_Returns403() throws Exception {
+        Long id = postService.createPost(anotherMember.getId(), sampleRequest()).getId();
+
+        mockMvc.perform(get("/api/member/posts/{id}", id))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_POST_AUTHOR"));
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void replacePost_OwnPost_Returns200() throws Exception {
+        Long id = createPublishedPost();
+
+        mockMvc.perform(put("/api/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "바뀐 제목",
+                                  "summary": null,
+                                  "content": "# Markdown",
+                                  "thumbnailUrl": null
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("바뀐 제목"))
+                .andExpect(jsonPath("$.content").value("# Markdown"))
+                .andExpect(jsonPath("$.summary").doesNotExist())
+                .andExpect(jsonPath("$.thumbnailUrl").doesNotExist());
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void replacePost_OtherAuthorsPost_Returns403() throws Exception {
+        Long id = postService.createPost(anotherMember.getId(), sampleRequest()).getId();
+
+        mockMvc.perform(put("/api/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"바뀐 제목\",\"content\":\"본문\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_POST_AUTHOR"));
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void deletePost_OwnPost_ReturnsSuccess() throws Exception {
+        Long id = createPublishedPost();
+
+        mockMvc.perform(delete("/api/posts/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/member/posts/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER", mustChangePassword = true)
+    void replacePost_MustChangePassword_ReturnsGuardError() throws Exception {
+        Long id = createPublishedPost();
+
+        mockMvc.perform(put("/api/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"바뀐 제목\",\"content\":\"본문\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
     }
 
     @Test
