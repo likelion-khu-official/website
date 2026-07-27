@@ -31,6 +31,10 @@ public class Post {
 
     private String authorPart;
 
+    // 이름·파트는 공개 당시의 스냅샷이고, 이 값은 수정·삭제 권한 판정용 불변 소유자 ID다.
+    // V5 이전 글은 안전하게 소유자를 추론할 수 없어 null일 수 있다.
+    private Long authorMemberId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PostStatus status = PostStatus.DRAFT;
@@ -49,7 +53,8 @@ public class Post {
     private LocalDateTime updatedAt;
 
     public static Post create(String slug, String title, String summary, String content,
-                              String authorName, String authorPart, String thumbnailUrl) {
+                              String authorName, String authorPart, Long authorMemberId,
+                              String thumbnailUrl) {
         Post p = new Post();
         p.slug = slug;
         p.title = title;
@@ -57,6 +62,7 @@ public class Post {
         p.content = content;
         p.authorName = authorName;
         p.authorPart = authorPart;
+        p.authorMemberId = authorMemberId;
         p.thumbnailUrl = thumbnailUrl;
         LocalDateTime now = LocalDateTime.now();
         p.status = PostStatus.PUBLISHED;
@@ -64,6 +70,14 @@ public class Post {
         p.createdAt = now;
         p.updatedAt = now;
         return p;
+    }
+
+    public void replace(String title, String summary, String content, String thumbnailUrl) {
+        this.title = title;
+        this.summary = summary;
+        this.content = content;
+        this.thumbnailUrl = thumbnailUrl;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void transitionTo(PostStatus next) {

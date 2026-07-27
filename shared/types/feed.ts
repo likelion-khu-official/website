@@ -35,6 +35,7 @@ export interface PostSummary {
 
 /** GET /api/posts/{slug} — 개별 글 상세 */
 export interface PostDetail extends PostSummary {
+  /** Markdown 본문. 기존 plain text도 유효한 Markdown이므로 그대로 호환된다. */
   content: string;
   updatedAt: string;
   commentCount: number;
@@ -47,6 +48,23 @@ export interface PostCreateRequest {
   content: string;
   thumbnailUrl?: string;
 }
+
+/** 로그인한 멤버가 보는 자기 글. 숨김 글도 포함되며 status로 구분한다. */
+export type MemberPostSummary = PostSummary;
+
+/** PUT /api/posts/{id} — 본인 글 전체 교체. null로 요약·썸네일을 지울 수 있다. */
+export interface PostReplaceRequest {
+  title: string;
+  summary: string | null;
+  content: string;
+  thumbnailUrl: string | null;
+}
+
+export interface PostSuccessResponse {
+  success: true;
+}
+
+export type PostErrorCode = 'POST_NOT_FOUND' | 'NOT_POST_AUTHOR';
 
 /** PATCH /api/admin/posts/{id}/status — 상태 전이 */
 export interface PostStatusUpdateRequest {
