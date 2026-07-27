@@ -74,6 +74,19 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
 
 7. **enum 값 추가/변경은 `validate`도 이 로컬 테스트도 못 잡는다 — 수동으로 확인할 것.** `@Enumerated(EnumType.STRING)` 필드는 SQL에서 `CHECK (col IN ('A','B',...))`로 박힌다 — CHECK 제약은 "이 컬럼엔 이 값들만 들어올 수 있다"고 DB 자체에 거는 제약으로, 어긴 쓰기는 애플리케이션 코드가 뭘 하든 DB가 직접 거부한다. Hibernate의 스키마 검증은 컬럼 존재·타입만 보지 CHECK 제약 **안의 값 목록**은 안 본다 — enum에 새 값을 추가하고 그 CHECK를 갱신하는 마이그레이션(재생성 패턴, 위 4번)을 빠뜨려도 컴파일·`validate`·앱 기동까지 전부 멀쩡히 통과한다. 그 값으로 실제 INSERT/UPDATE가 일어나는 순간에야 DB가 CHECK 위반으로 터진다 — 자동 검증 어디에도 안 걸리고 실사용 시점에야 드러나는 케이스라 특히 주의. **enum 값을 바꿀 땐 항상 마이그레이션에 CHECK 갱신도 같이 넣을 것** — 자동으로 안 잡히니 직접 챙겨야 한다.
 
+   **CHECK를 좁히거나 값 이름을 바꾸는 마이그레이션엔 `MigrationUpgradeHarness.seedEach` + 업그레이드 테스트가 필수다.** V6(2026-07-27, `MemberRole` 6종→14종 확장)에서 `AiMemberRoleUpgradeTest`가 신구 CHECK의 교집합인 `'DESIGN'` 하나만 시드해 실제 stage에 남아있던 `BE`/`FE`/`PM`/`INFRA`를 못 잡았고, 그 4개 중 `PM`·`INFRA`는 새 CHECK에 아예 없는 값이라 배포 중 CHECK 위반으로 CD가 실패했다(자동 롤백, hotfix로 당일 수정). 원인은 마이그레이션 SQL이 아니라 "이전 CHECK가 허용했던 값 중 일부만 시드해서 나머지를 실행조차 안 해봤다"는 테스트 커버리지 구멍이었다. 재발 방지 패턴:
+   ```java
+   // 이전 버전(V{n-1})의 CHECK가 허용했던 값 *전체*를 상수로 선언 — 부분집합 금지
+   private static final Set<String> LEGACY_VALUES = Set.of("PM","FE","BE","DESIGN","AI","INFRA");
+
+   MigrationUpgradeHarness.migrateTo(dbUrl, "직전버전");
+   // legacyValues 전부를 한 행씩 반복 삽입 — 값 하나라도 새 CHECK를 위반하면 즉시 예외
+   MigrationUpgradeHarness.seedEach(dbUrl,
+           "insert into member_roles (member_id, role) values (%1$d, '%2$s')", LEGACY_VALUES);
+   MigrationUpgradeHarness.migrateToLatest(dbUrl);  // naive copy였다면 여기서 즉시 실패
+   ```
+   `LEGACY_VALUES`를 전부 시드한 뒤 각 값이 매핑/삭제 어느 쪽으로 처리됐는지까지 개별 어서션으로 확인하면(예제: `AiMemberRoleUpgradeTest.v6HandlesEveryLegacyRoleAsDeclared()`) 그 자체로 충분하다 — `LEGACY_VALUES`와 매핑·삭제 선언을 별도로 대조하는 완전성 검사를 더 추가할 필요는 없다. 이유: `LEGACY_VALUES`의 출처인 `V{n-1}` 이하 마이그레이션 파일은 머지된 뒤 절대 안 바뀌므로(위 규칙) 그 값 집합 자체가 이후 다시 늘어날 일이 없다 — 별도 완전성 어서션이 막아줄 수 있는 시나리오(나중에 값이 몰래 추가되는 것)가 애초에 없다. **이전 CHECK 값 목록은 사람이 기억해 타이핑하지 말고, 그 값을 마지막으로 정의한 마이그레이션 파일(`V{n-1}__....sql`)의 CHECK 절을 그대로 복사해서 쓸 것** — 기억에 의존하는 순간 이번 사고가 재현된다.
+
 8. **Flyway 마이그레이션은 CD 롤백으로 안 되돌아간다.** CD의 자동 롤백(#158~#162)은 "이전 컨테이너 이미지로 교체"일 뿐 — 이미 실행된 마이그레이션(테이블·컬럼 변경)은 DB에 그대로 남는다. 위험한 변경이 배포된 뒤 코드만 롤백되면, 옛 코드가 새 스키마를 상대해야 하는 애매한 상태가 될 수 있다. 그래서:
    - 가능하면 **확장 먼저, 정리는 나중에**(expand-contract) 패턴을 쓴다 — 컬럼 삭제 대신: ①새 컬럼 추가(nullable, 이 상태로 배포·안정화 확인) → ②코드가 새 컬럼을 쓰도록 전환 → ③한참 뒤 별도 마이그레이션으로 옛 컬럼 제거. 각 단계가 그 자체로 안전해서, 어느 시점에 코드만 롤백돼도 스키마와 안 어긋난다.
    - 파괴적 변경(`DROP TABLE`/`DROP COLUMN`, 기존 데이터 있는 컬럼에 `NOT NULL` 추가, 타입 축소)은 되돌릴 SQL을 마이그레이션과 별도로 PR에 같이 적어둘 것 — Flyway가 자동으로 안 해주니 사람이 필요할 때 수동 실행할 수 있게.
@@ -89,6 +102,7 @@ IntegrationTest`에서, 놓치면 stage/prod 배포 시 헬스체크 실패 → 
    - [x] SchemaMigrationConsistencyIntegrationTest 로컬 통과
    - [x] (재생성 패턴이면) MigrationUpgradeHarness로 기존 데이터 위 업그레이드 검증
    - [x] enum 값 변경 시 CHECK 제약도 같이 갱신했는지 확인
+   - [x] (CHECK를 좁히거나 값 이름을 바꿨으면) `MigrationUpgradeHarness.seedEach`로 이전 CHECK가 허용했던 값 *전체*를 시드하는 업그레이드 테스트 추가
    - [x] (파괴적 변경 시) 영향 범위 + 되돌릴 SQL 명시, 리뷰 요청
    ```
 
