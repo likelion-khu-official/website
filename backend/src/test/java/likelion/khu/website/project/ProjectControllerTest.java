@@ -51,6 +51,15 @@ class ProjectControllerTest {
                 """.formatted(participantId);
     }
 
+    private String replaceRequestJson(Long participantId) {
+        return """
+                {"title":"교체된 프로젝트","summary":"전체 교체된 소개",
+                 "techStack":[],"githubUrl":null,"startDate":null,"endDate":null,
+                 "images":[{"url":"https://img/replaced.png","representative":true}],
+                 "participants":[{"memberId":%d,"part":"FE"}]}
+                """.formatted(participantId);
+    }
+
     // ── GET /api/projects ────────────────────────────────────────────
 
     @Test
@@ -104,6 +113,62 @@ class ProjectControllerTest {
     void get_NonExistentId_Returns404() throws Exception {
         mockMvc.perform(get("/api/projects/{id}", 9999L))
                 .andExpect(status().isNotFound());
+    }
+
+    // ── GET /api/member/projects ─────────────────────────────────────
+
+    @Test
+    void memberList_ReturnsOnlyOwnProjectsIncludingHidden() throws Exception {
+        Member member = createMember("2020000040", "시현");
+        Member other = createMember("2020000041", "다른사람");
+        Long hiddenId = createProject(member.getId());
+        createProject(other.getId());
+        hideProject(hiddenId);
+
+        mockMvc.perform(withMemberAuth(get("/api/member/projects"), member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(hiddenId))
+                .andExpect(jsonPath("$[0].hidden").value(true))
+                .andExpect(jsonPath("$[0].representativeImageUrl").value("https://img/1.png"));
+    }
+
+    @Test
+    void memberDetail_ReturnsHiddenProjectForParticipant() throws Exception {
+        Member member = createMember("2020000042", "시현");
+        Long id = createProject(member.getId());
+        hideProject(id);
+
+        mockMvc.perform(withMemberAuth(get("/api/member/projects/{id}", id), member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.hidden").value(true));
+    }
+
+    @Test
+    void memberDetail_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000043", "시현");
+        Member stranger = createMember("2020000044", "다른사람");
+        Long id = createProject(owner.getId());
+
+        mockMvc.perform(withMemberAuth(get("/api/member/projects/{id}", id), stranger.getId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_PARTICIPANT"));
+    }
+
+    @Test
+    void memberDetail_NonExistentId_Returns404() throws Exception {
+        Member member = createMember("2020000045", "시현");
+
+        mockMvc.perform(withMemberAuth(get("/api/member/projects/{id}", 9999L), member.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PROJECT_NOT_FOUND"));
+    }
+
+    @Test
+    void memberList_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(get("/api/member/projects"))
+                .andExpect(status().isUnauthorized());
     }
 
     // ── POST /api/projects ───────────────────────────────────────────
@@ -343,6 +408,119 @@ class ProjectControllerTest {
         mockMvc.perform(withMustChangePasswordMemberAuth(patch("/api/projects/{id}", id), member.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"수정시도\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
+    }
+
+    // ── PUT /api/projects/{id} ───────────────────────────────────────
+
+    @Test
+    void replace_ByParticipant_ReplacesAllMutableFieldsAndClearsNullableValues() throws Exception {
+        Member member = createMember("2020000046", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"2026-04-30\",\"endDate\":\"2026-05-30\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequestJson(member.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("교체된 프로젝트"))
+                .andExpect(jsonPath("$.summary").value("전체 교체된 소개"))
+                .andExpect(jsonPath("$.cohort").value(13))
+                .andExpect(jsonPath("$.techStack.length()").value(0))
+                .andExpect(jsonPath("$.githubUrl").doesNotExist())
+                .andExpect(jsonPath("$.startDate").doesNotExist())
+                .andExpect(jsonPath("$.endDate").doesNotExist())
+                .andExpect(jsonPath("$.images[0].url").value("https://img/replaced.png"))
+                .andExpect(jsonPath("$.participants[0].part").value("FE"));
+    }
+
+    @Test
+    void replace_HiddenProjectByParticipant_Returns200() throws Exception {
+        Member member = createMember("2020000047", "시현");
+        Long id = createProject(member.getId());
+        hideProject(id);
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequestJson(member.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hidden").value(true));
+    }
+
+    @Test
+    void replace_ByNonParticipant_Returns403() throws Exception {
+        Member owner = createMember("2020000048", "시현");
+        Member stranger = createMember("2020000049", "다른사람");
+        Long id = createProject(owner.getId());
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), stranger.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequestJson(stranger.getId())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_PARTICIPANT"));
+    }
+
+    @Test
+    void replace_RemovesSelf_Returns400() throws Exception {
+        Member member = createMember("2020000050", "시현");
+        Member other = createMember("2020000051", "다른사람");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequestJson(other.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SELF_NOT_INCLUDED"));
+    }
+
+    @Test
+    void replace_DuplicateParticipant_Returns400() throws Exception {
+        Member member = createMember("2020000052", "시현");
+        Long id = createProject(member.getId());
+        String body = """
+                {"title":"t","summary":"s","techStack":[],"githubUrl":null,
+                 "startDate":null,"endDate":null,
+                 "images":[{"url":"u","representative":true}],
+                 "participants":[{"memberId":%d,"part":"BE"},{"memberId":%d,"part":"FE"}]}
+                """.formatted(member.getId(), member.getId());
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_PARTICIPANT"));
+    }
+
+    @Test
+    void replace_WithoutRepresentativeImage_Returns400() throws Exception {
+        Member member = createMember("2020000053", "시현");
+        Long id = createProject(member.getId());
+        String body = """
+                {"title":"t","summary":"s","techStack":[],"githubUrl":null,
+                 "startDate":null,"endDate":null,
+                 "images":[],"participants":[{"memberId":%d,"part":"BE"}]}
+                """.formatted(member.getId());
+
+        mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REPRESENTATIVE_IMAGE"));
+    }
+
+    @Test
+    void replace_MustChangePasswordMember_Returns403() throws Exception {
+        Member member = createMember("2020000054", "시현");
+        Long id = createProject(member.getId());
+
+        mockMvc.perform(withMustChangePasswordMemberAuth(put("/api/projects/{id}", id), member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(replaceRequestJson(member.getId())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
     }
