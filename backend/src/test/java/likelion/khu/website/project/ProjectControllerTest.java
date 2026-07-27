@@ -47,7 +47,7 @@ class ProjectControllerTest {
                 {"title":"멋사 홈페이지","summary":"동아리 소개 사이트","cohort":13,
                  "techStack":["Spring","React"],"githubUrl":"https://github.com/likelion-khu",
                  "images":[{"url":"https://img/1.png","representative":true}],
-                 "participants":[{"memberId":%d,"part":"BE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"}]}
                 """.formatted(participantId);
     }
 
@@ -56,7 +56,7 @@ class ProjectControllerTest {
                 {"title":"교체된 프로젝트","summary":"전체 교체된 소개",
                  "techStack":[],"githubUrl":null,"startDate":null,"endDate":null,
                  "images":[{"url":"https://img/replaced.png","representative":true}],
-                 "participants":[{"memberId":%d,"part":"FE"}]}
+                 "participants":[{"memberId":%d,"part":"FRONTEND"}]}
                 """.formatted(participantId);
     }
 
@@ -96,7 +96,7 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$.images.length()").value(1))
                 .andExpect(jsonPath("$.participants.length()").value(1))
                 .andExpect(jsonPath("$.participants[0].name").value("시현"))
-                .andExpect(jsonPath("$.participants[0].part").value("BE"));
+                .andExpect(jsonPath("$.participants[0].part").value("BACKEND"));
     }
 
     @Test
@@ -202,7 +202,7 @@ class ProjectControllerTest {
         String body = """
                 {"title":"t","summary":"s","cohort":13,
                  "images":[{"url":"u1","representative":true},{"url":"u2","representative":true}],
-                 "participants":[{"memberId":%d,"part":"BE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"}]}
                 """.formatted(member.getId());
 
         mockMvc.perform(withMemberAuth(post("/api/projects"), member.getId())
@@ -234,7 +234,7 @@ class ProjectControllerTest {
         String body = """
                 {"title":"t","summary":"s","cohort":13,
                  "images":[{"url":"u1","representative":false}],
-                 "participants":[{"memberId":%d,"part":"BE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"}]}
                 """.formatted(member.getId());
 
         mockMvc.perform(withMemberAuth(post("/api/projects"), member.getId())
@@ -249,7 +249,7 @@ class ProjectControllerTest {
         Member member = createMember("2020000019", "시현");
         String body = """
                 {"title":"t","summary":"s","cohort":13,
-                 "participants":[{"memberId":%d,"part":"BE"},{"memberId":9999,"part":"FE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"},{"memberId":9999,"part":"FRONTEND"}]}
                 """.formatted(member.getId());
 
         mockMvc.perform(withMemberAuth(post("/api/projects"), member.getId())
@@ -265,7 +265,7 @@ class ProjectControllerTest {
         Member member = createMember("2020000035", "시현");
         String body = """
                 {"title":"t","summary":"s","cohort":13,
-                 "participants":[{"memberId":%d,"part":"BE"},{"memberId":%d,"part":"FE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"},{"memberId":%d,"part":"FRONTEND"}]}
                 """.formatted(member.getId(), member.getId());
 
         mockMvc.perform(withMemberAuth(post("/api/projects"), member.getId())
@@ -436,7 +436,7 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$.startDate").doesNotExist())
                 .andExpect(jsonPath("$.endDate").doesNotExist())
                 .andExpect(jsonPath("$.images[0].url").value("https://img/replaced.png"))
-                .andExpect(jsonPath("$.participants[0].part").value("FE"));
+                .andExpect(jsonPath("$.participants[0].part").value("FRONTEND"));
     }
 
     @Test
@@ -486,7 +486,7 @@ class ProjectControllerTest {
                 {"title":"t","summary":"s","techStack":[],"githubUrl":null,
                  "startDate":null,"endDate":null,
                  "images":[{"url":"u","representative":true}],
-                 "participants":[{"memberId":%d,"part":"BE"},{"memberId":%d,"part":"FE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"},{"memberId":%d,"part":"FRONTEND"}]}
                 """.formatted(member.getId(), member.getId());
 
         mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
@@ -503,7 +503,7 @@ class ProjectControllerTest {
         String body = """
                 {"title":"t","summary":"s","techStack":[],"githubUrl":null,
                  "startDate":null,"endDate":null,
-                 "images":[],"participants":[{"memberId":%d,"part":"BE"}]}
+                 "images":[],"participants":[{"memberId":%d,"part":"BACKEND"}]}
                 """.formatted(member.getId());
 
         mockMvc.perform(withMemberAuth(put("/api/projects/{id}", id), member.getId())
@@ -665,7 +665,7 @@ class ProjectControllerTest {
 
         mockMvc.perform(withMemberAuth(patch("/api/projects/{id}", updatedId), member.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"participants\":[{\"memberId\":%d,\"part\":\"BE\"}]}".formatted(member.getId())))
+                        .content("{\"participants\":[{\"memberId\":%d,\"part\":\"BACKEND\"}]}".formatted(member.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participants.length()").value(1));
 
@@ -690,7 +690,7 @@ class ProjectControllerTest {
     private Long createProjectWithTwoParticipants(Long creatorMemberId, Long coParticipantMemberId) throws Exception {
         String body = """
                 {"title":"멋사 홈페이지","summary":"동아리 소개 사이트","cohort":13,
-                 "participants":[{"memberId":%d,"part":"BE"},{"memberId":%d,"part":"FE"}]}
+                 "participants":[{"memberId":%d,"part":"BACKEND"},{"memberId":%d,"part":"FRONTEND"}]}
                 """.formatted(creatorMemberId, coParticipantMemberId);
         String response = mockMvc.perform(withMemberAuth(post("/api/projects"), creatorMemberId)
                         .contentType(MediaType.APPLICATION_JSON)

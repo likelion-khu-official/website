@@ -88,7 +88,7 @@ class MemberUniqueConstraintUpgradeTest {
 
         MemberCreateRequest req = new MemberCreateRequest();
         req.setName("재입부");
-        req.setRoles(Set.of(MemberRole.BE));
+        req.setRoles(Set.of(MemberRole.BACKEND));
         req.setCohort(14);
         req.setStudentId("2020009999");
         req.setPhone("01099998888");
