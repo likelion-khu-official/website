@@ -1,7 +1,7 @@
 // 멤버 API 계약 — FE↔BE 합의 파일
 // 변경 시 양 팀 합의 필요 (shared/ 규칙)
 
-export type MemberRole = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'INFRA';
+export type MemberRole = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'AI' | 'INFRA';
 
 /** GET /api/members — 공개 전체 목록 */
 export interface Member {

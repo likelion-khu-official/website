@@ -14,7 +14,7 @@
 |---|---|
 | `Project.java` | 제목·한줄소개·기수(불변)·기술스택(태그)·GitHub링크·개발기간(`startDate`/`endDate`, 종료일 없으면 진행중)·`hidden`. 상세 설명·발표자료는 스펙상 "처음엔 생략 가능"이라 필드 자체를 안 만들었다 |
 | `ProjectImage.java` | `@ManyToOne` 자식 엔티티(`Comment`와 같은 FK 패턴). `url`은 새로 업로드 코드를 만들지 않고 **기존 `/api/feed/images`(OCI, #75)로 먼저 올려 받은 URL을 그대로 저장**한다 — `Post.thumbnailUrl`·`Member.photoUrl`과 동일한 재사용 방식. `representative`(대표 이미지)는 정확히 1장이어야 한다 |
-| `ProjectParticipant.java` | `@ManyToOne` 자식 엔티티, `Member` FK + `part`(`MemberRole` 재사용 — PM/FE/BE/DESIGN/INFRA). `Member.roles`(조직 전체 역할)와는 별개로, "이 프로젝트에서 맡은 역할"을 담는다 |
+| `ProjectParticipant.java` | `@ManyToOne` 자식 엔티티, `Member` FK + `part`(`MemberRole` 재사용 — PM/FE/BE/DESIGN/AI/INFRA). `Member.roles`(조직 전체 역할)와는 별개로, "이 프로젝트에서 맡은 역할"을 담는다 |
 | `ProjectRepository`/`ProjectImageRepository`/`ProjectParticipantRepository` | 목록·상세 조회, 참여 여부 확인(`existsByProjectIdAndMemberId`) |
 | `dto/ProjectSummaryResponse`·`ProjectDetailResponse`(+ `ProjectImageResponse`·`ProjectParticipantResponse`) | `Post`의 목록/상세 이원 DTO 패턴을 그대로 따랐다. `representativeImageUrl`은 자식 테이블에서 오는 값이라 서비스가 조립해 넘긴다 |
 | `dto/ProjectCreateRequest`·`ProjectUpdateRequest`(+ `ProjectImageRequest`·`ProjectParticipantRequest`) | 생성은 전체 필드, 수정은 `Member`/`Post`와 같은 부분 수정 관례(null=안 바뀜). `cohort`는 `Member.cohort`처럼 불변이라 수정 DTO에 없음 |
