@@ -70,7 +70,7 @@ export default async function Members() {
   return (
     <section
       id="members"
-      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-hidden px-5 py-16 sm:px-10 sm:py-16 lg:px-16"
+      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-hidden px-5 pb-12 pt-24 sm:px-10 sm:pb-14 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
     >
       <div className="members-glow-base" />
       <div className="members-glow-accent" />

@@ -15,7 +15,7 @@ export default async function Project() {
   return (
     <section
       id="project"
-      className="relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 py-16 sm:px-10 sm:py-20 lg:px-16 lg:py-16"
+      className="relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 pb-12 pt-24 sm:px-10 sm:pb-16 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
     >
       <div
         aria-hidden
