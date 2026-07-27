@@ -1,10 +1,8 @@
 import Link from 'next/link';
 import type { PostSummary } from '@shared/types/feed';
-import { formatDate } from '@/lib/formatDate';
+import PostAuthor from './PostAuthor';
 
 export default function PostCard({ post }: { post: PostSummary }) {
-  const date = formatDate(post.publishedAt ?? post.createdAt);
-
   return (
     <Link
       href={`/blog/${post.slug}`}
@@ -25,9 +23,9 @@ export default function PostCard({ post }: { post: PostSummary }) {
         {post.summary ? (
           <p className="line-clamp-2 text-sm text-muted">{post.summary}</p>
         ) : null}
-        <p className="mt-auto pt-2 text-xs font-medium text-accent">
-          {post.authorName} · {date}
-        </p>
+        <div className="mt-auto pt-3">
+          <PostAuthor post={post} compact />
+        </div>
       </div>
     </Link>
   );

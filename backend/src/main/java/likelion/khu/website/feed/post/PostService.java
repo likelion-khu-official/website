@@ -17,7 +17,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,14 +44,13 @@ public class PostService {
         Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(),
                 authorName, authorPart, memberId, request.getThumbnailUrl());
         postRepository.save(post);
-        return PostDetailResponse.from(post, 0);
+        return PostDetailResponse.from(post, member, 0);
     }
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getPublishedPosts(Pageable pageable) {
-        return postRepository
-                .findByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable)
-                .map(PostSummaryResponse::from);
+        return toSummaryPage(
+                postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.PUBLISHED, pageable));
     }
 
     @Transactional(readOnly = true)
@@ -55,13 +58,12 @@ public class PostService {
         Post post = postRepository.findBySlugAndStatus(slug, PostStatus.PUBLISHED)
                 .orElseThrow(PostNotFoundException::new);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, commentCount);
+        return PostDetailResponse.from(post, findAuthor(post), commentCount);
     }
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getMemberPosts(Long memberId, Pageable pageable) {
-        return postRepository.findByAuthorMemberIdOrderByCreatedAtDesc(memberId, pageable)
-                .map(PostSummaryResponse::from);
+        return toSummaryPage(postRepository.findByAuthorMemberIdOrderByCreatedAtDesc(memberId, pageable));
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +71,7 @@ public class PostService {
         Post post = findPostOrThrow(id);
         requireAuthor(post, memberId);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, commentCount);
+        return PostDetailResponse.from(post, findAuthor(post), commentCount);
     }
 
     @Transactional
@@ -78,7 +80,7 @@ public class PostService {
         requireAuthor(post, memberId);
         post.replace(request.getTitle(), request.getSummary(), request.getContent(), request.getThumbnailUrl());
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, commentCount);
+        return PostDetailResponse.from(post, findAuthor(post), commentCount);
     }
 
     @Transactional
@@ -91,14 +93,31 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public Page<PostSummaryResponse> getAdminPosts(Pageable pageable) {
-        return postRepository.findAll(pageable).map(PostSummaryResponse::from);
+        return toSummaryPage(postRepository.findAll(pageable));
     }
 
     @Transactional
     public PostSummaryResponse updateStatus(Long id, PostStatus status) {
         Post post = findPostOrThrow(id);
         post.transitionTo(status);
-        return PostSummaryResponse.from(post);
+        return PostSummaryResponse.from(post, findAuthor(post));
+    }
+
+    private Page<PostSummaryResponse> toSummaryPage(Page<Post> posts) {
+        Set<Long> authorIds = posts.stream()
+                .map(Post::getAuthorMemberId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<Long, Member> authors = new HashMap<>();
+        memberRepository.findAllById(authorIds).forEach(member -> authors.put(member.getId(), member));
+        return posts.map(post -> PostSummaryResponse.from(post, authors.get(post.getAuthorMemberId())));
+    }
+
+    private Member findAuthor(Post post) {
+        if (post.getAuthorMemberId() == null) {
+            return null;
+        }
+        return memberRepository.findById(post.getAuthorMemberId()).orElse(null);
     }
 
     private Post findPostOrThrow(Long id) {

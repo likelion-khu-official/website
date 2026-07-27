@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -37,7 +38,8 @@ class PostControllerTest {
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "시현", Set.of(MemberRole.BE), 13, "🦁", "https://example.com/sihyeon.png",
+                null, "컴퓨터공학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
         anotherMember = memberRepository.save(Member.create(
                 "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
@@ -61,6 +63,8 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.authorName").value("시현"))
                 .andExpect(jsonPath("$.authorPart").value("BE"))
+                .andExpect(jsonPath("$.authorEmoji").value("🦁"))
+                .andExpect(jsonPath("$.authorPhotoUrl").value("https://example.com/sihyeon.png"))
                 .andExpect(jsonPath("$.slug").isNotEmpty());
     }
 

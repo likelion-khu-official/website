@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPostBySlug } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
-import { formatDate } from '@/lib/formatDate';
 import CommentSection from '@/components/blog/CommentSection';
 import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
+import PostAuthor from '@/components/blog/PostAuthor';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -51,9 +51,7 @@ export default async function PostPage({ params }: Props) {
         <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
           {post.title}
         </h1>
-        <p className="text-sm font-medium text-accent">
-          {post.authorName} · {formatDate(post.publishedAt ?? post.createdAt)}
-        </p>
+        <PostAuthor post={post} />
       </header>
 
       {post.thumbnailUrl && !markdownIncludesImage(post.content, post.thumbnailUrl) ? (
