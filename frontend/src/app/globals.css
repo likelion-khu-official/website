@@ -389,29 +389,46 @@ textarea {
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다. */
+/* 한 화면에 한 섹션 — 스크롤이 섹션 경계 근처에 오면 부드럽게 맞물린다(proximity라
+   강제로 가두지 않음). 스크롤 컨테이너는 루트(html)라 히어로의 window 기반 패럴럭스·
+   스크롤 진행바(animation-timeline: scroll(root))를 그대로 유지한다.
+   히어로(150svh 스크롤 셸)는 자체 모션이 있어 스냅에서 제외한다. */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+
+  .home-experience main section:not(.hero-scroll-shell) {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
+}
+
+/* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다.
+   각 요소가 --reveal-y로 자기 이동거리를 정할 수 있어(카드마다 다른 오프셋) 계단식으로 떠오른다. */
 .scroll-reveal-ready .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 28px, 0) scale(0.99);
+  transform: translate3d(0, var(--reveal-y, 32px), 0) scale(0.985);
   -webkit-transition:
-    opacity 420ms linear,
-    -webkit-transform 500ms cubic-bezier(0.22, 0.72, 0.2, 1);
+    opacity 520ms linear,
+    -webkit-transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
   transition:
-    opacity 420ms linear,
-    transform 500ms cubic-bezier(0.22, 0.72, 0.2, 1);
+    opacity 520ms linear,
+    transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 
 .scroll-reveal-ready .scroll-reveal--left {
-  transform: translate3d(-24px, 12px, 0) scale(0.99);
+  transform: translate3d(-28px, 10px, 0) scale(0.99);
 }
 
 .scroll-reveal-ready .scroll-reveal--right {
-  transform: translate3d(24px, 12px, 0) scale(0.99);
-  transition-delay: 40ms;
+  transform: translate3d(28px, 10px, 0) scale(0.99);
+  transition-delay: 60ms;
 }
 
 .scroll-reveal-ready .scroll-reveal--scale {
-  transform: translate3d(0, 18px, 0) scale(0.98);
+  transform: translate3d(0, 20px, 0) scale(0.975);
 }
 
 .scroll-reveal-ready .scroll-reveal.is-visible {

@@ -13,7 +13,7 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-24 sm:px-8 sm:py-28 lg:py-36"
+      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-8 sm:py-24 lg:py-24"
     >
       {/* KHU at Likelion 로고 블록 */}
       <div className="scroll-reveal flex flex-col items-center gap-1" style={gremlin}>
@@ -51,7 +51,7 @@ export default function Introduce() {
       </div>
 
       {/* 핵심 메시지 — 시간에 따라 사라지지 않고, 사용자의 스크롤 흐름 안에서 순서대로 읽힌다. */}
-      <div className="mt-[clamp(44px,7vh,88px)] grid w-full max-w-[1180px] gap-8 md:grid-cols-2 md:gap-12">
+      <div className="mt-[clamp(36px,5vh,64px)] grid w-full max-w-[1180px] gap-8 md:grid-cols-2 md:gap-12">
         <article className="scroll-reveal scroll-reveal--left border-t border-white/12 pt-5 md:pt-7">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn together</p>
           <p
@@ -80,33 +80,37 @@ export default function Introduce() {
         </article>
       </div>
 
-      {/* 통계 카드 */}
+      {/* 통계 카드 — 큰 수(14,000)가 옆 칸을 침범하지 않게 칸 폭에 맞춰 크기를 정하고
+          열 사이에 얇은 구분선을 둬서 숫자가 붙어 읽히는 문제를 없앤다. */}
       <div
-        className="scroll-reveal scroll-reveal--scale grid w-full max-w-[1417px] grid-cols-2 items-start gap-x-4 gap-y-10 rounded-[20px] border border-white/[0.05] bg-[rgba(0,0,0,0.13)] px-4 py-9 backdrop-blur-[22px] sm:w-[90%] sm:px-8 sm:py-12 lg:w-[82%] lg:grid-cols-4 lg:px-[clamp(24px,3vw,60px)] lg:py-[clamp(36px,5vh,64px)]"
-        style={{ marginTop: 'clamp(48px, 8vh, 108px)' }}
+        className="scroll-reveal scroll-reveal--scale grid w-full max-w-[1240px] grid-cols-2 items-stretch gap-y-8 rounded-[22px] border border-white/[0.06] bg-[rgba(0,0,0,0.18)] px-2 py-9 backdrop-blur-[22px] sm:w-[92%] sm:px-4 sm:py-11 lg:w-[86%] lg:grid-cols-4 lg:py-[clamp(34px,4.5vh,56px)]"
+        style={{ marginTop: 'clamp(44px, 7vh, 96px)' }}
       >
-        {stats.map((s) => (
-          <div key={s.label} className="flex min-w-0 flex-col items-center gap-3 text-center">
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className={`flex min-w-0 flex-col items-center gap-2.5 px-3 text-center sm:px-5 ${
+              i % 2 === 1 ? 'border-l border-white/10' : ''
+            } ${i > 0 ? 'lg:border-l lg:border-white/10' : ''}`}
+          >
             <p
-              className="break-keep font-medium text-[#cdcdcd]"
-              style={{ fontSize: 'clamp(14px, 1.9vw, 28px)', letterSpacing: '-0.7px' }}
+              className="break-keep font-medium text-[#c7c7c7]"
+              style={{ fontSize: 'clamp(13px, 1.5vw, 22px)', letterSpacing: '-0.5px' }}
             >
               {s.label}
             </p>
-            <p className="leading-none whitespace-nowrap font-semibold">
+            <p className="flex items-baseline justify-center leading-none whitespace-nowrap font-semibold">
               <span
                 className="text-accent"
-                style={{ fontSize: 'clamp(38px, 6vw, 86px)', letterSpacing: '-2.15px' }}
+                style={{ fontSize: 'clamp(34px, 4.4vw, 60px)', letterSpacing: '-1.8px' }}
               >
                 <CountUp end={s.value} />
               </span>
               <span
-                className="text-[#bbbbbb]"
+                className="ml-0.5 self-start text-[#bbbbbb]"
                 style={{
-                  fontSize: s.super ? 'clamp(28px, 4.4vw, 64px)' : 'clamp(20px, 2.8vw, 40px)',
-                  letterSpacing: s.super ? '-1.6px' : '-1px',
-                  verticalAlign: s.super ? 'top' : 'baseline',
-                  marginLeft: '2px',
+                  fontSize: s.super ? 'clamp(20px, 2.4vw, 32px)' : 'clamp(17px, 2vw, 26px)',
+                  letterSpacing: '-0.8px',
                 }}
               >
                 {s.suffix}
