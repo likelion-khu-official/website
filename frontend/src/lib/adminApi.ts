@@ -20,6 +20,7 @@ import type {
 import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
 import type { MemberPasswordResetResponse, MemberOffboardResponse } from '@shared/types/member-auth';
 import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
+import type { SubscriberSummary } from '@shared/types/recruitment';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -238,6 +239,17 @@ export function offboardMember(id: number) {
     `/members/${id}/offboard`,
     { method: 'POST' },
     '오프보딩에 실패했어요.',
+    true
+  );
+}
+
+// ── 모집 알림 구독자 명단 ─────────────────────────────────────────────
+
+export function getSubscribers() {
+  return request<SubscriberSummary[]>(
+    '/recruitment/subscribers',
+    {},
+    '구독자 명단을 불러오지 못했어요.',
     true
   );
 }
