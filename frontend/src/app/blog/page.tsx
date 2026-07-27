@@ -27,28 +27,28 @@ export default async function BlogPage({
   const remainingPosts = featuredPost ? content.slice(1) : content;
 
   return (
-    <main className="relative mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-12 sm:px-10 sm:pb-28 sm:pt-14 lg:px-16 lg:pt-24">
+    <main className="relative mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-8 sm:px-10 sm:pb-28 sm:pt-10 lg:px-16 lg:pt-14">
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-[-400px] -z-0 h-[780px] w-[1050px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.33),rgba(19,19,19,0)_68%)] blur-2xl"
       />
 
       <header className="relative z-[1] min-w-0 max-w-4xl">
-        <p className="mb-5 text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
           KHU Likelion Journal
         </p>
-        <h1 className="break-keep break-words text-[clamp(42px,7vw,88px)] font-semibold leading-[0.98] tracking-[-0.065em] text-white">
+        <h1 className="break-keep break-words text-[clamp(36px,5.5vw,68px)] font-semibold leading-[1.02] tracking-[-0.055em] text-white">
           부딪히며 배운 것을
           <br />
           다음 사람의 출발점으로
         </h1>
-        <p className="mt-7 max-w-2xl break-keep break-words text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
+        <p className="mt-5 max-w-2xl break-keep break-words text-sm leading-6 text-white/55 sm:text-base sm:leading-7">
           프로젝트와 스터디에서 얻은 시행착오, 기술, 생각을 기록합니다. 한 사람의 경험이
           다음 사람의 더 빠른 시작이 되도록.
         </p>
       </header>
 
-      <section className="relative z-[1] mt-20 min-w-0 border-t border-white/10 pt-8 sm:mt-28">
+      <section className="relative z-[1] mt-12 min-w-0 border-t border-white/10 pt-6 sm:mt-16">
         <div className="mb-9 flex items-end justify-between gap-4">
           <h2 className="text-sm font-medium text-white/45">
             {number === 0 ? '최근 기록' : '전체 기록'}

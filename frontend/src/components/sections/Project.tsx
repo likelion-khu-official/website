@@ -7,7 +7,7 @@ export default async function Project() {
   let projects = null;
 
   try {
-    projects = (await getProjects(await getBaseUrl())).slice(0, 6);
+    projects = (await getProjects(await getBaseUrl())).slice(0, 3);
   } catch {
     // 랜딩 전체를 깨지 않고 이 섹션 안에서만 재시도 안내를 보여준다.
   }
@@ -15,7 +15,7 @@ export default async function Project() {
   return (
     <section
       id="project"
-      className="relative min-h-screen min-h-[100svh] overflow-hidden bg-[#131313] px-5 py-20 sm:px-10 sm:py-28 lg:px-16 lg:py-36"
+      className="relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 pb-12 pt-24 sm:px-10 sm:pb-16 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
     >
       <div
         aria-hidden
@@ -23,7 +23,7 @@ export default async function Project() {
       />
 
       <div className="relative mx-auto w-full max-w-[1440px]">
-        <div className="scroll-reveal grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="scroll-reveal grid gap-8 border-b border-white/10 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
               Our projects
@@ -54,7 +54,7 @@ export default async function Project() {
             <p className="mt-2 text-sm text-white/40">곧 실제 결과물로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
+          <div className="mt-8 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
             {projects.map((project, index) => (
               <div
                 key={project.id}

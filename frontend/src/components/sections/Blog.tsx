@@ -7,7 +7,7 @@ export default async function Blog() {
   let posts = null;
 
   try {
-    posts = (await getPosts(0, await getBaseUrl())).content.slice(0, 6);
+    posts = (await getPosts(0, await getBaseUrl())).content.slice(0, 3);
   } catch {
     // 랜딩 전체를 깨지 않고 이 섹션에서만 조회 실패 상태를 보여준다.
   }
@@ -15,7 +15,7 @@ export default async function Blog() {
   return (
     <section
       id="blog"
-      className="blog-bg relative min-h-screen min-h-[100svh] overflow-hidden px-5 py-20 sm:px-10 sm:py-28 lg:px-16 lg:py-36"
+      className="blog-bg relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden px-5 pb-12 pt-24 sm:px-10 sm:pb-16 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
     >
       <div
         aria-hidden
@@ -23,7 +23,7 @@ export default async function Blog() {
       />
 
       <div className="scroll-reveal relative mx-auto w-full max-w-[1440px]">
-        <div className="grid gap-10 border-b border-white/10 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="grid gap-8 border-b border-white/10 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
               Our stories
@@ -55,16 +55,10 @@ export default async function Blog() {
             <p className="mt-2 text-sm text-white/40">곧 멤버들의 기록으로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div className="mt-10">
-            <PostCard post={posts[0]} featured priority />
-
-            {posts.length > 1 ? (
-              <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-14 border-t border-white/10 pt-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
-                {posts.slice(1).map((post, index) => (
-                  <PostCard key={post.id} post={post} priority={index < 2} />
-                ))}
-              </div>
-            ) : null}
+          <div className="mt-8 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
+            {posts.map((post, index) => (
+              <PostCard key={post.id} post={post} priority={index < 3} />
+            ))}
           </div>
         )}
       </div>
