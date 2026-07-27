@@ -40,7 +40,8 @@ class PostServiceTest {
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "시현", Set.of(MemberRole.BE), 13, "🦁", "https://example.com/sihyeon.png",
+                null, "컴퓨터공학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
         anotherMember = memberRepository.save(Member.create(
                 "선우", Set.of(MemberRole.BE), 13, "🐯", null, null, "admin@khu.ac.kr",
@@ -61,6 +62,8 @@ class PostServiceTest {
         assertThat(res.getStatus()).isEqualTo(PostStatus.PUBLISHED);
         assertThat(res.getAuthorName()).isEqualTo("시현");
         assertThat(res.getAuthorPart()).isEqualTo("BE");
+        assertThat(res.getAuthorEmoji()).isEqualTo("🦁");
+        assertThat(res.getAuthorPhotoUrl()).isEqualTo("https://example.com/sihyeon.png");
         assertThat(res.getPublishedAt()).isNotNull();
         assertThat(res.getSlug()).isNotBlank();
         assertThat(postRepository.findById(res.getId()).orElseThrow().getAuthorMemberId())
@@ -76,6 +79,17 @@ class PostServiceTest {
         PostDetailResponse res = postService.createPost(noRoleMember.getId(), sampleRequest());
 
         assertThat(res.getAuthorPart()).isNull();
+    }
+
+    @Test
+    void getPublishedPost_AuthorWithoutPublicationConsent_HidesProfile() {
+        PostDetailResponse created = postService.createPost(anotherMember.getId(), sampleRequest());
+
+        PostDetailResponse result = postService.getPublishedPost(created.getSlug());
+
+        assertThat(result.getAuthorName()).isEqualTo("선우");
+        assertThat(result.getAuthorEmoji()).isNull();
+        assertThat(result.getAuthorPhotoUrl()).isNull();
     }
 
     @Test
