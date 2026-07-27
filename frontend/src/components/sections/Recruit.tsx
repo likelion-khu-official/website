@@ -28,12 +28,10 @@ export default function Recruit() {
       </div>
 
       {/* 평소 모드: 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
-      {open ? (
-        <div className="scroll-reveal">
+      <div className="scroll-reveal">
+        {open ? (
           <NotificationForm />
-        </div>
-      ) : (
-        <div className="scroll-reveal">
+        ) : (
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -46,8 +44,8 @@ export default function Recruit() {
           >
             모집 시작 알림 받기
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
