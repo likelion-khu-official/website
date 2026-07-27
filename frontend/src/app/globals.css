@@ -484,24 +484,25 @@ textarea {
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .scroll-reveal {
-      animation: scroll-content-reveal 1ms var(--motion-ease-out) both;
-      animation-range: entry 0% cover 24%;
+      /* 스크롤 이동량과 등장 진행률을 1:1에 가깝게 연결해 갑자기 튀어나오는 느낌을 줄인다. */
+      animation: scroll-content-reveal 1ms linear both;
+      animation-range: entry 0% cover 42%;
       animation-timeline: view(block);
     }
 
     .session-card-reveal:nth-child(2),
     .project-card-reveal:nth-child(3n + 2),
     .member-card-reveal:nth-child(even) {
-      animation-range: entry 4% cover 27%;
+      animation-range: entry 3% cover 44%;
     }
 
     .session-card-reveal:nth-child(3),
     .project-card-reveal:nth-child(3n) {
-      animation-range: entry 7% cover 30%;
+      animation-range: entry 6% cover 46%;
     }
 
     .session-card-reveal:nth-child(4) {
-      animation-range: entry 10% cover 33%;
+      animation-range: entry 9% cover 48%;
     }
   }
 }
@@ -533,7 +534,7 @@ textarea {
   @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
     .timeline-line {
       animation: timeline-line-draw 1ms linear both;
-      animation-range: entry 8% cover 36%;
+      animation-range: entry 5% cover 58%;
       animation-timeline: view(block);
     }
 
@@ -542,8 +543,8 @@ textarea {
     }
 
     .timeline-endpoint {
-      animation: timeline-endpoint-pop 1ms var(--motion-ease-out) both;
-      animation-range: entry 24% cover 40%;
+      animation: timeline-endpoint-pop 1ms linear both;
+      animation-range: entry 18% cover 54%;
       animation-timeline: view(block);
     }
   }
