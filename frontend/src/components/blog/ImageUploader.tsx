@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { uploadImage, FeedApiError } from '@/lib/feedApi';
+import { MemberApiError, uploadMemberImage } from '@/lib/memberApi';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -18,8 +18,7 @@ export default function ImageUploader({
   onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [state, setState] = useState<UploadState>(value ? 'done' : 'idle');
-  const [progress, setProgress] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(value);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,19 +54,19 @@ export default function ImageUploader({
 
     setError('');
     setState('uploading');
-    setProgress(0);
-    setPreviewUrl(localPreview);
+    setLocalPreviewUrl(localPreview);
     onUploadingChange?.(true);
 
     try {
-      const { url } = await uploadImage(file, setProgress);
+      const { url } = await uploadMemberImage(file);
       setState('done');
-      setPreviewUrl(url);
       onChange(url);
+      setLocalPreviewUrl(null);
     } catch (err) {
       setState('error');
-      setError(err instanceof FeedApiError ? err.message : '이미지 업로드에 실패했어요.');
+      setError(err instanceof MemberApiError ? err.message : '이미지 업로드에 실패했어요.');
       onChange(null);
+      setLocalPreviewUrl(null);
     } finally {
       onUploadingChange?.(false);
     }
@@ -78,10 +77,9 @@ export default function ImageUploader({
       URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
     }
-    setPreviewUrl(null);
+    setLocalPreviewUrl(null);
     setState('idle');
     setError('');
-    setProgress(0);
     onChange(null);
     if (inputRef.current) inputRef.current.value = '';
   }
@@ -97,19 +95,19 @@ export default function ImageUploader({
     <div>
       <p className="mb-2 text-sm font-medium text-white">썸네일 이미지 (선택)</p>
 
-      {previewUrl ? (
+      {localPreviewUrl ?? value ? (
         <div className="relative w-full max-w-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={previewUrl}
+            src={localPreviewUrl ?? value ?? ''}
             alt="업로드한 썸네일 미리보기"
             className="aspect-[16/9] w-full rounded-xl object-cover"
           />
-          {state === 'uploading' && (
-            <div className="absolute inset-x-2 bottom-2 h-1.5 overflow-hidden rounded-full bg-black/40">
-              <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+          {state === 'uploading' ? (
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/55 text-sm font-medium text-white">
+              업로드 중…
             </div>
-          )}
+          ) : null}
           <button
             type="button"
             onClick={handleRemove}
