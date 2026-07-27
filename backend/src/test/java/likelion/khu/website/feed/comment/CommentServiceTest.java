@@ -37,7 +37,7 @@ class CommentServiceTest {
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@khu.ac.kr",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
     }
 

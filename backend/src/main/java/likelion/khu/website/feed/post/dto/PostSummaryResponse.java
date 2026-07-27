@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @AllArgsConstructor
@@ -17,7 +18,7 @@ public class PostSummaryResponse {
     private String summary;
     private String thumbnailUrl;
     private String authorName;
-    private String authorPart;
+    private List<String> authorPart;
     private String authorEmoji;
     private String authorPhotoUrl;
     private PostStatus status;
