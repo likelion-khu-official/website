@@ -212,6 +212,10 @@ export function updateRecruitmentStatus(body: RecruitmentStatusUpdateRequest) {
     '/recruitment/status',
     { method: 'PATCH', body: JSON.stringify(body) },
     '모집 상태 변경에 실패했어요.',
+    true
+  );
+}
+
 // ── 멤버 관리 (#145) ──────────────────────────────────────────────
 
 export function listMembers() {

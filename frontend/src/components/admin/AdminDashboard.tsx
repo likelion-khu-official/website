@@ -270,6 +270,10 @@ export default function AdminDashboard() {
           모집 관리로 이동
         </button>
       </div>
+
+      <div className="mt-10 flex justify-center">
+        <button
+          type="button"
           onClick={() => router.push('/admin/members')}
           className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
         >
