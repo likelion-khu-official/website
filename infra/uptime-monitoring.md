@@ -16,6 +16,31 @@
 
 → 외부 무료 SaaS(UptimeRobot)로 결정. ③(디스크/메모리 사전경고)은 이 문서 범위 밖 — OCI Monitoring/Alarm/Notifications로 별도 구축됨(디스크는 custom metric, 메모리는 네이티브 `MemoryUtilization`).
 
+```
+                    UptimeRobot (서버 밖, 5분마다)
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌────────────────┐
+│ api.prod...    │   │ api.stage...   │   │ likelion-khu.com │
+│ /actuator/health│   │ /actuator/health│   │ dev.likelion...  │
+└───────┬────────┘   └───────┬────────┘   └────────┬────────┘
+        │                   │                     │
+        ▼                   ▼                     ▼
+     DOWN이면?           DOWN이면?              DOWN이면?
+        │                   │                     │
+        └─────────┬─────────┘                     │
+                  ▼                               ▼
+         둘 다 DOWN → 인스턴스(OCI) 문제         프론트만 DOWN → Vercel 문제
+         하나만 DOWN → 그 서비스 개별 문제         (이 서버·인프라와 무관)
+                  │
+                  ▼
+         이메일 + Discord 웹훅(초 단위, 이메일보다 빠름)
+                  │
+                  ▼
+         RUNBOOK.md 1-5절 "UptimeRobot — DOWN"
+```
+
 ## 계정 및 ToS
 
 - **가입**: 동아리 공식 메일로 신규 가입 (개인 계정 아님 — 특정 인원 의존도 낮추기 위함)

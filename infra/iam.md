@@ -2,6 +2,30 @@
 
 > 인프라 문서. 테넌시: `kwj_likelion`(Cloud Account Name과 동일). 아래는 `oci iam user/group/dynamic-group/policy list`로 실측한 것 — 콘솔 `Identity & Security`에서도 같은 걸 볼 수 있다. 문서와 실제가 어긋나 있진 않은지, 이런 식으로 가끔 CLI로 직접 대조해볼 것(`pm/docs/handoff.md` "평소 루틴"과 같은 이유).
 
+```
+사람 계정                          그룹                  정책 → 실제 권한
+──────────                        ────                  ──────────────
+장찬욱 ─┬─────────────────────▶ Administrators ───▶ manage all-resources in tenancy
+김우진 ─┘
+
+신선우 ─┬─────────────────────▶ be-dev-stage ─────▶ likelion-stage 버킷만 manage
+안시현 ─┘
+
+동아리 공용(Outlook) ──────────▶ likelion-spring-boot ▶ likelion-stage+prod 버킷 manage
+                                                      (be-dev-stage보다 범위 넓음, prod 포함)
+
+서비스 계정(콘솔 로그인 불가)        그룹                  정책 → 실제 권한
+──────────────────────          ────                  ──────────────
+smtp-mailer ──────────────────▶ email-senders ─────▶ email-family 사용(발송만)
+backup-svc ───────────────────▶ likelion-backup-writer ▶ likelion-backups 버킷만 manage
+
+인스턴스 자신(사람 아님)             다이나믹 그룹              정책 → 실제 권한
+───────────────────            ─────────              ──────────────
+likelion-prod 인스턴스 ────────▶ likelion-monitoring-dyngroup ▶ metrics 사용(커스텀 메트릭 전송)
+```
+
+**한눈에 보이는 원칙**: 사람 계정(Administrators)과 서비스 자격증명은 그룹 자체가 분리돼 있고, 서비스 계정은 전부 콘솔 로그인이 안 되거나(smtp-mailer·backup-svc) 인스턴스 자신의 identity(다이나믹 그룹)를 쓴다. 버킷 접근도 stage만(`be-dev-stage`)/stage+prod(`likelion-spring-boot`)로 나뉘어 한 자격증명이 유출돼도 영향 범위가 제한된다.
+
 ## 사용자 (7명)
 
 > 로그인 이메일은 개인정보라 여기 안 적는다(이 레포는 public — `email-delivery.md`가 이미 같은 원칙). OCI 콘솔 `Identity & Security → Domains → Default → Users`에서 실제 목록 확인 가능.

@@ -9,6 +9,20 @@
 
 ## 해법
 
+```
+재배포 전                                재배포 후 (컨테이너 교체)
+┌─────────────────────┐                ┌─────────────────────┐
+│ 컨테이너(stage-<sha1>)│                │ 컨테이너(stage-<sha2>)│ ← 새 컨테이너, 이전 것은 rm
+│  /app/logs ──bind mount──┐            │  /app/logs ──bind mount──┐
+└─────────────────────┘   │            └─────────────────────┘   │
+                          ▼                                      ▼
+              호스트 infra/logs/stage/                호스트 infra/logs/stage/
+                stage-<sha1>.log                        stage-<sha1>.log  (그대로 남음)
+                                                          stage-<sha2>.log  (새로 생성)
+```
+
+컨테이너 안의 `/app/logs`는 컨테이너 생사와 무관하게 항상 호스트의 `infra/logs/{stage,prod}/`를 가리킨다 — 컨테이너가 지워져도(`docker rm`) 볼륨(호스트 디렉터리)은 안 지워지므로 로그 파일이 살아남는다. 파일명이 배포 태그(`stage-<sha>.log`)라 어느 버전의 로그인지도 그대로 구분된다.
+
 1. **Spring Boot가 파일로도 로그를 쓰게** (`backend/src/main/resources/application.yml`):
    ```yaml
    logging:
