@@ -386,9 +386,9 @@ ssh likelion-oci 'cd ~/website/infra && docker compose -f docker-compose.yml -f 
 | OCI 콘솔 (Administrators 그룹) | 장찬욱·김우진 개인 Oracle Cloud 계정(둘 다 Administrators) | 콘솔 전체(Monitoring·Alarm·IAM·Compute·Storage·Email Delivery), CLI(`~/.oci/config` + API key) | 후임자 **본인 명의로 신규 IAM 사용자 발급** → Administrators 그룹 추가 → 본인이 API 서명키 발급해 로컬 CLI 세팅 — 구체적 절차는 [`infra/CLAUDE.md`](./CLAUDE.md#oci-iam-구조-2026-07-27-실측) "새 인프라 담당자용 IAM 사용자 만들기" 참고. 기존 계정의 로그인 자격증명을 그대로 넘기지 않는다 — 사람이 바뀌면 계정도 새로 만든다. **콘솔/CLI 접근과 서버 SSH(`ubuntu`, 아래 항목)는 완전히 별개의 자격증명**이라 둘 다 따로 세팅해야 한다. |
 | 서버 SSH `ubuntu` (sudo) | 장찬욱 로컬 `~/.ssh/oci_server.pem` 하나뿐 | 서버 전체 관리(docker compose·로그·수동 배포 등) | 후임자가 로컬에서 새 키페어 생성 → 공개키를 서버 `authorized_keys`(ubuntu)에 추가 → 접속 확인 후에만 장찬욱 키 제거. **개인키 파일 자체를 복사해서 넘기지 않는다** — `db-access.md`의 "키페어는 본인 소유"와 같은 원칙. |
 | OCI Notifications(ONS) 구독 — 토픽 `likelion-ops-alerts` | **의도적으로 개인 메일 기반** — 현재 장찬욱·김우진 개인 메일이 구독 중. 동아리 공용 Outlook 계정으로 통합을 시도했으나, 구독 확인 메일은 왔는데 실제 알람 메일은 정크함에도 없이 안 왔다(2026-07-27 실측, 원인 미상) — 그래서 포기하고 개인 메일 기반을 유지 중(`pm/docs/learnings.md` "인프라·CI/CD" 참고) | 디스크 80%↑·메모리 85%↑·백업 26h 부재(prod·stage)·git 드리프트 **5개 알람 전부**의 **유일한 도달 경로**(전부 이메일로만 옴) — 이 5개가 전부 **같은 토픽 하나**로만 발행되는 걸 `oci monitoring alarm get`의 `destinations` 필드로 실측 확인(2026-07-27). 그래서 **메일 하나를 이 토픽에 구독시키면 5개 알람 전부를 커버한다** — 알람별로 따로 등록할 필요 없음 | 콘솔 `Notifications → Topics → likelion-ops-alerts`에서 후임자 **개인 메일 하나**를 구독 추가(PENDING → 메일함에서 확인 클릭 → ACTIVE) — 이걸로 5개 알람 전부 끝, 추가 등록 없음. **확인 클릭만으론 검증이 안 된다** — 반드시 알람 하나를 실제로 발동시켜(4-2절 임계치 조정 방식) 최종 수신까지 확인한 뒤에만 이전 담당자 메일을 구독 해지한다. |
-| UptimeRobot | 동아리 공식 메일로 가입(개인 계정 아님) | 외부 가동 감시(DOWN/UP), Alert Contact = 동아리 메일 + Discord 웹훅 | 이미 개인 종속 없음 — 동아리 메일 계정 로그인 정보만 전달하면 끝. Alert Contact도 동아리 메일 그대로라 별도 변경 불필요. |
+| UptimeRobot(uptimerobot.com) | 동아리 공용 Outlook 계정으로 가입(개인 계정 아님, 2026-07-27 직접 확인) | 외부 가동 감시(FE·BE 서버 up/down), 메일 + Discord 웹훅으로 알림 | 로그인은 이미 공용 계정이라 대시보드 접근 자체는 그대로 전달. **다만 Alert Contact(알림 수신 이메일)은 후임자 개인 메일로 바꿔둘 것** — Discord 웹훅으로도 알림이 오긴 하지만, 채널 하나가 막히는 경우를 대비해 이메일도 개인 것으로 이중화해두는 편이 안전(장찬욱 지시, 2026-07-27). |
 | GitHub Secrets(`OCI_HOST`·`OCI_USER`·`OCI_SSH_KEY`·`OCI_DEPLOY_PATH`) | 레포 Settings → Secrets, 변경엔 리포 admin 권한 필요 | CD가 서버에 SSH로 배포할 때 사용 | 위 `ubuntu` SSH 키를 교체했으면 **`OCI_SSH_KEY`도 반드시 같이 갱신**(안 하면 CD가 예전 키로 붙으려다 실패) — admin 권한 있는 사람(PM 등)이 값 교체. |
-| DNS 등록업체(호스팅케이알) | 동아리 공용 계정(회장 결제, 개인 명의 아님) | 도메인 레코드(A/CNAME/TXT — SPF·DKIM·DMARC 포함) 등록·수정 | 이미 개인 종속 없음 — 공용 계정 로그인 정보만 전달하면 끝. |
+| DNS 등록업체(호스팅케이알 — 실제 로그인 포털은 megazone.com) | 동아리 공용 Outlook 계정(회장 결제, 개인 명의 아님) | 도메인 레코드(A/CNAME/TXT — SPF·DKIM·DMARC 포함) 등록·수정 | 이미 개인 종속 없음 — 공용 계정 로그인 정보만 전달하면 끝. |
 | `backup-svc@likelion-khu.com` (백업 버킷 전용 IAM) | 서버 `infra/.env.backup`(레포엔 없음) | `likelion-backups` 버킷 업로드 자격증명(Customer Secret Key) | 사람 계정이 아니라 서비스 계정 — `ubuntu` SSH만 승계되면 서버 파일 그대로 자동 승계된다. 유출 의심될 때만 OCI 콘솔(Administrators 권한)에서 회전. |
 | `smtp-mailer` (이메일 발송 전용 IAM) | 서버 `.env.stage`/`.env.prod`(레포엔 없음) | 발송 SMTP 인증(prod/stage 자격증명 분리) | 위와 동일 — `ubuntu` 승계로 자동 커버. 로테이션은 Administrators 권한 필요(유저당 자격증명 최대 2개라 이미 꽉 참, 지우고 재발급). |
 | `dbclient`/`dbtunnel` 공개키 등록 권한 | 별도 계정이 아니라 `ubuntu`(서버 sudo)로 직접 등록하는 작업 | 팀원 DB 조회·조작 접근(`db-access.md`) | 별도로 넘길 게 없음 — `ubuntu` SSH가 넘어가면 이 등록 권한도 함께 넘어간다. |
@@ -401,8 +401,21 @@ ssh likelion-oci 'cd ~/website/infra && docker compose -f docker-compose.yml -f 
 3. ONS 토픽 `likelion-ops-alerts`에 후임자 **개인 메일 하나**만 구독 추가(+ 본인 확인 클릭) — 디스크·메모리·백업부재(prod·stage)·git드리프트 5개 알람이 전부 이 토픽 하나로만 발행되므로 이 메일 하나로 5개 다 커버된다(알람별로 따로 등록할 필요 없음). ①②와 순서 무관, 오히려 일찍 해둘수록 인수인계 기간 동안 후임자도 실제 알람을 같이 받아보며 감을 잡을 수 있다. **확인 클릭 후에도 끝난 게 아니다** — 알람을 한 번 실제로 발동시켜(4-2절 방식) 최종 수신까지 검증해야 한다(동아리 공용 Outlook 계정은 확인 메일만 오고 실제 알람은 안 왔던 사례가 있음, 위 표 참고).
 4. 후임자를 팀 Discord 서버에 초대 — UptimeRobot 웹훅은 서버 참여만으로 바로 수신되니 ①~③과 순서 무관, 이것도 일찍 해둘수록 좋다.
 5. GitHub Secrets 갱신(SSH 키를 교체했다면 `OCI_SSH_KEY`는 필수).
-6. UptimeRobot·DNS 등록업체는 이미 공용 계정이라 로그인 정보만 전달.
-7. 위 전부 확인된 뒤에만 장찬욱 개인 계정·키를 제거한다.
+6. UptimeRobot Alert Contact에 후임자 개인 메일을 추가(Discord로도 오지만 이중화 차원, 위 표 참고). DNS 등록업체(megazone.com)는 로그인 정보 자체를 전달(아래 참고).
+7. **`likelion-khu@hotmail.com`(Outlook) 비밀번호를 안전한 채널로 직접 전달** — 이 하나로 메일함·UptimeRobot·megazone.com 로그인이 전부 넘어간다(아래 "직접 전달해야 하는 비밀번호" 참고).
+8. 위 전부 확인된 뒤에만 장찬욱 개인 계정·키를 제거한다.
+
+### 직접 전달해야 하는 비밀번호 (문서엔 값을 남기지 않는다)
+
+대부분의 계정은 **새로 발급**하는 방식이라(OCI IAM 계정, SSH 키페어, ONS 구독, UptimeRobot Alert Contact — 전부 후임자 본인 명의로 새로 만듦) 비밀번호 자체를 옮길 필요가 없다. 예외적으로 **공용 계정 하나(`likelion-khu@hotmail.com`, Outlook)만 비밀번호 자체를 넘겨야** 한다 — 이 계정 하나가 세 곳의 로그인을 겸하기 때문이다:
+
+| 이 비밀번호로 되는 것 | 비고 |
+|---|---|
+| Outlook 메일함 자체 | UptimeRobot 업/다운 알림, GitHub 레포 관련 메일, megazone.com(도메인) 관련 메일이 여기로 옴 |
+| UptimeRobot(uptimerobot.com) 대시보드 로그인 | 위 계정으로 가입돼 있음 |
+| megazone.com(도메인 등록업체, 구 호스팅케이알) 로그인 | DNS 레코드 수정 권한 |
+
+전달 방법: 장찬욱이 비밀번호 관리자 등 안전한 채널로 직접 전달 — 레포·이슈·이 문서 어디에도 값 자체는 적지 않는다.
 
 ---
 
