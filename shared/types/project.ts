@@ -12,13 +12,13 @@ export type ProjectPart = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'AI' | 'INFRA';
 export type ProjectErrorCode =
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
-  | 'PROJECT_NOT_FOUND'          // GET/PATCH/DELETE /api/projects/{id}, PATCH /api/admin/projects/{id}/hidden — id 존재하지 않음
-  | 'NOT_PARTICIPANT'            // PATCH/DELETE /api/projects/{id} — 요청자가 이 프로젝트 참여자가 아님
-  | 'SELF_NOT_INCLUDED'          // POST/PATCH — participants에 요청자 본인이 없음
-  | 'DUPLICATE_PARTICIPANT'      // POST/PATCH — participants에 같은 memberId 중복
-  | 'INVALID_REPRESENTATIVE_IMAGE' // POST/PATCH — images의 representative:true가 0장 또는 2장 이상
-  | 'PARTICIPANT_NOT_FOUND'      // POST/PATCH — participants의 memberId가 존재하지 않는 멤버 (404 — 다른 검증군과 달리 참조 리소스 부재로 취급)
-  | 'EMPTY_PARTICIPANTS';        // PATCH — participants를 빈 배열로 교체 시도
+  | 'PROJECT_NOT_FOUND'
+  | 'NOT_PARTICIPANT'
+  | 'SELF_NOT_INCLUDED'
+  | 'DUPLICATE_PARTICIPANT'
+  | 'INVALID_REPRESENTATIVE_IMAGE'
+  | 'PARTICIPANT_NOT_FOUND'
+  | 'EMPTY_PARTICIPANTS';
 
 /** 모든 에러 응답 공통 형태 */
 export interface ProjectErrorResponse {
@@ -46,6 +46,11 @@ export interface ProjectSummary {
   representativeImageUrl: string | null; // 대표 이미지가 없으면 null
   cohort: number;
   techStack: string[];
+}
+
+/** GET /api/member/projects — 참여 중인 프로젝트. 관리자 숨김 상태도 멤버 화면에는 보인다. */
+export interface MemberProjectSummary extends ProjectSummary {
+  hidden: boolean;
 }
 
 /** GET /api/projects/{id} — 공개 상세 */
@@ -89,6 +94,21 @@ export interface ProjectUpdateRequest {
   endDate?: string;
   images?: ProjectImageRequest[];      // 넘기면 기존 이미지 전체를 이걸로 교체
   participants?: ProjectParticipantRequest[]; // 넘기면 기존 참여자 전체를 이걸로 교체(최소 1명)
+}
+
+/**
+ * PUT /api/projects/{id} — 수정 폼의 전체 교체 요청.
+ * cohort는 등록 후 불변이며, nullable 필드는 null로 명시해 기존 값을 지울 수 있다.
+ */
+export interface ProjectReplaceRequest {
+  title: string;
+  summary: string;
+  techStack: string[];
+  githubUrl: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  images: ProjectImageRequest[];
+  participants: ProjectParticipantRequest[];
 }
 
 export interface ProjectImageRequest {
