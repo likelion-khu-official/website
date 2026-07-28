@@ -74,6 +74,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 마이그레이션 버전 번호 충돌 확인
+        run: |
+          # actions/checkout이 pull_request 이벤트에서 기본으로 받는 건 PR merge ref라
+          # 이 디렉터리엔 이미 머지 대상 브랜치 + 이 PR 양쪽 마이그레이션 파일이 전부 들어있다 —
+          # git diff 없이 지금 있는 파일들만 보고 버전 번호(V 다음, __ 앞) 중복을 스캔하면 된다.
+          # 각 PR을 단독으로 보면 문제가 없어 보여도, 서로 다른 두 브랜치가 동시에 개발되며
+          # 각자 "다음 번호"를 추측해 같은 버전을 잡으면 머지 시점에만 드러난다 — Flyway가
+          # CompositeMigrationResolver에서 FlywayException("Found more than one migration with
+          # version X")을 던지고, 그게 Flyway를 쓰는 모든 테스트의 Spring 컨텍스트 기동 자체를
+          # 막아서 이 PR과 무관해 보이는 마이그레이션 테스트들이 무더기로 같이 실패한다.
+          declare -A seen
+          DUPES=()
+          for f in backend/src/main/resources/db/migration/V*.sql; do
+            base=$(basename "$f")
+            version=$(echo "$base" | sed -E 's/^V([0-9]+(\.[0-9]+)*)__.*/\1/')
+            if [ -n "${seen[$version]}" ]; then
+              DUPES+=("버전 $version: ${seen[$version]} ↔ $base")
+            else
+              seen[$version]="$base"
+            fi
+          done
+
+          if [ ${#DUPES[@]} -eq 0 ]; then
+            echo "버전 번호 중복 없음 — 통과"
+            exit 0
+          fi
+
+          echo "::error::머지 대상 브랜치와 합쳤을 때 같은 Flyway 버전 번호를 쓰는 마이그레이션 파일이 있습니다:"
+          printf '::error::%s\n' "${DUPES[@]}"
+          echo "::error::겹치는 쪽 파일을 다른 버전 번호로 리네임하세요 — backend/.claude/skills/db-man/SKILL.md 절차 2번(타임스탬프 버전 권장) 참고."
+          exit 1
+
       - name: 위험한 마이그레이션에 업그레이드 테스트 누락 확인
         run: |
           BASE="${{ github.event.pull_request.base.sha }}"
