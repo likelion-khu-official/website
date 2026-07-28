@@ -19,6 +19,11 @@ import type {
 } from '@shared/types/admin';
 import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
 import type { MemberPasswordResetResponse, MemberOffboardResponse } from '@shared/types/member-auth';
+import type {
+  ApplicationAdminSummary,
+  ApplicationFormResponse,
+  ApplicationFormSchema,
+} from '@shared/types/application';
 import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
 
 /**
@@ -238,6 +243,35 @@ export function offboardMember(id: number) {
     `/members/${id}/offboard`,
     { method: 'POST' },
     '오프보딩에 실패했어요.',
+    true
+  );
+}
+
+// ── 지원폼 관리 (#152) ────────────────────────────────────────────
+
+export function getApplicationForm() {
+  return request<ApplicationFormResponse>(
+    '/application-form',
+    {},
+    '지원서 양식을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function updateApplicationForm(schema: ApplicationFormSchema) {
+  return request<ApplicationFormResponse>(
+    '/application-form',
+    { method: 'PUT', body: JSON.stringify({ schema }) },
+    '지원서 양식 저장에 실패했어요.',
+    true
+  );
+}
+
+export function listApplications() {
+  return request<ApplicationAdminSummary[]>(
+    '/applications',
+    {},
+    '지원자 목록을 불러오지 못했어요.',
     true
   );
 }

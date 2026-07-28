@@ -48,6 +48,12 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+
+                // 지원폼(#152) — 비로그인 방문자가 폼 정의를 보고 지원 제출. 모집 상태 공개 조회도.
+                // (관리자용 폼 편집·지원자 열람 /api/admin/** 은 아래 anyRequest().authenticated() + @PreAuthorize)
+                .requestMatchers(HttpMethod.GET, "/api/application-form").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/applications").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/recruitment/status").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
 

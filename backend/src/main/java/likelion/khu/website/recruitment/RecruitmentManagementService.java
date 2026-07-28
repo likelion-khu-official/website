@@ -3,6 +3,7 @@ package likelion.khu.website.recruitment;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,15 @@ public class RecruitmentManagementService {
 
     public RecruitmentStatusResponse getStatus() {
         return toResponse(findOrCreate());
+    }
+
+    // 공개(비로그인) 조회 — 방문자의 지원폼/모집알림 전환 판단용. 공개 GET이라 없는 싱글턴을
+    // 새로 만들지(findOrCreate) 않고 읽기만 한다(없으면 닫힘으로 간주).
+    public RecruitmentPublicStatusResponse getPublicStatus() {
+        boolean open = statusRepository.findById(RecruitmentStatus.SINGLETON_ID)
+                .map(RecruitmentStatus::isOpen)
+                .orElse(false);
+        return new RecruitmentPublicStatusResponse(open);
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)
