@@ -25,6 +25,7 @@ import type {
   ApplicationFormSchema,
 } from '@shared/types/application';
 import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
+import type { SubscriberSummary } from '@shared/types/recruitment';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -272,6 +273,17 @@ export function listApplications() {
     '/applications',
     {},
     '지원자 목록을 불러오지 못했어요.',
+    true
+  );
+}
+
+// ── 모집 알림 구독자 명단 ─────────────────────────────────────────────
+
+export function getSubscribers() {
+  return request<SubscriberSummary[]>(
+    '/recruitment/subscribers',
+    {},
+    '구독자 명단을 불러오지 못했어요.',
     true
   );
 }

@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getCurrentMember, MemberApiError } from '@/lib/memberApi';
-import { createPost, FeedApiError } from '@/lib/feedApi';
-import type { PostCreateRequest } from '@shared/types/feed';
+import type { PostCreateRequest, PostReplaceRequest, PostStatus } from '@shared/types/feed';
+import {
+  createPost,
+  getCurrentMember,
+  getMemberPost,
+  MemberApiError,
+  replacePost,
+  uploadMemberImage,
+} from '@/lib/memberApi';
+import MemberProjectHeader from '@/components/member/projects/MemberProjectHeader';
 import ImageUploader from './ImageUploader';
+import MarkdownContent, { markdownIncludesImage } from './MarkdownContent';
 
 type SessionState = 'checking' | 'ready' | 'error';
 
@@ -16,98 +25,181 @@ type SessionError = {
 
 type Draft = {
   title: string;
+  summary: string;
   content: string;
   thumbnailUrl: string | null;
 };
 
+type Props = {
+  postId?: number;
+};
+
 const DRAFT_KEY = 'feed-write-draft';
-const WRITE_PATH = '/member/write';
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const GENERIC_SESSION_ERROR: SessionError = {
-  title: '확인하지 못했어요',
-  description: '로그인 상태를 확인하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
+  title: '화면을 준비하지 못했어요',
+  description: '로그인 상태와 글 정보를 확인하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
 };
 
 const FORBIDDEN_SESSION_ERROR: SessionError = {
-  title: '멤버 전용이에요',
-  description: '멤버 계정으로 로그인해주세요.',
+  title: '수정할 수 없는 글이에요',
+  description: '이 글을 작성한 멤버만 내용을 수정할 수 있어요.',
 };
 
-export default function WriteForm() {
+function sendToLogin(router: ReturnType<typeof useRouter>, returnTo: string) {
+  router.replace(`/member/login?returnTo=${encodeURIComponent(returnTo)}`);
+}
+
+function imageValidationMessage(file: File) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return `${file.name}: jpg·png·webp·gif 형식만 업로드할 수 있어요.`;
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return `${file.name}: 5MB 이하 파일만 업로드할 수 있어요.`;
+  }
+  return null;
+}
+
+function markdownImageAlt(filename: string) {
+  return filename.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '').trim() || '본문 이미지';
+}
+
+export default function WriteForm({ postId }: Props) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pagePath = postId ? `/member/posts/${postId}/edit` : '/member/write';
+  const editing = postId !== undefined;
+
   const [sessionState, setSessionState] = useState<SessionState>('checking');
   const [sessionError, setSessionError] = useState<SessionError>(GENERIC_SESSION_ERROR);
   const [authorName, setAuthorName] = useState('');
+  const [postStatus, setPostStatus] = useState<PostStatus>('PUBLISHED');
 
   const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [imageUploading, setImageUploading] = useState(false);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [bodyUploading, setBodyUploading] = useState(false);
   const [preview, setPreview] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [bodyImageError, setBodyImageError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
-      let me;
       try {
-        me = await getCurrentMember();
-      } catch (err) {
+        const [{ member }, post] = await Promise.all([
+          getCurrentMember(),
+          postId ? getMemberPost(postId) : Promise.resolve(undefined),
+        ]);
         if (cancelled) return;
-        if (err instanceof MemberApiError && err.status === 401) {
-          router.replace(`/member/login?returnTo=${encodeURIComponent(WRITE_PATH)}`);
+        if (member.mustChangePassword) {
+          sendToLogin(router, pagePath);
           return;
         }
-        if (err instanceof MemberApiError && err.status === 403) {
+
+        setAuthorName(member.name);
+        if (post) {
+          setTitle(post.title);
+          setSummary(post.summary ?? '');
+          setContent(post.content);
+          setThumbnailUrl(post.thumbnailUrl);
+          setPostStatus(post.status);
+        } else {
+          try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (raw) {
+              const draft: Draft = JSON.parse(raw);
+              setTitle(draft.title ?? '');
+              setSummary(draft.summary ?? '');
+              setContent(draft.content ?? '');
+              setThumbnailUrl(draft.thumbnailUrl ?? null);
+            }
+          } catch {
+            // 손상된 임시저장은 무시하고 빈 폼으로 시작한다.
+          }
+        }
+        setSessionState('ready');
+      } catch (error) {
+        if (cancelled) return;
+        if (error instanceof MemberApiError && error.status === 401) {
+          sendToLogin(router, pagePath);
+          return;
+        }
+        if (error instanceof MemberApiError && error.code === 'NOT_POST_AUTHOR') {
           setSessionError(FORBIDDEN_SESSION_ERROR);
-          setSessionState('error');
-          return;
+        } else if (error instanceof MemberApiError && error.status === 404) {
+          setSessionError({
+            title: '글을 찾을 수 없어요',
+            description: '삭제됐거나 존재하지 않는 글이에요.',
+          });
+        } else {
+          setSessionError(GENERIC_SESSION_ERROR);
         }
-        setSessionError(GENERIC_SESSION_ERROR);
         setSessionState('error');
-        return;
       }
-      if (cancelled) return;
-
-      setAuthorName(me.member.name);
-
-      // 임시저장 복원 — await 이후라 이 안에서의 setState는 effect에 동기적이지 않다
-      try {
-        const raw = localStorage.getItem(DRAFT_KEY);
-        if (raw) {
-          const draft: Draft = JSON.parse(raw);
-          setTitle(draft.title ?? '');
-          setContent(draft.content ?? '');
-          setThumbnailUrl(draft.thumbnailUrl ?? null);
-        }
-      } catch {
-        // 손상된 draft는 무시하고 빈 폼으로 시작
-      }
-      setSessionState('ready');
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [pagePath, postId, router]);
 
-  // 입력이 바뀔 때마다 임시저장 (제출 완료 후에는 저장하지 않음)
   useEffect(() => {
-    if (sessionState !== 'ready' || submitted) return;
+    if (editing || sessionState !== 'ready') return;
     try {
-      const draft: Draft = { title, content, thumbnailUrl };
+      const draft: Draft = { title, summary, content, thumbnailUrl };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {
-      // 저장 공간 부족 등 — 임시저장은 best-effort라 무시
+      // 임시저장은 best-effort다.
     }
-  }, [title, content, thumbnailUrl, sessionState, submitted]);
+  }, [content, editing, sessionState, summary, thumbnailUrl, title]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (submitting || imageUploading) return;
+  function handleWriteError(error: unknown, fallback: string) {
+    if (
+      error instanceof MemberApiError &&
+      (error.status === 401 || error.code === 'MUST_CHANGE_PASSWORD')
+    ) {
+      sendToLogin(router, pagePath);
+      return '';
+    }
+    return error instanceof Error ? error.message : fallback;
+  }
+
+  async function handleBodyImages(files: File[]) {
+    if (bodyUploading || files.length === 0) return;
+
+    const validationError = files.map(imageValidationMessage).find(Boolean);
+    if (validationError) {
+      setBodyImageError(validationError);
+      return;
+    }
+
+    setBodyUploading(true);
+    setBodyImageError('');
+    try {
+      for (const file of files) {
+        const { url } = await uploadMemberImage(file);
+        const imageMarkdown = `![${markdownImageAlt(file.name)}](${url})`;
+        setContent((current) => `${current.trimEnd()}${current.trim() ? '\n\n' : ''}${imageMarkdown}\n`);
+      }
+    } catch (error) {
+      setBodyImageError(handleWriteError(error, '본문 이미지 업로드에 실패했어요.'));
+    } finally {
+      setBodyUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (submitting || thumbnailUploading || bodyUploading) return;
     if (!title.trim() || !content.trim()) {
       setSubmitError('제목과 본문을 모두 입력해 주세요.');
       return;
@@ -116,121 +208,231 @@ export default function WriteForm() {
     setSubmitting(true);
     setSubmitError('');
 
-    const body: PostCreateRequest = {
-      title: title.trim(),
-      content: content.trim(),
-      thumbnailUrl: thumbnailUrl ?? undefined,
-    };
-
     try {
-      await createPost(body);
-      setSubmitted(true);
-      try {
-        localStorage.removeItem(DRAFT_KEY);
-      } catch {
-        // 무시
+      let saved;
+      if (postId) {
+        const body: PostReplaceRequest = {
+          title: title.trim(),
+          summary: summary.trim() || null,
+          content: content.trim(),
+          thumbnailUrl,
+        };
+        saved = await replacePost(postId, body);
+      } else {
+        const body: PostCreateRequest = {
+          title: title.trim(),
+          summary: summary.trim() || undefined,
+          content: content.trim(),
+          thumbnailUrl: thumbnailUrl ?? undefined,
+        };
+        saved = await createPost(body);
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          // 등록은 끝났으므로 임시저장 제거 실패가 결과를 막지 않는다.
+        }
       }
-    } catch (err) {
-      setSubmitError(err instanceof FeedApiError ? err.message : '글 작성에 실패했어요.');
+
+      router.push(saved.status === 'PUBLISHED' ? `/blog/${saved.slug}` : '/member/posts');
+      router.refresh();
+    } catch (error) {
+      setSubmitError(handleWriteError(error, editing ? '글 수정에 실패했어요.' : '글 등록에 실패했어요.'));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (sessionState === 'checking') {
-    return <p className="py-24 text-center text-sm text-muted">확인하고 있어요…</p>;
+    return (
+      <div className="mx-auto w-full max-w-6xl">
+        <MemberProjectHeader />
+        <p className="py-24 text-center text-sm text-muted">확인하고 있어요…</p>
+      </div>
+    );
   }
 
   if (sessionState === 'error') {
-    return <NoticeScreen title={sessionError.title} description={sessionError.description} />;
-  }
-
-  if (submitted) {
     return (
-      <NoticeScreen
-        title="글이 등록됐어요"
-        description="새 글을 쓰려면 글쓰기 페이지로 다시 들어와 주세요."
-      />
+      <div className="mx-auto w-full max-w-6xl">
+        <MemberProjectHeader />
+        <NoticeScreen title={sessionError.title} description={sessionError.description} />
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="mb-1 text-2xl font-bold text-white">글쓰기</h1>
-      <p className="mb-8 text-sm text-muted">{authorName} 님으로 작성해요.</p>
+    <div className="mx-auto w-full max-w-6xl">
+      <MemberProjectHeader memberName={authorName} />
 
-      <div className="mb-6 flex justify-end">
-        <button
-          type="button"
-          onClick={() => setPreview((v) => !v)}
-          className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10"
-        >
-          {preview ? '편집으로 돌아가기' : '미리보기'}
-        </button>
+      <div className="border-b border-white/10 pb-10">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+          {editing ? 'Edit story' : 'New story'}
+        </p>
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
+          {editing ? '글 수정' : '새 글 작성'}
+        </h1>
+        <p className="mt-4 text-sm leading-6 text-white/45">
+          {authorName} 님의 배움을 Markdown으로 기록해요.
+        </p>
       </div>
 
-      {preview ? (
-        <article>
-          <h2 className="mb-4 text-2xl font-bold text-white">{title || '(제목 없음)'}</h2>
-          {thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumbnailUrl}
-              alt=""
-              className="mb-6 aspect-[16/9] w-full rounded-2xl object-cover"
-            />
-          ) : null}
-          <div className="whitespace-pre-wrap break-words text-base leading-relaxed text-white/90">
-            {content || '(본문 없음)'}
-          </div>
-        </article>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-white" htmlFor="post-title">
-              제목
-            </label>
-            <input
-              id="post-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-white" htmlFor="post-content">
-              본문
-            </label>
-            <textarea
-              id="post-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-              rows={12}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
-            />
-          </div>
-
-          <ImageUploader
-            value={thumbnailUrl}
-            onChange={setThumbnailUrl}
-            onUploadingChange={setImageUploading}
-          />
-
-          {submitError && <p className="text-sm text-red-400">{submitError}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting || imageUploading}
-            className="self-start rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+      <div className="mx-auto mt-10 w-full max-w-3xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/member/posts"
+            className="inline-flex min-h-11 items-center rounded-md text-sm text-white/45 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            {submitting ? '등록 중…' : imageUploading ? '이미지 업로드 중…' : '글 등록'}
+            <span aria-hidden>←</span>&nbsp; 내 글
+          </Link>
+          <button
+            type="button"
+            onClick={() => setPreview((current) => !current)}
+            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {preview ? '편집으로 돌아가기' : '미리보기'}
           </button>
-        </form>
-      )}
+        </div>
+
+        {preview ? (
+          <article className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 sm:p-8">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
+              Preview
+            </p>
+            <h2 className="break-keep text-3xl font-semibold tracking-[-0.04em] text-white">
+              {title || '(제목 없음)'}
+            </h2>
+            {summary ? <p className="mt-4 text-base leading-7 text-white/55">{summary}</p> : null}
+            {thumbnailUrl && !markdownIncludesImage(content, thumbnailUrl) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thumbnailUrl}
+                alt=""
+                className="my-8 aspect-[16/9] w-full rounded-2xl object-cover"
+              />
+            ) : (
+              <hr className="my-8 border-white/10" />
+            )}
+            <MarkdownContent content={content || '*(본문 없음)*'} />
+          </article>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white" htmlFor="post-title">
+                제목
+              </label>
+              <input
+                id="post-title"
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                maxLength={200}
+                required
+                className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+              />
+              <p className="mt-1.5 text-right text-xs text-white/35">{title.length}/200</p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white" htmlFor="post-summary">
+                한 줄 소개 <span className="font-normal text-white/35">(선택)</span>
+              </label>
+              <textarea
+                id="post-summary"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                maxLength={200}
+                rows={3}
+                className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+                placeholder="목록과 검색 결과에 보일 짧은 소개를 적어주세요."
+              />
+              <p className="mt-1.5 text-right text-xs text-white/35">{summary.length}/200</p>
+            </div>
+
+            <div>
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                <label className="text-sm font-medium text-white" htmlFor="post-content">
+                  본문
+                </label>
+                <span className="text-xs text-white/35">
+                  Markdown 문법을 사용할 수 있어요.
+                </span>
+              </div>
+              <textarea
+                id="post-content"
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                required
+                rows={24}
+                className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm leading-6 text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+                placeholder={'## 소제목\n\n배운 내용을 적어주세요.'}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-dashed border-white/15 p-4">
+              <p className="text-sm font-medium text-white">본문 이미지</p>
+              <p className="mt-1 text-xs leading-5 text-white/40">
+                이미지를 고르면 OCI에 업로드한 뒤 현재 본문 끝에 Markdown 이미지 문법을
+                추가해요.
+              </p>
+              <label className="mt-4 inline-flex min-h-11 cursor-pointer items-center rounded-full border border-white/15 px-4 py-2 text-sm text-white/65 transition hover:border-white/30 hover:text-white focus-within:ring-2 focus-within:ring-accent">
+                {bodyUploading ? '업로드 중…' : '이미지 추가'}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  disabled={bodyUploading}
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(event) => void handleBodyImages(Array.from(event.target.files ?? []))}
+                />
+              </label>
+              {bodyImageError ? (
+                <p role="alert" className="mt-2 text-sm text-red-400">
+                  {bodyImageError}
+                </p>
+              ) : null}
+            </div>
+
+            <ImageUploader
+              value={thumbnailUrl}
+              onChange={setThumbnailUrl}
+              onUploadingChange={setThumbnailUploading}
+            />
+
+            <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-5 py-4">
+              <p className="text-sm leading-6 text-orange-100/85">
+                {editing && postStatus === 'HIDDEN'
+                  ? '관리자가 숨긴 글은 수정해도 숨김 상태가 유지돼요.'
+                  : editing
+                    ? '저장한 내용은 공개 글에 즉시 반영돼요.'
+                    : '등록 즉시 방문자에게 공개돼요. 별도의 초안이나 승인 단계는 없어요.'}
+              </p>
+            </div>
+
+            {submitError ? (
+              <p role="alert" className="text-sm text-red-400">
+                {submitError}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={submitting || thumbnailUploading || bodyUploading}
+              className="min-h-12 self-stretch rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white outline-none transition-colors hover:bg-[#ff6a26] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 sm:self-start"
+            >
+              {submitting
+                ? editing
+                  ? '저장 중…'
+                  : '등록 중…'
+                : thumbnailUploading || bodyUploading
+                  ? '이미지 업로드 중…'
+                  : editing
+                    ? '변경사항 저장'
+                    : '글 등록'}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -240,6 +442,12 @@ function NoticeScreen({ title, description }: { title: string; description: stri
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-24 text-center">
       <p className="text-lg font-bold text-white">{title}</p>
       <p className="text-sm text-muted">{description}</p>
+      <Link
+        href="/member/posts"
+        className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/15 px-5 py-2 text-sm text-white/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        내 글로 돌아가기
+      </Link>
     </div>
   );
 }

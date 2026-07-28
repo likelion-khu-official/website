@@ -1,8 +1,8 @@
 package likelion.khu.website.staff;
 
 import likelion.khu.website.admin.WithMockAdminUser;
+import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffCreateRequest;
-import likelion.khu.website.staff.dto.StaffResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -35,7 +37,9 @@ class StaffControllerTest {
         req.setAdmissionYear(22);
         req.setPhotoUrl("https://example.com/photo.jpg");
         req.setSortOrder(1);
-        StaffResponse res = staffService.create(req, "admin@likelion.org");
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
+        StaffAdminResponse res = staffService.create(req, "admin@likelion.org");
         return res.getId();
     }
 
@@ -60,7 +64,11 @@ class StaffControllerTest {
         mockMvc.perform(get("/api/staff"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].createdBy").doesNotExist())
-                .andExpect(jsonPath("$[0].updatedBy").doesNotExist());
+                .andExpect(jsonPath("$[0].updatedBy").doesNotExist())
+                .andExpect(jsonPath("$[0].studentId").doesNotExist())
+                .andExpect(jsonPath("$[0].phone").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsent").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsentedAt").doesNotExist());
     }
 
     // ── POST /api/admin/staff ────────────────────────────────────────
@@ -74,7 +82,30 @@ class StaffControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("시현"))
                 .andExpect(jsonPath("$.sortOrder").value(1))
+                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createStaff_ConsentWithoutTimestamp_Returns400() throws Exception {
+        mockMvc.perform(post("/api/admin/staff")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"시현\",\"position\":\"회장\",\"department\":\"컴퓨터공학과\"," +
+                                "\"admissionYear\":22,\"photoUrl\":\"https://example.com/photo.jpg\"," +
+                                "\"sortOrder\":1,\"publicationConsent\":true}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void listStaff_Admin_ReturnsPrivateMetadataButNotPhone() throws Exception {
+        createStaff();
+
+        mockMvc.perform(get("/api/admin/staff"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].publicationConsent").value(true))
+                .andExpect(jsonPath("$[0].phone").doesNotExist());
     }
 
     @WithMockUser(roles = "ADMIN")

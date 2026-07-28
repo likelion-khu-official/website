@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findAllByOrderByCreatedAtAsc();
 
+    List<Member> findAllByPublicationConsentTrueAndOffboardedAtIsNullOrderByCreatedAtAsc();
+
     // 학번은 (학번, 기수) 유니크라 한 학번이 여러 row(재입부 이력)를 가질 수 있다 — 그래서
     // Optional이 아니라 List. 활동 중인 계정 딱 하나가 필요하면 findByStudentIdAndOffboardedAtIsNull을
     // 대신 쓸 것(둘 이상이 나올 수 있는 곳에서 Optional/단일 엔티티로 받으면

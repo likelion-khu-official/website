@@ -2,7 +2,7 @@
 name: db-access
 description: >-
   팀원이 SQLite DB(stage/prod) 접속 방법, sqlite3 직접 SQL 실행 가능 여부(Flyway 경계),
-  백업 상태를 물어볼 때 장찬욱(인프라)에게 매번 묻지 않고 `infra/db-access.md` 기반으로
+  백업 상태를 물어볼 때 장찬욱(인프라)에게 매번 묻지 않고 `infra/docs/db-access.md` 기반으로
   즉답한다. Use when 누군가 "DB 어떻게 봐요/접속해요", "stage DB에 직접 쿼리 날려도 되나요",
   "이 ALTER/INSERT 해도 되나요", "백업 있나요/DB 날아가면 어떻게 되나요", "dbclient 계정
   어떻게 받나요", "GUI로 보고 싶어요/화면으로 보고 싶어요/조회랑 조작 한 창에서 하고 싶어요",
@@ -13,7 +13,7 @@ description: >-
 # db-access — SQLite 접속 셀프서비스
 
 ## 원천
-답은 항상 [`infra/db-access.md`](../../../db-access.md)를 **그때 다시 읽어서** 준다 — 이 스킬 안에 내용을 복붙하지 않는다(문서가 바뀌면 스킬이 낡은 답을 줄 수 있으므로, drift 방지 원칙([[하네스 · 문서]] 학습) 그대로 적용).
+답은 항상 [`infra/docs/db-access.md`](../../../docs/db-access.md)를 **그때 다시 읽어서** 준다 — 이 스킬 안에 내용을 복붙하지 않는다(문서가 바뀌면 스킬이 낡은 답을 줄 수 있으므로, drift 방지 원칙([[하네스 · 문서]] 학습) 그대로 적용).
 
 ## 질문 유형별 처리
 
@@ -33,7 +33,7 @@ description: >-
 **"터미널 텍스트 말고 화면(GUI)으로 보고 싶어요 / 조회랑 조작을 한 창에서 하고 싶어요"**
 → `db-access.md`의 "GUI 뷰어(sqlite-web)" 섹션 기준으로 답한다. 핵심만 요약:
 - 조회는 read-only 웹 GUI(sqlite-web), 조작은 여전히 `dbclient` CLI — **하나로 합치지 않는다.** 이유: sqlite-web 같은 범용 GUI는 "DML은 허용, DDL은 차단" 같은 문장 단위 구분을 못 해서, 억지로 합치려면 `dbclient-sqlite-guard.sh`와 같은 차단 로직을 GUI 쪽에도 포크해서 심어야 하고 그러면 로직이 중복돼 한쪽만 고치고 한쪽을 놓치는 사고가 생기기 쉽다.
-- 대신 **화면만** `infra/db-dev-ui.sh stage`(또는 `prod`)로 tmux 한 창에 합쳐서 쓴다 — 왼쪽 pane은 `dbtunnel` 계정으로 연 SSH 포트포워딩(브라우저 GUI용), 오른쪽 pane은 `dbclient` CLI. 둘은 완전히 독립된 SSH 인증이라 하나가 다른 하나를 게이트하지 않는다.
+- 대신 **화면만** `infra/scripts/db-dev-ui.sh stage`(또는 `prod`)로 tmux 한 창에 합쳐서 쓴다 — 왼쪽 pane은 `dbtunnel` 계정으로 연 SSH 포트포워딩(브라우저 GUI용), 오른쪽 pane은 `dbclient` CLI. 둘은 완전히 독립된 SSH 인증이라 하나가 다른 하나를 게이트하지 않는다.
 - 아키텍처:
 ```
 개발자 로컬 — tmux 한 창(분할 pane)
@@ -65,7 +65,7 @@ description: >-
 - `dbtunnel` 미등록 상태면(질문자가 `dbclient`엔 있는데 `dbtunnel`엔 없는 경우) "장찬욱에게 같이 등록해달라고 요청하라"고 안내 — 등록 절차는 아래 "dbclient 계정 공개키 등록" 항목과 동일한 흐름을 `dbtunnel`에도 적용(공개키 재활용, `db-access.md`의 `dbtunnel` 등록 명령 참고).
 
 **"GUI 열어줘 / 터널 열어줘" (Claude가 그 자리에서 직접 열어주기)**
-→ `infra/db-dev-ui.sh`를 본인이 터미널에서 직접 돌리는 대신, 지금 이 대화의 Claude Code가 바로 SSH 터널을 열고 URL만 알려주는 방식. tmux 유무와 무관하게 모든 OS에서 동작하고, 특히 **Windows는 WSL 없이 네이티브 OpenSSH로 충분**하다(2026-07-24 실측: WSL 경유는 Git Bash의 경로 변환·DrvFs 권한(`/mnt/c`가 chmod 안 먹음) 때문에 오히려 더 복잡했고, PowerShell 내장 `ssh.exe`가 바로 됐다).
+→ `infra/scripts/db-dev-ui.sh`를 본인이 터미널에서 직접 돌리는 대신, 지금 이 대화의 Claude Code가 바로 SSH 터널을 열고 URL만 알려주는 방식. tmux 유무와 무관하게 모든 OS에서 동작하고, 특히 **Windows는 WSL 없이 네이티브 OpenSSH로 충분**하다(2026-07-24 실측: WSL 경유는 Git Bash의 경로 변환·DrvFs 권한(`/mnt/c`가 chmod 안 먹음) 때문에 오히려 더 복잡했고, PowerShell 내장 `ssh.exe`가 바로 됐다).
 
 **이 GUI가 뭘 할 수 있고 없는지 — 매번 이 표를 같이 출력해서 안내한다(2026-07-24 실측 검증됨, `docker exec`로 쓰기 시도 → `Read-only file system` 확인):**
 
@@ -84,7 +84,7 @@ GUI는 순수 조회 전용이고, 조작(DML)은 `dbclient` CLI로만 가능하
    - **Mac/Linux(Bash)**: `ssh -f -N -L <PORT>:127.0.0.1:<PORT> -o StrictHostKeyChecking=accept-new -i ~/.ssh/<개인키> dbtunnel@<호스트>`
 2. 조작용 인터랙티브 `dbclient` 세션을 **별도 터미널 창으로 같이** 연다(사용자가 직접 SQL을 타이핑할 수 있게):
    - **Windows(PowerShell)**: `Start-Process powershell -ArgumentList '-NoExit','-Command',"ssh.exe -i \"<개인키 경로>\" dbclient@<호스트> <env>"`
-   - **Mac/Linux, tmux 있으면**: `infra/db-dev-ui.sh <env>`를 그대로 실행해 tmux 분할창으로; tmux 없으면 새 터미널 탭(`wt.exe new-tab` 등)이나 안내 텍스트로 대체.
+   - **Mac/Linux, tmux 있으면**: `infra/scripts/db-dev-ui.sh <env>`를 그대로 실행해 tmux 분할창으로; tmux 없으면 새 터미널 탭(`wt.exe new-tab` 등)이나 안내 텍스트로 대체.
 3. `curl -sI`(Mac/Linux) 또는 `Invoke-WebRequest`(Windows)로 `http://127.0.0.1:<PORT>/`가 실제로 200을 주는지 확인한 뒤에만 "브라우저에서 `http://127.0.0.1:<PORT>` 열어보세요, dbclient 창은 따로 떴습니다"라고 안내한다 — 확인 없이 URL만 던지지 않는다.
 4. 세션 종료 요청이 오면 **문자열 매칭(`pkill -f "ssh ..."`)으로 죽이지 않는다** — 그 명령 자체가 자기 자신의 프로세스 목록과 매칭돼 의도치 않게 죽는 사고가 났다(2026-07-24 실측). 포트로 소유 프로세스를 찾아서 죽인다:
    - Windows: `Stop-Process -Id (Get-NetTCPConnection -LocalPort <PORT>).OwningProcess -Force`
@@ -99,7 +99,7 @@ GUI는 순수 조회 전용이고, 조작(DML)은 `dbclient` CLI로만 가능하
 1. `db-access.md`의 "접근 대상" 목록(기본: 백엔드 신선우·안시현, PM 김우진)에 있는 사람인지 확인. 목록 밖(예: 프론트·디자인)이면 등록 전에 예외로 진행할지 장찬욱에게 되묻는다 — 말없이 등록하지 않는다.
 2. 받은 공개키 문자열이 `ssh-ed25519 AAAA...` 형식인지 확인 (사설키가 아닌지 — `-----BEGIN`으로 시작하면 사설키이므로 절대 등록하지 말고 알려라). GitHub 재활용이면 `https://github.com/{아이디}.keys`로 직접 가져와서 확인.
 3. stage 전용으로 못박을지, stage+prod 둘 다 줄지 확인(기본은 인자 없이 등록해서 `SSH_ORIGINAL_COMMAND`로 접속할 때 고르게 하는 것 — 이러면 stage+prod 둘 다 한 줄로 됨. 특정 사람만 stage 전용으로 제한하고 싶으면 `dbclient-sqlite-guard.sh stage`처럼 인자를 박아라).
-4. `db-access.md`의 등록 명령 형식(`command="/home/ubuntu/website/infra/dbclient-sqlite-guard.sh",no-pty,...` — bare `sqlite3`가 아니라 반드시 이 래퍼 경유, 이유는 db-access.md 참고) 그대로 만들어 서버에 `sudo tee -a /home/dbclient/.ssh/authorized_keys`로 추가 — **원격 서버 상태를 바꾸는 작업이므로 실행 전 반드시 사용자에게 최종 확인**을 받는다. **같은 공개키를 stage용 한 줄 + prod용 한 줄로 나눠 등록하지 않는다** — OpenSSH가 처음 매치되는 한 줄만 적용하고 나머지는 무시해서 실제로 안 먹힌다(db-access.md 참고).
+4. `db-access.md`의 등록 명령 형식(`command="/home/ubuntu/website/infra/scripts/dbclient-sqlite-guard.sh",no-pty,...` — bare `sqlite3`가 아니라 반드시 이 래퍼 경유, 이유는 db-access.md 참고) 그대로 만들어 서버에 `sudo tee -a /home/dbclient/.ssh/authorized_keys`로 추가 — **원격 서버 상태를 바꾸는 작업이므로 실행 전 반드시 사용자에게 최종 확인**을 받는다. **같은 공개키를 stage용 한 줄 + prod용 한 줄로 나눠 등록하지 않는다** — OpenSSH가 처음 매치되는 한 줄만 적용하고 나머지는 무시해서 실제로 안 먹힌다(db-access.md 참고).
 5. 등록 후 `db-access.md`의 "현재 등록 상태"를 실제로 갱신할지 장찬욱에게 물어라.
 
 요청자가 장찬욱이 아니면(팀원 본인이 스스로 등록하려는 시도) — `dbclient`는 sudo가 없어 본인이 직접 등록 불가능함을 알리고 장찬욱에게 `.pub`을 전달하라고 안내만 한다.

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
@@ -39,7 +40,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public List<MemberResponse> getAll() {
-        return memberRepository.findAllByOrderByCreatedAtAsc().stream()
+        return memberRepository.findAllByPublicationConsentTrueAndOffboardedAtIsNullOrderByCreatedAtAsc().stream()
                 .map(MemberResponse::from)
                 .toList();
     }
@@ -64,10 +65,14 @@ public class MemberService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 학번이에요.");
         }
         String emoji = EMOJI_POOL.get(RANDOM.nextInt(EMOJI_POOL.size()));
+        LocalDateTime consentedAt = validateConsent(
+                request.getPublicationConsent(), request.getPublicationConsentedAt()
+        );
         // 초기 비밀번호 = 전화번호(BCrypt 해시). 첫 로그인 때 반드시 바꾸게 되므로 평문 그대로 저장하지 않는다.
         Member member = Member.create(
                 request.getName(), request.getRoles(), request.getCohort(),
-                emoji, request.getPhotoUrl(), request.getJoinReason(), createdBy,
+                emoji, request.getPhotoUrl(), request.getJoinReason(), request.getDepartment(),
+                Boolean.TRUE.equals(request.getPublicationConsent()), consentedAt, createdBy,
                 request.getStudentId(), request.getPhone(), passwordEncoder.encode(request.getPhone())
         );
         memberRepository.save(member);
@@ -78,7 +83,26 @@ public class MemberService {
     public MemberAdminResponse update(Long id, MemberUpdateRequest request, String updatedBy) {
         Member member = memberRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요."));
-        member.update(request.getName(), request.getRoles(), request.getPhotoUrl(), request.getJoinReason(), updatedBy);
+        if (request.getPublicationConsent() == null && request.getPublicationConsentedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게재 동의 여부와 동의 시각을 함께 입력해주세요.");
+        }
+        LocalDateTime consentedAt = request.getPublicationConsent() == null
+                ? null
+                : validateConsent(request.getPublicationConsent(), request.getPublicationConsentedAt());
+        member.update(
+                request.getName(), request.getRoles(), request.getPhotoUrl(), request.getJoinReason(),
+                request.getDepartment(), request.getPublicationConsent(), consentedAt, updatedBy
+        );
         return MemberAdminResponse.from(member);
+    }
+
+    private LocalDateTime validateConsent(Boolean consent, LocalDateTime consentedAt) {
+        if (Boolean.TRUE.equals(consent) && consentedAt == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게재 동의 시각을 입력해주세요.");
+        }
+        if (!Boolean.TRUE.equals(consent) && consentedAt != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게재 미동의 상태에는 동의 시각을 입력할 수 없어요.");
+        }
+        return Boolean.TRUE.equals(consent) ? consentedAt : null;
     }
 }

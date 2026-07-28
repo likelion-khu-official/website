@@ -13,7 +13,13 @@ import {
 } from '@/lib/adminApi';
 import type { MemberAdminSummary, MemberRole } from '@shared/types/member';
 
-const ROLE_OPTIONS: MemberRole[] = ['PM', 'FE', 'BE', 'DESIGN', 'INFRA'];
+const ROLE_OPTIONS: MemberRole[] = [
+  'PRESIDENT', 'VICE_PRESIDENT',
+  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
+  'PLANNING_HEAD', 'PLANNING_MEMBER',
+  'PR_HEAD', 'PR_MEMBER',
+  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
+];
 
 const emptyForm = { name: '', studentId: '', phone: '', cohort: '', roles: [] as MemberRole[] };
 
@@ -163,7 +169,7 @@ export default function MemberManagement() {
         <button
           type="button"
           onClick={() => setReloadIndex((v) => v + 1)}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           다시 시도
         </button>
@@ -172,13 +178,13 @@ export default function MemberManagement() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">멤버 관리</h1>
         <button
           type="button"
           onClick={() => router.push('/admin')}
-          className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10"
+          className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
         >
           ← 대시보드
         </button>
@@ -189,7 +195,7 @@ export default function MemberManagement() {
         <button
           type="button"
           onClick={() => setCreateOpen((v) => !v)}
-          className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           {createOpen ? '닫기' : '+ 부원 등록'}
         </button>
@@ -206,21 +212,21 @@ export default function MemberManagement() {
               onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="이름"
               required
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <input
               value={createForm.studentId}
               onChange={(e) => setCreateForm((p) => ({ ...p, studentId: e.target.value }))}
               placeholder="학번(로그인 아이디)"
               required
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <input
               value={createForm.phone}
               onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
               placeholder="전화번호(초기 비밀번호)"
               required
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <input
               value={createForm.cohort}
@@ -228,7 +234,7 @@ export default function MemberManagement() {
               placeholder="기수"
               type="number"
               required
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
+              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -237,7 +243,7 @@ export default function MemberManagement() {
                 type="button"
                 key={role}
                 onClick={() => toggleCreateRole(role)}
-                className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                className={`min-h-11 rounded-full border px-3 py-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
                   createForm.roles.includes(role)
                     ? 'border-white/40 bg-white/20 text-white'
                     : 'border-white/10 bg-white/5 text-muted hover:text-white'
@@ -251,7 +257,7 @@ export default function MemberManagement() {
           <button
             type="submit"
             disabled={createSubmitting || createForm.roles.length === 0}
-            className="self-start rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+            className="min-h-11 self-stretch rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 sm:self-start"
           >
             {createSubmitting ? '등록 중…' : '등록하기'}
           </button>
@@ -277,7 +283,7 @@ export default function MemberManagement() {
                     <input
                       value={editForm.name}
                       onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none focus:border-white/30"
+                      className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
                     />
                     <div className="flex flex-wrap gap-2">
                       {ROLE_OPTIONS.map((role) => (
@@ -285,7 +291,7 @@ export default function MemberManagement() {
                           type="button"
                           key={role}
                           onClick={() => toggleEditRole(role)}
-                          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                          className={`min-h-11 rounded-full border px-3 py-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
                             editForm.roles.includes(role)
                               ? 'border-white/40 bg-white/20 text-white'
                               : 'border-white/10 bg-white/5 text-muted hover:text-white'
@@ -300,14 +306,14 @@ export default function MemberManagement() {
                         type="button"
                         disabled={busy || editForm.roles.length === 0}
                         onClick={() => handleEditSubmit(member.id)}
-                        className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white hover:bg-white/20 disabled:opacity-40"
+                        className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                       >
                         저장
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10"
+                        className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
                       >
                         취소
                       </button>
@@ -320,7 +326,7 @@ export default function MemberManagement() {
                         {member.emoji} {member.name}
                         {member.offboarded && <span className="ml-2 text-xs text-red-400">오프보딩됨</span>}
                       </p>
-                      <p className="text-sm text-muted">
+                      <p className="break-words text-sm text-muted">
                         {member.studentId} · {member.cohort}기 · {member.roles.join(', ')}
                       </p>
                     </div>
@@ -331,7 +337,7 @@ export default function MemberManagement() {
                             type="button"
                             disabled={busy}
                             onClick={() => startEdit(member)}
-                            className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+                            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                           >
                             수정
                           </button>
@@ -339,7 +345,7 @@ export default function MemberManagement() {
                             type="button"
                             disabled={busy}
                             onClick={() => handleResetPassword(member)}
-                            className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+                            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                           >
                             비밀번호 초기화
                           </button>
@@ -347,7 +353,7 @@ export default function MemberManagement() {
                             type="button"
                             disabled={busy}
                             onClick={() => handleOffboard(member)}
-                            className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+                            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                           >
                             오프보딩
                           </button>

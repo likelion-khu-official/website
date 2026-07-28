@@ -5,7 +5,10 @@ import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
 import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,6 +41,13 @@ public class RecruitmentManagementService {
                 .map(RecruitmentStatus::isOpen)
                 .orElse(false);
         return new RecruitmentPublicStatusResponse(open);
+    }
+
+    public List<SubscriberSummary> getSubscribers() {
+        return subscriptionRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(SubscriberSummary::from)
+                .toList();
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)

@@ -2,6 +2,7 @@ package likelion.khu.website.staff;
 
 import jakarta.validation.Valid;
 import likelion.khu.website.admin.auth.AdminPrincipal;
+import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffCreateRequest;
 import likelion.khu.website.staff.dto.StaffResponse;
 import likelion.khu.website.staff.dto.StaffUpdateRequest;
@@ -26,8 +27,14 @@ public class StaffController {
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @GetMapping("/api/admin/staff")
+    public List<StaffAdminResponse> adminList() {
+        return staffService.getAllForAdmin();
+    }
+
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/api/admin/staff")
-    public ResponseEntity<StaffResponse> create(
+    public ResponseEntity<StaffAdminResponse> create(
             @Valid @RequestBody StaffCreateRequest request,
             Authentication authentication) {
         AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
@@ -37,7 +44,7 @@ public class StaffController {
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PatchMapping("/api/admin/staff/{id}")
-    public StaffResponse update(
+    public StaffAdminResponse update(
             @PathVariable Long id,
             @Valid @RequestBody StaffUpdateRequest request,
             Authentication authentication) {

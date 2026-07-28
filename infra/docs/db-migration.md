@@ -56,6 +56,8 @@ SPRING_FLYWAY_CLEAN_DISABLED=true
 
 `clean` 자체가 코드 레벨에서 불가. 체크섬 불일치 시 앱 기동 실패 → CD 헬스체크 실패 → 자동 롤백.
 
+**이 자동 롤백은 앱 이미지만 되돌리고 DB는 안 건드린다** — 행을 삭제하는 마이그레이션의 배포·복구 절차는 `infra/CLAUDE.md`("롤백" 절)·`infra/db-access.md`("백업 전략") 참고.
+
 ---
 
 ## SQLite 제약 — 컬럼 변경 시 주의

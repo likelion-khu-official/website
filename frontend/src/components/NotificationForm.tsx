@@ -48,8 +48,8 @@ export default function NotificationForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full max-w-sm mx-auto items-center">
-      <div className="flex gap-2 w-full">
+    <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl flex-col items-center gap-3">
+      <div className="flex w-full flex-col gap-2 sm:flex-row">
         <input
           type="email"
           value={email}
@@ -57,12 +57,12 @@ export default function NotificationForm() {
           placeholder="이메일 주소를 입력해 주세요"
           required
           disabled={state === 'loading' || state === 'success'}
-          className="flex-1 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm text-white placeholder:text-muted outline-none focus:border-white/40 disabled:opacity-40"
+          className="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm text-white placeholder:text-muted outline-none focus:border-white/40 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40"
         />
         <button
           type="submit"
           disabled={!agreed || state === 'loading' || state === 'success'}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white whitespace-nowrap hover:bg-white/20 transition-colors disabled:opacity-40"
+          className="min-h-11 w-full whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40 sm:w-auto"
         >
           {state === 'loading' ? '신청 중…' : state === 'success' ? '완료' : '지원기간 신청 알림 받기'}
         </button>
@@ -76,13 +76,13 @@ export default function NotificationForm() {
           <li>· 보유 기간 — 모집 종료 시 또는 구독 해지 요청 시까지</li>
           <li>· 동의를 거부할 수 있으며, 거부 시 알림 메일을 받을 수 없어요</li>
         </ul>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-white">
+        <label className="flex min-h-11 cursor-pointer items-start gap-2 py-1 text-sm leading-6 text-white">
           <input
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
             disabled={state === 'loading' || state === 'success'}
-            className="h-4 w-4 accent-white"
+            className="mt-1 h-4 w-4 shrink-0 accent-white"
           />
           개인정보 수집·이용에 동의해요 (필수)
         </label>
