@@ -48,6 +48,8 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                // 모집 상태(공개용, subscriberCount 없음) — 랜딩/‌recruit 페이지가 평소·모집중을 가르는 데 씀(#151)
+                .requestMatchers("/api/recruitment/status").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
 

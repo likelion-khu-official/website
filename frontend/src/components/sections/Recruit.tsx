@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import NotificationForm from '@/components/NotificationForm';
+import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
+  const { recruiting } = useRecruitmentStatus();
 
   return (
     <section
@@ -27,9 +29,21 @@ export default function Recruit() {
         </p>
       </div>
 
-      {/* 평소 모드: 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
+      {/* 모집중: 지원 안내(임시 안내 — 지원폼 #152 완성 전까지) / 평소: 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
       <div className="scroll-reveal">
-        {open ? (
+        {recruiting ? (
+          <a
+            href="/recruit"
+            className="min-h-11 rounded-full border border-white/10 bg-white/[0.07] text-white outline-none transition-[background-color,color,transform] hover:-translate-y-0.5 hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-accent"
+            style={{
+              padding: 'clamp(14px, 1.4vw, 22px) clamp(32px, 3.2vw, 56px)',
+              fontSize: 'clamp(16px, 1.35vw, 24px)',
+              letterSpacing: '-0.8px',
+            }}
+          >
+            지금 모집 중 — 지원 안내 보기
+          </a>
+        ) : open ? (
           <NotificationForm />
         ) : (
           <button
