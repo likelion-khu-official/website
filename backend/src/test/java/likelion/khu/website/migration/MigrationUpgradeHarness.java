@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collection;
 
 /**
  * "이미 앞 버전까지 적용된, 실데이터가 있는 DB에 새 마이그레이션이 얹혔을 때"를 재현하는
@@ -53,6 +54,25 @@ public final class MigrationUpgradeHarness {
             st.execute(sql);
         } catch (SQLException e) {
             throw new RuntimeException("시드 SQL 실행 실패: " + sql, e);
+        }
+    }
+
+    /**
+     * {@code legacyValues} 각각을 한 행씩 반복 삽입한다 — {@code insertSqlTemplate}은
+     * 순번({@code %1$d})과 값({@code %2$s})을 채워 넣는 {@link String#formatted} 포맷
+     * 문자열이다(예: {@code "insert into member_roles (member_id, role) values (%1$d, '%2$s')"}).
+     *
+     * CHECK 제약(enum)을 좁히거나 값 이름을 바꾸는 마이그레이션을 새로 쓸 때, 그 직전
+     * 버전까지 허용됐던 값 *전체*를 이걸로 심고 {@link #migrateToLatest}를 호출하면
+     * "예전 값을 만나도 안 죽는지"가 자동으로 검증된다 — naive `insert ... select`처럼
+     * 값 매핑을 빠뜨린 마이그레이션은 여기서 즉시 예외를 던져 테스트를 실패시킨다
+     * (V6 배포 사고, 2026-07-27 — 시드가 6개 중 1개뿐이라 이 안전망이 못 걸렸다).
+     * 상세 절차는 db-man 스킬 "enum 값 추가/변경" 절 참고.
+     */
+    public static void seedEach(String jdbcUrl, String insertSqlTemplate, Collection<String> legacyValues) {
+        int seq = 1;
+        for (String value : legacyValues) {
+            execute(jdbcUrl, insertSqlTemplate.formatted(seq++, value));
         }
     }
 }

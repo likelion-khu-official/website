@@ -84,6 +84,22 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$[0].title").value("멋사 홈페이지"));
     }
 
+    @Test
+    void list_Public_LimitsResultsInBackend() throws Exception {
+        Member member = createMember("2020000055", "시현");
+        for (int index = 0; index < 11; index++) {
+            createProject(member.getId());
+        }
+
+        mockMvc.perform(get("/api/projects").param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(10));
+
+        mockMvc.perform(get("/api/projects"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(11));
+    }
+
     // ── GET /api/projects/{id} ───────────────────────────────────────
 
     @Test
