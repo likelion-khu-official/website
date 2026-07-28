@@ -9,6 +9,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +26,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   V6_ROLE_MAPPING·V6_DELETED_ROLES에 선언된 대로 처리됐는지 확인한다. 시드가 완전하므로
  *   이 테스트는 "죽지 않는지"까지 함께 검증한다 — raw copy 같은 순진한 마이그레이션이었다면
  *   여기서 CHECK 위반으로 즉시 실패했을 것이다(실제 배포 사고, 07-27, #253으로 수정).
+ *
+ * 테스트 3 — V6의 posts.author_part → author_part_json 변환 검증:
+ *   member_roles/project_participants와 달리 posts.author_part는 애초에 CHECK가 없는
+ *   자유 텍스트라, 값 매핑을 빠뜨려도 배포 중 죽지 않는다(그래서 테스트 2의 안전망이
+ *   여기엔 안 통한다 — "안 죽는다"와 "맞게 변환된다"는 다른 질문). V3_LEGACY_ROLES 전부 +
+ *   null/빈 문자열/매핑표에 없는 임의값까지 심어서 V6의 CASE 절이 실제로 의도한
+ *   JSON 배열을 만드는지 하나씩 확인한다.
  */
 class AiMemberRoleUpgradeTest {
 
@@ -141,8 +149,92 @@ class AiMemberRoleUpgradeTest {
         }
     }
 
+    @Test
+    void v6ConvertsPostAuthorPartToJsonForEveryLegacyValueAndEdgeCase() throws SQLException {
+        String dbUrl = "jdbc:sqlite:" + tempDir.resolve("v6-post-author-part.db");
+
+        MigrationUpgradeHarness.migrateTo(dbUrl, "5");
+
+        // V3_LEGACY_ROLES 전부를 posts.author_part에도 심는다 — member_roles와 동일한
+        // 완전성 원칙(부분집합 금지)을 여기도 그대로 적용.
+        Map<Integer, String> postIdToLegacyRole = new LinkedHashMap<>();
+        int id = 1;
+        for (String role : V3_LEGACY_ROLES) {
+            insertPost(dbUrl, id, "'%s'".formatted(role));
+            postIdToLegacyRole.put(id, role);
+            id++;
+        }
+
+        // CHECK가 없는 자유 텍스트라 그동안 실제로 있을 수 있었던 경계값들도 같이 심는다.
+        int nullPostId = id++;
+        insertPost(dbUrl, nullPostId, "null");
+        int emptyPostId = id++;
+        insertPost(dbUrl, emptyPostId, "''");
+        int unknownPostId = id++;
+        String unknownValue = "GUEST";
+        insertPost(dbUrl, unknownPostId, "'%s'".formatted(unknownValue));
+
+        MigrationUpgradeHarness.migrateToLatest(dbUrl);
+
+        try (Connection connection = DriverManager.getConnection(dbUrl);
+             Statement statement = connection.createStatement()) {
+
+            for (Map.Entry<Integer, String> entry : postIdToLegacyRole.entrySet()) {
+                int postId = entry.getKey();
+                String role = entry.getValue();
+                if (V6_DELETED_ROLES.contains(role)) {
+                    assertThat(jsonArrayLength(statement, postId))
+                            .as("posts(%d): 폐지된 role %s는 빈 배열이어야 함", postId, role)
+                            .isZero();
+                } else {
+                    String expected = V6_ROLE_MAPPING.get(role);
+                    assertThat(jsonArrayLength(statement, postId))
+                            .as("posts(%d): author_part %s → [%s] 매핑", postId, role, expected)
+                            .isEqualTo(1);
+                    assertThat(jsonFirstElement(statement, postId))
+                            .as("posts(%d): author_part %s → %s 매핑", postId, role, expected)
+                            .isEqualTo(expected);
+                }
+            }
+
+            assertThat(jsonArrayLength(statement, nullPostId))
+                    .as("posts: author_part null → 빈 배열")
+                    .isZero();
+            assertThat(jsonArrayLength(statement, emptyPostId))
+                    .as("posts: author_part 빈 문자열 → 빈 배열")
+                    .isZero();
+
+            // 매핑표에 없는(V3_LEGACY_ROLES에도 없던) 값은 유실되지 않고 그대로 보존돼야 한다.
+            assertThat(jsonArrayLength(statement, unknownPostId))
+                    .as("posts: 매핑표에 없는 값 %s는 유실되지 않고 보존돼야 함", unknownValue)
+                    .isEqualTo(1);
+            assertThat(jsonFirstElement(statement, unknownPostId)).isEqualTo(unknownValue);
+        }
+    }
+
+    private void insertPost(String dbUrl, int id, String authorPartLiteral) {
+        MigrationUpgradeHarness.execute(dbUrl, """
+                insert into posts (id, slug, title, content, author_name, author_part, status, created_at, updated_at)
+                values (%d, 'slug-%d', 'title-%d', 'content', 'author', %s, 'PUBLISHED', '2026-01-01T00:00:00', '2026-01-01T00:00:00')
+                """.formatted(id, id, id, authorPartLiteral));
+    }
+
+    private int jsonArrayLength(Statement statement, int postId) throws SQLException {
+        return count(statement,
+                "select json_array_length(author_part_json) from posts where id = %d".formatted(postId));
+    }
+
+    private String jsonFirstElement(Statement statement, int postId) throws SQLException {
+        try (ResultSet result = statement.executeQuery(
+                "select json_extract(author_part_json, '$[0]') from posts where id = %d".formatted(postId))) {
+            result.next();
+            return result.getString(1);
+        }
+    }
+
     private int count(Statement statement, String sql) throws SQLException {
         try (ResultSet result = statement.executeQuery(sql)) {
+            result.next();
             return result.getInt(1);
         }
     }
