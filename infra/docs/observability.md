@@ -24,7 +24,7 @@ OCI Monitoring
   └── 전부 같은 ONS Topic으로 발행
 
 OCI Notifications (ONS)
-  └── Topic: likelion-ops-alerts → 이메일 구독(동아리 메일 + PM 메일)
+  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/handoff.md` "계정 인벤토리" 참고)
 ```
 
 ## IAM — instance principal
@@ -48,9 +48,13 @@ OCI Notifications (ONS)
 
 **백업 알람이 dead man's switch인 이유**: 백업 자체(`backup-db.sh`)는 2026-07-04부터 이미 매일 잘 돌고 있었음(cron+버킷 실측 확인됨, #83 조사 과정에서 재확인). 근데 "잘 되고 있다"를 사람이 매번 SSH로 들어가 확인해야 아는 상태였음 — 이 알람은 그 확인을 자동화한 것. 값 자체(`=1`)엔 의미가 없고, 신호가 26시간 동안 **안 들어오는 것** 자체가 이상 신호. cron이 안 돌았든, 서버가 죽었든, 백업 스크립트가 중간에 실패했든 원인 불문하고 다 잡힘. 26시간 = 매일 18:00 UTC 실행 주기(24h) + 2시간 버퍼.
 
+**이 신호의 한계 — "자동으로 됐는지"는 구분 못 함(2026-07-27 발견)**: `push-backup-metric.py`는 `backup-db.sh`가 성공할 때마다 호출되는데, 이건 cron이 자동으로 돌렸을 때든 사람이 수동으로 재실행했을 때든 완전히 같은 코드 경로를 탄다. 그래서 대시보드에서 이 지표 추이를 그래프로 보면, 중간에 자동화가 실패해서 수동으로 살렸던 날도 "성공"으로 남아 끊김이 안 보인다 — 실제로 2026-07-08~09 CRLF 사고(위 "발견된 실제 장애" 참고) 당일도 그래프상으론 끊김 없이 이어져 있다. 즉 **이 지표(그리고 알람)는 "데이터가 보호되고 있는가"는 정확히 감지하지만, "자동화가 사람 손 안 타고 잘 돌고 있는가"는 전혀 알려주지 않는다** — 후자를 알고 싶으면 자동/수동을 구분하는 별도 신호가 필요한데 아직 없음.
+
 **디스크 사용률이 custom metric인 이유**: OCI의 Compute Instance Monitoring 플러그인은 CPU/메모리/디스크 I/O(바이트·IOPS)는 기본 제공하지만 "디스크가 몇 % 찼는가"는 제공하지 않음(공식 문서로 확인 — 하이퍼바이저/블록스토리지 레벨에선 파일시스템 내부를 모름, OS 안에서만 알 수 있는 정보). 그래서 서버 위 스크립트가 직접 `df` 값을 계산해서 채워 넣음.
 
 **git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) `git pull`이 조용히 실패해 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복). `infra/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
+
+**알려진 사각지대(2026-07-26 발견)**: 이 알람은 `git status --porcelain`(작업트리의 미커밋 변경)만 본다 — **서버 로컬 브랜치가 이미 커밋된 채로 `origin`과 갈라져 있는 것(diverged)은 전혀 못 잡는다.** 실제로 서버의 `dev`가 `origin/dev`와 26개(로컬 전용) vs 16개(origin 전용) 커밋으로 분기돼 있었는데, 워킹트리는 clean이라 이 알람은 계속 OK였다. 원인은 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 쌓인 것으로 추정(`pm/docs/learnings.md`의 "OCI 서버 배포 키 read-only" 항목 참고). 대응은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
 
 ### 알람 튜닝 사고 모델 — 쿼리 윈도우 · pending-duration · cron 주기의 관계
 
@@ -88,10 +92,10 @@ k_min = ceil( (P - W) / C ) + 1
 
 | 파일 | 역할 |
 |---|---|
-| `infra/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
-| `infra/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
-| `infra/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
-| `infra/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
+| `infra/scripts/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
+| `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
+| `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
+| `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
 
 서버의 `~/oci-monitor-venv`(venv, oci SDK만 설치)는 레포에 없음 — 최초 세팅 시 아래로 재현:
 ```bash
@@ -102,9 +106,10 @@ python3 -m venv ~/oci-monitor-venv
 
 ## 알림 — 어디로 오고 무엇을 근거로 판단하나
 
-- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(동아리 메일, PM 메일)
+- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(장찬욱·김우진 개인 메일, 2026-07-27 실측 확인 — 이 문서·아래 표에 있던 "동아리 메일" 표기는 실제와 달라 정정함). 디스크·메모리·백업부재(prod/stage)·git드리프트 5개 알람 전부 이 토픽 하나로만 발행되므로(`destinations` 실측 확인), **이메일 하나를 이 토픽에 구독시키면 5개 알람 전부를 받는다** — 알람별로 따로 등록할 필요 없음.
 - **판단 근거**: 메일 제목/본문에 어떤 Alarm이 왜 울렸는지 그대로 담겨 있음(위 표의 body 텍스트). 디스크/메모리는 "지금 값이 임계치를 넘었다", 백업은 "마지막 성공 신호로부터 26시간 지났다"
 - **확인 방법**: OCI 콘솔 `Observability & Management → Monitoring → Alarm Definitions`(컴파트먼트는 루트, 리전은 `ap-tokyo-1`로 맞출 것 — 안 그러면 안 보임, 실제로 헷갈렸던 지점)
+- **알람 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md#alarm-response)
 
 ## 실측 검증 (2026-07-08)
 
@@ -271,4 +276,4 @@ UptimeRobot(①②)은 이미 Discord 웹훅이 붙어 있어서, 같은 채널�
 - **`SLACK` 프로토콜 → Discord의 Slack 호환 URL**(`.../slack` 접미사): Discord가 Slack 웹훅 포맷을 흉내 낼 수 있다는 점을 이용하려 했으나, OCI가 구독 생성 시점에 endpoint URL이 `https://hooks.slack.com/services/`로 시작하는지 서버 단에서 강제 검증(`InvalidParameter`) — Discord URL은 이 시점에서 바로 거부됨.
 - **`CUSTOM_HTTPS` → Discord 웹훅 URL 직결**: 구독은 생성되지만 `PENDING`에서 못 벗어남. HTTPS 기반 구독은 OCI가 확인용 POST를 endpoint로 보내 승인받는 핸드셰이크가 필요한데, 그 payload가 Discord 웹훅이 기대하는 JSON 스키마(`content`/`embeds` 등)가 아니라서 Discord가 조용히 버림(채널에 아무 것도 안 옴, 실측 확인) — 영원히 PENDING이라 삭제함.
 
-두 실패 모두 원인이 같다: **OCI ONS는 Discord 포맷을 전혀 모른다.** 제대로 연결하려면 ONS 페이로드를 받아 Discord 포맷으로 바꿔 재전송하는 중계(예: Oracle Functions)가 새로 필요한데, 이건 새 리소스를 추가하는 별도 작업 범위라 이번엔 보류 — **현재는 이메일(동아리 메일 + PM 메일)로만 수신**하는 걸로 확정. Discord 연동이 필요해지면 별도 미션으로 다룰 것.
+두 실패 모두 원인이 같다: **OCI ONS는 Discord 포맷을 전혀 모른다.** 제대로 연결하려면 ONS 페이로드를 받아 Discord 포맷으로 바꿔 재전송하는 중계(예: Oracle Functions)가 새로 필요한데, 이건 새 리소스를 추가하는 별도 작업 범위라 이번엔 보류 — **현재는 이메일(장찬욱·김우진 개인 메일)로만 수신**하는 걸로 확정. Discord 연동이 필요해지면 별도 미션으로 다룰 것.

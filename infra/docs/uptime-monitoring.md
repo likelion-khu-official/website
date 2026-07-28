@@ -16,6 +16,31 @@
 
 → 외부 무료 SaaS(UptimeRobot)로 결정. ③(디스크/메모리 사전경고)은 이 문서 범위 밖 — OCI Monitoring/Alarm/Notifications로 별도 구축됨(디스크는 custom metric, 메모리는 네이티브 `MemoryUtilization`).
 
+```
+                    UptimeRobot (서버 밖, 5분마다)
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌────────────────┐
+│ api.prod...    │   │ api.stage...   │   │ likelion-khu.com │
+│ /actuator/health│   │ /actuator/health│   │ dev.likelion...  │
+└───────┬────────┘   └───────┬────────┘   └────────┬────────┘
+        │                   │                     │
+        ▼                   ▼                     ▼
+     DOWN이면?           DOWN이면?              DOWN이면?
+        │                   │                     │
+        └─────────┬─────────┘                     │
+                  ▼                               ▼
+         둘 다 DOWN → 인스턴스(OCI) 문제         프론트만 DOWN → Vercel 문제
+         하나만 DOWN → 그 서비스 개별 문제         (이 서버·인프라와 무관)
+                  │
+                  ▼
+         이메일 + Discord 웹훅(초 단위, 이메일보다 빠름)
+                  │
+                  ▼
+         RUNBOOK.md 1-5절 "UptimeRobot — DOWN"
+```
+
 ## 계정 및 ToS
 
 - **가입**: 동아리 공식 메일로 신규 가입 (개인 계정 아님 — 특정 인원 의존도 낮추기 위함)
@@ -78,3 +103,5 @@ prod 컨테이너 재생성 작업 중 태그 미지정으로 약 2~3분간 실�
 | ③ 디스크/메모리 사전경고 | ✅ OCI Monitoring/Alarm/Notifications — [`observability.md`](./observability.md) |
 | ④ 백업 확신 | ✅ 같은 패턴(custom metric + Absence Alarm)으로 완료 — [`observability.md`](./observability.md) |
 | ⑤ 알림 위치·판단 근거 문서화 | ✅ 이 문서(①②) + [`observability.md`](./observability.md)(③④) |
+
+**DOWN 알림 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md#alarm-uptime-down) "1-5. UptimeRobot — DOWN" 절
