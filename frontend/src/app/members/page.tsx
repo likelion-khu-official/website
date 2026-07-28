@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { Member } from '@shared/types/member';
 import MemberCard from '@/components/members/MemberCard';
-import { getMembers } from '@/lib/rosterApi';
+import { getMembers, getStaff } from '@/lib/rosterApi';
+import { mergeRoster } from '@/lib/roster';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
 export const metadata: Metadata = {
@@ -16,7 +17,10 @@ export default async function MembersPage() {
   let failed = false;
 
   try {
-    members = await getMembers(baseUrl);
+    // 부원(members)과 운영진(staff)을 함께 불러와 하나의 로스터로 합친다.
+    // 운영진 중 멤버 테이블에 없는 인물(예: 회장)이 /members에서 누락되던 문제를 막는다.
+    const [memberList, staffList] = await Promise.all([getMembers(baseUrl), getStaff(baseUrl)]);
+    members = mergeRoster(memberList, staffList);
   } catch {
     failed = true;
   }
