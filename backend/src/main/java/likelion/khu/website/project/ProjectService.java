@@ -20,8 +20,12 @@ import likelion.khu.website.project.exception.ParticipantMemberNotFoundException
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,8 +40,16 @@ public class ProjectService {
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
-    public List<ProjectSummaryResponse> getPublicList() {
-        return projectRepository.findAllByHiddenFalseOrderByCreatedAtDesc().stream()
+    public List<ProjectSummaryResponse> getPublicList(Integer limit) {
+        if (limit != null && limit < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit은 1 이상이어야 합니다.");
+        }
+
+        Pageable pageable = limit == null
+                ? Pageable.unpaged()
+                : PageRequest.of(0, Math.min(limit, 100));
+
+        return projectRepository.findAllByHiddenFalseOrderByCreatedAtDesc(pageable).stream()
                 .map(project -> ProjectSummaryResponse.from(project, representativeImageUrl(project.getId())))
                 .toList();
     }
