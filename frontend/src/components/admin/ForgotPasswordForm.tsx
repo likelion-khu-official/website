@@ -34,7 +34,7 @@ export default function ForgotPasswordForm() {
       >
         <Link
           href="/admin/login"
-          className="mt-4 inline-block rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           로그인 페이지로 이동
         </Link>
@@ -43,7 +43,7 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
       <h1 className="mb-1 text-2xl font-bold text-white">비밀번호 찾기</h1>
       <p className="mb-8 text-sm text-muted">가입한 이메일로 재설정 링크를 보내드려요.</p>
 
@@ -59,7 +59,7 @@ export default function ForgotPasswordForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -68,13 +68,16 @@ export default function ForgotPasswordForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           {submitting ? '보내는 중…' : '재설정 메일 보내기'}
         </button>
       </form>
 
-      <Link href="/admin/login" className="mt-5 text-center text-sm text-muted transition-colors hover:text-white">
+      <Link
+        href="/admin/login"
+        className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg text-center text-sm text-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+      >
         로그인으로 돌아가기
       </Link>
     </div>

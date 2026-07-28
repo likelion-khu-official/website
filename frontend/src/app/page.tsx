@@ -1,4 +1,5 @@
 import Nav from '@/components/Nav';
+import HomeMotion from '@/components/HomeMotion';
 import Thumbnail from '@/components/sections/Thumbnail';
 import Introduce from '@/components/sections/Introduce';
 import IntroduceSession from '@/components/sections/IntroduceSession';
@@ -11,16 +12,25 @@ import Footer from '@/components/sections/Footer';
 
 export default function Home() {
   return (
-    <div className="bg-background text-foreground">
+    <div className="home-experience bg-background text-foreground">
+      <HomeMotion />
+      <a
+        href="#main-content"
+        className="fixed left-4 top-3 z-50 -translate-y-20 rounded-full bg-white px-4 py-2 text-sm font-semibold text-background outline-none transition-transform focus:translate-y-0 focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        본문 바로가기
+      </a>
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1} className="outline-none">
         <Thumbnail />
         <Introduce />
         <IntroduceSession />
         <Project />
         <Members />
         <Plan />
-        <Blog />
+        <div className="home-blog-chapter">
+          <Blog />
+        </div>
         <Recruit />
       </main>
       <Footer />

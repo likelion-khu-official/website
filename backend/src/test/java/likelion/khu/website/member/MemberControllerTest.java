@@ -1,8 +1,9 @@
 package likelion.khu.website.member;
 
 import likelion.khu.website.admin.WithMockAdminUser;
+import likelion.khu.website.member.auth.MemberAuthService;
+import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
-import likelion.khu.website.member.dto.MemberResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -12,6 +13,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -24,15 +26,18 @@ class MemberControllerTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired MemberService memberService;
+    @Autowired MemberAuthService memberAuthService;
 
     private Long createMember() {
         MemberCreateRequest req = new MemberCreateRequest();
         req.setName("시현");
-        req.setRoles(Set.of(MemberRole.BE));
+        req.setRoles(Set.of(MemberRole.BACKEND));
         req.setCohort(13);
         req.setStudentId("2020123456");
         req.setPhone("01000000000");
-        MemberResponse res = memberService.create(req, "admin@likelion.org");
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
+        MemberAdminResponse res = memberService.create(req, "admin@likelion.org");
         return res.getId();
     }
 
@@ -57,7 +62,11 @@ class MemberControllerTest {
         mockMvc.perform(get("/api/members"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].createdBy").doesNotExist())
-                .andExpect(jsonPath("$[0].updatedBy").doesNotExist());
+                .andExpect(jsonPath("$[0].updatedBy").doesNotExist())
+                .andExpect(jsonPath("$[0].studentId").doesNotExist())
+                .andExpect(jsonPath("$[0].phone").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsent").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsentedAt").doesNotExist());
     }
 
     // ── POST /api/admin/members ───────────────────────────────────────
@@ -67,20 +76,42 @@ class MemberControllerTest {
     void createMember_SuperAdmin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("선우"))
                 .andExpect(jsonPath("$.cohort").value(13))
                 .andExpect(jsonPath("$.emoji").isNotEmpty())
+                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
     }
 
-    @WithMockUser(roles = "ADMIN")
+    @WithMockAdminUser
     @Test
-    void createMember_NotSuperAdmin_Returns403() throws Exception {
+    void createMember_ConsentWithoutTimestamp_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13," +
+                                "\"studentId\":\"2020111111\",\"phone\":\"01011112222\"," +
+                                "\"publicationConsent\":true}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // 위키 "정보구조와 권한" 기준 등록은 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void createMember_ByRegularAdmin_Returns201() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void createMember_ByMember_Returns403() throws Exception {
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -88,7 +119,7 @@ class MemberControllerTest {
     void createMember_Unauthenticated_Returns4xx() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"선우\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
+                        .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
                 .andExpect(status().is4xxClientError());
     }
 
@@ -135,8 +166,35 @@ class MemberControllerTest {
 
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"또다른시현\",\"roles\":[\"BE\"],\"cohort\":13,\"studentId\":\"2020123456\",\"phone\":\"01099998888\"}"))
+                        .content("{\"name\":\"또다른시현\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020123456\",\"phone\":\"01099998888\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    // 한 사람이 동시에 두 기수로 활동 중일 순 없다 — 기수가 달라도 이미 활동 중인 학번이면 막는다(#155 리뷰).
+    @WithMockAdminUser
+    @Test
+    void createMember_SameStudentIdDifferentCohortWhileStillActive_Returns409() throws Exception {
+        createMember();
+
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"또다른시현\",\"roles\":[\"BACKEND\"],\"cohort\":14,\"studentId\":\"2020123456\",\"phone\":\"01099998888\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    // 14기로 활동하다 오프보딩된 뒤 15기로 재입부하는 시나리오(#155 리뷰) — 같은 학번이라도
+    // 기수가 다르면 새로 등록할 수 있어야 한다.
+    @WithMockAdminUser
+    @Test
+    void createMember_SameStudentIdNewCohortAfterOffboarding_Returns201() throws Exception {
+        Long oldId = createMember();
+        memberAuthService.offboard(oldId);
+
+        mockMvc.perform(post("/api/admin/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"시현\",\"roles\":[\"BACKEND\"],\"cohort\":14,\"studentId\":\"2020123456\",\"phone\":\"01000000000\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.cohort").value(14));
     }
 
     // ── PATCH /api/admin/members/{id} ────────────────────────────────
@@ -154,9 +212,21 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.cohort").value(13));
     }
 
-    @WithMockUser(roles = "ADMIN")
+    // 위키 "정보구조와 권한" 기준 수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    @WithMockAdminUser(role = "ADMIN")
     @Test
-    void updateMember_NotSuperAdmin_Returns403() throws Exception {
+    void updateMember_ByRegularAdmin_Returns200() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(patch("/api/admin/members/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"수정시도\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void updateMember_ByMember_Returns403() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)
@@ -243,5 +313,111 @@ class MemberControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    // ── GET /api/admin/members ───────────────────────────────────────
+
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void adminList_ByRegularAdmin_IncludesStudentId() throws Exception {
+        createMember();
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentId").value("2020123456"))
+                .andExpect(jsonPath("$[0].offboarded").value(false));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void adminList_ByMember_Returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminList_Unauthenticated_Returns4xx() throws Exception {
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    // ── POST /api/admin/members/{id}/offboard ────────────────────────
+
+    @WithMockAdminUser(role = "ADMIN")
+    @Test
+    void offboard_ByRegularAdmin_Returns200AndMarksOffboarded() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(jsonPath("$[0].offboarded").value(true));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void offboard_ByMember_Returns403() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void offboard_Unauthenticated_Returns4xx() throws Exception {
+        Long id = createMember();
+
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", id))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void offboard_NonExistentId_Returns404() throws Exception {
+        mockMvc.perform(post("/api/admin/members/{id}/offboard", 9999L))
+                .andExpect(status().isNotFound());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void offboardedMember_CannotLogin() throws Exception {
+        Long id = createMember();
+        memberAuthService.offboard(id);
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01000000000\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    // 14기 오프보딩 후 15기로 재입부한 뒤 — 새 계정(새 전화번호=초기 비번)으로는 로그인되고,
+    // 옛 14기 계정 비번으로는 여전히 막혀야 한다(#155 리뷰 시나리오).
+    @WithMockAdminUser
+    @Test
+    void reEnrolledMember_LogsInWithNewAccount_OldAccountStillBlocked() throws Exception {
+        Long oldId = createMember();
+        memberAuthService.offboard(oldId);
+
+        MemberCreateRequest reEnroll = new MemberCreateRequest();
+        reEnroll.setName("시현");
+        reEnroll.setRoles(Set.of(MemberRole.BACKEND));
+        reEnroll.setCohort(14);
+        reEnroll.setStudentId("2020123456");
+        reEnroll.setPhone("01011112222");
+        memberService.create(reEnroll, "admin@likelion.org");
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01011112222\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/member/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"2020123456\",\"password\":\"01000000000\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 }

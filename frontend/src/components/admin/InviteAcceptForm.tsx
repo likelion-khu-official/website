@@ -101,7 +101,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
       <NoticeScreen title="가입이 완료됐어요" description="이제 로그인 페이지에서 로그인할 수 있어요.">
         <Link
           href="/admin/login"
-          className="mt-4 inline-block rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           로그인 페이지로 이동
         </Link>
@@ -110,7 +110,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
       <h1 className="mb-1 text-2xl font-bold text-white">초대 수락</h1>
       <p className="mb-8 text-sm text-muted">{email} 계정으로 가입해요.</p>
 
@@ -125,7 +125,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -140,7 +140,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
           <p className="mt-1 text-xs text-muted">8자 이상, 영문과 숫자를 포함해 주세요.</p>
         </div>
@@ -156,7 +156,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             autoComplete="new-password"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -165,7 +165,7 @@ export default function InviteAcceptForm({ token }: { token: string }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           {submitting ? '처리 중…' : '가입 완료'}
         </button>

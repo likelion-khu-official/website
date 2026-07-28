@@ -13,10 +13,10 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative min-h-screen w-full flex flex-col items-center justify-center px-6 py-24 overflow-hidden"
+      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-8 sm:py-24 lg:py-24"
     >
       {/* KHU at Likelion 로고 블록 */}
-      <div className="flex flex-col items-center gap-1" style={gremlin}>
+      <div className="scroll-reveal flex flex-col items-center gap-1" style={gremlin}>
         <p
           className="text-white leading-none"
           style={{ fontSize: 'clamp(30px, 3.2vw, 46px)', letterSpacing: '-1.15px' }}
@@ -50,59 +50,67 @@ export default function Introduce() {
         </div>
       </div>
 
-      {/* 헤드라인 — 두 문구가 번갈아 크로스페이드 전환 */}
-      <div
-        className="relative w-full text-center"
-        style={{
-          marginTop: 'clamp(36px, 5vh, 72px)',
-          minHeight: 'clamp(66px, 7.5vh, 108px)',
-        }}
-      >
-        <p
-          className="headline-swap headline-swap--a font-semibold text-white"
-          style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
-        >
-          <span className="text-accent">코딩이 처음이더라도</span> 프론트∙백엔드 개발부터
-          <br />
-          기획∙디자인까지 함께 성장하는
-        </p>
-        <p
-          className="headline-swap headline-swap--b font-semibold text-white"
-          style={{ fontSize: 'clamp(22px, 2.5vw, 36px)', letterSpacing: '-0.9px', lineHeight: 1.5 }}
-        >
-          <span className="text-accent">아이디어</span>를
-          <br />
-          실제로 만들어내는 경험
-        </p>
+      {/* 핵심 메시지 — 시간에 따라 사라지지 않고, 사용자의 스크롤 흐름 안에서 순서대로 읽힌다. */}
+      <div className="mt-[clamp(36px,5vh,64px)] grid w-full max-w-[1180px] gap-8 md:grid-cols-2 md:gap-12">
+        <article className="scroll-reveal scroll-reveal--left border-t border-white/12 pt-5 md:pt-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn together</p>
+          <p
+            className="mt-5 text-balance break-keep font-semibold text-white"
+            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+          >
+            <span className="text-accent">코딩이 처음이더라도</span>
+            <br />
+            개발부터 기획·디자인까지
+            <br />
+            함께 성장합니다.
+          </p>
+        </article>
+        <article className="scroll-reveal scroll-reveal--right border-t border-white/12 pt-5 md:pt-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Build for real</p>
+          <p
+            className="mt-5 text-balance break-keep font-semibold text-white"
+            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+          >
+            머릿속의 <span className="text-accent">아이디어</span>를
+            <br />
+            실제로 작동하는 서비스로
+            <br />
+            만들어냅니다.
+          </p>
+        </article>
       </div>
 
-      {/* 통계 카드 */}
+      {/* 통계 카드 — 큰 수(14,000)가 옆 칸을 침범하지 않게 칸 폭에 맞춰 크기를 정하고
+          열 사이에 얇은 구분선을 둬서 숫자가 붙어 읽히는 문제를 없앤다. */}
       <div
-        className="w-[82%] max-w-[1417px] rounded-[20px] bg-[rgba(0,0,0,0.13)] backdrop-blur-[22px] flex items-center justify-around flex-wrap gap-y-8"
-        style={{ marginTop: 'clamp(48px, 8vh, 108px)', padding: 'clamp(36px, 5vh, 64px) clamp(24px, 3vw, 60px)' }}
+        className="scroll-reveal scroll-reveal--scale grid w-full max-w-[1240px] grid-cols-2 items-stretch gap-y-8 rounded-[22px] border border-white/[0.06] bg-[rgba(0,0,0,0.18)] px-2 py-9 backdrop-blur-[22px] sm:w-[92%] sm:px-4 sm:py-11 lg:w-[86%] lg:grid-cols-4 lg:py-[clamp(34px,4.5vh,56px)]"
+        style={{ marginTop: 'clamp(44px, 7vh, 96px)' }}
       >
-        {stats.map((s) => (
-          <div key={s.label} className="flex flex-col items-center gap-3">
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className={`flex min-w-0 flex-col items-center gap-2.5 px-3 text-center sm:px-5 ${
+              i % 2 === 1 ? 'border-l border-white/10' : ''
+            } ${i > 0 ? 'lg:border-l lg:border-white/10' : ''}`}
+          >
             <p
-              className="text-[#cdcdcd] font-medium"
-              style={{ fontSize: 'clamp(16px, 1.9vw, 28px)', letterSpacing: '-0.7px' }}
+              className="break-keep font-medium text-[#c7c7c7]"
+              style={{ fontSize: 'clamp(13px, 1.5vw, 22px)', letterSpacing: '-0.5px' }}
             >
               {s.label}
             </p>
-            <p className="leading-none whitespace-nowrap font-semibold">
+            <p className="flex items-baseline justify-center leading-none whitespace-nowrap font-semibold">
               <span
                 className="text-accent"
-                style={{ fontSize: 'clamp(46px, 6vw, 86px)', letterSpacing: '-2.15px' }}
+                style={{ fontSize: 'clamp(34px, 4.4vw, 60px)', letterSpacing: '-1.8px' }}
               >
                 <CountUp end={s.value} />
               </span>
               <span
-                className="text-[#bbbbbb]"
+                className="ml-0.5 self-start text-[#bbbbbb]"
                 style={{
-                  fontSize: s.super ? 'clamp(34px, 4.4vw, 64px)' : 'clamp(22px, 2.8vw, 40px)',
-                  letterSpacing: s.super ? '-1.6px' : '-1px',
-                  verticalAlign: s.super ? 'top' : 'baseline',
-                  marginLeft: '2px',
+                  fontSize: s.super ? 'clamp(20px, 2.4vw, 32px)' : 'clamp(17px, 2vw, 26px)',
+                  letterSpacing: '-0.8px',
                 }}
               >
                 {s.suffix}

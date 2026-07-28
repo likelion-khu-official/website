@@ -2,10 +2,8 @@ import type {
   SpringPage,
   PostSummary,
   PostDetail,
-  PostCreateRequest,
   Comment,
   CommentCreateRequest,
-  FeedImageUploadResponse,
 } from '@shared/types/feed';
 
 /**
@@ -64,55 +62,4 @@ export async function createComment(
     body: JSON.stringify(body),
   });
   return parseJsonOrThrow(res, '댓글 작성에 실패했어요.');
-}
-
-export async function createPost(body: PostCreateRequest): Promise<PostDetail> {
-  const res = await fetch('/api/posts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJsonOrThrow(res, '글 작성에 실패했어요.');
-}
-
-/** XHR로 업로드 진행률을 추적한다 (fetch는 업로드 progress 이벤트가 없음) */
-export function uploadImage(
-  file: File,
-  onProgress?: (percent: number) => void
-): Promise<FeedImageUploadResponse> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/feed/images');
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText));
-        } catch {
-          reject(new FeedApiError('이미지 업로드 응답을 해석하지 못했어요.', xhr.status));
-        }
-      } else {
-        let message = '이미지 업로드에 실패했어요.';
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (data?.message) message = data.message;
-        } catch {
-          // 무시 — 기본 메시지 사용
-        }
-        reject(new FeedApiError(message, xhr.status));
-      }
-    };
-
-    xhr.onerror = () => reject(new FeedApiError('네트워크 오류로 이미지 업로드에 실패했어요.', 0));
-
-    const formData = new FormData();
-    formData.append('file', file);
-    xhr.send(formData);
-  });
 }
