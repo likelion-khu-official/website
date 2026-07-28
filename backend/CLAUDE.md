@@ -18,7 +18,7 @@
 
 `ddl-auto: update`가 SQLite `ALTER TABLE` 실패(예: `UNIQUE` 컬럼 추가)를 조용히 삼켜 스키마 드리프트가 났던 사고(#133) 이후, **`ddl-auto: validate`로 전환됐다 — Hibernate가 스키마를 더 이상 자동으로 안 만든다.**
 
-엔티티에 필드·테이블을 추가/변경했으면 **반드시** `backend/src/main/resources/db/migration/`에 `V{다음 번호}__설명.sql` 파일을 같이 추가할 것. 엔티티만 고치고 이 파일을 빠뜨리면:
+엔티티에 필드·테이블을 추가/변경했으면 **반드시** `backend/src/main/resources/db/migration/`에 새 버전 파일(`V{타임스탬프}__설명.sql` — 순번 대신 타임스탬프를 쓰는 이유는 `db-man` 스킬 참고, 동시 브랜치 개발 시 버전 충돌 방지)을 같이 추가할 것. 엔티티만 고치고 이 파일을 빠뜨리면:
 - 로컬/CI: `SchemaMigrationConsistencyIntegrationTest`가 컨텍스트 기동 단계에서 바로 실패(빈 DB에 마이그레이션을 전부 적용한 뒤 엔티티 매핑과 대조)
 - 그래도 놓치면: stage/prod 배포 시 앱이 기동 자체를 못 해 헬스체크 실패 → CD가 자동 롤백
 
