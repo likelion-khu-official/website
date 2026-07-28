@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 const gremlin = { fontFamily: 'var(--font-gremlin-trial)' };
 
 type Month = { m: string; lines: string[]; highlight?: boolean };
@@ -119,15 +117,6 @@ export default function Plan() {
       <div className="relative mt-4 flex w-full max-w-[1417px] flex-col gap-14 md:mt-8 md:gap-24">
         <Timeline months={firstHalf} side="top" />
         <Timeline months={secondHalf} side="bottom" />
-      </div>
-
-      <div className="scroll-reveal mt-6 text-center">
-        <Link
-          href="/activities"
-          className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          연간 활동 자세히 보기
-        </Link>
       </div>
     </section>
   );
