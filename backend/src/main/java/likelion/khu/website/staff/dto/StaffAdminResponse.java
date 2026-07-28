@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 관리자 전용 운영진 응답. 연락처는 저장만 하고 응답으로 되돌려주지 않는다.
@@ -19,6 +20,7 @@ public class StaffAdminResponse {
     private Integer admissionYear;
     private String photoUrl;
     private String introduction;
+    private List<String> activities;
     private Integer sortOrder;
     private String studentId;
     private boolean publicationConsent;
@@ -33,6 +35,7 @@ public class StaffAdminResponse {
                 staff.getAdmissionYear(),
                 staff.getPhotoUrl(),
                 staff.getIntroduction(),
+                List.copyOf(staff.getActivities()),
                 staff.getSortOrder(),
                 staff.getStudentId(),
                 staff.isPublicationConsent(),

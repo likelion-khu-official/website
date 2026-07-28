@@ -46,6 +46,50 @@ class StaffServiceTest {
     }
 
     @Test
+    void create_StoresActivitiesInOrder() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("활동 A", "활동 B"));
+
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        assertThat(created.getActivities()).containsExactly("활동 A", "활동 B");
+        assertThat(staffService.getAll().get(0).getActivities()).containsExactly("활동 A", "활동 B");
+    }
+
+    @Test
+    void create_NoActivities_DefaultsToEmptyList() {
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+
+        assertThat(created.getActivities()).isEmpty();
+    }
+
+    @Test
+    void update_Activities_ReplacesWholeList() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("옛 활동"));
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        StaffUpdateRequest update = new StaffUpdateRequest();
+        update.setActivities(List.of("새 활동 1", "새 활동 2"));
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+
+        assertThat(updated.getActivities()).containsExactly("새 활동 1", "새 활동 2");
+    }
+
+    @Test
+    void update_NullActivities_KeepsExisting() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("유지될 활동"));
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        StaffUpdateRequest update = new StaffUpdateRequest();
+        update.setPosition("부회장");
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+
+        assertThat(updated.getActivities()).containsExactly("유지될 활동");
+    }
+
+    @Test
     void getAll_OrderedBySortOrderAsc() {
         StaffCreateRequest req1 = sampleRequest();
         req1.setName("둘째");
