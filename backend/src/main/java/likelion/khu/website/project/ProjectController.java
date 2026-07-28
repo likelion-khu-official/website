@@ -27,8 +27,8 @@ public class ProjectController {
 
     /** 공개 목록 */
     @GetMapping("/api/projects")
-    public List<ProjectSummaryResponse> list() {
-        return projectService.getPublicList();
+    public List<ProjectSummaryResponse> list(@RequestParam(required = false) Integer limit) {
+        return projectService.getPublicList(limit);
     }
 
     /** 공개 상세 */

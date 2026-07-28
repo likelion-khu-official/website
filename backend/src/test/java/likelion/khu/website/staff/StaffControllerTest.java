@@ -13,6 +13,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -55,6 +56,27 @@ class StaffControllerTest {
                 .andExpect(jsonPath("$[0].name").value("시현"))
                 .andExpect(jsonPath("$[0].position").value("회장"))
                 .andExpect(jsonPath("$[0].admissionYear").value(22));
+    }
+
+    @Test
+    void listStaff_Public_IncludesActivities() throws Exception {
+        StaffCreateRequest req = new StaffCreateRequest();
+        req.setName("시현");
+        req.setPosition("회장");
+        req.setDepartment("컴퓨터공학과");
+        req.setAdmissionYear(22);
+        req.setPhotoUrl("https://example.com/photo.jpg");
+        req.setSortOrder(1);
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
+        req.setActivities(List.of("13기 백엔드 스터디 운영", "교내 연합 해커톤 대상"));
+        staffService.create(req, "admin@likelion.org");
+
+        mockMvc.perform(get("/api/staff"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].activities.length()").value(2))
+                .andExpect(jsonPath("$[0].activities[0]").value("13기 백엔드 스터디 운영"))
+                .andExpect(jsonPath("$[0].activities[1]").value("교내 연합 해커톤 대상"));
     }
 
     @Test

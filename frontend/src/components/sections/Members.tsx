@@ -5,47 +5,42 @@ import { getBaseUrl } from '@/lib/serverBaseUrl';
 
 function StaffPhoto({ staff }: { staff: Staff }) {
   return (
-    <div className="h-full w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-[#3f251d] to-[#1b1716]">
+    <div className="h-full w-full overflow-hidden rounded-[14px] bg-gradient-to-br from-[#3f251d] to-[#1b1716]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={staff.photoUrl} alt={`${staff.name} 프로필`} className="h-full w-full object-cover" />
     </div>
   );
 }
 
-function LeaderCard({ staff }: { staff: Staff }) {
-  return (
-    <article className="grid grid-cols-1 gap-5 rounded-[24px] border border-accent/25 bg-black/25 p-4 backdrop-blur sm:grid-cols-[minmax(180px,38%)_1fr] sm:p-5">
-      <div className="aspect-[4/3] sm:aspect-auto sm:min-h-[260px]">
-        <StaffPhoto staff={staff} />
-      </div>
-      <div className="flex min-w-0 flex-col justify-center py-2">
-        <p className="text-sm font-semibold text-accent">{staff.position}</p>
-        <h3 className="mt-2 text-3xl font-bold tracking-[-0.05em] text-white">{staff.name}</h3>
-        <p className="mt-2 text-xs text-white/45">
-          {staff.department} · {staff.admissionYear}학번
-        </p>
-        {staff.introduction ? (
-          <p className="mt-5 break-keep text-sm leading-6 text-white/65">{staff.introduction}</p>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
+// 회장·세션장을 같은 레벨의 카드로 통일한다. 겸임(부회장·AI 세션장 등)도 카드 하나로 흡수.
+// 모바일은 가로형(사진 왼쪽)으로 한 열에 하나씩 — 홀수 인원이어도 빈칸이 안 생긴다.
+// 데스크톱은 세로형(사진 위)으로 한 줄에 나란히.
 function StaffCard({ staff }: { staff: Staff }) {
   return (
-    <article className="grid grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-[22px] border border-accent/20 bg-black/25 p-3 backdrop-blur min-[360px]:grid-cols-[96px_minmax(0,1fr)] min-[360px]:gap-4 min-[360px]:p-4 sm:grid-cols-[132px_minmax(0,1fr)]">
-      <div className="aspect-square sm:aspect-[4/5]">
+    <article className="flex h-full flex-row items-start gap-4 rounded-[20px] border border-accent/25 bg-black/25 p-3.5 backdrop-blur transition-colors hover:border-accent/40 lg:flex-col lg:items-stretch lg:gap-0">
+      <div className="aspect-[4/5] w-[92px] shrink-0 min-[400px]:w-[108px] lg:w-full">
         <StaffPhoto staff={staff} />
       </div>
-      <div className="flex min-w-0 flex-col justify-center py-1">
-        <p className="text-xs font-semibold text-accent">{staff.position}</p>
-        <h3 className="mt-1.5 text-xl font-bold tracking-[-0.04em] text-white">{staff.name}</h3>
-        <p className="mt-1 text-[11px] text-white/40">
+      <div className="flex min-w-0 flex-1 flex-col lg:px-1 lg:pt-3.5">
+        <p className="text-[11.5px] font-bold tracking-[0.01em] text-accent">{staff.position}</p>
+        <h3 className="mt-1.5 text-xl font-bold tracking-[-0.05em] text-white">{staff.name}</h3>
+        <p className="mt-0.5 text-[11px] text-white/35">
           {staff.department} · {staff.admissionYear}학번
         </p>
-        {staff.introduction ? (
-          <p className="mt-3 break-keep text-xs leading-5 text-white/55">{staff.introduction}</p>
+        {staff.activities?.length ? (
+          <div className="mt-3 border-t border-white/10 pt-3 lg:mt-3.5">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">활동</p>
+            <ul className="grid gap-2">
+              {staff.activities.map((activity, index) => (
+                <li
+                  key={index}
+                  className="relative pl-4 text-[12px] leading-[1.4] text-white/60 before:absolute before:left-0 before:top-[7px] before:h-[5px] before:w-[5px] before:rounded-full before:bg-accent"
+                >
+                  {activity}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </div>
     </article>
@@ -63,9 +58,8 @@ export default async function Members() {
     failed = true;
   }
 
-  // 랜딩은 대표(회장·부회장) + 세션 리드 한 줄만 티저로 보여주고, 전체는 /members로.
-  const leaders = staff.slice(0, 2);
-  const team = staff.slice(2, 6);
+  // 랜딩은 대표·세션 리드(상위 다섯 직무)만 티저로 보여주고, 전체는 /members로.
+  const featured = staff.slice(0, 5);
 
   return (
     <section
@@ -92,37 +86,22 @@ export default async function Members() {
           <div className="mt-16 rounded-[24px] border border-white/10 bg-black/20 py-20 text-center">
             <p className="text-sm text-white/50">운영진 명단을 불러오지 못했어요.</p>
           </div>
-        ) : staff.length === 0 ? (
+        ) : featured.length === 0 ? (
           <div className="mt-16 rounded-[24px] border border-white/10 bg-black/20 py-20 text-center">
             <p className="text-sm text-white/50">운영진 소개를 준비하고 있어요.</p>
           </div>
         ) : (
-          <>
-            <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {leaders.map((person, index) => (
-                <div
-                  key={person.id}
-                  className="scroll-reveal member-card-reveal"
-                  style={{ '--reveal-y': `${34 + index * 12}px` } as React.CSSProperties}
-                >
-                  <LeaderCard staff={person} />
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {team.map((person, index) => (
-                <div
-                  key={person.id}
-                  className="scroll-reveal member-card-reveal"
-                  style={{
-                    '--reveal-y': `${34 + ((index + leaders.length) % 4) * 10}px`,
-                  } as React.CSSProperties}
-                >
-                  <StaffCard staff={person} />
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-5">
+            {featured.map((person, index) => (
+              <div
+                key={person.id}
+                className="scroll-reveal member-card-reveal min-w-0"
+                style={{ '--reveal-y': `${34 + (index % 5) * 10}px` } as React.CSSProperties}
+              >
+                <StaffCard staff={person} />
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="scroll-reveal mt-6 text-center">

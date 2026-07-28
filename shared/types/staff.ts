@@ -13,6 +13,8 @@ export interface Staff {
   admissionYear: number;
   photoUrl: string;
   introduction: string | null;
+  /** 운영진 활동 이력. 없으면 빈 배열. 랜딩 카드에 순서대로 노출된다. */
+  activities: string[];
   sortOrder: number;
 }
 
@@ -27,6 +29,7 @@ export interface StaffCreateRequest {
   admissionYear: number;
   photoUrl: string;
   introduction?: string;
+  activities?: string[];
   sortOrder: number;
   studentId?: string;
   phone?: string;
@@ -39,6 +42,8 @@ export interface StaffUpdateRequest {
   position?: string;
   photoUrl?: string;
   introduction?: string;
+  /** null이 아니라 값이 오면 활동을 통째로 교체한다. */
+  activities?: string[];
   sortOrder?: number;
   studentId?: string;
   phone?: string;
