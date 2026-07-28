@@ -172,3 +172,17 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 **자격증명:** 서버의 `infra/.env.backup`(git 제외, `chmod 600`)에 있음 — 템플릿은 [`infra/.env.backup.example`](../.env.backup.example).
 
 **실제로 이 백업에서 라이브 DB를 롤백하는 절차·명령**은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet)에 단일화(`backup_manager.py`의 `list`/`get` 명령 포함) — 여기 다시 안 적는다.
+
+### 행을 삭제하는 마이그레이션 배포 전 — 수동 백업 필수 (2026-07-27, V6 사고 후속)
+
+위 정기 백업은 하루 1회(03:00 KST)뿐이라, 배포 시각에 따라 최대 24시간 전 스냅샷만 있을 수 있다. `db/migration/V{n}__...sql`이 행을 `DELETE`하거나(예: V6의 `where role not in ('PM','INFRA')`) 재생성 시 일부 행을 새 테이블로 안 옮기는 패턴이면, **삭제된 행의 원래 값은 되돌릴 SQL로도 복구가 안 된다** — Flyway 커뮤니티(무료) 버전엔 자동 undo가 없고, 유료(Teams) undo migration이 있어도 테이블 구조만 되돌리지 이미 지워진 데이터를 되살리진 못한다. 유일한 복구 경로는 삭제 이전 시점의 백업뿐이다.
+
+**절차:** 이런 마이그레이션을 stage/prod에 배포하기 직전, 서버에서 수동으로 한 번 더 백업을 돈다.
+```bash
+ssh likelion-oci
+cd ~/website/infra/scripts
+./backup-db.sh
+```
+prod·stage가 한 번에 같이 백업되고(`backup_one prod` / `backup_one stage`), 이미 있는 같은 날짜 스냅샷을 배포 직전 시점으로 덮어써 복구 지점을 최신으로 당긴다.
+
+**CD가 이걸 자동으로 해주지 않는다 — 의도적으로 자동화 안 함.** 이유와 "롤백이 DB는 안 건드린다"는 사실은 `infra/CLAUDE.md`의 "롤백" 절 참고. 백엔드 쪽 체크리스트는 `backend/.claude/skills/db-man/SKILL.md` 8번(파괴적 변경 절)에도 같은 내용이 있다.
