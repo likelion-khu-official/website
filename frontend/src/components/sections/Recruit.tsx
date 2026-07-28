@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import NotificationForm from '@/components/NotificationForm';
 
 export default function Recruit() {
@@ -45,6 +46,15 @@ export default function Recruit() {
             모집 시작 알림 받기
           </button>
         )}
+      </div>
+
+      <div className="scroll-reveal mt-2 text-center">
+        <Link
+          href="/recruit"
+          className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          모집 절차 자세히 보기
+        </Link>
       </div>
     </section>
   );
