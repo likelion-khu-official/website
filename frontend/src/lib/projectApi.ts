@@ -24,8 +24,9 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
   return response.json();
 }
 
-export async function getProjects(baseUrl = ''): Promise<ProjectSummary[]> {
-  const response = await fetch(`${baseUrl}/api/projects`, { cache: 'no-store' });
+export async function getProjects(baseUrl = '', limit?: number): Promise<ProjectSummary[]> {
+  const query = limit === undefined ? '' : `?limit=${encodeURIComponent(limit)}`;
+  const response = await fetch(`${baseUrl}/api/projects${query}`, { cache: 'no-store' });
   return parseJsonOrThrow(response, '프로젝트 목록을 불러오지 못했어요.');
 }
 

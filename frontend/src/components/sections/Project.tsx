@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import ProjectCard from '@/components/projects/ProjectCard';
+import ProjectCarousel from '@/components/projects/ProjectCarousel';
 import { getProjects } from '@/lib/projectApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
@@ -7,7 +7,7 @@ export default async function Project() {
   let projects = null;
 
   try {
-    projects = (await getProjects(await getBaseUrl())).slice(0, 3);
+    projects = await getProjects(await getBaseUrl(), 10);
   } catch {
     // 랜딩 전체를 깨지 않고 이 섹션 안에서만 재시도 안내를 보여준다.
   }
@@ -15,25 +15,25 @@ export default async function Project() {
   return (
     <section
       id="project"
-      className="relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 pb-12 pt-24 sm:px-10 sm:pb-16 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
+      className="project-section relative flex h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 sm:px-10 lg:px-16"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-[-460px] h-[900px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.36),rgba(19,19,19,0)_68%)] blur-2xl"
       />
 
-      <div className="relative mx-auto w-full max-w-[1440px]">
-        <div className="scroll-reveal grid gap-8 border-b border-white/10 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div className="project-section-inner relative mx-auto w-full max-w-[1440px]">
+        <div className="project-section-header scroll-reveal grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className="project-section-eyebrow text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               Our projects
             </p>
-            <h2 className="mt-5 max-w-4xl break-keep text-[clamp(38px,5.5vw,76px)] font-semibold leading-[1.02] tracking-[-0.06em] text-white">
-              아이디어가 경험이 되는 순간
+            <h2 className="project-section-title max-w-4xl break-keep text-[clamp(28px,3.5vw,46px)] font-semibold leading-[1.04] tracking-[-0.05em] text-white">
+              아이디어부터 서비스까지
             </h2>
-            <p className="mt-6 max-w-xl break-keep text-base leading-7 text-white/50 sm:text-lg">
-              직접 문제를 정의하고, 기획하고, 개발해 세상에 내놓은 멋쟁이사자처럼 경희대의
-              프로젝트입니다.
+            <p className="project-section-copy max-w-3xl break-keep text-sm leading-5 text-white/50">
+              아이디어 대회 기획부터 직접 개발한 서비스까지, 멋쟁이사자처럼 경희대
+              멤버들이 함께 만든 프로젝트를 소개합니다.
             </p>
           </div>
           <Link
@@ -54,16 +54,8 @@ export default async function Project() {
             <p className="mt-2 text-sm text-white/40">곧 실제 결과물로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
-            {projects.map((project, index) => (
-              <div
-                key={project.id}
-                className="scroll-reveal project-card-reveal"
-                style={{ '--reveal-y': `${32 + (index % 3) * 10}px` } as React.CSSProperties}
-              >
-                <ProjectCard project={project} compact priority={index < 3} />
-              </div>
-            ))}
+          <div className="project-carousel-shell scroll-reveal" style={{ '--reveal-y': '28px' } as React.CSSProperties}>
+            <ProjectCarousel projects={projects} />
           </div>
         )}
       </div>
