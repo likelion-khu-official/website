@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Set;
@@ -22,14 +22,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Transactional
 class PostControllerTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired PostService postService;
     @Autowired MemberRepository memberRepository;
 
-    // @DirtiesContext로 DB가 매 테스트마다 초기화되므로 첫 INSERT는 항상 id=1
+    // @Transactional로 테스트마다 롤백되므로 첫 INSERT는 항상 id=1
     // @WithMockAdminUser(id = 1L, role = "MEMBER")와 짝을 맞춘다
     private Member member;
 
