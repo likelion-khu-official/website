@@ -1,4 +1,4 @@
-# 결과 — #6 프론트 · 모집 알림 수직 관통 (walking skeleton)
+# 결과 — #6 FE · 모집 알림 수직 관통 (walking skeleton)
 
 > 미션이 닫힐 때 채운다. 재사용할 통찰은 `pm/docs/learnings.md`로 졸업시킨다(여기엔 이 미션 고유의 결과만).
 

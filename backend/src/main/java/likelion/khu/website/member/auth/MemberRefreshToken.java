@@ -21,9 +21,10 @@ public class MemberRefreshToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "bigint")
     private Long memberId;
 
     @Column(nullable = false, unique = true)

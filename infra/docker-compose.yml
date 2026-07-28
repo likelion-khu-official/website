@@ -1,6 +1,14 @@
+# 메모리 상한 — 호스트 12GB/스왑 없음. 예전엔 컨테이너별 제한이 전혀 없어서, 두 백엔드
+# JVM이 서로 모른 채 각자 커질 수 있었다(둘 다 기본값이면 호스트 RAM의 25%=3GB까지 각자
+# 힙을 키움). 여기서 mem_limit으로 컨테이너별 cgroup 상한을 걸면, 어느 한쪽이 한도를
+# 넘어도 그 컨테이너만 죽고(restart: unless-stopped로 자동 복구) 호스트 전체 OOM으로
+# 안 번진다 — nginx·sshd 등 나머지가 말려들지 않는다는 게 핵심.
+# 배분: prod 6g + stage 4g + nginx/sqlite-web 4×0.25g = 10.75g, OS·cron·venv용으로 나머지
+# 약 1.25g 남김(2026-07-27, RAM 위험 점검 계기로 추가 — 실측 조정 전이라 값은 잠정치).
 services:
   nginx:
     image: nginx:alpine
+    mem_limit: 256m
     ports:
       - "80:80"
       - "443:443"
@@ -11,12 +19,17 @@ services:
 
   backend-stage:
     image: ghcr.io/likelion-khu-official/website/backend:${STAGE_TAG:-stage-latest}
+    mem_limit: 4g
     ports:
       - "8081:8080"
     env_file:
       - .env.stage
     environment:
       - LOG_FILE_PATH=/app/logs/${STAGE_TAG:-stage-latest}.log
+      # 컨테이너 상한(mem_limit) 대비 70%까지만 힙으로 — 나머지는 metaspace·스레드 스택·
+      # direct buffer 등 힙 밖 JVM 오버헤드 몫. mem_limit 없이 쓰던 기본값(호스트 RAM의
+      # 25%)보다 오히려 절대치는 커지지만, 이제 컨테이너 상한 안에서만 커져서 안전하다.
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0
     volumes:
       - ./data:/app/data
       - ./logs/stage:/app/logs
@@ -24,12 +37,14 @@ services:
 
   backend-prod:
     image: ghcr.io/likelion-khu-official/website/backend:${PROD_TAG:-prod-latest}
+    mem_limit: 6g
     ports:
       - "8080:8080"
     env_file:
       - .env.prod
     environment:
       - LOG_FILE_PATH=/app/logs/${PROD_TAG:-prod-latest}.log
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0
     volumes:
       - ./data:/app/data
       - ./logs/prod:/app/logs
@@ -41,6 +56,7 @@ services:
   # 거쳐야만 닿는다(공인 포트 아님). 상세: infra/db-access.md
   sqlite-web-stage:
     image: ghcr.io/coleifer/sqlite-web:latest
+    mem_limit: 256m
     command: ["/data/stage.db", "-H", "0.0.0.0", "-p", "8080", "-r"]
     ports:
       - "127.0.0.1:8090:8080"
@@ -50,6 +66,7 @@ services:
 
   sqlite-web-prod:
     image: ghcr.io/coleifer/sqlite-web:latest
+    mem_limit: 256m
     command: ["/data/prod.db", "-H", "0.0.0.0", "-p", "8080", "-r"]
     ports:
       - "127.0.0.1:8091:8080"

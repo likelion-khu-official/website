@@ -15,15 +15,26 @@ spring:
 
   # === JPA (Java Persistence API) ===
   # Java 엔티티 클래스 ↔ DB 테이블 자동 매핑
+  # #133 — update는 SQLite ALTER TABLE 실패(예: UNIQUE 컬럼 추가)를 조용히 삼켜 스키마 드리프트를
+  # 냈다. 스키마 변경은 이제 Flyway 마이그레이션(db/migration/*.sql)으로만 하고, JPA는 그 결과가
+  # 엔티티 매핑과 실제로 맞는지 확인(validate)만 한다 — 안 맞으면 기동 자체가 실패해 배포가 막힌다.
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
     show-sql: true
+
+  # === 스키마 마이그레이션 (Flyway, #133) ===
+  # stage·prod는 이미 V1__baseline.sql과 동일한 스키마 상태라 baseline-on-migrate로 "이미 적용됨"만
+  # 기록하고 V1을 실제로 재실행하지 않는다(실행하면 "table already exists"로 깨짐). 새로 뜨는 빈 DB
+  # (로컬 개발 등)만 V1이 실제로 실행돼 스키마를 처음부터 만든다.
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 1
 
   # === 피드 이미지 업로드 용량 제한 ===
   servlet:

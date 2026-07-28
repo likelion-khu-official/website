@@ -5,6 +5,13 @@
   --foreground: #ffffff;
   --muted: #9aa5b0;
   --accent: #ff5000;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4rem;
+  overflow-x: clip;
 }
 
 @theme inline {
@@ -20,6 +27,100 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 섹션별 글로우는 배경 레이어(z=0)에만 두고 콘텐츠는 z=2로 올린다.
+   그 사이(z=1)에 긴 공통색 페이드를 놓으면 콘텐츠를 어둡게 하지 않으면서
+   글로우가 섹션 경계에서 네모나게 잘리는 현상을 막을 수 있다. */
+.home-experience main > section:not(#thumbnail),
+.home-blog-chapter > section {
+  isolation: isolate;
+}
+
+.home-experience main
+  > section:not(#thumbnail)
+  > *:not([aria-hidden]):not(.session-glow-top-wrap):not(.session-glow-bottom-wrap):not(
+    .members-glow-base
+  ):not(.members-glow-accent),
+.home-blog-chapter > section > *:not([aria-hidden]) {
+  position: relative;
+  z-index: 2;
+}
+
+.home-experience main > section:not(#thumbnail) > [aria-hidden],
+.home-experience main > section > .session-glow-top-wrap,
+.home-experience main > section > .session-glow-bottom-wrap,
+.home-experience main > section > .members-glow-base,
+.home-experience main > section > .members-glow-accent,
+.home-blog-chapter > section > [aria-hidden] {
+  z-index: 0;
+}
+
+.home-experience main > section:not(#thumbnail)::after,
+.home-blog-chapter > section::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    #131313 0,
+    rgba(19, 19, 19, 0) 120px,
+    rgba(19, 19, 19, 0) calc(100% - 120px),
+    #131313 100%
+  );
+  content: "";
+  pointer-events: none;
+}
+
+::selection {
+  background: rgba(255, 80, 0, 0.9);
+  color: #ffffff;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.site-scroll-progress {
+  transform: scaleX(0);
+}
+
+@keyframes site-scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .site-scroll-progress {
+    animation: site-scroll-progress 1ms linear both;
+    animation-timeline: scroll(root block);
+  }
 }
 
 .hero-glow {
@@ -36,8 +137,76 @@ body {
    State1(106:82): 위 살짝 + 아래 크게 / State2(Frame25=86:11): 검정 + 왼쪽아래
    State3(Frame26=93:76): 왼쪽위(93:80, 수직 flip) + 하단 밴드(93:79) */
 .hero-thumbnail-bg {
-  position: relative;
   background-color: #131313;
+}
+
+.hero-scroll-shell {
+  background: #131313;
+}
+
+.hero-stage::after {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: min(20vh, 180px);
+  background: linear-gradient(to bottom, transparent, rgba(19, 19, 19, 0.76) 72%, #131313);
+  content: "";
+  pointer-events: none;
+}
+
+.hero-stage {
+  position: sticky;
+}
+
+.hero-brand-mark {
+  position: absolute;
+  top: 13%;
+  right: -12%;
+  width: clamp(340px, 52vw, 900px);
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 80, 0, 0.1));
+  opacity: 0.16;
+  pointer-events: none;
+  mask-image: url("/logo.png");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: url("/logo.png");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.hero-copy,
+.hero-scroll-cue {
+  z-index: 2;
+}
+
+.hero-scroll-cue {
+  opacity: 0.8;
+}
+
+.hero-scroll-arrow {
+  animation: hero-scroll-arrow 1.6s var(--motion-ease-out) infinite;
+}
+
+@keyframes hero-scroll-arrow {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+@media (max-width: 639px) {
+  .hero-brand-mark {
+    top: 16%;
+    right: -44%;
+    width: 118vw;
+    opacity: 0.1;
+  }
 }
 
 .hero-glow-layer {
@@ -195,6 +364,248 @@ body {
   background-color: #131313;
 }
 
+.project-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.project-section {
+  --project-section-padding: 3svh;
+  --project-header-height: 20svh;
+  --project-carousel-offset: 1.5svh;
+  --project-stage-height: 50svh;
+  --project-stage-gutter: 2svh;
+  --project-card-height: 34svh;
+  --project-meta-height: 10svh;
+  --project-pagination-offset: 1.5svh;
+  padding-block: var(--project-section-padding);
+}
+
+.project-section-inner {
+  height: calc(
+    100svh - (var(--project-section-padding) + var(--project-section-padding))
+  );
+}
+
+.project-section-header {
+  min-height: var(--project-header-height);
+  padding-bottom: 1svh;
+}
+
+.project-section-title {
+  padding-top: 1.4svh;
+}
+
+.project-section-copy {
+  padding-top: 1.6svh;
+}
+
+.project-carousel-shell {
+  margin-top: var(--project-carousel-offset);
+}
+
+.project-coverflow-stage {
+  position: relative;
+  height: var(--project-stage-height);
+  margin-block: var(--project-stage-gutter);
+  perspective: 1600px;
+  transform-style: preserve-3d;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.project-coverflow-stage:active {
+  cursor: grabbing;
+}
+
+.project-coverflow-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: min(var(--project-card-height), 29vw);
+  aspect-ratio: 1.9 / 1;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: #0b0b0b;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.52);
+  transform: translate(-50%, -50%) translateX(var(--card-x)) rotateY(var(--card-rotate))
+    scale(var(--card-scale));
+  transform-style: preserve-3d;
+  transition:
+    transform 820ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 520ms linear,
+    border-color 320ms ease,
+    filter 520ms ease;
+  filter: saturate(0.55) brightness(0.58);
+  will-change: transform, opacity;
+}
+
+.project-carousel-meta {
+  min-height: var(--project-meta-height);
+}
+
+.project-carousel-pagination {
+  height: 2svh;
+  margin-top: var(--project-pagination-offset);
+}
+
+.project-coverflow-card.is-active {
+  border-color: rgba(255, 255, 255, 0.28);
+  filter: saturate(1) brightness(1);
+  box-shadow:
+    0 32px 86px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.project-coverflow-card:focus-visible {
+  outline: 2px solid #ff5000;
+  outline-offset: 5px;
+}
+
+.project-coverflow-open {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  opacity: 0;
+  transform: translateY(8px);
+  backdrop-filter: blur(12px);
+  transition:
+    opacity 260ms ease,
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 260ms ease;
+}
+
+.project-coverflow-card.is-active:hover .project-coverflow-open,
+.project-coverflow-card.is-active:focus-visible .project-coverflow-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.project-coverflow-card.is-active:hover .project-coverflow-open {
+  background: #ff5000;
+}
+
+.project-carousel-control {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease,
+    transform 220ms ease;
+}
+
+.project-carousel-control:hover {
+  border-color: #ff5000;
+  background: #ff5000;
+  color: white;
+  transform: scale(1.05);
+}
+
+.project-carousel-control:focus-visible {
+  outline: 2px solid #ff5000;
+  outline-offset: 3px;
+}
+
+.project-carousel-progress {
+  width: 100%;
+  transform-origin: left;
+  animation: project-carousel-progress 5.2s linear forwards;
+}
+
+.project-carousel-progress.is-paused {
+  animation-play-state: paused;
+}
+
+@keyframes project-carousel-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 639px) {
+  .project-section {
+    --project-section-padding: 2.5svh;
+    --project-header-height: 26svh;
+    --project-carousel-offset: 1svh;
+    --project-stage-height: 29svh;
+    --project-stage-gutter: 1.5svh;
+    --project-card-height: 21svh;
+    --project-meta-height: 13svh;
+    --project-pagination-offset: 1svh;
+  }
+
+  .project-coverflow-stage {
+    perspective: 1000px;
+  }
+
+  .project-coverflow-card {
+    top: 50%;
+    height: min(var(--project-card-height), 43vw);
+    border-radius: 18px;
+  }
+
+  .project-coverflow-open {
+    right: 12px;
+    bottom: 12px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .project-carousel-control {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .project-section {
+    --project-section-padding: 3svh;
+    --project-header-height: 22svh;
+    --project-stage-height: 38svh;
+    --project-card-height: 30svh;
+    --project-meta-height: 11svh;
+  }
+
+  .project-coverflow-card {
+    height: min(var(--project-card-height), 35vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-coverflow-card {
+    transition:
+      opacity 160ms linear,
+      filter 160ms linear;
+  }
+
+  .project-carousel-progress {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
 /* Plan(107:573) 섹션 배경 — 하단 중앙에서 피어오르는 강한 오렌지 글로우 */
 .plan-bg {
   background-color: #131313;
@@ -234,30 +645,6 @@ body {
     radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
 }
 
-/* Blog 카드 세로 무한 슬라이드 — 사본 2벌을 -50%↔0 으로 이동해 이음매 없이 반복(아래로 흐름) */
-.blog-track {
-  animation-name: blog-marquee;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
-.blog-viewport:hover .blog-track {
-  animation-play-state: paused;
-}
-@keyframes blog-marquee {
-  from {
-    transform: translateY(-50%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .blog-track {
-    animation: none;
-  }
-}
-
 /* Members(115:60) 섹션 배경 — Figma 글로우 2겹(115:62 베이스 하단우측 + 115:61 하단좌측 액센트) */
 .members-bg {
   background-color: #131313;
@@ -287,30 +674,112 @@ body {
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* Introduce 헤드라인 — 두 문구 크로스페이드 (a: 코딩이 처음이더라도... / b: 아이디어를...) */
-.headline-swap {
-  position: absolute;
-  inset: 0;
-  animation: headline-swap-cycle 10s ease-in-out infinite;
+/* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다.
+   각 요소가 --reveal-y로 자기 이동거리를 정할 수 있어(카드마다 다른 오프셋) 계단식으로 떠오른다. */
+.scroll-reveal-ready .scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, var(--reveal-y, 32px), 0) scale(0.985);
+  -webkit-transition:
+    opacity 520ms linear,
+    -webkit-transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 520ms linear,
+    transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
-.headline-swap--a {
-  animation-delay: 0s;
+
+
+.scroll-reveal-ready .scroll-reveal--left {
+  transform: translate3d(-28px, 10px, 0) scale(0.99);
 }
-.headline-swap--b {
-  animation-delay: -5s;
+
+.scroll-reveal-ready .scroll-reveal--right {
+  transform: translate3d(28px, 10px, 0) scale(0.99);
+  transition-delay: 60ms;
 }
-@keyframes headline-swap-cycle {
-  0% { opacity: 1; }
-  40% { opacity: 1; }
-  50% { opacity: 0; }
-  90% { opacity: 0; }
-  100% { opacity: 1; }
+
+.scroll-reveal-ready .scroll-reveal--scale {
+  transform: translate3d(0, 20px, 0) scale(0.975);
 }
-@media (prefers-reduced-motion: reduce) {
-  .headline-swap {
-    animation: none !important;
+
+.scroll-reveal-ready .scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.session-card-reveal:nth-child(2),
+.project-card-reveal:nth-child(3n + 2),
+.member-card-reveal:nth-child(even) {
+  transition-delay: 35ms;
+}
+
+.session-card-reveal:nth-child(3),
+.project-card-reveal:nth-child(3n) {
+  transition-delay: 70ms;
+}
+
+.session-card-reveal:nth-child(4) {
+  transition-delay: 105ms;
+}
+
+/* 연간 계획은 부모가 나타난 뒤 선과 끝점이 한 박자 늦게 이어진다. */
+.timeline-group--bottom .timeline-line {
+  transform-origin: right;
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+  .scroll-reveal-ready .timeline-group .timeline-line {
+    opacity: 0.2;
+    transform: scaleX(0);
+    transition:
+      opacity 600ms linear 80ms,
+      transform 700ms cubic-bezier(0.22, 0.72, 0.2, 1) 80ms;
   }
-  .headline-swap--b {
+
+  .scroll-reveal-ready .timeline-group.is-visible .timeline-line {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .scroll-reveal-ready .timeline-group .timeline-endpoint {
+    opacity: 0;
+    transform: scale(0.35);
+    transition:
+      opacity 220ms linear 450ms,
+      transform 280ms cubic-bezier(0.22, 0.72, 0.2, 1) 450ms;
+  }
+
+  .scroll-reveal-ready .timeline-group.is-visible .timeline-endpoint {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 최근 블로그 레이아웃을 건드리지 않고 랜딩 진입 리듬만 동일하게 맞춘다. */
+.home-blog-chapter {
+  background: #131313;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-scroll-progress {
     display: none;
+  }
+
+  .hero-copy,
+  .hero-brand-mark,
+  .hero-scroll-cue {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .timeline-line,
+  .timeline-endpoint {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .scroll-reveal-ready .scroll-reveal {
+    transform: none !important;
+    transition: opacity 160ms linear !important;
   }
 }

@@ -8,8 +8,10 @@ import likelion.khu.website.project.dto.ProjectImageRequest;
 import likelion.khu.website.project.dto.ProjectImageResponse;
 import likelion.khu.website.project.dto.ProjectParticipantRequest;
 import likelion.khu.website.project.dto.ProjectParticipantResponse;
+import likelion.khu.website.project.dto.ProjectReplaceRequest;
 import likelion.khu.website.project.dto.ProjectSummaryResponse;
 import likelion.khu.website.project.dto.ProjectUpdateRequest;
+import likelion.khu.website.project.dto.MemberProjectSummaryResponse;
 import likelion.khu.website.project.exception.DuplicateParticipantException;
 import likelion.khu.website.project.exception.EmptyParticipantsException;
 import likelion.khu.website.project.exception.InvalidRepresentativeImageException;
@@ -18,8 +20,12 @@ import likelion.khu.website.project.exception.ParticipantMemberNotFoundException
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,8 +40,16 @@ public class ProjectService {
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
-    public List<ProjectSummaryResponse> getPublicList() {
-        return projectRepository.findAllByHiddenFalseOrderByCreatedAtDesc().stream()
+    public List<ProjectSummaryResponse> getPublicList(Integer limit) {
+        if (limit != null && limit < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit은 1 이상이어야 합니다.");
+        }
+
+        Pageable pageable = limit == null
+                ? Pageable.unpaged()
+                : PageRequest.of(0, Math.min(limit, 100));
+
+        return projectRepository.findAllByHiddenFalseOrderByCreatedAtDesc(pageable).stream()
                 .map(project -> ProjectSummaryResponse.from(project, representativeImageUrl(project.getId())))
                 .toList();
     }
@@ -44,6 +58,22 @@ public class ProjectService {
     public ProjectDetailResponse getPublicDetail(Long id) {
         Project project = projectRepository.findByIdAndHiddenFalse(id)
                 .orElseThrow(ProjectNotFoundException::new);
+        return toDetailResponse(project);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MemberProjectSummaryResponse> getMemberProjects(Long memberId) {
+        return projectParticipantRepository.findProjectsByMemberId(memberId).stream()
+                .map(project -> MemberProjectSummaryResponse.from(
+                        project, representativeImageUrl(project.getId())
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectDetailResponse getMemberProjectDetail(Long id, Long memberId) {
+        Project project = findProjectOrThrow(id);
+        requireParticipant(id, memberId);
         return toDetailResponse(project);
     }
 
@@ -90,6 +120,34 @@ public class ProjectService {
             projectParticipantRepository.deleteAllByProjectId(id);
             saveParticipants(project, request.getParticipants());
         }
+
+        return toDetailResponse(project);
+    }
+
+    @Transactional
+    public ProjectDetailResponse replace(Long id, ProjectReplaceRequest request, Long memberId) {
+        Project project = findProjectOrThrow(id);
+        requireParticipant(id, memberId);
+        if (request.getParticipants().isEmpty()) {
+            throw new EmptyParticipantsException();
+        }
+        requireSelfAmongParticipants(request.getParticipants(), memberId);
+        requireNoDuplicateParticipants(request.getParticipants());
+        requireExactlyOneRepresentative(request.getImages());
+
+        project.replace(
+                request.getTitle(),
+                request.getSummary(),
+                request.getTechStack(),
+                request.getGithubUrl(),
+                request.getStartDate(),
+                request.getEndDate()
+        );
+
+        projectImageRepository.deleteAllByProjectId(id);
+        saveImages(project, request.getImages());
+        projectParticipantRepository.deleteAllByProjectId(id);
+        saveParticipants(project, request.getParticipants());
 
         return toDetailResponse(project);
     }
@@ -142,6 +200,13 @@ public class ProjectService {
         if (images == null || images.isEmpty()) {
             return;
         }
+        long representativeCount = images.stream().filter(ProjectImageRequest::isRepresentative).count();
+        if (representativeCount != 1) {
+            throw new InvalidRepresentativeImageException();
+        }
+    }
+
+    private void requireExactlyOneRepresentative(List<ProjectImageRequest> images) {
         long representativeCount = images.stream().filter(ProjectImageRequest::isRepresentative).count();
         if (representativeCount != 1) {
             throw new InvalidRepresentativeImageException();

@@ -206,4 +206,39 @@ class RecruitmentManagementControllerTest {
                         .content("{\"open\":true}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @WithMockAdminUser(role = "SUPER_ADMIN")
+    void subscribers_WithData_ReturnsBothWithSubscribedAt() throws Exception {
+        subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
+        subscriptionRepository.save(new NotificationSubscription("b@khu.ac.kr"));
+
+        mockMvc.perform(get("/api/admin/recruitment/subscribers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].subscribedAt").exists())
+                .andExpect(jsonPath("$[1].subscribedAt").exists());
+        // 최근 순 정렬은 단위 테스트(getSubscribers_ReturnsAllMappedToSummary)에서 검증
+    }
+
+    @Test
+    @WithMockAdminUser(role = "ADMIN")
+    void subscribers_Empty_ReturnsEmptyList() throws Exception {
+        mockMvc.perform(get("/api/admin/recruitment/subscribers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void subscribers_NoCookie_Returns401() throws Exception {
+        mockMvc.perform(get("/api/admin/recruitment/subscribers"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockAdminUser(role = "MEMBER")
+    void subscribers_CalledByMember_Returns403() throws Exception {
+        mockMvc.perform(get("/api/admin/recruitment/subscribers"))
+                .andExpect(status().isForbidden());
+    }
 }

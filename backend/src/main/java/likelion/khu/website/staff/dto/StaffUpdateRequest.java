@@ -4,7 +4,9 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-// 이름·학과·학번은 스코프 밖 — 등록 후 못 바꿈
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Getter
 @Setter
 public class StaffUpdateRequest {
@@ -17,5 +19,16 @@ public class StaffUpdateRequest {
 
     private String introduction;
 
+    // null이면 활동 유지, 값이 오면 통째로 교체.
+    private List<String> activities;
+
     private Integer sortOrder;
+
+    private String studentId;
+
+    private String phone;
+
+    private Boolean publicationConsent;
+
+    private LocalDateTime publicationConsentedAt;
 }

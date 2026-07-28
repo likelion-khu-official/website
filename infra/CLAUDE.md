@@ -46,20 +46,40 @@ GitHub Actions
   ※ CD 트리거 paths 필터: backend/**, shared/** — infra/ 변경만으로는 CD 안 돌아감
 
 OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
-  docker compose (단일 파일: infra/docker-compose.yml)
+  docker compose (단일 파일: infra/docker-compose.yml, 2026-07-26 실측 = 5개 서비스)
     ├── nginx (80/443)       → HTTP→HTTPS 리다이렉트 + SSL 종단 (Let's Encrypt, 만료 2026-09-27)
     │     api.prod.likelion-khu.com  → backend-prod:8080
     │     api.stage.likelion-khu.com → backend-stage:8080
     ├── backend-stage        → STAGE_TAG 변수 (기본: stage-latest)  (host:8081 → container:8080)
-    └── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
+    ├── backend-prod         → PROD_TAG 변수 (기본: prod-latest)    (host:8080 → container:8080)
+    ├── sqlite-web-stage     → 조회 전용 GUI, 127.0.0.1:8090에만 바인딩 (공인 포트 아님)
+    └── sqlite-web-prod      → 조회 전용 GUI, 127.0.0.1:8091에만 바인딩 (공인 포트 아님)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
+  ※ sqlite-web-*는 dbtunnel 계정의 SSH 포트포워딩으로만 접근(db-access.md 참고) — nginx 안 거침, 공인 인터넷 노출 없음
+
+크론(서버 실측, 2026-07-26 기준 — 2026-07-27 scripts/ 이동으로 경로만 갱신, 서버 crontab 반영은 별도 확인 필요):
+  0 18 * * *   scripts/backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
+  */5 * * * *  scripts/push-disk-metric.py       → 디스크 사용률 custom metric
+  */5 * * * *  scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
+  ※ 셋 다 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/*
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest
   backend:prod-{sha} / backend:prod-latest
 
+DNS (호스팅케이알, 네임서버 ns1~4.hosting.co.kr — 2026-07-26 dig 실측):
+  likelion-khu.com               A     → Vercel(프론트) — MX 없음(수신 메일함 없음, 발신 전용 Email Delivery만)
+  www.likelion-khu.com           CNAME → Vercel
+  api.prod.likelion-khu.com      A     → 168.138.202.82 (이 OCI 인스턴스)
+  api.stage.likelion-khu.com     A     → 168.138.202.82 (이 OCI 인스턴스)
+  likelion-khu.com               TXT   → SPF(`email-delivery.md` 참고), 별도 `_dmarc` TXT도 등록됨
+  ※ 프론트 스테이징 도메인은 `dev.likelion-khu.com`(고정 이름, `uptime-monitoring.md`에 이미 공개돼 있음) — Vercel이 서빙, 이 서버 nginx/인증서와 무관
+  ※ CAA 레코드 없음(어떤 CA든 이 도메인 인증서 발급 가능) — 지금 위험도는 낮지만 강화하려면 CAA로 Let's Encrypt만 허용하는 걸 검토 가능
+
 Vercel → 프론트엔드 (인프라 무관)
 ```
+
+DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설명)는 [`infra/docs/dns.md`](./docs/dns.md) 참고.
 
 ## 브랜치 ↔ 환경 대응
 
@@ -84,14 +104,46 @@ Vercel → 프론트엔드 (인프라 무관)
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
-| `infra/logging.md` | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
-| `infra/db-access.md` | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
-| `infra/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
-| `infra/uptime-monitoring.md` | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
-| `infra/observability.md` | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
-| `infra/push-disk-metric.py` / `infra/push-backup-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `observability.md` |
+| `infra/scripts/` | 실행되는 스크립트 전부(배포·백업·메트릭 push 등) — 2026-07-27 문서와 분리 |
+| `infra/docs/` | 이 CLAUDE.md·AGENTS.md·SECURITY.md를 뺀 나머지 인프라 문서 전부 — 2026-07-27 스크립트와 분리(Claude Code가 디렉터리별로 자동 로드하는 CLAUDE.md/AGENTS.md만 `infra/` 루트에 남음) |
+| [`infra/docs/logging.md`](./docs/logging.md) | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
+| [`infra/docs/RUNBOOK.md`](./docs/RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/docs/handoff.md`](./docs/handoff.md) | 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 체크리스트·계정 인벤토리(`pm/docs/handoff.md`의 인프라 절 상세) |
+| [`infra/docs/db-access.md`](./docs/db-access.md) | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
+| `infra/scripts/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |
+| [`infra/docs/uptime-monitoring.md`](./docs/uptime-monitoring.md) | 외부 가동 감시(UptimeRobot) — #83 ①②(외부 접속 불가·서버 전체 다운) |
+| [`infra/docs/observability.md`](./docs/observability.md) | 리소스·백업 관측(OCI Monitoring/Alarms/Notifications) — #83 ③④(디스크·메모리 사전경고, 백업 확신) |
+| [`infra/docs/dns.md`](./docs/dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
+| `infra/docs/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `infra/docs/handoff.md` "계정 인벤토리"에 있음 |
+| `infra/scripts/push-disk-metric.py` / `infra/scripts/push-backup-metric.py` / `infra/scripts/push-git-drift-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `docs/observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
+
+---
+
+## nginx 설정 — 실제 값 (2026-07-26 서버 실측)
+
+`infra/nginx.conf`는 gitignore라 레포엔 없다 — 여기가 실제 구조를 확인할 수 있는 유일한 곳이니 nginx를 바꾸면 이 절도 같이 갱신할 것.
+
+```
+http {
+  client_max_body_size 6m;   # 백엔드 멀티파트 한도(5MB)보다 살짝 크게 — 백엔드가 자기 한도 초과 시
+                             # 친절한 JSON 에러를 낼 기회를 주기 위함(nginx가 먼저 뚝 끊지 않도록)
+
+  server { listen 80; server_name api.prod.likelion-khu.com api.stage.likelion-khu.com;
+           return 301 https://$host$request_uri; }   # 80은 리다이렉트만, 실제 라우팅 없음
+
+  server { listen 443 ssl; server_name api.prod.likelion-khu.com;
+           ssl_certificate/key: likelion-khu.com-0001 lineage
+           location / { proxy_pass http://backend-prod:8080; ... X-Forwarded-* 헤더 } }
+
+  server { listen 443 ssl; server_name api.stage.likelion-khu.com;
+           ssl_certificate/key: likelion-khu.com-0001 lineage (위와 동일 인증서, SAN에 둘 다 포함)
+           location / { proxy_pass http://backend-stage:8080; ... X-Forwarded-* 헤더 } }
+}
+```
+
+**인증서는 `likelion-khu.com-0001` lineage 하나만 있다** (`Domains: likelion-khu.com api.prod.likelion-khu.com api.stage.likelion-khu.com`). 한때 `likelion-khu.com`이라는 이름의 두 번째 lineage가 더 있었는데(프론트 스테이징 서브도메인 포함, 용도 불분명), 이 nginx.conf 어디서도 참조되지 않는 걸 확인하고 2026-07-26 `sudo certbot delete --cert-name likelion-khu.com`로 정리했다 — 삭제 후 prod·stage 헬스체크 정상 확인.
 
 ---
 
@@ -128,6 +180,10 @@ Vercel → 프론트엔드 (인프라 무관)
 
 ---
 
+OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/docs/iam.md`(로컬 전용, 레포엔 없음 — 위 파일 목록 참고)에 있다. 새 담당자용 IAM 계정 만드는 절차는 `infra/docs/handoff.md` "계정 인벤토리" 참고.
+
+---
+
 ## OCI 초기 세팅 (한 번만)
 
 1. `OCI_DEPLOY_PATH` 디렉터리 생성 + git clone
@@ -149,23 +205,19 @@ Vercel → 프론트엔드 (인프라 무관)
 
 ---
 
-## 롤백
+## 수동 배포·롤백
 
-CD 실패 시 자동 롤백. 수동 롤백이 필요하면:
-```bash
-# stage
-STAGE_TAG=stage-abc1234 docker compose -f docker-compose.yml up -d backend-stage
+명령어·절차는 [`RUNBOOK.md`](./docs/RUNBOOK.md#cheat-sheet)에 단일화 — 여기 다시 안 적는다(두 곳에 있으면 하나만 고치고 잊는 사고가 난다).
 
-# prod
-PROD_TAG=prod-abc1234 docker compose -f docker-compose.yml up -d backend-prod
-```
+**이 롤백은 앱 이미지만 되돌린다 — DB 파일은 그대로다(2026-07-27, V6 사고 후속).** Flyway가 이미 실행·커밋한 마이그레이션(테이블 변경·행 삭제 등)은 이미지가 옛날로 돌아가도 DB엔 남는다. 실제로 V6 사고에서는 마이그레이션 자체가 예외로 실패해 그 스크립트 전체가 SQLite 트랜잭션으로 롤백됐고(DB는 그대로 V5 상태) 앱만 기동을 못 한 케이스라 이미지 롤백만으로 충분했지만, **마이그레이션이 성공적으로 커밋된 뒤 전혀 무관한 이유(앱 버그 등)로 헬스체크가 실패하는 경우엔 다르다** — 그땐 DB가 이미 새 스키마(행 삭제 포함)로 넘어간 채 앱만 구버전으로 돌아가는 애매한 상태가 된다.
+
+**DB 파일도 롤백과 함께 자동 복원하는 건 의도적으로 안 한다.** 그 자동화를 걸어두면, 마이그레이션이 문제없이 커밋된 뒤 실사용자가 새로 쓴 데이터(신규 가입·글 등)가 있어도 헬스체크 실패 시점에 무조건 배포 이전 스냅샷으로 덮어써서 그 진짜 데이터까지 날려버린다 — "이 실패가 마이그레이션 때문인지, 완전히 무관한 문제인지"는 스크립트가 구분 못 하는 판단이라, DB 복원은 항상 사람이 상황을 보고 결정해서 수동으로 한다. 대신 행을 삭제하는 마이그레이션을 배포하기 *전에* 신선한 복구 지점을 만들어두는 수동 백업 절차는 [`db-access.md`](./db-access.md)의 "백업 전략" 절 하위 항목 참고.
 
 ## 미결 사항
-- 스모크 테스트 엔드포인트 (백엔드 구현 후 `cd.yml`에 추가)
-- ~~SQLite 백업 자동화~~ → 완료(2026-07-04). 매일 cron으로 prod·stage 스냅샷 → 프라이빗 버킷 `likelion-backups` 업로드, 복원 검증까지 실측 완료. 상세는 [`db-access.md`](./db-access.md#백업-전략-구현검증-완료--2026-07-04).
-- DB 접근 계정·권한 체계는 [`db-access.md`](./db-access.md) 참고 (`dbaccess` 그룹, 제한 계정 `dbclient` 생성 완료 — 2026-07-03).
-- ~~sqlite 접속 가이드 스킬 제작~~ → `infra/.claude/skills/db-access/`로 완료(2026-07-04). 팀원이 접속·Flyway 경계·백업 상태를 물으면 이 스킬이 `db-access.md`를 그때 읽어 즉답하고, 공개키 등록도 이 스킬로 처리.
-- ~~팀원 공개키 등록~~ → 안시현·김우진(PM) 등록 완료(2026-07-04, stage+prod 조회+작성, GitHub 등록 키 재활용). **다음 할 일: 신선우.** GitHub에 등록된 SSH 키가 없어 본인이 새로 생성 후 `.pub` 전달 대기 중.
-- **DB GUI 뷰어(sqlite-web) — dbclient CLI와 별개 조회 경로 (2026-07-24 설계)** — `docker-compose.yml`에 `sqlite-web-stage`/`sqlite-web-prod`(127.0.0.1 바인딩, read-only) 추가, 로컬 tmux 스킬 `infra/db-dev-ui.sh` 작성 완료. **다음 할 일(장찬욱이 서버에서 직접):** `dbtunnel` 시스템 계정 생성 + `authorized_keys` 등록(공유 서버에 새 SSH 접근 수단을 만드는 일이라 자동화 안 하고 수동으로 — 정확한 명령은 `db-access.md`의 "GUI 뷰어" 섹션 참고) → `docker compose up -d sqlite-web-stage sqlite-web-prod`로 기동 → 이 PR을 `dev` 머지 후 되도록 빨리 `main`으로도 승격(안 하면 다음 prod 배포의 `git checkout -f main`이 `docker-compose.yml`을 예전 버전으로 되돌림 — 상세는 `db-access.md`).
-- **이메일 발송 기반 (#75, ~7/6, #74 선행)** — Email Domain·DKIM·Approved Sender·전용 IAM 유저(`smtp-mailer`)·SMTP 자격증명 생성, 호스팅케이알에 SPF·DKIM·DMARC 등록, 테스트 발송까지 전부 완료 — **SPF·DKIM·DMARC 전부 PASS 확인**(2026-07-06). **다음 할 일: `.env.email.local` 자격증명을 신선우·안시현에게 안전한 채널로 전달**(GitHub엔 평문 금지) → 완료되면 이슈 닫기. 브랜치 `infra/#75-email-delivery`. 상세는 [`email-delivery.md`](./email-delivery.md).
-- **관측·알림 기반 (#83, ~7/30)** — 외부 가동 감시(UptimeRobot)·OCI Monitoring/Alarms(디스크·메모리·백업)·재시작 정책 드리프트 수정, 그리고 **3개 항목 실발동 검증까지 전부 완료**(2026-07-09). 재부팅 복구력·디스크/메모리 Alarm·백업 Absence Alarm 셋 다 실측 확인 — 상세는 [`observability.md`](./observability.md#실발동-검증-2026-07-09). 이 검증 과정에서 **실제 백업 장애(backup-db.sh CRLF로 07-08~09 이틀간 백업 무중단 실패)를 발견·수정**했고, 알람 이메일 포맷(ONS_OPTIMIZED)·PM 구독자 추가까지 같이 정리. 브랜치 `infra/#83-observability-alerts`에 커밋 완료, **PR은 아직 안 올림**(김우진 지시 대기) — **다음 할 일: PR 생성 지시가 오면 올리고, 머지 후 이슈 닫기.**
+
+살아있는 "지금 안 끝난 것"만 한 줄씩 — 상세·경위는 각 문서가 갖고 있다(여기 복붙 안 함). 완료된 항목은 지운다(히스토리는 `pm/docs/learnings.md`·git log가 가짐).
+
+> 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
+
+- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./docs/RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
+- **`infra/scripts/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`docs/observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/scripts/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/scripts/cleanup-old-logs.sh`로 `100755` 확인.

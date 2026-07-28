@@ -85,7 +85,7 @@ export default function CommentSection({
           <button
             type="button"
             onClick={handleRetry}
-            className="rounded-full border border-white/20 px-4 py-1.5 text-white transition-colors hover:bg-white/10"
+            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
           >
             다시 시도
           </button>
@@ -124,7 +124,7 @@ export default function CommentSection({
           onChange={(e) => setNickname(e.target.value)}
           placeholder="닉네임 (선택, 비우면 익명)"
           maxLength={50}
-          className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-muted outline-none focus:border-white/30"
+          className="min-h-11 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-muted outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
         />
         <textarea
           value={content}
@@ -133,14 +133,14 @@ export default function CommentSection({
           required
           maxLength={300}
           rows={3}
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-muted outline-none focus:border-white/30"
+          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-muted outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
         />
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted">{content.length}/300</p>
           <button
             type="submit"
             disabled={submitting || !content.trim()}
-            className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+            className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
           >
             {submitting ? '등록 중…' : '댓글 등록'}
           </button>

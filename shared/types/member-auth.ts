@@ -4,7 +4,7 @@
 //   admin.ts의 어드민(이메일) 로그인과는 별도 계정 체계 — 쿠키 이름은 같지만 refresh_token의 Path가
 //   /api/member/auth라 두 세션은 서로 간섭하지 않는다.
 
-// MemberRole(member.ts, PM/FE/BE/DESIGN/INFRA — 공개 프로필의 팀 직군)과는 다른 개념 — 이건
+// MemberRole(member.ts, PM/FE/BE/DESIGN/AI/INFRA — 공개 프로필의 팀 직군)과는 다른 개념 — 이건
 // 인증 등급(4단계: 비로그인/MEMBER/ADMIN/SUPER_ADMIN 중 멤버 로그인이 발급하는 등급)이라 이름을 분리했다.
 export type MemberAuthRole = 'MEMBER';
 
@@ -76,5 +76,10 @@ export interface MemberMeResponse {
 
 /** POST /api/admin/members/:id/password/reset — 관리자(ADMIN 이상)가 초기화. 비번=전화번호로 되돌아간다(재설정 메일 없음). */
 export interface MemberPasswordResetResponse {
+  success: true;
+}
+
+/** POST /api/admin/members/:id/offboard — 관리자(ADMIN 이상)가 소프트 딜리트. 로그인만 막고 기록은 남는다(#145). */
+export interface MemberOffboardResponse {
   success: true;
 }
