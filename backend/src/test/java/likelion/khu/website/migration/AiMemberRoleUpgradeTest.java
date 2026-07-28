@@ -32,6 +32,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   자유 텍스트라, 값 매핑을 빠뜨려도 배포 중 죽지 않는다(그래서 테스트 2의 안전망이
  *   여기엔 안 통한다 — "안 죽는다"와 "맞게 변환된다"는 다른 질문). V3_LEGACY_ROLES 전부 +
  *   null/빈 문자열/매핑표에 없는 임의값까지 심어서 V6의 CASE 절이 실제로 의도한
+ *
+ *   가정(2026-07-28 확인): author_part가 콤마 등으로 이어붙인 "다중 값" 문자열이었던
+ *   적은 없다고 보고 이 테스트도 단일 값 케이스만 다룬다. V6 이전 PostService는
+ *   {@code member.getRoles().stream().findFirst()...}로 항상 값을 하나만 뽑아 저장했고
+ *   (다중 값을 합치는 코드 자체가 존재한 적 없음), V6 배포 직전 실제 stage 백업
+ *   (07-27 08:15 UTC)을 받아 확인해도 author_part는 NULL 1건뿐이었다. 이 가정이 깨졌다는
+ *   증거(예: 콤마 포함 author_part 실측)가 나오면 이 테스트에 그 케이스를 추가할 것.
  *   JSON 배열을 만드는지 하나씩 확인한다.
  */
 class AiMemberRoleUpgradeTest {
