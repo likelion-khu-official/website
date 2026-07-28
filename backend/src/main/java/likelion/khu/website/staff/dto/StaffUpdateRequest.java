@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -17,6 +18,9 @@ public class StaffUpdateRequest {
     private String photoUrl;
 
     private String introduction;
+
+    // null이면 활동 유지, 값이 오면 통째로 교체.
+    private List<String> activities;
 
     private Integer sortOrder;
 

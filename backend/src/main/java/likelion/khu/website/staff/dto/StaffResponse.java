@@ -4,6 +4,8 @@ import likelion.khu.website.staff.Staff;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @AllArgsConstructor
 public class StaffResponse {
@@ -14,6 +16,7 @@ public class StaffResponse {
     private Integer admissionYear;
     private String photoUrl;
     private String introduction;
+    private List<String> activities;
     private Integer sortOrder;
 
     public static StaffResponse from(Staff staff) {
@@ -25,6 +28,7 @@ public class StaffResponse {
                 staff.getAdmissionYear(),
                 staff.getPhotoUrl(),
                 staff.getIntroduction(),
+                List.copyOf(staff.getActivities()),
                 staff.getSortOrder()
         );
     }

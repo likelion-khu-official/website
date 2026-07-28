@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -27,6 +28,9 @@ public class StaffCreateRequest {
     private String photoUrl;
 
     private String introduction;
+
+    // 운영진 활동 이력. 없으면 빈 목록으로 저장된다.
+    private List<String> activities;
 
     @NotNull
     private Integer sortOrder;
