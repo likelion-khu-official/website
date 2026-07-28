@@ -1,28 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import NotificationForm from '@/components/NotificationForm';
-import type { PublicRecruitmentStatusResponse } from '@shared/types/recruitment';
+import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
-  // null = 아직 확인 전(평소 모드로 렌더 — 모집중 배너가 늦게 튀어나오는 것보단 안전한 기본값)
-  const [recruiting, setRecruiting] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/recruitment/status')
-      .then((res) => (res.ok ? (res.json() as Promise<PublicRecruitmentStatusResponse>) : null))
-      .then((data) => {
-        if (!cancelled && data) setRecruiting(data.open);
-      })
-      .catch(() => {
-        // 조회 실패 시 평소(모집 알림) 모드로 안전하게 유지
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { recruiting } = useRecruitmentStatus();
 
   return (
     <section

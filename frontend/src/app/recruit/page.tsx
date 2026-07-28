@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import type { PublicRecruitmentStatusResponse } from '@shared/types/recruitment';
+import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
 
 // 지원폼(#152)이 아직 없어, 모집중일 때 방문자에게 보여줄 임시 안내다.
 // 지원폼이 완성되면 이 페이지 내용을 실제 폼으로 교체한다(#151 PM 결정: 이슈 #154).
@@ -24,24 +24,7 @@ function RecruitContent() {
   const searchParams = useSearchParams();
   const preview = searchParams.get('preview') === '1';
 
-  const [recruiting, setRecruiting] = useState(preview);
-  const [checked, setChecked] = useState(preview);
-
-  useEffect(() => {
-    if (preview) return;
-    let cancelled = false;
-    fetch('/api/recruitment/status')
-      .then((res) => (res.ok ? (res.json() as Promise<PublicRecruitmentStatusResponse>) : null))
-      .then((data) => {
-        if (!cancelled && data) setRecruiting(data.open);
-      })
-      .finally(() => {
-        if (!cancelled) setChecked(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [preview]);
+  const { recruiting, checked } = useRecruitmentStatus(preview);
 
   if (!checked) {
     return (

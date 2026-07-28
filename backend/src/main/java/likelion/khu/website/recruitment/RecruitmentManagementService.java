@@ -3,7 +3,7 @@ package likelion.khu.website.recruitment;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
-import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
+import likelion.khu.website.recruitment.dto.PublicRecruitmentStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
 import likelion.khu.website.recruitment.dto.SubscriberSummary;
 import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
@@ -45,8 +45,8 @@ public class RecruitmentManagementService {
 
     // 공개 방문자용 — 랜딩·/recruit 페이지가 평소/모집중 화면을 가르는 데만 쓴다(#151).
     // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
-    public RecruitmentPublicStatusResponse getPublicStatus() {
-        return new RecruitmentPublicStatusResponse(findOrCreate().isOpen());
+    public PublicRecruitmentStatusResponse getPublicStatus() {
+        return new PublicRecruitmentStatusResponse(findOrCreate().isOpen());
     }
 
     public List<SubscriberSummary> getSubscribers() {

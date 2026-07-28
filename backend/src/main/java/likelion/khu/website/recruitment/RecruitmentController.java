@@ -1,6 +1,6 @@
 package likelion.khu.website.recruitment;
 
-import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
+import likelion.khu.website.recruitment.dto.PublicRecruitmentStatusResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,7 +16,7 @@ public class RecruitmentController {
     private final RecruitmentManagementService service;
 
     @GetMapping("/status")
-    public RecruitmentPublicStatusResponse status() {
+    public PublicRecruitmentStatusResponse status() {
         return service.getPublicStatus();
     }
 }
