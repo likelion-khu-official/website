@@ -28,7 +28,7 @@ METRIC_NAME = "GitDriftFileCount"
 
 _IMDS_URL = "http://169.254.169.254/opc/v2/instance/"
 
-REPO_DIR = Path(__file__).resolve().parent.parent
+REPO_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 def instance_metadata():

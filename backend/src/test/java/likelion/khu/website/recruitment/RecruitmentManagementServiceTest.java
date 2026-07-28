@@ -9,6 +9,12 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import likelion.khu.website.notification.NotificationSubscription;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -42,6 +48,19 @@ class RecruitmentManagementServiceTest {
     // (DB 순간 장애 등)는 그 밖이다. 예전엔 이게 @Async 스레드로 그대로 터져 Spring 기본
     // 핸들러가 로그 한 줄만 남기고 끝났다 — 여기선 바깥 try/catch가 삼켜서 예외가 호출자까지
     // 전파되지 않는지(= @Async 스레드가 죽지 않는지) 확인한다.
+    @Test
+    void getSubscribers_ReturnsAllMappedToSummary() {
+        NotificationSubscription a = new NotificationSubscription("a@khu.ac.kr");
+        NotificationSubscription b = new NotificationSubscription("b@khu.ac.kr");
+        when(subscriptionRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(b, a));
+
+        List<SubscriberSummary> result = service.getSubscribers();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getEmail()).isEqualTo("b@khu.ac.kr");
+        assertThat(result.get(1).getEmail()).isEqualTo("a@khu.ac.kr");
+    }
+
     @Test
     void sendToAllSubscribers_SubscriberListLookupFails_DoesNotPropagate() {
         when(subscriptionRepository.findAll()).thenThrow(new RuntimeException("DB down"));

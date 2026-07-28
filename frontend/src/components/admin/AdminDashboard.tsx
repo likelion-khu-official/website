@@ -10,9 +10,11 @@ import {
   createInvitation,
   deleteAdmin,
   updateAdminRole,
+  getSubscribers,
   AdminApiError,
 } from '@/lib/adminApi';
 import type { AdminAccount, AdminRole, AdminSummary } from '@shared/types/admin';
+import type { SubscriberSummary } from '@shared/types/recruitment';
 
 const ROLE_LABEL: Record<AdminRole, string> = { SUPER_ADMIN: '최고관리자', ADMIN: '운영진' };
 const STATUS_LABEL: Record<AdminSummary['status'], string> = { ACTIVE: '활성', LOCKED: '잠김' };
@@ -22,6 +24,7 @@ export default function AdminDashboard() {
 
   const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
   const [admins, setAdmins] = useState<AdminSummary[]>([]);
+  const [subscribers, setSubscribers] = useState<SubscriberSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -50,6 +53,9 @@ export default function AdminDashboard() {
         const list = await listAdmins();
         if (cancelled) return;
         setAdmins(list);
+        const subs = await getSubscribers();
+        if (cancelled) return;
+        setSubscribers(subs);
       } catch (err) {
         if (cancelled) return;
         if (
@@ -269,6 +275,27 @@ export default function AdminDashboard() {
         >
           멤버 관리로 이동
         </button>
+      </div>
+
+      <div className="mt-10 border-t border-white/10 pt-6">
+        <h2 className="mb-3 text-lg font-semibold text-white">모집 알림 구독자 명단</h2>
+        {subscribers.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted">아직 신청자가 없어요.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {subscribers.map((sub) => (
+              <li
+                key={sub.email}
+                className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm text-white">{sub.email}</span>
+                <span className="text-xs text-muted">
+                  {new Date(sub.subscribedAt).toLocaleString('ko-KR')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="mt-10 border-t border-white/10 pt-6">

@@ -102,14 +102,18 @@ export default function Nav() {
         <Link
           href="/"
           onClick={closeMenu}
-          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent lg:h-[clamp(44px,4.2vw,64px)] lg:w-[clamp(44px,4.2vw,64px)]"
+          aria-label="멋쟁이사자처럼 경희대 홈"
+          className="flex min-h-11 shrink-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
-            alt="멋쟁이사자처럼 경희대"
-            className="h-[80%] w-full object-contain"
+            alt=""
+            className="h-8 w-auto object-contain sm:h-9 lg:h-10"
           />
+          <span className="hidden text-[15px] font-semibold tracking-[-0.02em] text-white/80 sm:block lg:text-base">
+            멋쟁이사자처럼 경희대
+          </span>
         </Link>
 
         <ul

@@ -14,7 +14,11 @@ export default function ProjectCard({ project, priority = false, compact = false
       className="group flex min-w-0 flex-col focus-visible:outline-none"
       aria-label={`${project.title} 프로젝트 자세히 보기`}
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] border border-white/10 bg-[#202020] transition duration-500 group-hover:-translate-y-1 group-hover:border-white/25 group-hover:shadow-[0_26px_70px_rgba(0,0,0,0.42)] group-focus-visible:ring-2 group-focus-visible:ring-accent">
+      <div
+        className={`relative overflow-hidden rounded-[22px] border border-white/10 bg-[#202020] transition duration-500 group-hover:-translate-y-1 group-hover:border-white/25 group-hover:shadow-[0_26px_70px_rgba(0,0,0,0.42)] group-focus-visible:ring-2 group-focus-visible:ring-accent ${
+          compact ? 'aspect-[4/3]' : 'aspect-[4/5]'
+        }`}
+      >
         {project.representativeImageUrl ? (
           // 프로젝트 이미지는 OCI URL이라 Next 이미지 도메인을 고정하지 않는다.
           // eslint-disable-next-line @next/next/no-img-element

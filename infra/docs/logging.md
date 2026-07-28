@@ -9,6 +9,20 @@
 
 ## 해법
 
+```
+재배포 전                                재배포 후 (컨테이너 교체)
+┌─────────────────────┐                ┌─────────────────────┐
+│ 컨테이너(stage-<sha1>)│                │ 컨테이너(stage-<sha2>)│ ← 새 컨테이너, 이전 것은 rm
+│  /app/logs ──bind mount──┐            │  /app/logs ──bind mount──┐
+└─────────────────────┘   │            └─────────────────────┘   │
+                          ▼                                      ▼
+              호스트 infra/logs/stage/                호스트 infra/logs/stage/
+                stage-<sha1>.log                        stage-<sha1>.log  (그대로 남음)
+                                                          stage-<sha2>.log  (새로 생성)
+```
+
+컨테이너 안의 `/app/logs`는 컨테이너 생사와 무관하게 항상 호스트의 `infra/logs/{stage,prod}/`를 가리킨다 — 컨테이너가 지워져도(`docker rm`) 볼륨(호스트 디렉터리)은 안 지워지므로 로그 파일이 살아남는다. 파일명이 배포 태그(`stage-<sha>.log`)라 어느 버전의 로그인지도 그대로 구분된다.
+
 1. **Spring Boot가 파일로도 로그를 쓰게** (`backend/src/main/resources/application.yml`):
    ```yaml
    logging:
@@ -50,6 +64,7 @@
 | `backend/src/main/resources/application.yml` | `logging.file.name`/`logging.logback.rollingpolicy` — 파일 로깅 + 롤링 정책 |
 | `infra/docker-compose.yml` | `backend-stage`/`backend-prod`에 `LOG_FILE_PATH` 환경변수 + `./logs/{stage,prod}:/app/logs` 볼륨 |
 | `infra/logs/{stage,prod}/` | 실제 로그 파일 저장 위치 (서버에만 존재, gitignore) — 파일명 = 배포 태그(`stage-<sha>.log`) |
+| `infra/scripts/cleanup-old-logs.sh` | 30일 넘은 로그 파일 자동 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — cron `0 19 * * *` |
 
 ## 실측 검증 (2026-07-22)
 
@@ -59,5 +74,5 @@
 
 ## 미결 사항
 
-- 배포가 잦아지면 `infra/logs/{stage,prod}/` 아래 버전별 파일이 무한정 쌓인다(파일당 롤링은 걸려있지만 파일 자체를 지우진 않음) — 디스크 사용량이 문제가 되면 오래된 로그 파일을 주기적으로 정리하는 cron 추가 검토(`push-disk-metric.py` 알람이 80% 넘으면 먼저 알려주긴 함).
-- 중복 접두사로 남은 `stage-stage-....log` 잔존 파일 — 급하지 않은 수동 정리 대상.
+- ~~배포가 잦아지면 `infra/logs/{stage,prod}/` 아래 버전별 파일이 무한정 쌓인다~~ → 완료(2026-07-26). `infra/cleanup-old-logs.sh`가 30일 넘은 로그 파일을 매일 자동 삭제(cron `0 19 * * *`, 백업 cron 직후) — 사람이 수동으로 정리하던 걸 없앴다. 30일은 `backup-db.sh`의 원격 보관 기간과 맞춘 값, 필요하면 스크립트 상단 `RETENTION_DAYS`만 바꾸면 됨.
+- 중복 접두사로 남은 `stage-stage-....log` 잔존 파일 — 위 cron이 30일 지나면 이것도 같이 정리하므로 별도 조치 불필요.
