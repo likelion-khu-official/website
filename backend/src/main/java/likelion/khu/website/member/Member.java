@@ -40,6 +40,13 @@ public class Member {
     @Column(columnDefinition = "TEXT")
     private String joinReason;
 
+    private String department;
+
+    @Column(nullable = false)
+    private boolean publicationConsent;
+
+    private LocalDateTime publicationConsentedAt;
+
     // 로그인 아이디. 학번 자체는 평생 안 바뀌지만 오프보딩 후 다른 기수로 재입부할 수 있어
     // 학번 단독 unique가 아니라 (학번, 기수) 조합으로 유니크를 건다(#145 PR 리뷰).
     // "지금 활동 중인 계정은 학번당 하나"라는 불변식은 DB 제약이 아니라 MemberService.create()의
@@ -79,7 +86,8 @@ public class Member {
     private LocalDateTime updatedAt;
 
     public static Member create(String name, Set<MemberRole> roles, Integer cohort, String emoji,
-                                String photoUrl, String joinReason, String createdBy,
+                                String photoUrl, String joinReason, String department,
+                                boolean publicationConsent, LocalDateTime publicationConsentedAt, String createdBy,
                                 String studentId, String phone, String initialPasswordHash) {
         Member m = new Member();
         m.name = name;
@@ -88,6 +96,9 @@ public class Member {
         m.emoji = emoji;
         m.photoUrl = photoUrl;
         m.joinReason = joinReason;
+        m.department = department;
+        m.publicationConsent = publicationConsent;
+        m.publicationConsentedAt = publicationConsentedAt;
         m.studentId = studentId;
         m.phone = phone;
         m.passwordHash = initialPasswordHash;
@@ -101,11 +112,29 @@ public class Member {
         return m;
     }
 
-    public void update(String name, Set<MemberRole> roles, String photoUrl, String joinReason, String updatedBy) {
+    // 프로필·동의 필드 도입 전부터 쓰던 내부 생성 시그니처. 기존 도메인 테스트와 호출자는
+    // 안전한 기본값(비공개)으로 유지하고, 명단 등록 경로만 확장 시그니처를 사용한다.
+    public static Member create(String name, Set<MemberRole> roles, Integer cohort, String emoji,
+                                String photoUrl, String joinReason, String createdBy,
+                                String studentId, String phone, String initialPasswordHash) {
+        return create(
+                name, roles, cohort, emoji, photoUrl, joinReason,
+                null, false, null, createdBy, studentId, phone, initialPasswordHash
+        );
+    }
+
+    public void update(String name, Set<MemberRole> roles, String photoUrl, String joinReason,
+                       String department, Boolean publicationConsent, LocalDateTime publicationConsentedAt,
+                       String updatedBy) {
         if (name != null) this.name = name;
         if (roles != null) this.roles = new HashSet<>(roles);
         if (photoUrl != null) this.photoUrl = photoUrl.isEmpty() ? null : photoUrl;
         if (joinReason != null) this.joinReason = joinReason;
+        if (department != null) this.department = department;
+        if (publicationConsent != null) {
+            this.publicationConsent = publicationConsent;
+            this.publicationConsentedAt = publicationConsentedAt;
+        }
         this.updatedBy = updatedBy;
         this.updatedAt = LocalDateTime.now();
     }

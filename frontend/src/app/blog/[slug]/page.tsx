@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPostBySlug } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
-import { formatDate } from '@/lib/formatDate';
 import CommentSection from '@/components/blog/CommentSection';
+import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
+import PostAuthor from '@/components/blog/PostAuthor';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -47,13 +48,13 @@ export default async function PostPage({ params }: Props) {
   return (
     <article className="mx-auto max-w-3xl">
       <header className="mb-8 flex flex-col gap-3">
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">{post.title}</h1>
-        <p className="text-sm font-medium text-accent">
-          {post.authorName} · {formatDate(post.publishedAt ?? post.createdAt)}
-        </p>
+        <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
+          {post.title}
+        </h1>
+        <PostAuthor post={post} />
       </header>
 
-      {post.thumbnailUrl ? (
+      {post.thumbnailUrl && !markdownIncludesImage(post.content, post.thumbnailUrl) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={post.thumbnailUrl}
@@ -62,9 +63,7 @@ export default async function PostPage({ params }: Props) {
         />
       ) : null}
 
-      <div className="whitespace-pre-wrap break-words text-base leading-relaxed text-white/90">
-        {post.content}
-      </div>
+      <MarkdownContent content={post.content} />
 
       <hr className="my-12 border-white/10" />
 

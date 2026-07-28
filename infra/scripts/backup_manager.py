@@ -30,6 +30,20 @@ def put(key: str, file_path: str) -> None:
         client().put_object(Bucket=bucket, Key=key, Body=f.read())
 
 
+def get(key: str, dest_path: str) -> None:
+    bucket = os.environ["BACKUP_BUCKET"]
+    client().download_file(bucket, key, dest_path)
+
+
+def list_backups(prefix: str) -> None:
+    bucket = os.environ["BACKUP_BUCKET"]
+    s3 = client()
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=f"{prefix}/"):
+        for obj in sorted(page.get("Contents", []), key=lambda o: o["LastModified"]):
+            print(f"{obj['Key']}\t{obj['LastModified']}\t{obj['Size']}")
+
+
 def rotate(prefix: str, days: int) -> None:
     bucket = os.environ["BACKUP_BUCKET"]
     s3 = client()
@@ -46,6 +60,10 @@ if __name__ == "__main__":
     command = sys.argv[1]
     if command == "put":
         put(sys.argv[2], sys.argv[3])
+    elif command == "get":
+        get(sys.argv[2], sys.argv[3])
+    elif command == "list":
+        list_backups(sys.argv[2])
     elif command == "rotate":
         rotate(sys.argv[2], int(sys.argv[3]))
     else:

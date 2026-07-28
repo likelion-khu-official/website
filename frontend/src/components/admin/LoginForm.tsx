@@ -38,7 +38,7 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
       <h1 className="mb-8 text-2xl font-bold text-white">어드민 로그인</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -53,7 +53,7 @@ export default function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -68,7 +68,7 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
           />
         </div>
 
@@ -77,7 +77,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           {submitting ? '로그인 중…' : '로그인'}
         </button>
@@ -85,7 +85,7 @@ export default function LoginForm() {
 
       <Link
         href="/admin/forgot-password"
-        className="mt-5 text-center text-sm text-muted transition-colors hover:text-white"
+        className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg text-center text-sm text-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
       >
         비밀번호를 잊으셨나요?
       </Link>

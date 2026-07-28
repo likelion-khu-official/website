@@ -7,6 +7,7 @@ import likelion.khu.website.member.MemberRole;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Getter
@@ -25,6 +26,12 @@ public class MemberCreateRequest {
     private String photoUrl;
 
     private String joinReason;
+
+    private String department;
+
+    private Boolean publicationConsent;
+
+    private LocalDateTime publicationConsentedAt;
 
     // 로그인 아이디(학번). 초기 비밀번호는 phone을 그대로 써서 서버가 해시한다 — 부원이 따로 낼 게 없다.
     @NotBlank

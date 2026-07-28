@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -26,10 +27,12 @@ class MemberServiceTest {
     private MemberCreateRequest sampleRequest() {
         MemberCreateRequest req = new MemberCreateRequest();
         req.setName("시현");
-        req.setRoles(Set.of(MemberRole.BE));
+        req.setRoles(Set.of(MemberRole.BACKEND));
         req.setCohort(13);
         req.setStudentId("2020000001");
         req.setPhone("01000000001");
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
         return req;
     }
 
@@ -104,6 +107,40 @@ class MemberServiceTest {
     }
 
     @Test
+    void getAll_OnlyReturnsConsentedActiveMembers() {
+        MemberCreateRequest publicMember = sampleRequest();
+        memberService.create(publicMember, "admin@likelion.org");
+
+        MemberCreateRequest privateMember = sampleRequest();
+        privateMember.setStudentId("2020000002");
+        privateMember.setPhone("01000000002");
+        privateMember.setPublicationConsent(false);
+        privateMember.setPublicationConsentedAt(null);
+        memberService.create(privateMember, "admin@likelion.org");
+
+        List<MemberResponse> all = memberService.getAll();
+
+        assertThat(all).hasSize(1);
+        assertThat(all.get(0).getName()).isEqualTo("시현");
+    }
+
+    @Test
+    void update_StoresDepartmentAndPublicationConsentEvidence() {
+        MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
+        LocalDateTime changedAt = LocalDateTime.of(2026, 7, 2, 13, 30);
+
+        MemberUpdateRequest update = new MemberUpdateRequest();
+        update.setDepartment("소프트웨어융합학과");
+        update.setPublicationConsent(true);
+        update.setPublicationConsentedAt(changedAt);
+        MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
+
+        assertThat(updated.getDepartment()).isEqualTo("소프트웨어융합학과");
+        assertThat(updated.isPublicationConsent()).isTrue();
+        assertThat(updated.getPublicationConsentedAt()).isEqualTo(changedAt);
+    }
+
+    @Test
     void update_PartialUpdate_OnlyChangesProvidedFields() {
         MemberCreateRequest createReq = sampleRequest();
         createReq.setPhotoUrl("https://example.com/photo.jpg");
@@ -138,10 +175,10 @@ class MemberServiceTest {
     @Test
     void create_RolesAreStoredCorrectly() {
         MemberCreateRequest req = sampleRequest();
-        req.setRoles(Set.of(MemberRole.BE, MemberRole.PM));
+        req.setRoles(Set.of(MemberRole.BACKEND, MemberRole.PRESIDENT));
         MemberAdminResponse res = memberService.create(req, "admin@likelion.org");
 
-        assertThat(res.getRoles()).containsExactlyInAnyOrder(MemberRole.BE, MemberRole.PM);
+        assertThat(res.getRoles()).containsExactlyInAnyOrder(MemberRole.BACKEND, MemberRole.PRESIDENT);
     }
 
     @Test
@@ -175,10 +212,10 @@ class MemberServiceTest {
         MemberAdminResponse created = memberService.create(sampleRequest(), "admin@likelion.org");
 
         MemberUpdateRequest update = new MemberUpdateRequest();
-        update.setRoles(Set.of(MemberRole.FE, MemberRole.PM));
+        update.setRoles(Set.of(MemberRole.FRONTEND, MemberRole.VICE_PRESIDENT));
         MemberAdminResponse updated = memberService.update(created.getId(), update, "admin@likelion.org");
 
-        assertThat(updated.getRoles()).containsExactlyInAnyOrder(MemberRole.FE, MemberRole.PM);
+        assertThat(updated.getRoles()).containsExactlyInAnyOrder(MemberRole.FRONTEND, MemberRole.VICE_PRESIDENT);
     }
 
     @Test

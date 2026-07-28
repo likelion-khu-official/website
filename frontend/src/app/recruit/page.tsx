@@ -10,8 +10,8 @@ export default function RecruitPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen flex items-center justify-center">
-          <p className="text-gray-400 text-sm">불러오고 있어요…</p>
+        <main className="flex min-h-screen min-h-[100svh] items-center justify-center px-5 text-center">
+          <p className="text-sm text-gray-400">불러오고 있어요…</p>
         </main>
       }
     >
@@ -45,21 +45,21 @@ function RecruitContent() {
 
   if (!checked) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-400 text-sm">불러오고 있어요…</p>
+      <main className="flex min-h-screen min-h-[100svh] items-center justify-center px-5 text-center">
+        <p className="text-sm text-gray-400">불러오고 있어요…</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
+    <main className="flex min-h-screen min-h-[100svh] flex-col items-center justify-center gap-3 px-5 text-center">
       {recruiting ? (
         <>
           <p className="text-white text-lg font-semibold">모집이 시작되었습니다!</p>
-          <p className="text-gray-400 text-sm">지원 방법은 곧 자세히 안내드릴게요. 조금만 기다려 주세요.</p>
+          <p className="text-sm text-gray-400">지원 방법은 곧 자세히 안내드릴게요. 조금만 기다려 주세요.</p>
         </>
       ) : (
-        <p className="text-gray-400 text-sm">지금은 모집 기간이 아니에요.</p>
+        <p className="text-sm text-gray-400">지금은 모집 기간이 아니에요.</p>
       )}
     </main>
   );

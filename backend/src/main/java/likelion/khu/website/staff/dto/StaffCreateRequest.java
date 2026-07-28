@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 public class StaffCreateRequest {
@@ -28,4 +30,12 @@ public class StaffCreateRequest {
 
     @NotNull
     private Integer sortOrder;
+
+    private String studentId;
+
+    private String phone;
+
+    private Boolean publicationConsent;
+
+    private LocalDateTime publicationConsentedAt;
 }

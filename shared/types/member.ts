@@ -1,7 +1,23 @@
 // 멤버 API 계약 — FE↔BE 합의 파일
 // 변경 시 양 팀 합의 필요 (shared/ 규칙)
 
-export type MemberRole = 'PM' | 'FE' | 'BE' | 'DESIGN' | 'INFRA';
+export type MemberRole =
+  // 운영진
+  | 'PRESIDENT'       // 회장
+  | 'VICE_PRESIDENT'  // 부회장
+  | 'BACKEND_LEAD'    // 백엔드 세션장
+  | 'FRONTEND_LEAD'   // 프론트엔드 세션장
+  | 'DESIGN_LEAD'     // 디자인 세션장
+  | 'AI_LEAD'         // AI 세션장
+  | 'PLANNING_HEAD'   // 기획부장
+  | 'PLANNING_MEMBER' // 기획부원
+  | 'PR_HEAD'         // 홍보부장
+  | 'PR_MEMBER'       // 홍보부원
+  // 멤버
+  | 'BACKEND'         // 백엔드
+  | 'FRONTEND'        // 프론트엔드
+  | 'DESIGN'          // 디자인
+  | 'AI';             // AI
 
 /** GET /api/members — 공개 전체 목록 */
 export interface Member {
@@ -33,12 +49,18 @@ export interface MemberUpdateRequest {
   joinReason?: string;
 }
 
-/**
- * GET /api/admin/members, POST /api/admin/members, PATCH /api/admin/members/{id} 응답 공용(#145).
- * 공개 Member와 달리 로그인 아이디(studentId)·오프보딩 여부를 담는다 — phone(초기 비밀번호 원본)은
- * 화면에 보일 이유가 없어 여기서도 노출하지 않는다.
- */
-export interface MemberAdminSummary extends Member {
+/** GET /api/admin/members — 관리자 전용 멤버 상세 (studentId·오프보딩 상태 포함) */
+export interface MemberAdminSummary {
+  id: number;
+  name: string;
+  roles: MemberRole[];
+  cohort: number;
+  emoji: string;
+  photoUrl: string | null;
+  joinReason: string | null;
+  department: string | null;
   studentId: string;
+  publicationConsent: boolean;
+  publicationConsentedAt: string | null;
   offboarded: boolean;
 }

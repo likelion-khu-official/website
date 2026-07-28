@@ -20,3 +20,9 @@ export interface RecruitmentStatusUpdateRequest {
 export interface PublicRecruitmentStatusResponse {
   open: boolean;
 }
+
+/** GET /api/admin/recruitment/subscribers 항목 — 관리자(ADMIN 이상) */
+export interface SubscriberSummary {
+  email: string;
+  subscribedAt: string; // ISO 8601
+}

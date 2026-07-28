@@ -35,6 +35,15 @@ public class Staff {
     @Column(columnDefinition = "TEXT")
     private String introduction;
 
+    private String studentId;
+
+    private String phone;
+
+    @Column(nullable = false)
+    private boolean publicationConsent;
+
+    private LocalDateTime publicationConsentedAt;
+
     @Column(nullable = false)
     private Integer sortOrder;
 
@@ -51,7 +60,9 @@ public class Staff {
     private LocalDateTime updatedAt;
 
     public static Staff create(String name, String position, String department, Integer admissionYear,
-                                String photoUrl, String introduction, Integer sortOrder, String createdBy) {
+                               String photoUrl, String introduction, Integer sortOrder,
+                               String studentId, String phone, boolean publicationConsent,
+                               LocalDateTime publicationConsentedAt, String createdBy) {
         Staff s = new Staff();
         s.name = name;
         s.position = position;
@@ -60,6 +71,10 @@ public class Staff {
         s.photoUrl = photoUrl;
         s.introduction = introduction;
         s.sortOrder = sortOrder;
+        s.studentId = studentId;
+        s.phone = phone;
+        s.publicationConsent = publicationConsent;
+        s.publicationConsentedAt = publicationConsentedAt;
         s.createdBy = createdBy;
         s.updatedBy = createdBy;
         LocalDateTime now = LocalDateTime.now();
@@ -68,12 +83,19 @@ public class Staff {
         return s;
     }
 
-    // 이름·학과·학번은 수정 API 스코프 밖 — 등록 후 불변
-    public void update(String position, String photoUrl, String introduction, Integer sortOrder, String updatedBy) {
+    public void update(String position, String photoUrl, String introduction, Integer sortOrder,
+                       String studentId, String phone, Boolean publicationConsent,
+                       LocalDateTime publicationConsentedAt, String updatedBy) {
         if (position != null) this.position = position;
         if (photoUrl != null) this.photoUrl = photoUrl;
         if (introduction != null) this.introduction = introduction;
         if (sortOrder != null) this.sortOrder = sortOrder;
+        if (studentId != null) this.studentId = studentId;
+        if (phone != null) this.phone = phone;
+        if (publicationConsent != null) {
+            this.publicationConsent = publicationConsent;
+            this.publicationConsentedAt = publicationConsentedAt;
+        }
         this.updatedBy = updatedBy;
         this.updatedAt = LocalDateTime.now();
     }

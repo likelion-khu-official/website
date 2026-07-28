@@ -80,6 +80,17 @@ public class Project {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void replace(String title, String summary, Set<String> techStack,
+                        String githubUrl, LocalDate startDate, LocalDate endDate) {
+        this.title = title;
+        this.summary = summary;
+        this.techStack = new HashSet<>(techStack);
+        this.githubUrl = githubUrl;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
         this.updatedAt = LocalDateTime.now();

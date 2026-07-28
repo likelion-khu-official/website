@@ -39,7 +39,7 @@ class MemberAuthControllerTest {
 
     private Member createMember(String studentId, String phone) {
         Member member = Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@likelion.org",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@likelion.org",
                 studentId, phone, passwordEncoder.encode(phone));
         return memberRepository.save(member);
     }

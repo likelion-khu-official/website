@@ -5,8 +5,11 @@ import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
 import likelion.khu.website.recruitment.dto.RecruitmentPublicStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
 import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,6 +47,13 @@ public class RecruitmentManagementService {
     // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
     public RecruitmentPublicStatusResponse getPublicStatus() {
         return new RecruitmentPublicStatusResponse(findOrCreate().isOpen());
+    }
+
+    public List<SubscriberSummary> getSubscribers() {
+        return subscriptionRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(SubscriberSummary::from)
+                .toList();
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)
