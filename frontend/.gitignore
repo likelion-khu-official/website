@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# playwright — storageState는 실제 로그인 세션 쿠키를 담고 있어 절대 커밋 금지
+/e2e/.auth/
+/test-results/
+/playwright-report/
+/blob-report/
+
 # next.js
 /.next/
 /out/
