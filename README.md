@@ -38,7 +38,7 @@
 | 🎫 [열린 티켓](https://github.com/likelion-khu-official/website/issues?q=is%3Aopen+label%3Aroadmap)                                                                                                    | 지금 굴러가는 작업 (Sub-task / Task) |
 
 
-테마 라벨(`area:*`)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민 · 최고관리자.
+테마 라벨(`area:*`)로도 거릅니다 — 랜딩 · 프로젝트 쇼케이스 · 멤버 로스터 · 운영진 소개 · 블로그 · 모집 · 인증·계정 · 멤버 영역 · 어드민.
 
 **스펙(무엇이어야 하나)의 정본은 [서비스 위키](https://github.com/likelion-khu-official/website/wiki)**입니다. 각 Story가 위키를 링크하고, "됐다"의 판정(검증 결과)은 [`pm/qa/`](pm/qa/)에 남습니다. 구현·논의 전에 위키를 먼저 확인해 주세요.
 
