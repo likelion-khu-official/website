@@ -9,6 +9,7 @@ const navLinks = [
   { href: '#members', label: 'Members' },
   { href: '#plan', label: 'Activity' },
   { href: '#blog', label: 'Blog' },
+  { href: '#faq', label: 'FAQ' },
   { href: '#recruit', label: 'Recruit' },
 ];
 
@@ -20,6 +21,7 @@ const observedSections = [
   { id: 'members', href: '#members' },
   { id: 'plan', href: '#plan' },
   { id: 'blog', href: '#blog' },
+  { id: 'faq', href: '#faq' },
   { id: 'recruit', href: '#recruit' },
 ];
 
