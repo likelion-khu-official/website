@@ -645,6 +645,11 @@ textarea {
     radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
 }
 
+/* FAQ 섹션 배경 — 아직 Figma 시안이 없어, 글로우 없이 Project 섹션과 같은 단색 배경만 사용 */
+.faq-bg {
+  background-color: #131313;
+}
+
 /* Members(115:60) 섹션 배경 — Figma 글로우 2겹(115:62 베이스 하단우측 + 115:61 하단좌측 액센트) */
 .members-bg {
   background-color: #131313;

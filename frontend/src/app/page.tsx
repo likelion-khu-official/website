@@ -7,6 +7,7 @@ import Project from '@/components/sections/Project';
 import Members from '@/components/sections/Members';
 import Plan from '@/components/sections/Plan';
 import Blog from '@/components/sections/Blog';
+import Faq from '@/components/sections/Faq';
 import Recruit from '@/components/sections/Recruit';
 import Footer from '@/components/sections/Footer';
 
@@ -31,6 +32,7 @@ export default function Home() {
         <div className="home-blog-chapter">
           <Blog />
         </div>
+        <Faq />
         <Recruit />
       </main>
       <Footer />
