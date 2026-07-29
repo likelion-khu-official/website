@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 import oci
 
 NAMESPACE = "custom_likelion"
-WINDOW_MINUTES = 15  # cron 주기(*/15)와 일치 - observability.md "알람 튜닝 사고 모델"의 C
+WINDOW_MINUTES = 5  # cron 주기(*/5)와 일치 - observability.md "알람 튜닝 사고 모델"의 C (disk/git-drift와 동일 주기)
 
 _IMDS_URL = "http://169.254.169.254/opc/v2/instance/"
 _DATA_DIR = "/home/ubuntu/website/infra/data"

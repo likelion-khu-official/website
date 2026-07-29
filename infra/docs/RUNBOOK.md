@@ -174,7 +174,7 @@ ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --ta
 <a id="alarm-email-failure"></a>
 ### 1-6. OCI Monitoring — 모집 이메일 실패 임계치 초과 (prod/stage, OCI 심각도: WARNING / 대응 긴급도: 예방적 경고, #113)
 
-**경고**: 최근 15분 안에 `email_log`에 `FAILURE`로 기록된 행이 2건을 넘었다는 뜻이다(첫 breach에 바로 발동 — 이메일 발송은 뜸하다가 몰릴 때 한꺼번에 몰리는 성격이라, 디스크·메모리처럼 "연속 2번 나쁨"을 요구하면 burst성 장애를 오히려 못 잡는다. 설계 근거는 `observability.md` "모집 이메일 실패 임계치 알림 이유" 참고). 개별 실패 1~2건은 정상 범위(주소 오탈자 등)라 3건부터는 시스템적으로 무언가 실패 중이라는 신호로 본다.
+**경고**: 최근 5분 안에 `email_log`에 `FAILURE`로 기록된 행이 2건을 넘었다는 뜻이다(첫 breach에 바로 발동 — 이메일 발송은 뜸하다가 몰릴 때 한꺼번에 몰리는 성격이라, 디스크·메모리처럼 "연속 2번 나쁨"을 요구하면 burst성 장애를 오히려 못 잡는다. 설계 근거는 `observability.md` "모집 이메일 실패 임계치 알림 이유" 참고). 개별 실패 1~2건은 정상 범위(주소 오탈자 등)라 3건부터는 시스템적으로 무언가 실패 중이라는 신호로 본다.
 
 **영향**: 사이트 자체는 멀쩡하다 — 모집 알림 신청·초대·비번재설정 메일이 실제 수신자에게 안 가고 있을 뿐이다. 다만 모집 알림 신청자가 다음 모집 안내를 못 받으면(#124/#126) 그 사람은 모집이 열린 것 자체를 모르고 지나칠 수 있어, 방치 시간에 비례해 실제 지원 기회 손실이 쌓인다.
 
@@ -188,7 +188,7 @@ ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --ta
 # ↑ 애플리케이션 로그에서 발송 관련 에러 스택 확인
 ```
 
-**복구**: 로그가 SMTP 연결·인증 실패(예: `MailAuthenticationException`, connection timeout)를 가리키면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). 원인이 해소되면 이후 발송은 자동으로 다시 성공하고, 마지막 실패가 15분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 15~20분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
+**복구**: 로그가 SMTP 연결·인증 실패(예: `MailAuthenticationException`, connection timeout)를 가리키면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). 원인이 해소되면 이후 발송은 자동으로 다시 성공하고, 마지막 실패가 5분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 5~10분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
 
 ---
 

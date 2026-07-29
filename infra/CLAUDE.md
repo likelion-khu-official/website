@@ -61,7 +61,7 @@ OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   0 18 * * *   scripts/backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
   */5 * * * *  scripts/push-disk-metric.py       → 디스크 사용률 custom metric
   */5 * * * *  scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
-  */15 * * * * scripts/push-email-failure-metric.py prod/stage → email_log 최근 15분 실패건수 custom metric (#113, 두 줄 등록)
+  */5 * * * *  scripts/push-email-failure-metric.py prod/stage → email_log 최근 5분 실패건수 custom metric (#113, 두 줄 등록)
   ※ 전부 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/*
 
 GHCR (이미지 레지스트리)
