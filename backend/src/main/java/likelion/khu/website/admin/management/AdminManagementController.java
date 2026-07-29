@@ -1,16 +1,20 @@
 package likelion.khu.website.admin.management;
 
 import jakarta.validation.Valid;
+import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.admin.dto.AdminSuccessResponse;
+import likelion.khu.website.admin.management.dto.AdminHandoverResponse;
 import likelion.khu.website.admin.management.dto.AdminRoleUpdateRequest;
 import likelion.khu.website.admin.management.dto.AdminRoleUpdateResponse;
 import likelion.khu.website.admin.management.dto.AdminSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,5 +45,11 @@ public class AdminManagementController {
     @PatchMapping("/{id}/role")
     public AdminRoleUpdateResponse changeRole(@PathVariable Long id, @Valid @RequestBody AdminRoleUpdateRequest request) {
         return managementService.changeRole(id, request.getRole());
+    }
+
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PostMapping("/{id}/handover")
+    public AdminHandoverResponse handover(@PathVariable Long id, @AuthenticationPrincipal AdminPrincipal principal) {
+        return managementService.handover(principal.getId(), id);
     }
 }

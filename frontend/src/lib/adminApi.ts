@@ -16,6 +16,7 @@ import type {
   AdminInvitationSummary,
   AdminRoleUpdateRequest,
   AdminRoleUpdateResponse,
+  AdminHandoverResponse,
 } from '@shared/types/admin';
 import type { RecruitmentStatusResponse, RecruitmentStatusUpdateRequest } from '@shared/types/recruitment';
 import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
@@ -198,6 +199,16 @@ export function updateAdminRole(id: number, body: AdminRoleUpdateRequest) {
     `/admins/${id}/role`,
     { method: 'PATCH', body: JSON.stringify(body) },
     '역할 변경에 실패했어요.',
+    true
+  );
+}
+
+/** id는 최고관리자를 넘겨받을 대상(운영진)의 id. 호출자는 세션으로 식별된다. */
+export function handoverSuperAdmin(id: number) {
+  return request<AdminHandoverResponse>(
+    `/admins/${id}/handover`,
+    { method: 'POST' },
+    '최고관리자 넘기기에 실패했어요.',
     true
   );
 }

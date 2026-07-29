@@ -10,6 +10,7 @@ import {
   createInvitation,
   deleteAdmin,
   updateAdminRole,
+  handoverSuperAdmin,
   getSubscribers,
   AdminApiError,
 } from '@/lib/adminApi';
@@ -38,6 +39,12 @@ export default function AdminDashboard() {
   const [rowError, setRowError] = useState('');
 
   const [reloadIndex, setReloadIndex] = useState(0);
+
+  // 최고관리자 승계(#147) — 대상 선택 → 되돌릴 수 없음 확인, 두 단계로 나눠 실수 발동을 줄인다.
+  const [handoverStep, setHandoverStep] = useState<'closed' | 'select' | 'confirm'>('closed');
+  const [handoverTargetId, setHandoverTargetId] = useState<number | null>(null);
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
+  const [handoverError, setHandoverError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +139,33 @@ export default function AdminDashboard() {
     }
   }
 
+  function openHandover() {
+    setHandoverTargetId(null);
+    setHandoverError('');
+    setHandoverStep('select');
+  }
+
+  function closeHandover() {
+    setHandoverStep('closed');
+    setHandoverTargetId(null);
+    setHandoverError('');
+  }
+
+  async function submitHandover() {
+    if (handoverTargetId === null || handoverSubmitting) return;
+    setHandoverSubmitting(true);
+    setHandoverError('');
+    try {
+      await handoverSuperAdmin(handoverTargetId);
+      // 넘긴 순간 본인은 최고관리자가 아니게 되므로, 이 세션은 더 붙잡지 않고 바로 로그인 화면으로.
+      await logout().catch(() => {});
+      router.push('/admin/login');
+    } catch (err) {
+      setHandoverError(err instanceof AdminApiError ? err.message : '최고관리자 넘기기에 실패했어요.');
+      setHandoverSubmitting(false);
+    }
+  }
+
   if (loading) {
     return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;
   }
@@ -152,6 +186,8 @@ export default function AdminDashboard() {
   }
 
   const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
+  const handoverTargets = admins.filter((a) => a.role === 'ADMIN');
+  const handoverTarget = handoverTargets.find((a) => a.id === handoverTargetId) ?? null;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -173,18 +209,97 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white">운영진 목록</h2>
         {isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setInviteOpen((v) => !v)}
-            className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            {inviteOpen ? '닫기' : '+ 초대'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handoverStep === 'closed' ? openHandover : closeHandover}
+              className="min-h-11 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-sm text-amber-200 outline-none transition-colors hover:bg-amber-400/20 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {handoverStep === 'closed' ? '자리 넘기기' : '닫기'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setInviteOpen((v) => !v)}
+              className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {inviteOpen ? '닫기' : '+ 초대'}
+            </button>
+          </div>
         )}
       </div>
+
+      {isSuperAdmin && handoverStep !== 'closed' && (
+        <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+          {handoverStep === 'select' ? (
+            handoverTargets.length === 0 ? (
+              <p className="text-sm text-muted">넘길 수 있는 운영진이 없어요. 먼저 운영진을 초대해주세요.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-medium text-white" htmlFor="handover-target">
+                  최고관리자 자리를 넘길 운영진을 선택하세요
+                </label>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <select
+                    id="handover-target"
+                    value={handoverTargetId ?? ''}
+                    onChange={(e) => setHandoverTargetId(e.target.value ? Number(e.target.value) : null)}
+                    className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+                  >
+                    <option value="" disabled>
+                      대상을 선택하세요
+                    </option>
+                    {handoverTargets.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.email})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={handoverTargetId === null}
+                    onClick={() => setHandoverStep('confirm')}
+                    className="min-h-11 rounded-full border border-amber-400/40 bg-amber-400/10 px-5 py-2.5 text-sm text-amber-200 outline-none transition-colors hover:bg-amber-400/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            handoverTarget && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-white">
+                  <strong>{handoverTarget.name}</strong>님에게 최고관리자를 넘기고, 나는 운영진이 됩니다.
+                  <br />
+                  <strong className="text-amber-300">이 작업은 되돌릴 수 없습니다.</strong>
+                </p>
+                {handoverError && <p className="text-sm text-red-400">{handoverError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={handoverSubmitting}
+                    onClick={submitHandover}
+                    className="min-h-11 rounded-full border border-amber-400/40 bg-amber-400/10 px-5 py-2.5 text-sm text-amber-200 outline-none transition-colors hover:bg-amber-400/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+                  >
+                    {handoverSubmitting ? '넘기는 중…' : '넘기기'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={handoverSubmitting}
+                    onClick={() => setHandoverStep('select')}
+                    className="min-h-11 rounded-full border border-white/20 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+                  >
+                    이전
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {isSuperAdmin && inviteOpen && (
         <form

@@ -18,7 +18,9 @@ export type AdminErrorCode =
   | 'INVALID_TOKEN'
   | 'EXPIRED_TOKEN'
   | 'WEAK_PASSWORD'
-  | 'LAST_SUPER_ADMIN';
+  | 'LAST_SUPER_ADMIN'
+  | 'HANDOVER_SELF_TARGET'
+  | 'HANDOVER_TARGET_NOT_ADMIN';
 
 /** 모든 에러 응답 공통 형태 */
 export interface AdminErrorResponse {
@@ -133,4 +135,14 @@ export interface AdminRoleUpdateRequest {
 export interface AdminRoleUpdateResponse {
   id: number;
   role: AdminRole;
+}
+
+/**
+ * POST /api/admin/admins/:id/handover — :id는 넘겨받을 대상(ADMIN)의 id.
+ * 호출자(현재 SUPER_ADMIN)는 인증 세션에서 식별하므로 바디가 필요 없다.
+ * 승급·강등이 한 번에 원자적으로 반영된다(#147).
+ */
+export interface AdminHandoverResponse {
+  newSuperAdmin: AdminSummary;
+  formerSuperAdmin: AdminSummary;
 }

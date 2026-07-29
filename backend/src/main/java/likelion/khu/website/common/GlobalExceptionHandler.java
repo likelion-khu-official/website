@@ -7,12 +7,14 @@ import likelion.khu.website.admin.exception.AdminInvitationExpiredException;
 import likelion.khu.website.admin.exception.AdminInvitationIdNotFoundException;
 import likelion.khu.website.admin.exception.AdminInvitationNotFoundException;
 import likelion.khu.website.admin.exception.AdminNotFoundException;
+import likelion.khu.website.admin.exception.HandoverTargetNotAdminException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidEmailDomainException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
 import likelion.khu.website.admin.exception.LastSuperAdminException;
 import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
 import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
+import likelion.khu.website.admin.exception.SelfHandoverException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
@@ -123,6 +125,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AdminNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleAdminNotFound(AdminNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    @ExceptionHandler(SelfHandoverException.class)
+    public ResponseEntity<Map<String, Object>> handleSelfHandover(SelfHandoverException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "HANDOVER_SELF_TARGET"));
+    }
+
+    @ExceptionHandler(HandoverTargetNotAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleHandoverTargetNotAdmin(HandoverTargetNotAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "HANDOVER_TARGET_NOT_ADMIN"));
     }
 
     @ExceptionHandler(AdminInvitationIdNotFoundException.class)
