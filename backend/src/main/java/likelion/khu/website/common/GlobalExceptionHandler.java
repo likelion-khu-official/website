@@ -10,7 +10,7 @@ import likelion.khu.website.admin.exception.AdminNotFoundException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidEmailDomainException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
-import likelion.khu.website.admin.exception.LastSuperAdminException;
+import likelion.khu.website.admin.exception.LastAdminException;
 import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
 import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
@@ -117,9 +117,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "WEAK_PASSWORD"));
     }
 
-    @ExceptionHandler(LastSuperAdminException.class)
-    public ResponseEntity<Map<String, Object>> handleLastSuperAdmin(LastSuperAdminException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "LAST_SUPER_ADMIN"));
+    @ExceptionHandler(LastAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleLastAdmin(LastAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "LAST_ADMIN"));
     }
 
     @ExceptionHandler(AdminNotFoundException.class)

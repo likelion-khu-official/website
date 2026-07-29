@@ -95,7 +95,7 @@ public class ProjectController {
     }
 
     /** 문제 있는 프로젝트 숨김/복원 — 관리자 이상 */
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/api/admin/projects/{id}/hidden")
     public ProjectSuccessResponse setHidden(@PathVariable Long id, @Valid @RequestBody ProjectHiddenUpdateRequest request) {
         projectService.setHidden(id, request.getHidden());

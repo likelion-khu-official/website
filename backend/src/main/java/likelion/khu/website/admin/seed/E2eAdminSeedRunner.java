@@ -2,7 +2,6 @@ package likelion.khu.website.admin.seed;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
@@ -19,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 그 설계를 유지한 채로는 e2e가 로그인할 방법이 없다. 그래서 이 러너는 고정 비밀번호를 그대로
  * 저장한다 — {@code @Profile("e2e")}로 SPRING_PROFILES_ACTIVE=e2e를 명시하지 않는 한(로컬/CI
  * 전용, .env.stage·.env.prod엔 없음) 이 빈 자체가 생성되지 않으므로 stage/prod엔 영향이 없다.
+ * 어드민 권한이 단일 역할로 통합된 뒤에도 계정 두 개를 그대로 유지한다 — "관리자가 다른 관리자를
+ * 조작"하는 시나리오(삭제 등)를 e2e에서 검증하려면 서로 다른 세션 두 개가 필요해서다.
  */
 @Component
 @Profile("e2e")
@@ -43,14 +44,14 @@ public class E2eAdminSeedRunner implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        seedOne(superAdminEmail, "E2E Super Admin", superAdminPassword, AdminRole.SUPER_ADMIN);
-        seedOne(adminEmail, "E2E Admin", adminPassword, AdminRole.ADMIN);
+        seedOne(superAdminEmail, "E2E Super Admin", superAdminPassword);
+        seedOne(adminEmail, "E2E Admin", adminPassword);
     }
 
-    private void seedOne(String email, String name, String rawPassword, AdminRole role) {
+    private void seedOne(String email, String name, String rawPassword) {
         if (adminRepository.existsByEmail(email)) {
             return;
         }
-        adminRepository.save(Admin.register(email, name, passwordEncoder.encode(rawPassword), role));
+        adminRepository.save(Admin.register(email, name, passwordEncoder.encode(rawPassword)));
     }
 }

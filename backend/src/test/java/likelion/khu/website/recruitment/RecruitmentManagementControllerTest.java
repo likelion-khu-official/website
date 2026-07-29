@@ -45,7 +45,7 @@ class RecruitmentManagementControllerTest {
     EmailService emailService;
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void status_Default_ReturnsClosedWithSubscriberCount() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
         subscriptionRepository.save(new NotificationSubscription("b@khu.ac.kr"));
@@ -57,7 +57,7 @@ class RecruitmentManagementControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_ClosedToOpen_SendsToEverySubscriber() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
         subscriptionRepository.save(new NotificationSubscription("b@khu.ac.kr"));
@@ -77,7 +77,7 @@ class RecruitmentManagementControllerTest {
 
     // 완료기준 — "같은 발송을 두 번 트리거해도 중복 발송되지 않는다"
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_AlreadyOpen_DoesNotResend() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
 
@@ -103,7 +103,7 @@ class RecruitmentManagementControllerTest {
     // N개 스레드를 동시에 풀어 실제 경합을 유도한다(open()이 synchronized가 아니면 여러 스레드가
     // markOpened() 이전 isOpen()==false를 같이 읽어 이벤트가 여러 번 발행됨).
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_ConcurrentTriggers_SendsOnlyOnce() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
 
@@ -141,7 +141,7 @@ class RecruitmentManagementControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void close_OpenToClosed_DoesNotSendAnything() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
         mockMvc.perform(patch("/api/admin/recruitment/status")
@@ -163,7 +163,7 @@ class RecruitmentManagementControllerTest {
     // 닫혀있는 상태에서 close()를 또 호출해도(끄기→끄기) 아무 일도 안 일어나야 함 — 열기 쪽만
     // 멱등성을 요구받았지만, 반대쪽도 부작용 없는지 상태공간 관점에서 확인.
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void close_AlreadyClosed_NoOp() throws Exception {
         mockMvc.perform(patch("/api/admin/recruitment/status")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -175,7 +175,7 @@ class RecruitmentManagementControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void updateStatus_MissingOpenField_Returns400() throws Exception {
         mockMvc.perform(patch("/api/admin/recruitment/status")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -189,7 +189,7 @@ class RecruitmentManagementControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    // #117에서 추가되는 MEMBER(일반 부원) 역할이 ADMIN/SUPER_ADMIN 전용 엔드포인트에
+    // #117에서 추가되는 MEMBER(일반 부원) 역할이 ADMIN 전용 엔드포인트에
     // 접근하지 못하는지 — 권한상승 재발 방지용 경계 케이스.
     @Test
     @WithMockAdminUser(role = "MEMBER")
@@ -208,7 +208,7 @@ class RecruitmentManagementControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void subscribers_WithData_ReturnsBothWithSubscribedAt() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
         subscriptionRepository.save(new NotificationSubscription("b@khu.ac.kr"));

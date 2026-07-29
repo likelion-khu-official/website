@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/recruitment")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class RecruitmentManagementController {
 
     private final RecruitmentManagementService service;

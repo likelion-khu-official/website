@@ -21,7 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class ApplicationAdminController {
 
     private final ApplicationService service;

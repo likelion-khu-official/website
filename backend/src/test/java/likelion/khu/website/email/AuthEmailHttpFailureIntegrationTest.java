@@ -2,7 +2,6 @@ package likelion.khu.website.email;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.admin.invitation.AdminInvitationRepository;
 import likelion.khu.website.admin.invitation.InvitationStatus;
@@ -62,7 +61,7 @@ class AuthEmailHttpFailureIntegrationTest extends MailpitContainerSupport {
     @Autowired PasswordEncoder passwordEncoder;
 
     @Test
-    @WithMockAdminUser(email = "super@khu.ac.kr", role = "SUPER_ADMIN")
+    @WithMockAdminUser(email = "super@khu.ac.kr", role = "ADMIN")
     void invite_SmtpServerUnreachable_ViaRealHttp_Returns502AndStillLogsFailure() throws Exception {
         String to = "http-failure-invite@khu.ac.kr";
         mailpit.stop();
@@ -92,7 +91,7 @@ class AuthEmailHttpFailureIntegrationTest extends MailpitContainerSupport {
     void forgot_SmtpServerUnreachable_ViaRealHttp_Returns200ButStillLogsFailureAndRollsBackToken() throws Exception {
         String to = "http-failure-reset@khu.ac.kr";
         Admin admin = adminRepository.save(
-                Admin.register(to, "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register(to, "이름", passwordEncoder.encode("password1")));
         mailpit.stop();
 
         mockMvc.perform(post("/api/admin/password/forgot")

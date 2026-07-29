@@ -209,7 +209,7 @@ class PostControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void updateStatus_PublishedToHidden_Returns200() throws Exception {
         Long id = postService.createPost(member.getId(), sampleRequest()).getId();
 
@@ -221,7 +221,7 @@ class PostControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void updateStatus_InvalidTransition_Returns400() throws Exception {
         Long id = postService.createPost(member.getId(), sampleRequest()).getId();
 
@@ -232,8 +232,8 @@ class PostControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
-    void adminList_SuperAdmin_Returns200() throws Exception {
+    @WithMockAdminUser(role = "ADMIN")
+    void adminList_Admin_Returns200() throws Exception {
         mockMvc.perform(get("/api/admin/posts"))
                 .andExpect(status().isOk());
     }

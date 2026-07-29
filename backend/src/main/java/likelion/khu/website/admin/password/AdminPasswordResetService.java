@@ -62,7 +62,7 @@ public class AdminPasswordResetService {
         }
     }
 
-    // 시드 러너에서도 재사용 — "가입 + 비밀번호 설정 메일"로 SUPER_ADMIN을 시딩하기 위함.
+    // 시드 러너에서도 재사용 — "가입 + 비밀번호 설정 메일"로 관리자를 시딩하기 위함.
     @Transactional
     public void issueAndSendResetToken(Admin admin) {
         String token = generateToken();
