@@ -267,7 +267,7 @@ export default function AdminDashboard() {
         </ul>
       )}
 
-      <div className="mt-10 flex justify-center">
+      <div className="mt-10 flex flex-wrap justify-center gap-3">
         <button
           type="button"
           onClick={() => router.push('/admin/recruitment')}
@@ -284,6 +284,20 @@ export default function AdminDashboard() {
           className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           멤버 관리로 이동
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/admin/applications')}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          지원자 보기
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/admin/application-form')}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
+        >
+          지원서 양식 편집
         </button>
       </div>
 

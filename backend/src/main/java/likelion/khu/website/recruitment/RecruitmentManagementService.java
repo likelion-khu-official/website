@@ -43,10 +43,14 @@ public class RecruitmentManagementService {
         return toResponse(findOrCreate());
     }
 
-    // 공개 방문자용 — 랜딩·/recruit 페이지가 평소/모집중 화면을 가르는 데만 쓴다(#151).
+    // 공개(비로그인) 조회 — 방문자의 지원폼/모집알림 전환 판단용(#151·#152). 공개 GET이라
+    // 없는 싱글턴을 새로 만들지(findOrCreate) 않고 읽기만 한다(없으면 닫힘으로 간주).
     // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
     public PublicRecruitmentStatusResponse getPublicStatus() {
-        return new PublicRecruitmentStatusResponse(findOrCreate().isOpen());
+        boolean open = statusRepository.findById(RecruitmentStatus.SINGLETON_ID)
+                .map(RecruitmentStatus::isOpen)
+                .orElse(false);
+        return new PublicRecruitmentStatusResponse(open);
     }
 
     public List<SubscriberSummary> getSubscribers() {

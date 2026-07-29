@@ -14,6 +14,8 @@ import likelion.khu.website.admin.exception.LastSuperAdminException;
 import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
 import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
+import likelion.khu.website.application.exception.PrivacyConsentRequiredException;
+import likelion.khu.website.application.exception.RecruitmentClosedException;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.post.exception.NotPostAuthorException;
@@ -202,6 +204,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
+    }
+
+    // ── 지원폼(#152) ─────────────────────────────────────────────────
+
+    @ExceptionHandler(RecruitmentClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleRecruitmentClosed(RecruitmentClosedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "RECRUITMENT_CLOSED"));
+    }
+
+    @ExceptionHandler(PrivacyConsentRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handlePrivacyConsentRequired(PrivacyConsentRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "PRIVACY_CONSENT_REQUIRED"));
     }
 
     // ── 모집 관리(#151) — 지원폼(#152) 완성 전까지 모집 열기를 막을 때(이슈 #154 결정) ──

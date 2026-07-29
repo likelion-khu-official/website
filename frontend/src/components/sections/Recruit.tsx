@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import NotificationForm from '@/components/NotificationForm';
 import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
+  // 모집이 열려 있으면 이 자리는 알림 신청 대신 지원폼(/apply)으로 안내한다(#152 · 모집.md).
   const { recruiting } = useRecruitmentStatus();
 
   return (
@@ -29,20 +31,20 @@ export default function Recruit() {
         </p>
       </div>
 
-      {/* 모집중: 지원 안내(임시 안내 — 지원폼 #152 완성 전까지) / 평소: 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
+      {/* 모집 중이면 지원폼으로, 평소엔 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
       <div className="scroll-reveal">
         {recruiting ? (
-          <a
-            href="/recruit"
-            className="min-h-11 rounded-full border border-white/10 bg-white/[0.07] text-white outline-none transition-[background-color,color,transform] hover:-translate-y-0.5 hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-accent"
+          <Link
+            href="/apply"
+            className="min-h-11 rounded-full border border-accent/40 bg-accent/15 text-white outline-none transition-[background-color,color,transform] hover:-translate-y-0.5 hover:bg-accent/25 focus-visible:ring-2 focus-visible:ring-accent"
             style={{
               padding: 'clamp(14px, 1.4vw, 22px) clamp(32px, 3.2vw, 56px)',
               fontSize: 'clamp(16px, 1.35vw, 24px)',
               letterSpacing: '-0.8px',
             }}
           >
-            지금 모집 중 — 지원 안내 보기
-          </a>
+            지금 지원하기
+          </Link>
         ) : open ? (
           <NotificationForm />
         ) : (
