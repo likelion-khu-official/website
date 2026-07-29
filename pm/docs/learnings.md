@@ -6,6 +6,8 @@
 ---
 
 ## 프론트엔드
+- **Vitest에서 `test.globals`를 안 켜면 React Testing Library의 자동 cleanup이 조용히 안 걸린다.** RTL의 cleanup 등록은 전역 `afterEach` 존재 여부로 스스로 판단하는데, globals를 꺼두면(=테스트 파일마다 `import { describe, it } from 'vitest'`로 명시) 그 전역이 없어 cleanup 자체가 스킵된다 — 증상은 "같은 파일의 두 번째 테스트에서만 요소가 여러 개 매치됨"으로만 드러나 원인을 짐작하기 어렵다. setup 파일에서 `afterEach(() => cleanup())`을 직접 등록해야 안전하다(frontend/vitest.setup.ts).
+- **어드민 세션이 HttpOnly 쿠키(`access_token`/`refresh_token`)라 Playwright storageState를 JS로 주입할 수 없다 — role별 storageState는 반드시 실제 로그인 폼을 거쳐야 만들어진다.** 게다가 SUPER_ADMIN 시드 계정(`AdminSeedRunner`)은 비밀번호가 무작위로 생성되고 즉시 버려진 뒤 재설정 메일로만 실제 비밀번호가 정해지므로, e2e에서 쓸 SUPER_ADMIN/ADMIN 계정 자격증명은 시드에서 자동으로 얻을 수 없고 별도로(환경변수/CI 시크릿) 준비해야 한다.
 - **프로젝트 대표 이미지처럼 원본 비율이 제각각이고 화면 전체가 정보인 콘텐츠를 `object-cover`로 통일하면 핵심 UI가 잘린다 — 쇼케이스 프레임의 비율은 일관되게 유지하되 이미지는 `object-contain`으로 온전히 보여주고, 앞뒤 항목의 깊이·밝기로 시각적 위계를 만드는 편이 안전하다.**
 - **`prefers-reduced-motion`을 “모든 시각적 피드백 제거”로 해석하면 운영체제 설정을 직접 반영하는 Safari에서 기능이 사라진 것처럼 보일 수 있다 — 큰 이동·스케일은 없애되 짧은 opacity 전환은 남겨 맥락과 접근성을 함께 지켜야 한다.**
 - **브라우저 지원이 갈리는 CSS 스크롤 타임라인을 핵심 경험의 유일한 구현으로 두면, 미지원 환경에서는 오류도 없이 정적 화면만 남아 문제를 놓치기 쉽다 — 콘텐츠 등장은 `scroll`+`requestAnimationFrame`처럼 넓게 지원되는 경로로 보장하고 스크롤 타임라인은 지원 브라우저의 향상으로만 써야 한다.**
