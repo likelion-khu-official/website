@@ -45,6 +45,8 @@ OCI Notifications (ONS)
 | likelion-prod DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessProd[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
 | likelion-stage DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessStage[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
 | likelion-prod 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
+| likelion-prod 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountProd[15m].max() > 2` | 20분 지속 시 (`pending-duration`) | WARNING |
+| likelion-stage 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountStage[15m].max() > 2` | 20분 지속 시 (`pending-duration`) | WARNING |
 
 **백업 알람이 dead man's switch인 이유**: 백업 자체(`backup-db.sh`)는 2026-07-04부터 이미 매일 잘 돌고 있었음(cron+버킷 실측 확인됨, #83 조사 과정에서 재확인). 근데 "잘 되고 있다"를 사람이 매번 SSH로 들어가 확인해야 아는 상태였음 — 이 알람은 그 확인을 자동화한 것. 값 자체(`=1`)엔 의미가 없고, 신호가 26시간 동안 **안 들어오는 것** 자체가 이상 신호. cron이 안 돌았든, 서버가 죽었든, 백업 스크립트가 중간에 실패했든 원인 불문하고 다 잡힘. 26시간 = 매일 18:00 UTC 실행 주기(24h) + 2시간 버퍼.
 
@@ -55,6 +57,13 @@ OCI Notifications (ONS)
 **git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) `git pull`이 조용히 실패해 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복). `infra/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
 
 **알려진 사각지대(2026-07-26 발견)**: 이 알람은 `git status --porcelain`(작업트리의 미커밋 변경)만 본다 — **서버 로컬 브랜치가 이미 커밋된 채로 `origin`과 갈라져 있는 것(diverged)은 전혀 못 잡는다.** 실제로 서버의 `dev`가 `origin/dev`와 26개(로컬 전용) vs 16개(origin 전용) 커밋으로 분기돼 있었는데, 워킹트리는 clean이라 이 알람은 계속 OK였다. 원인은 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 쌓인 것으로 추정(`pm/docs/learnings.md`의 "OCI 서버 배포 키 read-only" 항목 참고). 대응은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
+
+**모집 이메일 실패 임계치 알림 이유(#113)**: 개별 이메일 실패(주소 오탈자 등)는 정상적인 간헐 현상이라 1건마다 알림이 오면 알림 피로만 커진다. 이 알람이 잡으려는 건 "갑자기 전부 다 실패"하는 시스템적 장애(SMTP 인증 깨짐·OCI Email Delivery 릴레이 장애 등)다. 백업 알람(dead man's switch, 신호 *부재*를 봄)과 반대로 이건 신호가 *과다*할 때 잡는 Threshold Alarm — `email_log`가 신호 자체(실패했다는 사실)를 이미 갖고 있어서 새 계측이 아니라 그 값을 읽기만 하면 됐다.
+
+- **왜 백엔드 API를 새로 안 만들었나**: `push-disk-metric.py`가 `df`를 직접 읽는 것과 같은 이유 — `ubuntu` 계정은 이미 DB 파일에 직접 접근 가능하므로(`db-access.md`), `push-email-failure-metric.py`가 `sqlite3`로 `email_log`를 직접 조회한다. 새 HTTP 표면·인증 경로가 안 생긴다.
+- **왜 임계치가 낮은가(> 2)**: 클럽 사이트라 발송량 자체가 적다(모집 알림 신청·초대·비번재설정 정도) — 대량 트래픽 서비스라면 노이즈였을 "15분에 3건 이상"도 이 규모에선 시스템적 문제일 가능성이 높다. 실제 운영해보고 오탐이 잦으면 올릴 것(디스크·메모리 알람도 실측 후 튜닝된 전례가 있음, 위 참고).
+- **왜 severity가 WARNING인가(다른 4개는 CRITICAL)**: 디스크·메모리·백업부재·git드리프트는 "사이트 생존"에 직결되지만, 이메일 실패는 모집 알림 발송 실패로 사용자 경험은 나빠져도 사이트 자체는 계속 정상 동작한다 — 즉시 대응이 필요한 CRITICAL보다는 확인이 필요한 WARNING이 맞다고 판단. 튜닝 사고 모델(아래)의 C=15분(cron 주기), W=15분(쿼리 윈도우, 슬라이딩이라 C와 맞춤), P=20분(pending-duration, C보다 크게 잡아 단일 blip 한 번으로는 안 뜨고 최소 2번 연속 나쁜 tick이 필요 — `k_min = ceil((20-15)/15)+1 = 2`).
+- **슬라이딩 윈도우 이중 카운트 주의**: `push-email-failure-metric.py`의 SQL 자체가 "최근 15분 안 실패 건수"를 매번 새로 세므로, 같은 실패 1건이 여러 cron tick에 걸쳐 반복 카운트될 수 있다(예: 한 건이 15분 윈도우에 3번 tick 동안 계속 잡힘). 이건 "새로 발생한 실패 수"가 아니라 "지금 이 순간 최근 15분 안에 실패가 몇 건 쌓여 있는가"를 보는 지표라 의도된 동작 — 대량 실패가 15분 넘게 지속되면 계속 높은 값을 유지해 알람이 계속 breaching 상태를 유지하는 게 오히려 목적에 맞는다(디스크 사용률처럼 "현재 상태" 지표와 같은 성격, 백업처럼 "이벤트 발생 여부"가 아님).
 
 ### 알람 튜닝 사고 모델 — 쿼리 윈도우 · pending-duration · cron 주기의 관계
 
@@ -96,6 +105,7 @@ k_min = ceil( (P - W) / C ) + 1
 | `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
+| `infra/scripts/push-email-failure-metric.py` | 최근 15분 `email_log` 실패 건수(prod/stage 각각) → custom metric. cron `*/15 * * * *`로 실행 (인자 `prod`/`stage`로 두 줄 등록, #113) |
 
 서버의 `~/oci-monitor-venv`(venv, oci SDK만 설치)는 레포에 없음 — 최초 세팅 시 아래로 재현:
 ```bash
@@ -106,8 +116,8 @@ python3 -m venv ~/oci-monitor-venv
 
 ## 알림 — 어디로 오고 무엇을 근거로 판단하나
 
-- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(장찬욱·김우진 개인 메일, 2026-07-27 실측 확인 — 이 문서·아래 표에 있던 "동아리 메일" 표기는 실제와 달라 정정함). 디스크·메모리·백업부재(prod/stage)·git드리프트 5개 알람 전부 이 토픽 하나로만 발행되므로(`destinations` 실측 확인), **이메일 하나를 이 토픽에 구독시키면 5개 알람 전부를 받는다** — 알람별로 따로 등록할 필요 없음.
-- **판단 근거**: 메일 제목/본문에 어떤 Alarm이 왜 울렸는지 그대로 담겨 있음(위 표의 body 텍스트). 디스크/메모리는 "지금 값이 임계치를 넘었다", 백업은 "마지막 성공 신호로부터 26시간 지났다"
+- **어디로**: ONS Topic `likelion-ops-alerts` 구독자(장찬욱·김우진 개인 메일, 2026-07-27 실측 확인 — 이 문서·아래 표에 있던 "동아리 메일" 표기는 실제와 달라 정정함). 디스크·메모리·백업부재(prod/stage)·git드리프트·이메일실패(prod/stage) 7개 알람 전부 이 토픽 하나로만 발행하도록 만들 것(`destinations` 동일 지정) — **이메일 하나를 이 토픽에 구독시키면 7개 알람 전부를 받는다**, 알람별로 따로 등록할 필요 없음.
+- **판단 근거**: 메일 제목/본문에 어떤 Alarm이 왜 울렸는지 그대로 담겨 있음(위 표의 body 텍스트). 디스크/메모리는 "지금 값이 임계치를 넘었다", 백업은 "마지막 성공 신호로부터 26시간 지났다", 이메일실패는 "최근 15분 안에 실패가 N건 쌓였다"
 - **확인 방법**: OCI 콘솔 `Observability & Management → Monitoring → Alarm Definitions`(컴파트먼트는 루트, 리전은 `ap-tokyo-1`로 맞출 것 — 안 그러면 안 보임, 실제로 헷갈렸던 지점)
 - **알람 왔을 때 뭘 해야 하는지(대응 절차)**: [`RUNBOOK.md`](./RUNBOOK.md#alarm-response)
 
