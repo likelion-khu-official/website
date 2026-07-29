@@ -262,6 +262,22 @@ export default function MemberManagement() {
                           >
                             오프보딩
                           </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              const admissionYear = member.studentId?.slice(0, 4) ?? '';
+                              const params = new URLSearchParams({
+                                name: member.name,
+                                department: member.department ?? '',
+                                admissionYear,
+                              });
+                              router.push(`/admin/staff?${params.toString()}`);
+                            }}
+                            className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+                          >
+                            운영진으로 지정
+                          </button>
                         </>
                       )}
                     </div>
