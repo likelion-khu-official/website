@@ -11,6 +11,8 @@ type FormState = 'idle' | 'loading' | 'success' | 'error';
 export default function NotificationForm() {
   const [email, setEmail] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // 봇 함정(honeypot, #69) — 화면에서 숨겨 사람은 못 채운다. 값이 차 오면 서버가 봇으로 보고 무시.
+  const [website, setWebsite] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [message, setMessage] = useState('');
 
@@ -20,7 +22,7 @@ export default function NotificationForm() {
     if (!agreed) return;
     setState('loading');
 
-    const body: NotificationSubscribeRequest = { email };
+    const body: NotificationSubscribeRequest = { email, privacyConsent: agreed, website };
 
     try {
       const res = await fetch(
@@ -49,6 +51,21 @@ export default function NotificationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl flex-col items-center gap-3">
+      {/* 봇 함정(honeypot, #69) — 화면 밖으로 숨겨 사람은 못 채운다. 봇이 채우면 서버가 조용히 무시.
+          display:none 대신 화면 밖 배치 + aria-hidden + tabIndex -1로, 폼을 훑는 순진한 봇에게만 노출 */}
+      <div aria-hidden="true" className="absolute left-[-9999px] top-0 h-0 w-0 overflow-hidden">
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+        />
+      </div>
+
       <div className="flex w-full flex-col gap-2 sm:flex-row">
         <input
           type="email"
