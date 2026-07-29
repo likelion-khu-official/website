@@ -3,14 +3,14 @@ import type {
   ApplicationSubmitRequest,
   ApplicationSubmitResponse,
 } from '@shared/types/application';
-import type { RecruitmentPublicStatusResponse } from '@shared/types/recruitment';
+import type { PublicRecruitmentStatusResponse } from '@shared/types/recruitment';
 
 /**
  * 공개(비로그인) 지원 API. 모든 호출은 상대경로 /api/* — next.config 리라이트로 백엔드에 프록시된다.
  * 인증이 필요 없다(어드민 폼 편집·지원자 열람은 adminApi.ts).
  */
 
-export async function getRecruitmentStatus(): Promise<RecruitmentPublicStatusResponse> {
+export async function getRecruitmentStatus(): Promise<PublicRecruitmentStatusResponse> {
   const res = await fetch('/api/recruitment/status');
   if (!res.ok) throw new Error('모집 상태를 불러오지 못했어요.');
   return res.json();

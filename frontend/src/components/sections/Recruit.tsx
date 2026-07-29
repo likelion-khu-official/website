@@ -1,28 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import NotificationForm from '@/components/NotificationForm';
-import { getRecruitmentStatus } from '@/lib/applicationApi';
+import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
   // 모집이 열려 있으면 이 자리는 알림 신청 대신 지원폼(/apply)으로 안내한다(#152 · 모집.md).
-  const [recruiting, setRecruiting] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getRecruitmentStatus()
-      .then((s) => {
-        if (!cancelled) setRecruiting(s.open);
-      })
-      .catch(() => {
-        // 상태를 못 불러오면 평소(모집 알림) 모드로 둔다.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { recruiting } = useRecruitmentStatus();
 
   return (
     <section

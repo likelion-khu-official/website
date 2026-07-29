@@ -8,19 +8,19 @@ export interface RecruitmentStatusResponse {
 }
 
 /**
- * GET /api/recruitment/status — 공개(비로그인). 방문자가 지원폼(모집 열림)과 모집 알림 신청(닫힘)
- * 중 무엇을 볼지 결정하는 데만 쓴다. 관리 정보(구독자 수 등)는 노출하지 않는다(#152).
- */
-export interface RecruitmentPublicStatusResponse {
-  open: boolean;
-}
-
-/**
  * PATCH /api/admin/recruitment/status
  * open:true — 닫힘→열림 전이일 때만 그 시점 구독자(notification.ts) 전원에게 안내 메일 1회 발송.
  * 이미 열려있으면 무동작(멱등, 재발송 없음). open:false는 언제나 무동작(닫기만).
  */
 export interface RecruitmentStatusUpdateRequest {
+  open: boolean;
+}
+
+/**
+ * GET /api/recruitment/status — 공개, 비인증. 랜딩·/recruit 페이지와 지원폼(/apply)이
+ * 평소(모집 알림)/모집중(지원폼)을 가르는 데 쓴다. 관리 정보(subscriberCount)는 없다(#151·#152).
+ */
+export interface PublicRecruitmentStatusResponse {
   open: boolean;
 }
 
