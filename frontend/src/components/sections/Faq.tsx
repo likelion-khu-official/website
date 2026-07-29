@@ -18,7 +18,8 @@ const faqs: QA[] = [
   },
   {
     question: '서울캠퍼스·국제캠퍼스 상관없이 지원할 수 있나요?',
-    answer: '네. 경희대 멋사는 서울캠퍼스와 국제캠퍼스 학생 모두를 대상으로 활동합니다.',
+    answer:
+      '네, 지원은 캠퍼스와 상관없이 가능합니다. 다만 세션·활동은 국제캠퍼스(용인)에서 진행되니 이 점을 참고해주세요.',
   },
   {
     question: '지금 지원할 수 있나요?',
@@ -54,9 +55,16 @@ export default function Faq() {
             key={faq.question}
             className="group rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 open:bg-white/[0.07] sm:px-7 sm:py-5"
           >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            <summary className="flex cursor-pointer list-none items-start gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent sm:gap-4">
               <span
-                className="text-balance break-keep font-medium text-white"
+                aria-hidden
+                className="shrink-0 font-bold text-accent"
+                style={{ fontSize: 'clamp(15px, 1.3vw, 20px)', letterSpacing: '-0.4px' }}
+              >
+                Q.
+              </span>
+              <span
+                className="grow text-balance break-keep font-medium text-white"
                 style={{ fontSize: 'clamp(15px, 1.3vw, 20px)', letterSpacing: '-0.4px' }}
               >
                 {faq.question}
@@ -70,12 +78,23 @@ export default function Faq() {
                 </svg>
               </span>
             </summary>
-            <p
-              className="mt-3 text-balance break-keep text-[#c7c7c7]"
-              style={{ fontSize: 'clamp(14px, 1.05vw, 18px)', letterSpacing: '-0.3px', lineHeight: 1.6 }}
-            >
-              {faq.answer}
-            </p>
+            <div className="mt-3 border-t border-accent/30 pt-3">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <span
+                  aria-hidden
+                  className="shrink-0 font-bold text-accent"
+                  style={{ fontSize: 'clamp(14px, 1.05vw, 18px)', letterSpacing: '-0.3px' }}
+                >
+                  A.
+                </span>
+                <p
+                  className="grow text-balance break-keep text-[#c7c7c7]"
+                  style={{ fontSize: 'clamp(14px, 1.05vw, 18px)', letterSpacing: '-0.3px', lineHeight: 1.6 }}
+                >
+                  {faq.answer}
+                </p>
+              </div>
+            </div>
           </details>
         ))}
       </div>
