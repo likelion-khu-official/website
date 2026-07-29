@@ -15,6 +15,8 @@ type Props = {
 export default function NotificationForm({ onClose }: Props) {
   const [email, setEmail] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // 봇 함정(honeypot, #69) — 화면에서 숨겨 사람은 못 채운다. 값이 차 오면 서버가 봇으로 보고 무시.
+  const [website, setWebsite] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [message, setMessage] = useState('');
 
@@ -24,7 +26,7 @@ export default function NotificationForm({ onClose }: Props) {
     if (!agreed) return;
     setState('loading');
 
-    const body: NotificationSubscribeRequest = { email };
+    const body: NotificationSubscribeRequest = { email, privacyConsent: agreed, website };
 
     try {
       const res = await fetch(
@@ -56,6 +58,20 @@ export default function NotificationForm({ onClose }: Props) {
       onSubmit={handleSubmit}
       className="mx-auto w-full max-w-2xl rounded-2xl border border-white/12 bg-[#171717]/95 p-5 text-left shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur sm:p-6"
     >
+      {/* 봇 함정(honeypot, #69) — 사람의 탐색·키보드 순서에서는 숨기되 단순 폼 봇에는 남긴다. */}
+      <div aria-hidden="true" className="absolute left-[-9999px] top-0 h-0 w-0 overflow-hidden">
+        <label htmlFor="notification-website">Website</label>
+        <input
+          id="notification-website"
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+        />
+      </div>
+
       <header className="flex items-start justify-between gap-5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">

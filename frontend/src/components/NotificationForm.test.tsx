@@ -41,7 +41,11 @@ describe('NotificationForm', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/notifications/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'lion@example.com' }),
+      body: JSON.stringify({
+        email: 'lion@example.com',
+        privacyConsent: true,
+        website: '',
+      }),
     });
   });
 
