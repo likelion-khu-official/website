@@ -8,7 +8,7 @@
 ## 왜 카티션 곱이 아니라 트리인가
 
 변수를 그냥 다 곱하면(카티션 곱) 말이 안 되는 조합까지 기계적으로 생긴다 — 예를 들어
-"익명 방문자인데 토큰이 유효함"이나 "SUPER_ADMIN인데 비밀번호 강제변경 대기중"은 세상에
+"익명 방문자인데 토큰이 유효함"이나 "관리자인데 비밀번호 강제변경 대기중"은 세상에
 존재할 수 없는 상태다(어드민 계정엔 `mustChangePassword` 개념 자체가 없다 — 어드민
 로그인엔 항상 `false`가 박힌다, `JwtProvider.createAccessToken(Admin)`).
 
@@ -42,11 +42,11 @@
 ### 축(레벨)
 
 ```
-Lv1 Actor              anonymous / member / admin / super_admin
+Lv1 Actor              anonymous / member / admin
 Lv2 TokenState          (anonymous면 이 레벨 자체가 없음 — 토큰이 없으니까)
                         valid / expired / tampered
                           └─ expired·tampered면 여기서 바로 리프(대표 1건, 아래 "동치류" 참고)
-Lv3 MustChangePassword  (member ∧ TokenState=valid일 때만 존재. admin/super_admin은
+Lv3 MustChangePassword  (member ∧ TokenState=valid일 때만 존재. admin은
                          이 레벨 자체가 없음 — 상수 false)
                         true / false
 Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespace_other(가상,PATCH) /
@@ -67,7 +67,7 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 | 가지 | 왜 안 더 전개했나 |
 |---|---|
 | `TokenState=expired`/`tampered` | `JwtProvider.parseClaims()`가 `JwtException`(만료 포함)·`IllegalArgumentException`(서명불일치 등)을 구분 안 하고 둘 다 `Optional.empty()`로 접는다(72-75줄). `JwtAuthenticationFilter`는 그 결과 SecurityContext를 아예 안 채우고 통과시킨다 — 익명과 100% 동일 취급이라, 그 아래 `MustChangePassword × Endpoint`(최대 14개)를 또 전개하는 건 낭비. 대표 1건만 유지. |
-| `hasAnyRole('ADMIN','SUPER_ADMIN')` 엔드포인트에서 ADMIN 또는 SUPER_ADMIN 중 하나만 테스트 | Spring Security의 `hasAnyRole`은 나열된 role 중 하나라도 맞으면 동일한 한 코드 경로로 통과시킨다 — 어느 쪽으로 테스트해도 같은 분기를 검증한다. `admin_posts_*`는 SUPER_ADMIN으로, `admin_members_password_reset`은 ADMIN으로 대표 검증(둘 다 있으면 중복). |
+| 관리자 엔드포인트에서 관리자 계정을 여러 개 더 전개 | 모든 관리자는 같은 `ADMIN` authority를 사용하므로 계정별 권한 분기가 없다. 다른 계정이 필요한 삭제·마지막 관리자 가드는 어드민 관리 테스트에서 별도로 다룬다. |
 
 ### 리프 → 테스트 대응표 (41개 리프, 발췌 — 전체 조합은 위 3개 레벨 곱으로 기계적으로 재현 가능)
 
@@ -83,11 +83,10 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 | member | valid | false | admin_posts_patch(PATCH) | 403 FORBIDDEN(role 체크) | `PostControllerTest.updateStatus_Member_Returns403` |
 | member | valid | true | admin_posts_patch(PATCH) | 403 **MUST_CHANGE_PASSWORD**(가드가 role보다 먼저) | `PostControllerTest.updateStatus_MemberMustChangePassword_Returns403ViaGuardBeforeRoleCheck` |
 | member | valid | false | member_namespace_other(가상) | 404(가드 통과 후 실존 안 함) | `mustChangePassword_...` 테스트 후반부 |
-| admin/super_admin | valid | (없음) | admin_posts_get/patch | 200 | `PostControllerTest.adminList_SuperAdmin_Returns200`, `updateStatus_DraftToPublished_Returns200` |
-| admin | valid | (없음) | admin_members_create | 403(SUPER_ADMIN 전용) | `MemberControllerTest.createMember_NotSuperAdmin_Returns403` |
+| admin | valid | (없음) | admin_posts_get/patch | 200 | `PostControllerTest.adminList_Admin_Returns200`, `updateStatus_PublishedToHidden_Returns200` |
+| admin | valid | (없음) | admin_members_create | 201 | `MemberControllerTest.createMember_Admin_Returns201` |
 | admin | valid | (없음) | admin_members_password_reset | 200 | `MemberControllerTest.resetPassword_ByRegularAdmin_Returns200` |
-| super_admin | valid | (없음) | admin_members_create | 201 | `MemberControllerTest.createMember_SuperAdmin_Returns201` |
-| member/admin/super_admin | expired/tampered | – | (대표) | 401 (익명과 동치) | 별도 테스트 없음 — `JwtAuthenticationFilter`가 익명과 동일 코드 경로를 타므로 anonymous 케이스가 사실상 이 경로도 검증한다 |
+| member/admin | expired/tampered | – | (대표) | 401 (익명과 동치) | 별도 테스트 없음 — `JwtAuthenticationFilter`가 익명과 동일 코드 경로를 타므로 anonymous 케이스가 사실상 이 경로도 검증한다 |
 
 ---
 
@@ -131,7 +130,7 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 | 상태 | 기대 | 테스트 |
 |---|---|---|
 | 쿠키 없음(미인증) | 401 UNAUTHENTICATED | `changePassword_NoCookie_Returns401` |
-| 인증은 됐지만 MEMBER 아님(예: ADMIN) | 403 FORBIDDEN | `changePassword_AdminRole_Returns403` |
+| 인증은 됐지만 MEMBER 아님(예: ADMIN) | 403 FORBIDDEN | `changePassword_AdminAccount_Returns403` |
 | MEMBER, currentPassword 틀림 | 401 INVALID_CREDENTIALS, 비번 안 바뀜 | `changePassword_WrongCurrentPassword_Returns401AndDoesNotChangeIt` |
 | MEMBER, currentPassword 맞음, newPassword 정책 미달 | 400 WEAK_PASSWORD | `changePassword_WeakNewPassword_Returns400` |
 | MEMBER, currentPassword 맞음, newPassword 정책 통과 | 200, mustChangePassword=false, 새 토큰쌍 | `mustChangePassword_BlocksMemberNamespaceButAllowsPublicApiAndPasswordChange` |
@@ -153,7 +152,7 @@ Lv4 Endpoint            public_posts(GET) / public_members(GET) / member_namespa
 Lv1 Endpoint            list(GET) / detail(GET) / create(POST) / update(PATCH) /
                         delete(DELETE) / hidden(PATCH, /api/admin/projects/{id}/hidden)
 Lv2 Actor               (list/detail은 이 레벨 없음 — 완전 공개)
-                        anonymous / member(mcp=false) / member(mcp=true) / admin·super_admin
+                        anonymous / member(mcp=false) / member(mcp=true) / admin
 Lv3 OwnershipRelation    (update/delete만, member(mcp=false)일 때만 의미 있음)
                         sole(단독 소유 — 참여자 1명, 나뿐) /
                         shared(공동 소유 — 참여자 여럿, 나도 그중 하나) /
@@ -177,7 +176,7 @@ Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) 
 |---|---|
 | `member(mcp=true)`에서 OwnershipRelation 축 | 가드가 role 체크·소유권 체크보다 먼저 막아서(403 MUST_CHANGE_PASSWORD), 참여 관계가 뭐든 결과에 영향이 없다 — 더 안 나눈다. |
 | `list`/`detail`에서 Actor 축 | 두 엔드포인트 다 `permitAll()`이고 코드가 인증 여부를 아예 안 본다(hidden 여부만 봄) — anonymous 대표 1건으로 충분(트리 B의 로그아웃/리프레시와 같은 근거). |
-| `hidden`에서 `member(mcp=true)` | `hasAnyRole('ADMIN','SUPER_ADMIN')`이 먼저 걸려 MEMBER는 mcp 값과 무관하게 애초에 진입 불가 — admin 계정은 mcp 개념 자체가 없어(트리 A와 동일 이유) 이 축이 성립하지 않는다. |
+| `hidden`에서 `member(mcp=true)` | `hasRole('ADMIN')`이 먼저 걸려 MEMBER는 mcp 값과 무관하게 진입 불가 — admin 계정은 mcp 개념 자체가 없어(트리 A와 동일 이유) 이 축이 성립하지 않는다. |
 | 모든 Endpoint에서 "리소스가 여럿 존재하는가" 축 | 이건 "요청자가 누구고 뭘 요청하는가"라는 이 트리의 분류 기준과 성격이 다른, 데이터 격리 불변식 질문이라 트리에 안 넣고 별도 테스트로 뺐다(아래 "이 트리가 실제로 잡아낸 버그" 4번 참고). |
 
 ### 리프 → 테스트 대응표
@@ -188,7 +187,7 @@ Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) 
 | list/detail | 정상 | 200, 대표이미지·이미지전부·참여자 포함 | `list_Public_ReturnsRepresentativeImageUrl`, `get_Public_ReturnsImagesAndParticipants` |
 | detail | 존재하지 않는 id | 404 | `get_NonExistentId_Returns404` |
 | create | anonymous | 401 | `create_Unauthenticated_Returns401` |
-| create | admin/super_admin(MEMBER 아님) | 403 | `create_NotMemberRole_Returns403` |
+| create | admin(MEMBER 아님) | 403 | `create_NotMemberRole_Returns403` |
 | create | member(mcp=true) | 403 MUST_CHANGE_PASSWORD | `create_MustChangePasswordMember_Returns403` |
 | create | member(mcp=false), 본인 미포함 | 400 | `create_WithoutSelfInParticipants_Returns400` |
 | create | member(mcp=false), 대표이미지 0장/2장+ | 400 | `create_NoRepresentativeImage_Returns400`, `create_TwoRepresentativeImages_Returns400` |
@@ -213,8 +212,8 @@ Lv4 세부 검증축          (create/update만) 대표이미지 개수(0/1/2+) 
 | delete | member(mcp=false), **shared**(공동소유, 본인은 나중 참여자), 정상 | 200 | `delete_ByCoParticipantWhoIsNotCreator_Returns200` |
 | hidden | anonymous | 401 | `hidden_Unauthenticated_Returns401` |
 | hidden | member(mcp 무관) | 403 | `hidden_ByMember_Returns403` |
-| hidden | admin/super_admin, 존재하지 않는 id | 404 | `hidden_NonExistentId_Returns404` |
-| hidden | admin/super_admin, 정상 | 200, 공개목록·상세에서 제외되지만 데이터는 보존 | `hidden_ByAdmin_HidesFromPublicButKeptInStorage` |
+| hidden | admin, 존재하지 않는 id | 404 | `hidden_NonExistentId_Returns404` |
+| hidden | admin, 정상 | 200, 공개목록·상세에서 제외되지만 데이터는 보존 | `hidden_ByAdmin_HidesFromPublicButKeptInStorage` |
 
 ### 이 트리가 실제로 잡아낸 버그 4건 (리뷰 당시 코드엔 테스트가 아예 없었음)
 
