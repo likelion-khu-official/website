@@ -1,7 +1,60 @@
 import Link from 'next/link';
-import PostCard from '@/components/blog/PostCard';
+import type { PostSummary } from '@shared/types/feed';
+import PostAuthor from '@/components/blog/PostAuthor';
 import { getPosts } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+
+function StoryThumbnail({ post }: { post: PostSummary }) {
+  return (
+    <div className="aspect-[4/3] w-full overflow-hidden rounded-[14px] bg-[#202020]">
+      {post.thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={post.thumbnailUrl}
+          alt=""
+          className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.035]"
+        />
+      ) : (
+        <div className="flex h-full items-end bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.26),transparent_38%),linear-gradient(145deg,#272727,#171717)] p-3 sm:p-5">
+          <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25 sm:text-xs">STORY</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StoryRow({ post }: { post: PostSummary }) {
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      aria-label={`${post.title} 글 읽기`}
+      className="group grid min-w-0 grid-cols-[minmax(0,1fr)_96px] items-center gap-4 border-b border-white/10 py-5 outline-none transition-colors hover:border-accent/45 focus-visible:ring-2 focus-visible:ring-accent sm:grid-cols-[minmax(0,1fr)_180px] sm:gap-7 sm:py-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10"
+    >
+      <div className="min-w-0">
+        <div className="flex items-start gap-4">
+          <h3 className="line-clamp-2 min-w-0 flex-1 break-keep text-xl font-semibold leading-[1.3] tracking-[-0.035em] text-white transition-colors group-hover:text-accent sm:text-[26px] lg:text-[30px]">
+            {post.title}
+          </h3>
+          <span
+            aria-hidden
+            className="mt-0.5 hidden size-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-sm text-white/45 transition group-hover:border-accent group-hover:bg-accent group-hover:text-white sm:inline-flex"
+          >
+            ↗
+          </span>
+        </div>
+        {post.summary ? (
+          <p className="mt-2 hidden line-clamp-2 max-w-3xl break-keep text-sm leading-6 text-white/45 sm:block">
+            {post.summary}
+          </p>
+        ) : null}
+        <div className="mt-4">
+          <PostAuthor post={post} compact />
+        </div>
+      </div>
+      <StoryThumbnail post={post} />
+    </Link>
+  );
+}
 
 export default async function Blog() {
   let posts = null;
@@ -23,15 +76,15 @@ export default async function Blog() {
       />
 
       <div className="scroll-reveal relative mx-auto w-full max-w-[1440px]">
-        <div className="grid gap-8 border-b border-white/10 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="grid gap-6 pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               Our stories
             </p>
-            <h2 className="mt-5 max-w-4xl break-keep text-[clamp(38px,5.5vw,76px)] font-semibold leading-[1.02] tracking-[-0.06em] text-white">
+            <h2 className="mt-3 max-w-4xl break-keep text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.14] tracking-[-0.055em] text-white">
               배운 것을 다음 경험으로
             </h2>
-            <p className="mt-6 max-w-xl break-keep text-base leading-7 text-white/50 sm:text-lg">
+            <p className="mt-4 max-w-xl break-keep text-sm leading-6 text-white/50 sm:text-base">
               활동하며 부딪히고 배운 기술과 생각을 기록해 다음 사람의 출발점으로 남깁니다.
             </p>
           </div>
@@ -55,9 +108,9 @@ export default async function Blog() {
             <p className="mt-2 text-sm text-white/40">곧 멤버들의 기록으로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
-            {posts.map((post, index) => (
-              <PostCard key={post.id} post={post} priority={index < 3} />
+          <div className="border-t border-white/10">
+            {posts.map((post) => (
+              <StoryRow key={post.id} post={post} />
             ))}
           </div>
         )}
