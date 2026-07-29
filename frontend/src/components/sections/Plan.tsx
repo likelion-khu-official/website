@@ -32,7 +32,7 @@ function MonthCell({ month }: { month: Month }) {
       />
       <span
         className="leading-none text-accent"
-        style={{ ...gremlin, fontSize: 'clamp(28px, 3vw, 48px)', letterSpacing: '-0.5px' }}
+        style={{ ...gremlin, fontSize: 'clamp(24px, 2.6vw, 42px)', letterSpacing: '-0.5px' }}
       >
         {month.m}
       </span>
