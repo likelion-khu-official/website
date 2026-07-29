@@ -3,7 +3,6 @@ package likelion.khu.website.admin.invitation;
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminPasswordPolicy;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.exception.AdminAlreadyMemberException;
 import likelion.khu.website.admin.exception.AdminInvitationAlreadyProcessedException;
 import likelion.khu.website.admin.exception.AdminInvitationExpiredException;
@@ -93,7 +92,7 @@ public class AdminInvitationService {
         AdminPasswordPolicy.validate(password);
 
         Admin admin = adminRepository.save(
-                Admin.register(invitation.getEmail(), name, passwordEncoder.encode(password), AdminRole.ADMIN));
+                Admin.register(invitation.getEmail(), name, passwordEncoder.encode(password)));
         invitation.markAccepted();
 
         return AdminInvitationAcceptResponse.from(admin);

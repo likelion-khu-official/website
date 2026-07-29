@@ -31,7 +31,7 @@ public class AdminInvitation {
     @Column(nullable = false)
     private String email;
 
-    // 초대한 SUPER_ADMIN의 이메일 스냅샷 — FK 아님. 이 코드베이스엔 @ManyToOne 전례가 없고,
+    // 초대한 관리자의 이메일 스냅샷 — FK 아님. 이 코드베이스엔 @ManyToOne 전례가 없고,
     // 감사 기록 관점에서도 나중에 초대자 계정이 바뀌거나 삭제돼도 기록이 변하면 안 되므로 스냅샷이 더 정확.
     @Column(nullable = false)
     private String invitedByEmail;

@@ -30,7 +30,7 @@ public class AdminInvitationController {
 
     private final AdminInvitationService invitationService;
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<AdminInvitationResponse> invite(
             @Valid @RequestBody AdminInvitationCreateRequest request,
@@ -39,13 +39,13 @@ public class AdminInvitationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public List<AdminInvitationResponse> list() {
         return invitationService.list();
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public AdminSuccessResponse cancel(@PathVariable Long id) {
         invitationService.cancel(id);

@@ -73,7 +73,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser
     @Test
-    void createMember_SuperAdmin_Returns201() throws Exception {
+    void createMember_Admin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
@@ -123,7 +123,7 @@ class MemberControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingName_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -132,7 +132,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingRoles_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -141,7 +141,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingCohort_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -150,7 +150,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingStudentId_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -201,7 +201,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser
     @Test
-    void updateMember_SuperAdmin_Returns200() throws Exception {
+    void updateMember_Admin_Returns200() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)
@@ -245,7 +245,7 @@ class MemberControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void updateMember_EmptyName_Returns400() throws Exception {
         Long id = createMember();

@@ -2,7 +2,6 @@ package likelion.khu.website.admin.password;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.auth.RefreshToken;
 import likelion.khu.website.admin.auth.RefreshTokenRepository;
 import likelion.khu.website.email.EmailService;
@@ -46,7 +45,7 @@ class AdminPasswordControllerTest {
     @Test
     void forgot_ExistingEmail_SendsResetEmail() throws Exception {
         adminRepository.save(
-                Admin.register("exists@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("exists@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
 
         mockMvc.perform(post("/api/admin/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,7 +70,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_ValidToken_ChangesPasswordAndRevokesExistingRefreshTokens() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("reset@khu.ac.kr", "이름", passwordEncoder.encode("oldpassword1"), AdminRole.ADMIN));
+                Admin.register("reset@khu.ac.kr", "이름", passwordEncoder.encode("oldpassword1")));
         refreshTokenRepository.save(RefreshToken.issue(admin.getId(), "some-hash", LocalDateTime.now().plusDays(7)));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "reset-token", Duration.ofMinutes(30)));
@@ -94,7 +93,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_ExpiredToken_Returns410() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "expired-token", Duration.ofMillis(-1)));
 
@@ -108,7 +107,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_WeakPassword_Returns400() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("weak@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("weak@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "weak-token", Duration.ofMinutes(30)));
 
@@ -122,7 +121,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_AlreadyUsedToken_Returns400() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("used@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("used@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "used-token", Duration.ofMinutes(30)));
         mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())

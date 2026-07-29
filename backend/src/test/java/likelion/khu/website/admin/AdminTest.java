@@ -10,7 +10,7 @@ class AdminTest {
 
     @Test
     void recordFailedLogin_BelowThreshold_DoesNotLock() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash", AdminRole.ADMIN);
+        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash");
 
         admin.recordFailedLogin(5, Duration.ofMinutes(15));
 
@@ -20,7 +20,7 @@ class AdminTest {
 
     @Test
     void recordFailedLogin_ReachesThreshold_Locks() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash", AdminRole.ADMIN);
+        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash");
 
         for (int i = 0; i < 5; i++) {
             admin.recordFailedLogin(5, Duration.ofMinutes(15));
@@ -31,7 +31,7 @@ class AdminTest {
 
     @Test
     void recordSuccessfulLogin_ResetsCounterAndUnlocks() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash", AdminRole.ADMIN);
+        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash");
         for (int i = 0; i < 5; i++) {
             admin.recordFailedLogin(5, Duration.ofMinutes(15));
         }
@@ -43,17 +43,8 @@ class AdminTest {
     }
 
     @Test
-    void changeRole_UpdatesRole() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash", AdminRole.ADMIN);
-
-        admin.changeRole(AdminRole.SUPER_ADMIN);
-
-        assertThat(admin.getRole()).isEqualTo(AdminRole.SUPER_ADMIN);
-    }
-
-    @Test
     void changePassword_UpdatesHash() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "old-hash", AdminRole.ADMIN);
+        Admin admin = Admin.register("a@khu.ac.kr", "이름", "old-hash");
 
         admin.changePassword("new-hash");
 

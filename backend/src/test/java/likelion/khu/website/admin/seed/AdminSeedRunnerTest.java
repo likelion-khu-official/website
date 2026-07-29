@@ -1,7 +1,6 @@
 package likelion.khu.website.admin.seed;
 
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.email.EmailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +34,6 @@ class AdminSeedRunnerTest {
 
         assertThat(adminRepository.existsByEmail("seed-a@khu.ac.kr")).isTrue();
         assertThat(adminRepository.existsByEmail("seed-b@khu.ac.kr")).isTrue();
-        assertThat(adminRepository.findByEmail("seed-a@khu.ac.kr").orElseThrow().getRole())
-                .isEqualTo(AdminRole.SUPER_ADMIN);
         verify(emailService, times(2)).sendPasswordResetEmail(any(), any(), any());
     }
 

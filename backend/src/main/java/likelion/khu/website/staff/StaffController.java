@@ -26,13 +26,13 @@ public class StaffController {
         return staffService.getAll();
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/admin/staff")
     public List<StaffAdminResponse> adminList() {
         return staffService.getAllForAdmin();
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/staff")
     public ResponseEntity<StaffAdminResponse> create(
             @Valid @RequestBody StaffCreateRequest request,
@@ -42,7 +42,7 @@ public class StaffController {
                 .body(staffService.create(request, admin.getEmail()));
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/api/admin/staff/{id}")
     public StaffAdminResponse update(
             @PathVariable Long id,
@@ -52,7 +52,7 @@ public class StaffController {
         return staffService.update(id, request, admin.getEmail());
     }
 
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/api/admin/staff/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         staffService.delete(id);

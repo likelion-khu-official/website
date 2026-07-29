@@ -97,7 +97,7 @@ class StaffControllerTest {
 
     @WithMockAdminUser
     @Test
-    void createStaff_SuperAdmin_Returns201() throws Exception {
+    void createStaff_Admin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_BODY))
@@ -130,15 +130,6 @@ class StaffControllerTest {
                 .andExpect(jsonPath("$[0].phone").doesNotExist());
     }
 
-    @WithMockUser(roles = "ADMIN")
-    @Test
-    void createStaff_NotSuperAdmin_Returns403() throws Exception {
-        mockMvc.perform(post("/api/admin/staff")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(CREATE_BODY))
-                .andExpect(status().isForbidden());
-    }
-
     @Test
     void createStaff_Unauthenticated_Returns4xx() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
@@ -147,7 +138,7 @@ class StaffControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createStaff_MissingPhotoUrl_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
@@ -157,7 +148,7 @@ class StaffControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createStaff_MissingName_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
@@ -171,7 +162,7 @@ class StaffControllerTest {
 
     @WithMockAdminUser
     @Test
-    void updateStaff_SuperAdmin_Returns200() throws Exception {
+    void updateStaff_Admin_Returns200() throws Exception {
         Long id = createStaff();
 
         mockMvc.perform(patch("/api/admin/staff/{id}", id)
@@ -183,17 +174,6 @@ class StaffControllerTest {
     }
 
     @WithMockUser(roles = "ADMIN")
-    @Test
-    void updateStaff_NotSuperAdmin_Returns403() throws Exception {
-        Long id = createStaff();
-
-        mockMvc.perform(patch("/api/admin/staff/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"position\":\"부회장\"}"))
-                .andExpect(status().isForbidden());
-    }
-
-    @WithMockUser(roles = "SUPER_ADMIN")
     @Test
     void updateStaff_EmptyPhotoUrl_Returns400() throws Exception {
         Long id = createStaff();
@@ -217,7 +197,7 @@ class StaffControllerTest {
 
     @WithMockAdminUser
     @Test
-    void deleteStaff_SuperAdmin_Returns204() throws Exception {
+    void deleteStaff_Admin_Returns204() throws Exception {
         Long id = createStaff();
 
         mockMvc.perform(delete("/api/admin/staff/{id}", id))
@@ -225,15 +205,6 @@ class StaffControllerTest {
 
         mockMvc.perform(get("/api/staff"))
                 .andExpect(jsonPath("$.length()").value(0));
-    }
-
-    @WithMockUser(roles = "ADMIN")
-    @Test
-    void deleteStaff_NotSuperAdmin_Returns403() throws Exception {
-        Long id = createStaff();
-
-        mockMvc.perform(delete("/api/admin/staff/{id}", id))
-                .andExpect(status().isForbidden());
     }
 
     @WithMockAdminUser

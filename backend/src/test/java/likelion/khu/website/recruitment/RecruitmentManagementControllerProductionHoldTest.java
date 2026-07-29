@@ -37,7 +37,7 @@ class RecruitmentManagementControllerProductionHoldTest {
     EmailService emailService;
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_ApplicationFormNotReady_Returns409AndDoesNotSend() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("a@khu.ac.kr"));
 
@@ -53,7 +53,7 @@ class RecruitmentManagementControllerProductionHoldTest {
     // 여는 것만 막힌다 — 닫기는 이 스위치와 무관하게 항상 동작해야 실수로 열린 모집을
     // 되돌릴 방법이 막히는 사고를 피한다.
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void close_ApplicationFormNotReady_StillWorks() throws Exception {
         mockMvc.perform(patch("/api/admin/recruitment/status")
                         .contentType(MediaType.APPLICATION_JSON)

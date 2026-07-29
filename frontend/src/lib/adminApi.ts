@@ -14,8 +14,6 @@ import type {
   AdminSummary,
   AdminInvitationCreateRequest,
   AdminInvitationSummary,
-  AdminRoleUpdateRequest,
-  AdminRoleUpdateResponse,
 } from '@shared/types/admin';
 import type { RecruitmentStatusResponse, RecruitmentStatusUpdateRequest } from '@shared/types/recruitment';
 import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
@@ -196,15 +194,6 @@ export function listAdmins() {
 
 export function deleteAdmin(id: number) {
   return request<void>(`/admins/${id}`, { method: 'DELETE' }, '삭제에 실패했어요.', true);
-}
-
-export function updateAdminRole(id: number, body: AdminRoleUpdateRequest) {
-  return request<AdminRoleUpdateResponse>(
-    `/admins/${id}/role`,
-    { method: 'PATCH', body: JSON.stringify(body) },
-    '역할 변경에 실패했어요.',
-    true
-  );
 }
 
 // ── 모집 관리 (#151) ──────────────────────────────────────────────
