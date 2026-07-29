@@ -5,43 +5,31 @@ import { getBaseUrl } from '@/lib/serverBaseUrl';
 
 function StaffPhoto({ staff }: { staff: Staff }) {
   return (
-    <div className="h-full w-full overflow-hidden rounded-[14px] bg-gradient-to-br from-[#3f251d] to-[#1b1716]">
+    <div className="h-full w-full overflow-hidden bg-gradient-to-br from-[#3f251d] to-[#1b1716]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={staff.photoUrl} alt={`${staff.name} 프로필`} className="h-full w-full object-cover" />
     </div>
   );
 }
 
-// 회장·세션장을 같은 레벨의 카드로 통일한다. 겸임(부회장·AI 세션장 등)도 카드 하나로 흡수.
-// 모바일은 가로형(사진 왼쪽)으로 한 열에 하나씩 — 홀수 인원이어도 빈칸이 안 생긴다.
-// 데스크톱은 세로형(사진 위)으로 한 줄에 나란히.
 function StaffCard({ staff }: { staff: Staff }) {
   return (
-    <article className="flex h-full flex-row items-start gap-4 rounded-[20px] border border-accent/25 bg-black/25 p-3.5 backdrop-blur transition-colors hover:border-accent/40 lg:flex-col lg:items-stretch lg:gap-0">
-      <div className="aspect-[4/5] w-[92px] shrink-0 min-[400px]:w-[108px] lg:w-full">
+    <article className="group flex h-full min-h-0 flex-col items-center px-2 pb-5 text-center">
+      <div className="relative h-28 w-28 overflow-hidden rounded-full ring-1 ring-white/10 transition-[box-shadow,transform] duration-300 group-hover:ring-accent/50 min-[400px]:h-32 min-[400px]:w-32 sm:h-28 sm:w-28 lg:h-32 lg:w-32 xl:h-[clamp(132px,10vw,168px)] xl:w-[clamp(132px,10vw,168px)]">
         <StaffPhoto staff={staff} />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col lg:px-1 lg:pt-3.5">
-        <p className="text-[11.5px] font-bold tracking-[0.01em] text-accent">{staff.position}</p>
-        <h3 className="mt-1.5 text-xl font-bold tracking-[-0.05em] text-white">{staff.name}</h3>
-        <p className="mt-0.5 text-[11px] text-white/35">
-          {staff.department} · {staff.admissionYear}학번
+      <div className="flex min-w-0 w-full flex-col items-center pt-3 xl:pt-4">
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold tracking-[-0.05em] text-white transition-colors group-hover:text-accent xl:text-xl xl:group-hover:text-white">
+            {staff.name}
+          </h3>
+          <p className="mt-0.5 truncate text-[9px] text-white/35 sm:text-[10px]">
+            {staff.department} · {staff.admissionYear}
+          </p>
+        </div>
+        <p className="mt-0.5 min-w-0 break-keep text-[11px] font-bold leading-snug tracking-[0.02em] text-accent xl:mt-2 xl:min-h-[30px] xl:px-1">
+          {staff.position}
         </p>
-        {staff.activities?.length ? (
-          <div className="mt-3 border-t border-white/10 pt-3 lg:mt-3.5">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">활동</p>
-            <ul className="grid gap-2">
-              {staff.activities.map((activity, index) => (
-                <li
-                  key={index}
-                  className="relative pl-4 text-[12px] leading-[1.4] text-white/60 before:absolute before:left-0 before:top-[7px] before:h-[5px] before:w-[5px] before:rounded-full before:bg-accent"
-                >
-                  {activity}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </article>
   );
@@ -58,27 +46,31 @@ export default async function Members() {
     failed = true;
   }
 
-  // 랜딩은 대표·세션 리드(상위 다섯 직무)만 티저로 보여주고, 전체는 /members로.
-  const featured = staff.slice(0, 5);
-
+  // 회장부터 기획·홍보부장까지 핵심 운영진 7명을 소개하고, 전체 명단은 /members로 잇는다.
+  const featured = staff.slice(0, 7);
   return (
     <section
       id="members"
-      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-hidden px-5 pb-12 pt-24 sm:px-10 sm:pb-14 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-24"
+      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-x-clip px-5 pb-12 pt-24 sm:px-10 sm:pb-14 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-20"
     >
       <div className="members-glow-base" />
       <div className="members-glow-accent" />
 
-      <div className="relative z-[1] mx-auto max-w-[1390px]">
-        <header className="scroll-reveal flex flex-col items-center gap-4 text-center">
-          <p className="text-white" style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}>
-            운영진 소개
-          </p>
-          <p
-            className="max-w-[1000px] text-balance break-keep font-semibold text-accent"
-            style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
-          >
-            경희대학교 멋쟁이사자처럼 14기 운영진을 소개합니다.
+      <div className="relative z-[1] mx-auto w-full max-w-[1390px]">
+        <header className="scroll-reveal grid gap-4 border-b border-white/10 pb-5 text-left sm:grid-cols-[1fr_auto] sm:items-end sm:gap-8 sm:pb-6">
+          <div>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/40">Our team · 14th</p>
+            <h2
+              className="max-w-[920px] text-balance break-keep font-semibold leading-[1.28] text-white"
+              style={{ fontSize: 'clamp(28px, 3.5vw, 52px)', letterSpacing: '-0.055em' }}
+            >
+              함께 방향을 만들고,
+              <br className="sm:hidden" /> 끝까지 실행합니다.
+            </h2>
+          </div>
+          <p className="max-w-[330px] break-keep text-[12px] leading-[1.65] text-white/45 sm:text-right sm:text-[13px]">
+            기획부터 세션, 홍보까지
+            <br className="hidden sm:block" /> 14기의 성장을 설계하는 운영진입니다.
           </p>
         </header>
 
@@ -91,12 +83,12 @@ export default async function Members() {
             <p className="text-sm text-white/50">운영진 소개를 준비하고 있어요.</p>
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-5">
+          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-5 xl:grid-cols-7 xl:gap-4">
             {featured.map((person, index) => (
               <div
                 key={person.id}
                 className="scroll-reveal member-card-reveal min-w-0"
-                style={{ '--reveal-y': `${34 + (index % 5) * 10}px` } as React.CSSProperties}
+                style={{ '--reveal-y': `${34 + index * 6}px` } as React.CSSProperties}
               >
                 <StaffCard staff={person} />
               </div>
@@ -104,12 +96,15 @@ export default async function Members() {
           </div>
         )}
 
-        <div className="scroll-reveal mt-6 text-center">
+        <div className="scroll-reveal mt-5 flex justify-end">
           <Link
             href="/members"
-            className="inline-flex min-h-11 items-center rounded-full border border-accent/35 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent outline-none transition-colors hover:bg-accent hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group inline-flex min-h-11 items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             14기 멤버 전체 보기
+            <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
+              →
+            </span>
           </Link>
         </div>
       </div>
