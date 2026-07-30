@@ -1,10 +1,12 @@
 package likelion.khu.website.email;
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import likelion.khu.website.email.exception.EmailSendException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
@@ -19,6 +21,7 @@ import org.thymeleaf.context.Context;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -39,6 +42,16 @@ public class EmailService {
     // final이 아니라 필드 주입 — @Value는 빈이 아니라 프로퍼티 값이라 생성자 파라미터로 묶기 번거로워 예외적으로 이 방식 사용.
     @Value("${mail-sender.from}")
     private String from;
+
+    // 발송 실패 원인이 유저 쪽(주소 형식 오류 등)이 아니라 OCI 릴레이 순간 장애·우리 쪽 자격증명
+    // 문제처럼 "결국은 풀릴 수 있는" 것이면, email_log에 영구 FAILURE로 박제하지 않고 몇 번 더
+    // 시도해서 최종적으로 SUCCESS로 수렴시킨다(장찬욱 요청, #113 후속). 값을 필드로 뺀 이유는
+    // 테스트에서 지연 없이 빠르게 검증하기 위함(ReflectionTestUtils로 오버라이드, EmailServiceTest 참고).
+    @Value("${mail-sender.max-attempts:3}")
+    private int maxAttempts;
+
+    @Value("${mail-sender.retry-delay-ms:2000}")
+    private long retryDelayMs;
 
     // inviteUrl·expiresAt은 이 메서드가 만드는 게 아니라 호출자가 넘겨야 하는 값 — 아직 그 호출자(#74 초대 기능)가 없어
     // 지금은 EmailService 스스로 "무엇을 보낼지"는 모르고 "어떻게 보낼지"만 담당하는 상태.
@@ -65,34 +78,63 @@ public class EmailService {
         send(to, EmailType.RECRUITMENT_OPEN, context);
     }
 
-    // 제목 결정만 try 밖 — 실패해도 로그에 subject가 필요해서 미리 확보(subjectFor 자체는 예외 던질 일 없음).
+    // 제목 결정만 루프 밖 — 실패해도 로그에 subject가 필요해서 미리 확보(subjectFor 자체는 예외 던질 일 없음).
     // 그 외(템플릿 렌더링·메일 객체 생성·주소검증·전송·로그저장)는 전부 try 안 — "무슨 예외가 나든 반드시
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
-    // catch (Exception e)로 넓게 잡는 이유: MessagingException/MailException뿐 아니라 Thymeleaf 렌더링 예외,
-    // to가 null일 때 InternetAddress가 던질 수 있는 NullPointerException까지 전부 이 불변식 아래 두기 위한 의도적 선택.
+    //
+    // 재시도는 딱 하나만 구분한다 — AddressException(주소 형식 자체가 틀림, toAddress.validate()가
+    // 던짐)은 몇 번을 다시 보내도 똑같이 실패하는 유저 쪽 원인이라 즉시 포기. 그 외(SMTP 전송 실패,
+    // 템플릿 렌더링 예외, to=null일 때의 NPE 등)는 전부 "다시 시도하면 풀릴 수도 있는" 쪽으로 보고
+    // maxAttempts까지 재시도한다. email_log엔 매 시도마다가 아니라 "최종 결과 한 줄"만 남긴다 —
+    // 재시도 중간의 일시적 실패까지 FAILURE로 쌓으면, #113 실패 임계치 알람(5분에 3건↑)이 재시도로
+    // 결국 성공한 건까지 세어 오탐을 낼 수 있어서(관측 소음과 "결국 성공했다"는 결과가 서로 다른 신호이므로
+    // 섞으면 안 됨).
     private void send(String to, EmailType type, Context context) {
         String subject = subjectFor(type);
         MimeMessage message = null;
+        Exception lastFailure = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                message = mailSender.createMimeMessage();
+                String html = templateEngine.process(type.getTemplateName(), context);
+
+                // MimeMessageHelper.setTo(String)만으로는 느슨한 파싱만 돼서 "not-an-email-address" 같은
+                // 형식 오류를 그냥 통과시킴 — validate()로 RFC 문법을 실제로 검사해야 여기서 걸러짐
+                InternetAddress toAddress = new InternetAddress(to);
+                toAddress.validate();
+
+                MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+                helper.setTo(toAddress);
+                helper.setFrom(from);
+                helper.setSubject(subject);
+                helper.setText(html, true);
+
+                mailSender.send(message);
+                recordSuccess(to, type, subject, messageIdOf(message));
+                return;
+            } catch (AddressException e) {
+                recordFailureSafely(to, type, subject, message, e);
+                throw new EmailSendException(type, to, e);
+            } catch (Exception e) {
+                lastFailure = e;
+                log.warn("이메일 발송 실패 (시도 {}/{}) - to={}, type={}, cause={}",
+                        attempt, maxAttempts, to, type, e.toString());
+                if (attempt < maxAttempts) {
+                    sleepBeforeRetry();
+                }
+            }
+        }
+
+        recordFailureSafely(to, type, subject, message, lastFailure);
+        throw new EmailSendException(type, to, lastFailure);
+    }
+
+    private void sleepBeforeRetry() {
         try {
-            message = mailSender.createMimeMessage();
-            String html = templateEngine.process(type.getTemplateName(), context);
-
-            // MimeMessageHelper.setTo(String)만으로는 느슨한 파싱만 돼서 "not-an-email-address" 같은
-            // 형식 오류를 그냥 통과시킴 — validate()로 RFC 문법을 실제로 검사해야 여기서 걸러짐
-            InternetAddress toAddress = new InternetAddress(to);
-            toAddress.validate();
-
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setTo(toAddress);
-            helper.setFrom(from);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-
-            mailSender.send(message);
-            recordSuccess(to, type, subject, messageIdOf(message));
-        } catch (Exception e) {
-            recordFailureSafely(to, type, subject, message, e);
-            throw new EmailSendException(type, to, e);
+            Thread.sleep(retryDelayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

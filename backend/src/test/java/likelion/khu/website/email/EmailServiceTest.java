@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.when;
 class EmailServiceTest {
 
     private static final String FROM = "noreply@likelion-khu.com";
+    private static final int MAX_ATTEMPTS = 3;
 
     @Mock
     private JavaMailSender mailSender;
@@ -83,6 +85,10 @@ class EmailServiceTest {
         environment.setActiveProfiles(activeProfiles);
         EmailService service = new EmailService(mailSender, templateEngine, emailLogRepository, eventPublisher, environment);
         ReflectionTestUtils.setField(service, "from", FROM);
+        // @Value 필드는 스프링 컨텍스트 없이 만든 인스턴스엔 채워지지 않아(기본값 0) 명시적으로 세팅
+        // 안 하면 재시도 루프가 한 번도 안 돎 — retryDelayMs는 0으로 둬서 재시도 테스트도 즉시 끝나게 함.
+        ReflectionTestUtils.setField(service, "maxAttempts", MAX_ATTEMPTS);
+        ReflectionTestUtils.setField(service, "retryDelayMs", 0L);
         return service;
     }
 
@@ -144,8 +150,10 @@ class EmailServiceTest {
         assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
     }
 
+    // #113 후속(장찬욱 요청) — SMTP 실패가 매 시도 반복되면 maxAttempts까지 전부 소진한 뒤에야
+    // 포기한다. 중간 시도 실패는 email_log에 안 남고(save 1회) 최종 결과만 남는지도 함께 확인.
     @Test
-    void sendInviteEmail_MailServerRejects_LogsFailureAndThrowsEmailSendException() {
+    void sendInviteEmail_MailServerRejectsEveryAttempt_RetriesUpToMaxAttemptsThenLogsSingleFailure() {
         String to = "invitee@khu.ac.kr";
         doThrow(new MailSendException("SMTP 서버에 연결할 수 없어요"))
                 .when(mailSender).send(any(MimeMessage.class));
@@ -153,6 +161,8 @@ class EmailServiceTest {
         assertThatThrownBy(() -> emailService.sendInviteEmail(
                 to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
                 .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, times(MAX_ATTEMPTS)).send(any(MimeMessage.class));
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());
@@ -162,6 +172,43 @@ class EmailServiceTest {
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("SMTP 서버에 연결할 수 없어요");
         assertThat(log.getMessageId()).isNull();
+    }
+
+    // 핵심 요구사항 — 원인이 유저 이메일 문제가 아니라 일시적인 것이면(예: OCI 릴레이 순간 장애),
+    // 다시 시도했을 때 결국 성공하는 케이스에선 email_log에 FAILURE가 아니라 SUCCESS 한 줄만 남아야 한다.
+    @Test
+    void sendInviteEmail_MailServerRejectsThenSucceeds_RetriesAndLogsOnlyFinalSuccess() throws Exception {
+        String to = "invitee@khu.ac.kr";
+        doThrow(new MailSendException("일시적인 SMTP 오류"))
+                .doThrow(new MailSendException("일시적인 SMTP 오류"))
+                .doNothing()
+                .when(mailSender).send(any(MimeMessage.class));
+
+        emailService.sendInviteEmail(
+                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1));
+
+        verify(mailSender, times(3)).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        EmailLog log = logCaptor.getValue();
+        assertThat(log.getRecipient()).isEqualTo(to);
+        assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
+        assertThat(log.getErrorMessage()).isNull();
+    }
+
+    // AddressException(주소 형식 오류)은 유저 쪽 원인이라 재시도해도 결과가 똑같음 — 즉시 포기해야
+    // 함(assertMalformedAddressRejected가 send() 자체가 안 불림을 이미 검증하지만, 여기선 "재시도
+    // 루프를 아예 안 탄다"는 걸 명시적으로 시도 횟수 0으로 재확인).
+    @Test
+    void sendInviteEmail_MalformedAddress_DoesNotRetry() {
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                "not-an-email-address", "https://admin.likelion-khu.com/invite?token=abc123",
+                LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(emailLogRepository, times(1)).save(any());
     }
 
     // 서로 다른 두 형식 오류(@ 없음 / 꺾쇠 안 닫힘)를 각각 테스트로 남긴 이유는 email-module.md 39번 줄 참고 —
@@ -256,6 +303,8 @@ class EmailServiceTest {
         EmailService serviceWithBrokenTemplate =
                 new EmailService(mailSender, brokenTemplateEngine, emailLogRepository, eventPublisher, environment);
         ReflectionTestUtils.setField(serviceWithBrokenTemplate, "from", FROM);
+        ReflectionTestUtils.setField(serviceWithBrokenTemplate, "maxAttempts", MAX_ATTEMPTS);
+        ReflectionTestUtils.setField(serviceWithBrokenTemplate, "retryDelayMs", 0L);
 
         assertThatThrownBy(() -> serviceWithBrokenTemplate.sendInviteEmail(
                 "invitee@khu.ac.kr", "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
