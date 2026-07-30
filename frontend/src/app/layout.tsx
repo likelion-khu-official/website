@@ -42,12 +42,21 @@ export const metadata: Metadata = {
     title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
     description:
       "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교의 프로젝트와 활동을 만나보세요.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "멋쟁이사자처럼 경희대학교",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
     description:
       "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교 공식 웹사이트.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
