@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { refreshSession } from './adminApi';
+import { listInvitations, refreshSession } from './adminApi';
+import type { AdminInvitationSummary } from '@shared/types/admin';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('refreshSession', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('동시에 여러 화면이 세션을 확인해도 refresh 요청을 한 번만 보낸다', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -29,5 +30,28 @@ describe('refreshSession', () => {
       '/api/admin/auth/refresh',
       expect.objectContaining({ method: 'POST' })
     );
+  });
+});
+
+describe('listInvitations', () => {
+  it('인증 갱신이 가능한 관리자 초대 목록 경로를 호출한다', async () => {
+    const invitation: AdminInvitationSummary = {
+      id: 1,
+      email: 'invited.admin@khu.ac.kr',
+      status: 'PENDING',
+      invitedBy: 'current.admin@khu.ac.kr',
+      expiresAt: '2026-08-03T12:00:00',
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue([invitation]),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(listInvitations()).resolves.toEqual([invitation]);
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/invitations', {
+      headers: { 'Content-Type': 'application/json' },
+    });
   });
 });

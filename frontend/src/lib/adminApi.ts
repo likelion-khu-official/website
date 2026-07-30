@@ -159,6 +159,15 @@ export function createInvitation(body: AdminInvitationCreateRequest) {
   );
 }
 
+export function listInvitations() {
+  return request<AdminInvitationSummary[]>(
+    '/invitations',
+    {},
+    '초대 목록을 불러오지 못했어요.',
+    true
+  );
+}
+
 export function cancelInvitation(id: number) {
   return request<void>(`/invitations/${id}`, { method: 'DELETE' }, '초대 취소에 실패했어요.', true);
 }
