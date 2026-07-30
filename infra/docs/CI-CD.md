@@ -21,7 +21,7 @@ PR → dev/main 머지 (backend/** 또는 shared/** 변경 시에만 트리거)
 │ OCI 서버 (likelion-oci)                                        │
 │                                                                │
 │  ③ 이전 태그 백업   PREV_TAG → .prev_backend_tag_{env} 파일에 기록  │
-│  ④ git checkout -f <브랜치> && git pull                         │
+│  ④ git checkout -f <브랜치> && git reset --hard origin/<브랜치>   │
 │  ⑤ docker compose pull + up -d backend-{stage|prod}            │
 │  ⑥ 헬스체크 루프   GET localhost:{8080|8081}/actuator/health     │
 │       200 뜰 때까지 3초 간격, 최대 120초 — 못 넘기면 즉시 실패      │
