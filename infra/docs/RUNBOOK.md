@@ -214,13 +214,13 @@ ssh likelion-oci 'cd ~/website/infra && PROD_TAG=prod-<커밋SHA>   docker compo
 **`infra/**`만 바뀐 걸 배포할 때**: CD는 `backend/**`나 `shared/**` 폴더가 바뀐 경우에만 자동으로 돈다. 그래서 `docker-compose.yml`처럼 `infra/**` 안의 파일만 고친 커밋은 자동 배포가 안 되고, 서버에서 수동으로 반영해야 한다 — 이때 **CD(`cd.yml`)가 하는 것과 똑같은 방식으로, 배포하려는 브랜치를 명시적으로 지정해서 전환**한다:
 
 ```bash
-ssh likelion-oci 'cd ~/website && git fetch origin && git checkout -f <브랜치> && git pull origin <브랜치>'
+ssh likelion-oci 'cd ~/website && git fetch origin && git checkout -f <브랜치> && git reset --hard origin/<브랜치>'
 ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 ```
 
-여기서 `git checkout -f <브랜치>` 없이 `git pull origin <브랜치>`만 실행하면, 브랜치를 전환하지 않고 **지금 체크아웃돼 있는 브랜치에 그대로 병합**해버린다. 예를 들어 지금 서버에 `main`이 체크아웃돼 있는 상태에서 `dev`용 변경을 배포하려고 이 명령만 실행하면, `dev`의 내용이 `main`에 섞여 들어간다. 그래서 반드시 `git checkout -f <브랜치>`로 먼저 원하는 브랜치로 전환한 뒤에 pull해야 한다(2026-07-26 PM 리뷰에서 이 문제를 발견해 고쳤다).
+여기서 `git checkout -f <브랜치>` 없이 `git reset --hard origin/<브랜치>`만 실행하면, 브랜치를 전환하지 않고 **지금 체크아웃돼 있는 브랜치를 그대로 덮어써버린다**. 예를 들어 지금 서버에 `main`이 체크아웃돼 있는 상태에서 `dev`용 변경을 배포하려고 이 명령만 실행하면, `main` 브랜치 자체가 `dev` 내용으로 바뀐다. 그래서 반드시 `git checkout -f <브랜치>`로 먼저 원하는 브랜치로 전환한 뒤에 reset해야 한다(2026-07-26 PM 리뷰에서 이 문제를 발견해 고쳤다).
 
-**주의할 점 — 서버에 있는 `dev` 브랜치가 GitHub의 `origin/dev`와 커밋 단위로 어긋나 있을 수 있다**(2026-07-26에 실제로 확인한 수치: 서버에만 있는 커밋 26개, GitHub에만 있는 커밋 16개). 원인은 서버가 GitHub에 등록해둔 배포용 키가 읽기 전용이라, `git pull`을 하면서 생기는 병합 커밋을 다시 GitHub으로 push하지 못해서 이런 어긋남이 계속 쌓인 것이다(자세한 경위는 `pm/docs/learnings.md` 참고). 실제로 병합을 미리 시험해보는 방법(`git merge --no-commit --no-ff origin/dev` 실행 후 `git merge --abort`로 취소)까지 써서 **지금 이 둘을 합쳐도 충돌 없이 깨끗하게 합쳐진다는 것까지 확인**했으니 당장 급한 문제는 아니다. 다만 서버가 push를 못 하는 구조가 그대로 남아있는 한 이 어긋남은 배포할 때마다 계속 쌓인다. 혹시 다음에 정말 충돌이 나는 상황이 오면, 절대 `-X ours`나 `-X theirs` 같은 옵션으로 한쪽 편을 들어 임의로 밀어붙이지 말고 먼저 장찬욱에게 확인할 것.
+**`git pull`이 아니라 `git reset --hard origin/<브랜치>`를 쓰는 이유(2026-07-30 정정)**: 예전엔 여기 `git pull`을 썼는데, 서버 배포 키가 origin에 push를 못 하는 구조(의도적 최소권한)와 안 맞았다 — pull(=fetch+merge)이 로컬 전용 머지 커밋을 만들고, 그 커밋을 다시 push 못 하니 배포할 때마다 어긋남이 쌓여 서버 `dev`가 `origin/dev`보다 **54커밋**까지 앞서는 사고로 이어졌다(최초 발견 2026-07-26엔 26커밋, `pm/docs/learnings.md` 참고). `reset --hard`로 실제 정리 완료했고(내용 손실 없음 확인됨), `cd.yml`도 같은 이유로 `git pull` → `git reset --hard`로 고쳤다 — 이 서버는 배포 전용이라 로컬 전용 커밋이 있을 이유가 없으므로, 앞으로는 이 방식이 표준이다. 상세는 `infra/CLAUDE.md` "서버 dev 동기화" 절 참고.
 
 **DB 접근 계정 발급**: `infra/.claude/skills/db-access/` 스킬 호출 또는 `db-access.md` "온보딩" 절 그대로 — 공개키를 받아 서버에서 직접 등록(자동화하지 않은 이유는 그 문서에 있음).
 

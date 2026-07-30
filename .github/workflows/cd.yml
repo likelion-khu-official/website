@@ -101,11 +101,16 @@ jobs:
             cd ${{ secrets.OCI_DEPLOY_PATH }}
             cd ..
 
-            # 푸시가 일어난 브랜치로 강제 전환 및 최신 코드 다운로드
+            # 푸시가 일어난 브랜치로 강제 전환 및 최신 코드 다운로드 — git pull(=fetch+merge)은
+            # 안 쓴다. 서버 배포 키가 origin에 push를 못 하는데(의도적 최소권한) pull이 매 배포마다
+            # 로컬 전용 머지 커밋을 만들어서, 그게 다시 push가 안 되니 다음 배포 때 또 쌓이는 게
+            # 반복돼 서버 dev가 origin/dev보다 54커밋 앞서는 상태까지 갔다(2026-07-30 실측·정리
+            # 완료, infra/CLAUDE.md "서버 dev 동기화" 절 참고). 이 서버는 배포 전용이라 로컬 전용
+            # 커밋이 있을 이유가 없다 — reset --hard로 항상 origin과 정확히 같게 맞춘다.
             TARGET_BRANCH="${{ github.ref_name }}"
             git fetch origin
             git checkout -f $TARGET_BRANCH
-            git pull origin $TARGET_BRANCH
+            git reset --hard origin/$TARGET_BRANCH
 
             cd ${{ secrets.OCI_DEPLOY_PATH }}
 
