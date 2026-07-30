@@ -185,8 +185,8 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 | `management.health.mail.enabled=false` 동작 확인 | 설정 자체는 있으나 `/actuator/health`에서 실제로 mail 상태가 빠지는지 검증하는 테스트는 없음 (낮은 리스크) |
 | Naver 등 Gmail 외 실제 수신함 스팸 판정 | 이번엔 Gmail만 확인 (요청 범위) |
 | PROD 자격증명으로 **실제 발송**(AUTH 아님) | 실사용자 오발송 방지를 위해 의도적으로 미수행 — `#74` 배포 후 첫 실제 초대 때 `email_log` 확인으로 대체 예정 |
-| `EmailSendException` 원인별 세분화 | 지금은 주소 형식 오류(클라이언트 문제)와 SMTP 연결·인증 실패(인프라 문제)가 예외 타입 하나로 뭉뚱그려짐. 컨트롤러가 아직 없어 원인별로 다른 HTTP 상태(400 vs 503)를 응답할 소비자가 없으므로 지금 쪼개는 건 시기상조 — `#74` 컨트롤러가 붙고 실제 구분 요구가 생기면 후속 PR에서 `InvalidRecipientAddressException`/`MailDeliveryException` 등으로 분리 검토 |
-| SMTP 타임아웃 반복 실패 알림 | `connectiontimeout`/`timeout`/`writetimeout`을 5초로 명시해 요청 스레드가 무한정 잡히는 것만 막아둔 상태(2026-07-08). 타임아웃이 반복적으로 발생하면(=OCI SMTP 장애 가능성) 인프라 쪽에 알림이 가도록 하는 건 아직 없음 — 별도 이슈로 인프라와 협의 필요 |
+| ~~`EmailSendException` 원인별 세분화~~ | → 부분 완료(#113 후속). 예외 타입 자체(`EmailSendException`)는 여전히 하나지만, `email_log.failure_cause`가 7가지로 원인을 구분해 남긴다(`FailureCause.java`) — HTTP 응답 상태를 원인별로 나눌 소비자가 아직 없다는 원래 이유는 유효해서 예외 타입 자체를 쪼개진 않았지만, "원인을 구분해서 남긴다"는 요구 자체는 이 컬럼으로 충족됨. |
+| ~~SMTP 타임아웃 반복 실패 알림~~ | → 완료(#113, 이후 #113 후속으로 정교화). `push-email-failure-metric.py`가 `email_log`의 실패 건수를 5분마다 OCI Monitoring custom metric으로 보내고, 임계치(`> 2`/5분) 초과 시 알람이 인프라·PM에게 이메일로 간다(`infra/docs/observability.md`·`RUNBOOK.md` 1-6 참고). 이번 PR에서 이 알람이 유저 원인(주소 형식 오류)까지 세던 것도 바로잡았고, 발송 성공 시계열(`push-email-success-metric.py`)도 추가함. |
 | 메일 발송 비동기 큐 처리 | 지금은 `send()`가 요청 스레드에서 동기 실행 — 타임아웃 상한(5초×3)을 둬도 동시 실패가 몰리면 스레드 풀이 일시적으로 압박받을 수 있음. 근본 해결은 발송을 큐(`@Async`, 메시지 큐 등)로 빼서 요청 스레드가 SMTP 왕복을 아예 기다리지 않게 하는 것 — `#74` 컨트롤러 연결 시점에 트래픽 규모를 보고 필요성 재판단 |
 | ~~발송 실패 시 자동 재시도~~ | → 완료(#113 후속, 장찬욱 요청). "실패 원인이 유저 쪽(주소 형식 오류)이 아니면 email_log가 결국 SUCCESS로 수렴해야 한다"는 요구로 `EmailService.send()`에 재시도(기본 최대 3회, 시도 간 2초, `mail-sender.max-attempts`/`mail-sender.retry-delay-ms`로 조정 가능)를 추가했다. `AddressException`(주소 형식 오류)만 즉시 포기하고 그 외는 전부 재시도 대상. **이 표에 남아 있던 "순서 중요" 경고(멱등성 먼저)는 의도적으로 완화해서 진행**했다 — 아래 "재시도와 멱등성" 절 참고 |
 
