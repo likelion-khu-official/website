@@ -36,7 +36,7 @@ class ApplicationAdminControllerTest {
 
     @Test
     @WithMockAdminUser(role = "ADMIN")
-    void updateForm_ByRegularAdmin_SavesAndReturnsSchema() throws Exception {
+    void updateForm_ByAdmin_SavesAndReturnsSchema() throws Exception {
         mockMvc.perform(put("/api/admin/application-form")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SCHEMA))
@@ -70,7 +70,7 @@ class ApplicationAdminControllerTest {
 
     @Test
     @WithMockAdminUser(role = "ADMIN")
-    void list_ByRegularAdmin_ReturnsSchemaAndAnswers() throws Exception {
+    void list_ByAdmin_ReturnsSchemaAndAnswers() throws Exception {
         applicationRepository.save(new Application(
                 "{\"title\":\"14기 모집\",\"questions\":[{\"id\":\"name\",\"label\":\"이름\",\"type\":\"short_text\",\"required\":true}]}",
                 "{\"name\":\"홍길동\"}"));
