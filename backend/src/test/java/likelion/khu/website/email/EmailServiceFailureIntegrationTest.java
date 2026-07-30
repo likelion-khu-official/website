@@ -47,6 +47,9 @@ class EmailServiceFailureIntegrationTest extends MailpitContainerSupport {
         // status는 messageId와 무관한 별개 컬럼 — 실제 조회 시에도 FAILURE 여부는 이 값 하나로 바로 드러남
         assertThat(logs.get(0).getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(logs.get(0).getErrorMessage()).isNotBlank();
+        // 연결 거부는 EmailService.classify()가 SMTP_CONNECTION_FAILED로 분류 — 목이 아니라 진짜
+        // 연결 실패·진짜 SQLite CHECK 제약을 통과해 저장되는지까지 여기서 실증된다.
+        assertThat(logs.get(0).getFailureCause()).isEqualTo(FailureCause.SMTP_CONNECTION_FAILED);
         // 연결 자체가 실패하는 경우 Spring이 Transport 연결을 saveChanges()보다 먼저 시도하다 터짐
         // → Message-ID가 아예 생성되지 않은 채로 실패가 확정됨 (실측 확인, 2026-07-07)
         assertThat(logs.get(0).getMessageId()).isNull();

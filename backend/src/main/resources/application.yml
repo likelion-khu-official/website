@@ -110,6 +110,9 @@ oci-storage:
 
 mail-sender:
   from: ${MAIL_FROM_ADDRESS:noreply@likelion-khu.com}
+  # 유저 쪽 원인(주소 형식 오류)이 아닌 발송 실패를 다시 시도하는 횟수·간격 — EmailService 참고
+  max-attempts: ${MAIL_MAX_ATTEMPTS:3}
+  retry-delay-ms: ${MAIL_RETRY_DELAY_MS:2000}
 
 # === 로그 파일 영속화 ===
 # LOG_FILE_PATH는 docker-compose(backend-stage/backend-prod)에서 배포 태그(커밋 SHA)를 포함한

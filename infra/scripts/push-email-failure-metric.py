@@ -10,6 +10,21 @@ DB 파일 직접 접근 가능 - db-access.md "인프라 오너(ubuntu)" 절 참
 값 자체는 "최근 WINDOW_MINUTES분 동안의 실패 건수"이고, 개별 실패 1건마다
 알림이 오면 알림 피로만 커지므로 임계치는 OCI Alarm Definition 쪽에서 판단.
 
+#113 후속(장찬욱 요청) - 이 알람은 "우리가 손볼 수 있는 문제"만 대상이어야 한다.
+failure_cause 값 중 RECIPIENT_ADDRESS_INVALID(우리 클라이언트 검증에서 걸린 주소
+형식 오류)·RECIPIENT_ADDRESS_REJECTED_BY_SERVER(OCI가 RCPT 단계에서 자체 형식
+재검증 후 거부 - OCI 문서 553 "Invalid email address", "메일함 없음"이 아니라
+결국 같은 "주소 형식" 문제를 OCI가 대신 잡아준 경우)는 몇 번을 다시 보내도
+똑같이 실패하는 "그 수신자" 쪽 원인이라 카운트에서 뺀다 - 인프라가 손볼 수 있는
+게 없다.
+그 외(INVALID_INPUT·TEMPLATE_RENDERING_FAILED = 우리 코드 버그, SMTP_AUTHENTICATION_
+FAILED·SMTP_CONNECTION_FAILED = 우리 쪽 인프라, UNKNOWN_FAILURE = 분류 불가)는 전부
+"우리가 조치해야 할 수도 있는" 쪽이라 그대로 센다(값 정의·재시도 대상 여부는
+backend FailureCause.java가 단일 출처 - 이 EXCLUDED 목록을 바꾸려면 거기부터 대조).
+failure_cause 컬럼 도입 이전의 과거 FAILURE 행이나 분류 실패 케이스는 전부 NULL인데,
+이건 "우리 쪽 원인이 아니라고 확인된 적 없다"는 뜻이라 안전하게 포함시킨다(놓치는
+것보다 오탐이 낫다는 원칙).
+
 instance principal 인증 사용(likelion-monitoring-dyngroup + likelion-monitoring-policy
 재사용 - push-disk-metric.py와 동일 IAM, 새로 만든 것 없음).
 
@@ -25,6 +40,10 @@ import oci
 
 NAMESPACE = "custom_likelion"
 WINDOW_MINUTES = 5  # cron 주기(*/5)와 일치 - observability.md "알람 튜닝 사고 모델"의 C (disk/git-drift와 동일 주기)
+
+# 알람 카운트에서 빼는 failure_cause 값 - "그 수신자" 쪽 원인이라 재시도·알람 둘 다 대상이 아닌
+# 것들(backend FailureCause.java의 isAlarmWorthy()=false와 일치시킬 것, 단일 출처는 그쪽).
+EXCLUDED_FAILURE_CAUSES = ("RECIPIENT_ADDRESS_INVALID", "RECIPIENT_ADDRESS_REJECTED_BY_SERVER")
 
 _IMDS_URL = "http://169.254.169.254/opc/v2/instance/"
 _DATA_DIR = "/home/ubuntu/website/infra/data"
@@ -45,9 +64,12 @@ def instance_metadata():
 
 def failure_count(db_name):
     db_file = f"{_DATA_DIR}/{db_name}.db"
+    excluded = ", ".join(f"'{cause}'" for cause in EXCLUDED_FAILURE_CAUSES)
     query = (
         "SELECT COUNT(*) FROM email_log "
-        f"WHERE status = 'FAILURE' AND sent_at >= datetime('now', '-{WINDOW_MINUTES} minutes');"
+        "WHERE status = 'FAILURE' "
+        f"AND (failure_cause IS NULL OR failure_cause NOT IN ({excluded})) "
+        f"AND sent_at >= datetime('now', '-{WINDOW_MINUTES} minutes');"
     )
     result = subprocess.run(
         ["sqlite3", db_file, query],

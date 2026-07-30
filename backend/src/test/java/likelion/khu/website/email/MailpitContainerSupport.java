@@ -57,8 +57,14 @@ abstract class MailpitContainerSupport {
     // application.yml에도 타임아웃(5초)이 있지만, 실패 케이스를 빠르게 끝내려고 더 짧게(3초)
     // 오버라이드한다. mailpit을 실제로 내려서 SMTP 장애를 재현하는 실패 경로 테스트 클래스들에서만
     // 자기 @DynamicPropertySource 메서드 안에서 호출해서 쓴다(성공 경로 클래스는 불필요).
+    //
+    // EmailService가 재시도(#113 후속, max-attempts 기본 3 / retry-delay-ms 기본 2000)를 갖게 된 뒤로,
+    // 이 헬퍼를 쓰는 테스트들은 "발송 실패가 결국 email_log에 남는지"만 확인하면 되고 재시도 횟수
+    // 자체는 EmailServiceTest가 별도로 검증하므로 여기서는 1회 시도로 오버라이드해 예전 소요시간을 유지한다.
     static void fastFailureTimeouts(DynamicPropertyRegistry registry) {
         registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
         registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
+        registry.add("mail-sender.max-attempts", () -> "1");
+        registry.add("mail-sender.retry-delay-ms", () -> "0");
     }
 }
