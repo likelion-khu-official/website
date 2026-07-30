@@ -60,19 +60,14 @@ async function throwApiError(res: Response, fallbackMessage: string): Promise<ne
   throw new AdminApiError(message, res.status, code);
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: Promise<AdminRefreshResponse> | null = null;
 
-/** 동시에 여러 요청이 401을 받아도 refresh는 한 번만 시도하고 결과를 공유한다 */
+/** 셸과 개별 화면이 동시에 세션을 확인해도 회전형 refresh token은 한 번만 사용한다. */
 function refreshAccessToken(): Promise<boolean> {
-  if (!refreshInFlight) {
-    refreshInFlight = fetch('/api/admin/auth/refresh', { method: 'POST' })
-      .then((res) => res.ok)
-      .catch(() => false)
-      .finally(() => {
-        refreshInFlight = null;
-      });
-  }
-  return refreshInFlight;
+  return refreshSession().then(
+    () => true,
+    () => false
+  );
 }
 
 /**
@@ -121,13 +116,18 @@ export function logout() {
 }
 
 /** 현재 세션 확인 + access 토큰 갱신을 겸한다 (별도 "me" 엔드포인트가 없음) */
-export function refreshSession() {
-  return request<AdminRefreshResponse>(
-    '/auth/refresh',
-    { method: 'POST' },
-    '세션을 확인하지 못했어요.',
-    false
-  );
+export function refreshSession(): Promise<AdminRefreshResponse> {
+  if (!refreshInFlight) {
+    refreshInFlight = request<AdminRefreshResponse>(
+      '/auth/refresh',
+      { method: 'POST' },
+      '세션을 확인하지 못했어요.',
+      false
+    ).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 // ── 초대 ──────────────────────────────────────────────────────────
@@ -155,6 +155,15 @@ export function createInvitation(body: AdminInvitationCreateRequest) {
     '/invitations',
     { method: 'POST', body: JSON.stringify(body) },
     '초대에 실패했어요.',
+    true
+  );
+}
+
+export function listInvitations() {
+  return request<AdminInvitationSummary[]>(
+    '/invitations',
+    {},
+    '초대 목록을 불러오지 못했어요.',
     true
   );
 }
