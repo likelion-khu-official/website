@@ -41,6 +41,16 @@ export interface MemberCreateRequest {
   phone: string;
 }
 
+/** POST /api/admin/members/bulk — 붙여넣은 JSON 배열을 원자적으로 등록한다. */
+export interface MemberBulkCreateRequest {
+  members: MemberCreateRequest[];
+}
+
+export interface MemberBulkCreateResponse {
+  count: number;
+  members: MemberAdminSummary[];
+}
+
 /** PATCH /api/admin/members/{id} — cohort·emoji는 불변이라 DTO에 없음 */
 export interface MemberUpdateRequest {
   name?: string;

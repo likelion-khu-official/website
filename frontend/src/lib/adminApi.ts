@@ -16,7 +16,13 @@ import type {
   AdminInvitationSummary,
 } from '@shared/types/admin';
 import type { RecruitmentStatusResponse, RecruitmentStatusUpdateRequest } from '@shared/types/recruitment';
-import type { MemberAdminSummary, MemberCreateRequest, MemberUpdateRequest } from '@shared/types/member';
+import type {
+  MemberAdminSummary,
+  MemberBulkCreateRequest,
+  MemberBulkCreateResponse,
+  MemberCreateRequest,
+  MemberUpdateRequest,
+} from '@shared/types/member';
 import type { MemberPasswordResetResponse, MemberOffboardResponse } from '@shared/types/member-auth';
 import type {
   ApplicationAdminSummary,
@@ -222,6 +228,16 @@ export function createMember(body: MemberCreateRequest) {
     '/members',
     { method: 'POST', body: JSON.stringify(body) },
     '등록에 실패했어요.',
+    true
+  );
+}
+
+export function createMembersBulk(members: MemberCreateRequest[]) {
+  const body: MemberBulkCreateRequest = { members };
+  return request<MemberBulkCreateResponse>(
+    '/members/bulk',
+    { method: 'POST', body: JSON.stringify(body) },
+    '여러 명 등록에 실패했어요.',
     true
   );
 }

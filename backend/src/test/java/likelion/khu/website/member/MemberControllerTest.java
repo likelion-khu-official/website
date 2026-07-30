@@ -197,6 +197,193 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.cohort").value(14));
     }
 
+    // ── POST /api/admin/members/bulk ─────────────────────────────────
+
+    @WithMockAdminUser
+    @Test
+    void createMembersBulk_Admin_Returns201AndCreatesEveryMember() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "첫째",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    },
+                                    {
+                                      "name": "둘째",
+                                      "roles": ["FRONTEND", "PR_MEMBER"],
+                                      "cohort": 14,
+                                      "studentId": "2099000002",
+                                      "phone": "01000000002"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[0].name").value("첫째"))
+                .andExpect(jsonPath("$.members[1].name").value("둘째"))
+                .andExpect(jsonPath("$.members[0].phone").doesNotExist())
+                .andExpect(jsonPath("$.members[1].phone").doesNotExist());
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMembersBulk_DuplicateStudentIdInInput_ReturnsIndexedErrorAndCreatesNobody() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "첫째",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    },
+                                    {
+                                      "name": "둘째",
+                                      "roles": ["FRONTEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000002"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BULK_MEMBER_INVALID"))
+                .andExpect(jsonPath("$.index").value(1))
+                .andExpect(jsonPath("$.field").value("studentId"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("2번째 멤버")));
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMembersBulk_ExistingStudentIdConflict_Returns409AndCreatesNobody() throws Exception {
+        createMember();
+
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "새 멤버",
+                                      "roles": ["FRONTEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    },
+                                    {
+                                      "name": "기존 학번",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2020123456",
+                                      "phone": "01000000002"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.index").value(1))
+                .andExpect(jsonPath("$.field").value("studentId"));
+
+        mockMvc.perform(get("/api/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].studentId").value("2020123456"));
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMembersBulk_BlankRequiredField_ReturnsIndexedError() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.index").value(0))
+                .andExpect(jsonPath("$.field").value("name"));
+    }
+
+    @WithMockAdminUser
+    @Test
+    void createMembersBulk_EmptyArray_Returns400() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"members\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("등록할 멤버를 한 명 이상 입력해주세요."));
+    }
+
+    @WithMockUser(roles = "MEMBER")
+    @Test
+    void createMembersBulk_Member_Returns403() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "멤버",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createMembersBulk_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(post("/api/admin/members/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "members": [
+                                    {
+                                      "name": "멤버",
+                                      "roles": ["BACKEND"],
+                                      "cohort": 14,
+                                      "studentId": "2099000001",
+                                      "phone": "01000000001"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ── PATCH /api/admin/members/{id} ────────────────────────────────
 
     @WithMockAdminUser

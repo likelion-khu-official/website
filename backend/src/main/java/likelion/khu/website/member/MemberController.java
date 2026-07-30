@@ -5,6 +5,8 @@ import likelion.khu.website.admin.auth.AdminPrincipal;
 import likelion.khu.website.member.auth.MemberAuthService;
 import likelion.khu.website.member.auth.dto.MemberSuccessResponse;
 import likelion.khu.website.member.dto.MemberAdminResponse;
+import likelion.khu.website.member.dto.MemberBulkCreateRequest;
+import likelion.khu.website.member.dto.MemberBulkCreateResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
@@ -45,6 +47,17 @@ public class MemberController {
         AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(memberService.create(request, admin.getEmail()));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/admin/members/bulk")
+    public ResponseEntity<MemberBulkCreateResponse> createBulk(
+            @Valid @RequestBody MemberBulkCreateRequest request,
+            Authentication authentication) {
+        AdminPrincipal admin = (AdminPrincipal) authentication.getPrincipal();
+        List<MemberAdminResponse> created = memberService.createBulk(request.getMembers(), admin.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(MemberBulkCreateResponse.from(created));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

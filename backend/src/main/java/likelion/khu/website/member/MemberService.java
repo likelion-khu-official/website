@@ -4,6 +4,7 @@ import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
+import likelion.khu.website.member.exception.MemberBulkCreateException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 @Service
@@ -55,6 +58,42 @@ public class MemberService {
 
     @Transactional
     public MemberAdminResponse create(MemberCreateRequest request, String createdBy) {
+        validateAvailability(request);
+        Member member = buildMember(request, createdBy);
+        memberRepository.save(member);
+        return MemberAdminResponse.from(member);
+    }
+
+    @Transactional
+    public List<MemberAdminResponse> createBulk(List<MemberCreateRequest> requests, String createdBy) {
+        Map<String, Integer> studentIdIndexes = new HashMap<>();
+
+        for (int index = 0; index < requests.size(); index++) {
+            MemberCreateRequest request = requests.get(index);
+            validateBulkRequest(request, index);
+
+            Integer previousIndex = studentIdIndexes.putIfAbsent(request.getStudentId(), index);
+            if (previousIndex != null) {
+                throw new MemberBulkCreateException(
+                        HttpStatus.BAD_REQUEST,
+                        index,
+                        "studentId",
+                        (previousIndex + 1) + "번째 멤버와 학번이 중복돼요."
+                );
+            }
+
+            validateBulkAvailability(request, index);
+        }
+
+        List<Member> members = requests.stream()
+                .map(request -> buildMember(request, createdBy))
+                .toList();
+        return memberRepository.saveAllAndFlush(members).stream()
+                .map(MemberAdminResponse::from)
+                .toList();
+    }
+
+    private void validateAvailability(MemberCreateRequest request) {
         // 한 사람이 동시에 두 기수로 활동 중일 순 없다 — 기수가 달라도 활동 중인 계정이 이미
         // 있으면 막는다(재등록하려면 먼저 오프보딩부터).
         if (memberRepository.existsByStudentIdAndOffboardedAtIsNull(request.getStudentId())) {
@@ -64,6 +103,50 @@ public class MemberService {
         if (memberRepository.existsByStudentIdAndCohort(request.getStudentId(), request.getCohort())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 학번이에요.");
         }
+    }
+
+    private void validateBulkAvailability(MemberCreateRequest request, int index) {
+        if (memberRepository.existsByStudentIdAndOffboardedAtIsNull(request.getStudentId())) {
+            throw new MemberBulkCreateException(
+                    HttpStatus.CONFLICT, index, "studentId", "이미 활동 중인 학번이에요. 먼저 오프보딩해주세요."
+            );
+        }
+        if (memberRepository.existsByStudentIdAndCohort(request.getStudentId(), request.getCohort())) {
+            throw new MemberBulkCreateException(
+                    HttpStatus.CONFLICT, index, "studentId", "같은 기수에 이미 등록된 학번이에요."
+            );
+        }
+    }
+
+    private void validateBulkRequest(MemberCreateRequest request, int index) {
+        if (request == null) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "member", "객체 형식으로 입력해주세요.");
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "name", "이름을 입력해주세요.");
+        }
+        if (request.getStudentId() == null || request.getStudentId().isBlank()) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "studentId", "학번을 문자열로 입력해주세요.");
+        }
+        if (request.getPhone() == null || request.getPhone().isBlank()) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "phone", "전화번호를 문자열로 입력해주세요.");
+        }
+        if (request.getCohort() == null || request.getCohort() <= 0) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "cohort", "기수를 1 이상의 정수로 입력해주세요.");
+        }
+        if (request.getRoles() == null || request.getRoles().isEmpty()) {
+            throw new MemberBulkCreateException(HttpStatus.BAD_REQUEST, index, "roles", "역할을 한 개 이상 입력해주세요.");
+        }
+        try {
+            validateConsent(request.getPublicationConsent(), request.getPublicationConsentedAt());
+        } catch (ResponseStatusException exception) {
+            throw new MemberBulkCreateException(
+                    HttpStatus.BAD_REQUEST, index, "publicationConsent", exception.getReason()
+            );
+        }
+    }
+
+    private Member buildMember(MemberCreateRequest request, String createdBy) {
         String emoji = EMOJI_POOL.get(RANDOM.nextInt(EMOJI_POOL.size()));
         LocalDateTime consentedAt = validateConsent(
                 request.getPublicationConsent(), request.getPublicationConsentedAt()
@@ -75,8 +158,7 @@ public class MemberService {
                 Boolean.TRUE.equals(request.getPublicationConsent()), consentedAt, createdBy,
                 request.getStudentId(), request.getPhone(), passwordEncoder.encode(request.getPhone())
         );
-        memberRepository.save(member);
-        return MemberAdminResponse.from(member);
+        return member;
     }
 
     @Transactional

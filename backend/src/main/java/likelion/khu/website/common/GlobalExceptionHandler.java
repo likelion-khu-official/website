@@ -21,6 +21,7 @@ import likelion.khu.website.feed.exception.InvalidImageFileException;
 import likelion.khu.website.feed.post.exception.NotPostAuthorException;
 import likelion.khu.website.feed.post.exception.PostNotFoundException;
 import likelion.khu.website.member.exception.MemberNotFoundException;
+import likelion.khu.website.member.exception.MemberBulkCreateException;
 import likelion.khu.website.project.exception.DuplicateParticipantException;
 import likelion.khu.website.project.exception.EmptyParticipantsException;
 import likelion.khu.website.project.exception.InvalidRepresentativeImageException;
@@ -137,6 +138,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MemberNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleMemberNotFound(MemberNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    @ExceptionHandler(MemberBulkCreateException.class)
+    public ResponseEntity<Map<String, Object>> handleMemberBulkCreate(MemberBulkCreateException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                "success", false,
+                "message", ex.getMessage(),
+                "code", "BULK_MEMBER_INVALID",
+                "index", ex.getIndex(),
+                "field", ex.getField()
+        ));
     }
 
     // ── 프로젝트 쇼케이스(#119) — 블랙박스 QA에서 발견한 에러 계약 갭 수정.

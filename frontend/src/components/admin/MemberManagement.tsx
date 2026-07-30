@@ -5,23 +5,14 @@ import { useRouter } from 'next/navigation';
 import {
   refreshSession,
   listMembers,
-  createMember,
   updateMember,
   resetMemberPassword,
   offboardMember,
   AdminApiError,
 } from '@/lib/adminApi';
+import MemberRegistrationPanel from '@/components/admin/MemberRegistrationPanel';
+import { MEMBER_ROLE_OPTIONS, memberRoleLabel } from '@/lib/memberRegistration';
 import type { MemberAdminSummary, MemberRole } from '@shared/types/member';
-
-const ROLE_OPTIONS: MemberRole[] = [
-  'PRESIDENT', 'VICE_PRESIDENT',
-  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
-  'PLANNING_HEAD', 'PLANNING_MEMBER',
-  'PR_HEAD', 'PR_MEMBER',
-  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
-];
-
-const emptyForm = { name: '', studentId: '', phone: '', cohort: '', roles: [] as MemberRole[] };
 
 export default function MemberManagement() {
   const router = useRouter();
@@ -32,12 +23,12 @@ export default function MemberManagement() {
   const [reloadIndex, setReloadIndex] = useState(0);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyForm);
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState('');
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', roles: [] as MemberRole[] });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    roles: [] as MemberRole[],
+  });
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [rowError, setRowError] = useState('');
@@ -74,36 +65,6 @@ export default function MemberManagement() {
     };
   }, [reloadIndex, router]);
 
-  function toggleCreateRole(role: MemberRole) {
-    setCreateForm((prev) => ({
-      ...prev,
-      roles: prev.roles.includes(role) ? prev.roles.filter((r) => r !== role) : [...prev.roles, role],
-    }));
-  }
-
-  async function handleCreateSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (createSubmitting) return;
-    setCreateSubmitting(true);
-    setCreateError('');
-    try {
-      const created = await createMember({
-        name: createForm.name.trim(),
-        studentId: createForm.studentId.trim(),
-        phone: createForm.phone.trim(),
-        cohort: Number(createForm.cohort),
-        roles: createForm.roles,
-      });
-      setMembers((prev) => [...prev, created]);
-      setCreateForm(emptyForm);
-      setCreateOpen(false);
-    } catch (err) {
-      setCreateError(err instanceof AdminApiError ? err.message : '등록에 실패했어요.');
-    } finally {
-      setCreateSubmitting(false);
-    }
-  }
-
   function startEdit(member: MemberAdminSummary) {
     setEditingId(member.id);
     setEditForm({ name: member.name, roles: member.roles });
@@ -121,7 +82,10 @@ export default function MemberManagement() {
     setBusyId(id);
     setRowError('');
     try {
-      const updated = await updateMember(id, { name: editForm.name.trim(), roles: editForm.roles });
+      const updated = await updateMember(id, {
+        name: editForm.name.trim(),
+        roles: editForm.roles,
+      });
       setMembers((prev) => prev.map((m) => (m.id === id ? updated : m)));
       setEditingId(null);
     } catch (err) {
@@ -178,7 +142,7 @@ export default function MemberManagement() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-6xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">멤버 관리</h1>
         <button
@@ -202,66 +166,10 @@ export default function MemberManagement() {
       </div>
 
       {createOpen && (
-        <form
-          onSubmit={handleCreateSubmit}
-          className="mb-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4"
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              value={createForm.name}
-              onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder="이름"
-              required
-              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-            <input
-              value={createForm.studentId}
-              onChange={(e) => setCreateForm((p) => ({ ...p, studentId: e.target.value }))}
-              placeholder="학번(로그인 아이디)"
-              required
-              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-            <input
-              value={createForm.phone}
-              onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-              placeholder="전화번호(초기 비밀번호)"
-              required
-              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-            <input
-              value={createForm.cohort}
-              onChange={(e) => setCreateForm((p) => ({ ...p, cohort: e.target.value }))}
-              placeholder="기수"
-              type="number"
-              required
-              className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {ROLE_OPTIONS.map((role) => (
-              <button
-                type="button"
-                key={role}
-                onClick={() => toggleCreateRole(role)}
-                className={`min-h-11 rounded-full border px-3 py-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
-                  createForm.roles.includes(role)
-                    ? 'border-white/40 bg-white/20 text-white'
-                    : 'border-white/10 bg-white/5 text-muted hover:text-white'
-                }`}
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-          {createError && <p className="text-sm text-red-400">{createError}</p>}
-          <button
-            type="submit"
-            disabled={createSubmitting || createForm.roles.length === 0}
-            className="min-h-11 self-stretch rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 sm:self-start"
-          >
-            {createSubmitting ? '등록 중…' : '등록하기'}
-          </button>
-        </form>
+        <MemberRegistrationPanel
+          existingMembers={members}
+          onCreated={(created) => setMembers((previous) => [...previous, ...created])}
+        />
       )}
 
       {rowError && <p className="mb-4 text-sm text-red-400">{rowError}</p>}
@@ -274,10 +182,7 @@ export default function MemberManagement() {
             const busy = busyId === member.id;
             const isEditing = editingId === member.id;
             return (
-              <li
-                key={member.id}
-                className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4"
-              >
+              <li key={member.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 {isEditing ? (
                   <div className="flex flex-col gap-3">
                     <input
@@ -286,7 +191,7 @@ export default function MemberManagement() {
                       className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
                     />
                     <div className="flex flex-wrap gap-2">
-                      {ROLE_OPTIONS.map((role) => (
+                      {MEMBER_ROLE_OPTIONS.map(({ value: role, label }) => (
                         <button
                           type="button"
                           key={role}
@@ -297,7 +202,7 @@ export default function MemberManagement() {
                               : 'border-white/10 bg-white/5 text-muted hover:text-white'
                           }`}
                         >
-                          {role}
+                          {label}
                         </button>
                       ))}
                     </div>
@@ -327,7 +232,7 @@ export default function MemberManagement() {
                         {member.offboarded && <span className="ml-2 text-xs text-red-400">오프보딩됨</span>}
                       </p>
                       <p className="break-words text-sm text-muted">
-                        {member.studentId} · {member.cohort}기 · {member.roles.join(', ')}
+                        {member.studentId} · {member.cohort}기 · {member.roles.map(memberRoleLabel).join(', ')}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
