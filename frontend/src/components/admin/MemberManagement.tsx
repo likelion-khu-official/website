@@ -25,7 +25,10 @@ export default function MemberManagement() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', roles: [] as MemberRole[] });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    roles: [] as MemberRole[],
+  });
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [rowError, setRowError] = useState('');
@@ -79,7 +82,10 @@ export default function MemberManagement() {
     setBusyId(id);
     setRowError('');
     try {
-      const updated = await updateMember(id, { name: editForm.name.trim(), roles: editForm.roles });
+      const updated = await updateMember(id, {
+        name: editForm.name.trim(),
+        roles: editForm.roles,
+      });
       setMembers((prev) => prev.map((m) => (m.id === id ? updated : m)));
       setEditingId(null);
     } catch (err) {
@@ -136,7 +142,7 @@ export default function MemberManagement() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-6xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-white">멤버 관리</h1>
         <button
@@ -161,6 +167,7 @@ export default function MemberManagement() {
 
       {createOpen && (
         <MemberRegistrationPanel
+          existingMembers={members}
           onCreated={(created) => setMembers((previous) => [...previous, ...created])}
         />
       )}
@@ -175,10 +182,7 @@ export default function MemberManagement() {
             const busy = busyId === member.id;
             const isEditing = editingId === member.id;
             return (
-              <li
-                key={member.id}
-                className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4"
-              >
+              <li key={member.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 {isEditing ? (
                   <div className="flex flex-col gap-3">
                     <input

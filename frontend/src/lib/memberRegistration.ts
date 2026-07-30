@@ -1,6 +1,9 @@
-import type { MemberCreateRequest, MemberRole } from '@shared/types/member';
+import type { MemberAdminSummary, MemberCreateRequest, MemberRole } from '@shared/types/member';
 
-export const MEMBER_ROLE_OPTIONS: ReadonlyArray<{ value: MemberRole; label: string }> = [
+export const MEMBER_ROLE_OPTIONS: ReadonlyArray<{
+  value: MemberRole;
+  label: string;
+}> = [
   { value: 'PRESIDENT', label: '회장' },
   { value: 'VICE_PRESIDENT', label: '부회장' },
   { value: 'BACKEND_LEAD', label: '백엔드 세션장' },
@@ -20,26 +23,46 @@ export const MEMBER_ROLE_OPTIONS: ReadonlyArray<{ value: MemberRole; label: stri
 const ROLE_VALUES = new Set<MemberRole>(MEMBER_ROLE_OPTIONS.map(({ value }) => value));
 const ROLE_LABELS = new Map(MEMBER_ROLE_OPTIONS.map(({ value, label }) => [value, label]));
 
-export const BULK_MEMBER_EXAMPLE = JSON.stringify(
-  [
-    {
-      name: '홍길동',
-      studentId: '2099000001',
-      phone: '01000000001',
-      cohort: 14,
-      roles: ['BACKEND'],
-    },
-    {
-      name: '김멋사',
-      studentId: '2099000002',
-      phone: '01000000002',
-      cohort: 14,
-      roles: ['FRONTEND', 'PR_MEMBER'],
-    },
-  ],
-  null,
-  2
-);
+const ROLE_PROMPT_GUIDE = MEMBER_ROLE_OPTIONS.map(({ value, label }) => `- ${label}: "${value}"`).join('\n');
+
+export const BULK_MEMBER_PROMPT = `당신은 멋쟁이사자처럼 경희대학교 멤버 명단을 관리자 사이트용 JSON으로 변환하는 도우미입니다.
+
+이 프롬프트 다음에 제가 원본 명단을 붙여넣겠습니다. 원본은 표, 스프레드시트 복사본, 문장 등 어떤 형식일 수도 있습니다.
+
+각 멤버를 아래 필드로 변환하세요.
+- name: 이름. 문자열
+- studentId: 학번. 앞자리 0이 사라지지 않도록 문자열
+- phone: 전화번호. 원본 표기를 유지한 문자열
+- cohort: 기수. 1 이상의 정수
+- roles: 역할 코드가 한 개 이상 들어 있는 배열
+
+사용할 수 있는 역할은 아래뿐입니다.
+${ROLE_PROMPT_GUIDE}
+
+대화 순서:
+1. 제가 원본 명단을 보내면 먼저 모든 멤버에게 필수값이 있는지, 역할을 아래 코드로 확실히 바꿀 수 있는지 확인하세요.
+2. 빠진 값이나 모호한 역할이 하나라도 있으면 JSON을 일부라도 출력하지 말고, 해결에 꼭 필요한 사전 질문만 번호를 붙여 한 번에 짧게 물어보세요.
+3. 제가 질문에 답하면 명단 전체를 다시 확인하세요. 아직 해결되지 않은 문제가 있을 때만 같은 방식으로 최소한의 질문을 하세요.
+4. 모든 문제가 해결되면 최종 응답으로 JSON 배열만 출력하세요. 질문과 최종 JSON을 같은 응답에 섞지 마세요.
+
+반드시 지킬 변환 규칙:
+1. 원본에 없는 이름, 학번, 전화번호, 기수, 역할을 추측하거나 만들어내지 마세요.
+2. 한 사람이 여러 역할을 맡으면 roles 배열에 역할 코드를 모두 넣으세요.
+3. 최종 응답에는 설명, 인사말, 요약, 마크다운 코드블록(\`\`\`)을 붙이지 마세요.
+4. 최종 응답의 첫 글자는 [ 이고 마지막 글자는 ] 이어야 합니다.
+
+출력 형태:
+[
+  {
+    "name": "홍길동",
+    "studentId": "2099000001",
+    "phone": "01000000001",
+    "cohort": 14,
+    "roles": ["BACKEND"]
+  }
+]
+
+지금은 설명하지 말고 제가 보내는 원본 멤버 명단을 기다리세요.`;
 
 export class BulkMemberValidationError extends Error {}
 
@@ -105,4 +128,19 @@ export function parseBulkMembers(input: string): MemberCreateRequest[] {
 
 export function memberRoleLabel(role: MemberRole): string {
   return ROLE_LABELS.get(role) ?? role;
+}
+
+export function findMemberRegistrationConflict(
+  candidate: Pick<MemberCreateRequest, 'studentId' | 'cohort'>,
+  existingMembers: MemberAdminSummary[]
+): string | null {
+  const conflict = existingMembers.find(
+    (member) => member.studentId === candidate.studentId && (!member.offboarded || member.cohort === candidate.cohort)
+  );
+
+  if (!conflict) return null;
+  if (conflict.offboarded) {
+    return `같은 학번·${candidate.cohort}기 기록이 이미 있어요.`;
+  }
+  return `${conflict.name} 부원과 학번이 같아요.`;
 }
