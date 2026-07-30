@@ -19,7 +19,7 @@ public @interface WithMockAdminUser {
 
     String email() default "admin@khu.ac.kr";
 
-    String role() default "SUPER_ADMIN";
+    String role() default "ADMIN";
 
     boolean mustChangePassword() default false;
 }

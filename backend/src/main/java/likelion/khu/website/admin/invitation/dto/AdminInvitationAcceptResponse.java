@@ -9,9 +9,8 @@ import lombok.Getter;
 public class AdminInvitationAcceptResponse {
     private Long id;
     private String email;
-    private String role;
 
     public static AdminInvitationAcceptResponse from(Admin admin) {
-        return new AdminInvitationAcceptResponse(admin.getId(), admin.getEmail(), admin.getRole().name());
+        return new AdminInvitationAcceptResponse(admin.getId(), admin.getEmail());
     }
 }

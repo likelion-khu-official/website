@@ -752,8 +752,8 @@ class ProjectControllerTest {
     }
 
     private Authentication adminAuthentication() {
-        AdminPrincipal principal = new AdminPrincipal(1L, "admin@khu.ac.kr", "SUPER_ADMIN", false);
+        AdminPrincipal principal = new AdminPrincipal(1L, "admin@khu.ac.kr", "ADMIN", false);
         return new UsernamePasswordAuthenticationToken(
-                principal, null, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
     }
 }

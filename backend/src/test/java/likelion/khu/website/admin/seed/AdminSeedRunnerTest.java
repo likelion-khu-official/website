@@ -1,7 +1,6 @@
 package likelion.khu.website.admin.seed;
 
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.email.EmailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,21 +27,19 @@ class AdminSeedRunnerTest {
     EmailService emailService;
 
     @Test
-    void run_SeedsConfiguredSuperAdminsOnce() {
-        ReflectionTestUtils.setField(seedRunner, "superAdminsRaw", "seed-a@khu.ac.kr:이름A,seed-b@khu.ac.kr:이름B");
+    void run_SeedsConfiguredAdminsOnce() {
+        ReflectionTestUtils.setField(seedRunner, "adminsRaw", "seed-a@khu.ac.kr:이름A,seed-b@khu.ac.kr:이름B");
 
         seedRunner.run(emptyArgs());
 
         assertThat(adminRepository.existsByEmail("seed-a@khu.ac.kr")).isTrue();
         assertThat(adminRepository.existsByEmail("seed-b@khu.ac.kr")).isTrue();
-        assertThat(adminRepository.findByEmail("seed-a@khu.ac.kr").orElseThrow().getRole())
-                .isEqualTo(AdminRole.SUPER_ADMIN);
         verify(emailService, times(2)).sendPasswordResetEmail(any(), any(), any());
     }
 
     @Test
     void run_CalledTwice_DoesNotDuplicateOrResend() {
-        ReflectionTestUtils.setField(seedRunner, "superAdminsRaw", "seed-c@khu.ac.kr:이름C");
+        ReflectionTestUtils.setField(seedRunner, "adminsRaw", "seed-c@khu.ac.kr:이름C");
 
         seedRunner.run(emptyArgs());
         seedRunner.run(emptyArgs());

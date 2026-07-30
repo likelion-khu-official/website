@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.WithMockAdminUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +61,7 @@ class AuthEmailHttpEndToEndIntegrationTest extends MailpitContainerSupport {
     @Autowired PasswordEncoder passwordEncoder;
 
     @Test
-    @WithMockAdminUser(email = "super@khu.ac.kr", role = "SUPER_ADMIN")
+    @WithMockAdminUser(email = "super@khu.ac.kr", role = "ADMIN")
     void invite_RealHttpCall_DeliversWorkingLinkAndLogsSuccess() throws Exception {
         String to = "http-e2e-invite@khu.ac.kr";
 
@@ -95,7 +94,7 @@ class AuthEmailHttpEndToEndIntegrationTest extends MailpitContainerSupport {
     @Test
     void forgot_RealHttpCall_DeliversWorkingLinkAndLogsSuccess() throws Exception {
         String to = "http-e2e-reset@khu.ac.kr";
-        adminRepository.save(Admin.register(to, "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+        adminRepository.save(Admin.register(to, "이름", passwordEncoder.encode("password1")));
 
         mockMvc.perform(post("/api/admin/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON)

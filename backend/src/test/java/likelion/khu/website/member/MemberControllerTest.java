@@ -73,7 +73,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser
     @Test
-    void createMember_SuperAdmin_Returns201() throws Exception {
+    void createMember_Admin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
@@ -96,10 +96,10 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // 위키 "정보구조와 권한" 기준 등록은 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    // 위키 "정보구조와 권한" 기준 — 등록은 모든 관리자가 쓸 수 있는 공용 권한이다(#145).
     @WithMockAdminUser(role = "ADMIN")
     @Test
-    void createMember_ByRegularAdmin_Returns201() throws Exception {
+    void createMember_ByAdmin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/members")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"선우\",\"roles\":[\"BACKEND\"],\"cohort\":13,\"studentId\":\"2020111111\",\"phone\":\"01011112222\"}"))
@@ -123,7 +123,7 @@ class MemberControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingName_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -132,7 +132,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingRoles_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -141,7 +141,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingCohort_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -150,7 +150,7 @@ class MemberControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createMember_MissingStudentId_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/members")
@@ -201,7 +201,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser
     @Test
-    void updateMember_SuperAdmin_Returns200() throws Exception {
+    void updateMember_Admin_Returns200() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)
@@ -212,10 +212,10 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.cohort").value(13));
     }
 
-    // 위키 "정보구조와 권한" 기준 수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다(#145).
+    // 위키 "정보구조와 권한" 기준 — 수정도 모든 관리자가 쓸 수 있는 공용 권한이다(#145).
     @WithMockAdminUser(role = "ADMIN")
     @Test
-    void updateMember_ByRegularAdmin_Returns200() throws Exception {
+    void updateMember_ByAdmin_Returns200() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(patch("/api/admin/members/{id}", id)
@@ -245,7 +245,7 @@ class MemberControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void updateMember_EmptyName_Returns400() throws Exception {
         Long id = createMember();
@@ -281,7 +281,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser(role = "ADMIN")
     @Test
-    void resetPassword_ByRegularAdmin_Returns200() throws Exception {
+    void resetPassword_ByAdmin_Returns200() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(post("/api/admin/members/{id}/password/reset", id))
@@ -319,7 +319,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser(role = "ADMIN")
     @Test
-    void adminList_ByRegularAdmin_IncludesStudentId() throws Exception {
+    void adminList_ByAdmin_IncludesStudentId() throws Exception {
         createMember();
 
         mockMvc.perform(get("/api/admin/members"))
@@ -345,7 +345,7 @@ class MemberControllerTest {
 
     @WithMockAdminUser(role = "ADMIN")
     @Test
-    void offboard_ByRegularAdmin_Returns200AndMarksOffboarded() throws Exception {
+    void offboard_ByAdmin_Returns200AndMarksOffboarded() throws Exception {
         Long id = createMember();
 
         mockMvc.perform(post("/api/admin/members/{id}/offboard", id))

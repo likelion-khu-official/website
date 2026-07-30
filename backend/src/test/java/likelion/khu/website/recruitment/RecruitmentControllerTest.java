@@ -41,7 +41,7 @@ class RecruitmentControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void status_AfterOpen_ReturnsOpenTrue() throws Exception {
         managementService.open();
 

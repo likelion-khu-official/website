@@ -9,14 +9,12 @@ import {
   listAdmins,
   createInvitation,
   deleteAdmin,
-  updateAdminRole,
   getSubscribers,
   AdminApiError,
 } from '@/lib/adminApi';
-import type { AdminAccount, AdminRole, AdminSummary } from '@shared/types/admin';
+import type { AdminAccount, AdminSummary } from '@shared/types/admin';
 import type { SubscriberSummary } from '@shared/types/recruitment';
 
-const ROLE_LABEL: Record<AdminRole, string> = { SUPER_ADMIN: '최고관리자', ADMIN: '운영진' };
 const STATUS_LABEL: Record<AdminSummary['status'], string> = { ACTIVE: '활성', LOCKED: '잠김' };
 
 export default function AdminDashboard() {
@@ -103,21 +101,6 @@ export default function AdminDashboard() {
     }
   }
 
-  async function handleRoleChange(admin: AdminSummary, role: AdminRole) {
-    if (role === admin.role) return;
-    if (!window.confirm(`${admin.name}님의 역할을 ${ROLE_LABEL[role]}(으)로 변경할까요?`)) return;
-    setBusyId(admin.id);
-    setRowError('');
-    try {
-      await updateAdminRole(admin.id, { role });
-      setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, role } : a)));
-    } catch (err) {
-      setRowError(err instanceof AdminApiError ? err.message : '역할 변경에 실패했어요.');
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function handleDelete(admin: AdminSummary) {
     if (!window.confirm(`${admin.name}님을 운영진에서 삭제할까요? 되돌릴 수 없어요.`)) return;
     setBusyId(admin.id);
@@ -151,8 +134,6 @@ export default function AdminDashboard() {
     );
   }
 
-  const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN';
-
   return (
     <div className="mx-auto w-full max-w-3xl">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
@@ -160,7 +141,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-white">어드민 대시보드</h1>
           {currentAdmin && (
             <p className="mt-1 break-all text-sm text-muted">
-              {currentAdmin.name} ({currentAdmin.email}) · {ROLE_LABEL[currentAdmin.role]}
+              {currentAdmin.name} ({currentAdmin.email})
             </p>
           )}
         </div>
@@ -175,18 +156,16 @@ export default function AdminDashboard() {
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">운영진 목록</h2>
-        {isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setInviteOpen((v) => !v)}
-            className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            {inviteOpen ? '닫기' : '+ 초대'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setInviteOpen((v) => !v)}
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          {inviteOpen ? '닫기' : '+ 초대'}
+        </button>
       </div>
 
-      {isSuperAdmin && inviteOpen && (
+      {inviteOpen && (
         <form
           onSubmit={handleInviteSubmit}
           className="mb-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-end"
@@ -235,22 +214,11 @@ export default function AdminDashboard() {
                     {isSelf && <span className="ml-1 text-muted">(나)</span>}
                   </p>
                   <p className="break-all text-sm text-muted">{admin.email}</p>
-                  <p className="mt-1 text-xs text-muted">
-                    {ROLE_LABEL[admin.role]} · {STATUS_LABEL[admin.status]}
-                  </p>
+                  <p className="mt-1 text-xs text-muted">{STATUS_LABEL[admin.status]}</p>
                 </div>
 
-                {isSuperAdmin && !isSelf && (
+                {!isSelf && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={admin.role}
-                      disabled={busy}
-                      onChange={(e) => handleRoleChange(admin, e.target.value as AdminRole)}
-                      className="min-h-11 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40"
-                    >
-                      <option value="ADMIN">운영진</option>
-                      <option value="SUPER_ADMIN">최고관리자</option>
-                    </select>
                     <button
                       type="button"
                       disabled={busy}

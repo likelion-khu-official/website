@@ -5,7 +5,7 @@
 //   /api/member/auth라 두 세션은 서로 간섭하지 않는다.
 
 // MemberRole(member.ts, PM/FE/BE/DESIGN/AI/INFRA — 공개 프로필의 팀 직군)과는 다른 개념 — 이건
-// 인증 등급(4단계: 비로그인/MEMBER/ADMIN/SUPER_ADMIN 중 멤버 로그인이 발급하는 등급)이라 이름을 분리했다.
+// 인증 등급(3단계: 비로그인/MEMBER/ADMIN 중 멤버 로그인이 발급하는 등급)이라 이름을 분리했다.
 export type MemberAuthRole = 'MEMBER';
 
 export type MemberErrorCode =

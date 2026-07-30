@@ -2,7 +2,6 @@ package likelion.khu.website.admin.invitation;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.email.EmailService;
 import org.junit.jupiter.api.Test;
@@ -42,7 +41,7 @@ class AdminInvitationControllerTest {
     EmailService emailService;
 
     @Test
-    @WithMockAdminUser(email = "super@khu.ac.kr", role = "SUPER_ADMIN")
+    @WithMockAdminUser(email = "super@khu.ac.kr", role = "ADMIN")
     void invite_ValidKhuEmail_Returns201AndSendsInviteEmail() throws Exception {
         mockMvc.perform(post("/api/admin/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,7 +55,7 @@ class AdminInvitationControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void invite_NonKhuEmail_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -66,10 +65,10 @@ class AdminInvitationControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void invite_AlreadyRegisteredEmail_Returns409() throws Exception {
         adminRepository.save(
-                Admin.register("existing@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("existing@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
 
         mockMvc.perform(post("/api/admin/invitations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,15 +79,6 @@ class AdminInvitationControllerTest {
 
     @Test
     @WithMockAdminUser(role = "ADMIN")
-    void invite_CalledByRegularAdmin_Returns403() throws Exception {
-        mockMvc.perform(post("/api/admin/invitations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"new-admin@khu.ac.kr\"}"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
     void list_ReturnsInvitations() throws Exception {
         invitationRepository.save(
                 AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-a", Duration.ofHours(72)));
@@ -99,7 +89,7 @@ class AdminInvitationControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void cancel_PendingInvitation_Succeeds() throws Exception {
         AdminInvitation invitation = invitationRepository.save(
                 AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-b", Duration.ofHours(72)));
@@ -110,7 +100,7 @@ class AdminInvitationControllerTest {
     }
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void cancel_UnknownId_Returns404() throws Exception {
         mockMvc.perform(delete("/api/admin/invitations/{id}", 999999L))
                 .andExpect(status().isNotFound());
@@ -152,8 +142,7 @@ class AdminInvitationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"새운영진\",\"password\":\"password1\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("new@khu.ac.kr"))
-                .andExpect(jsonPath("$.role").value("ADMIN"));
+                .andExpect(jsonPath("$.email").value("new@khu.ac.kr"));
 
         mockMvc.perform(post("/api/admin/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -91,7 +91,7 @@ public class PostController {
     // (문제 글 숨김은 위키 역할표상 관리자 이상 전용).
 
     /** 전체 목록 */
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/admin/posts")
     public Page<PostSummaryResponse> adminList(
             @PageableDefault(size = 20) Pageable pageable) {
@@ -99,7 +99,7 @@ public class PostController {
     }
 
     /** 상태 전이 — draft→published, published→hidden, hidden→published */
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/api/admin/posts/{id}/status")
     public PostSummaryResponse updateStatus(
             @PathVariable Long id,

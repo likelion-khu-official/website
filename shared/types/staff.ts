@@ -19,7 +19,7 @@ export interface Staff {
 }
 
 /**
- * POST /api/admin/staff — 최고관리자 전용.
+ * POST /api/admin/staff — 관리자 전용.
  * phone은 저장만 하고 응답하지 않으며, publicationConsent=true이면 publicationConsentedAt도 함께 보낸다.
  */
 export interface StaffCreateRequest {
@@ -37,7 +37,7 @@ export interface StaffCreateRequest {
   publicationConsentedAt?: string;
 }
 
-/** PATCH /api/admin/staff/{id} — 최고관리자 전용. name·department·admissionYear는 등록 후 불변 */
+/** PATCH /api/admin/staff/{id} — 관리자 전용. name·department·admissionYear는 등록 후 불변 */
 export interface StaffUpdateRequest {
   position?: string;
   photoUrl?: string;

@@ -43,7 +43,7 @@ admin:
     max-attempts: 5
     duration-minutes: 15
   seed:
-    super-admins:
+    admins:
 
 app:
   frontend-base-url: https://admin.likelion-khu.com
