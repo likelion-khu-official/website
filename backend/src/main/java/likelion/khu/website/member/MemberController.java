@@ -36,8 +36,7 @@ public class MemberController {
         return memberService.getAllForAdmin();
     }
 
-    // 위키 "정보구조와 권한" 기준 — 멤버 등록·수정도 최고관리자 전용이 아니라 ADMIN 이상 공용 권한이다.
-    // 최고관리자만의 배타적 권한은 관리자 임명·회수·승계뿐(#145).
+    // 위키 "정보구조와 권한" 기준 — 멤버 등록·수정은 모든 관리자가 동일하게 쓰는 공용 권한이다(#145).
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/admin/members")
     public ResponseEntity<MemberAdminResponse> create(

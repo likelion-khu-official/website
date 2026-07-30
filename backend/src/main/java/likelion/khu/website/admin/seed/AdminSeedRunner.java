@@ -23,16 +23,16 @@ public class AdminSeedRunner implements ApplicationRunner {
 
     // 포맷: "email:name,email2:name2" — 실제 이메일은 이 값을 담는 어떤 소스 파일에도 커밋하지 않고
     // 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입한다(레포 pre-commit gitleaks 훅 대상).
-    @Value("${admin.seed.super-admins:}")
-    private String superAdminsRaw;
+    @Value("${admin.seed.admins:}")
+    private String adminsRaw;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (superAdminsRaw == null || superAdminsRaw.isBlank()) {
+        if (adminsRaw == null || adminsRaw.isBlank()) {
             return;
         }
-        for (String entry : superAdminsRaw.split(",")) {
+        for (String entry : adminsRaw.split(",")) {
             seedOne(entry.trim());
         }
     }

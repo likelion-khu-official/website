@@ -22,11 +22,8 @@ class E2eAdminSeedRunnerTest {
     @Autowired PasswordEncoder passwordEncoder;
 
     @Test
-    void run_SeedsFixedPasswordSuperAdminAndAdmin() {
+    void run_SeedsFixedPasswordAdmin() {
         seedRunner.run(emptyArgs());
-
-        var superAdmin = adminRepository.findByEmail("e2e-super-admin@likelion-khu.com").orElseThrow();
-        assertThat(passwordEncoder.matches("E2eSuperAdmin!2026", superAdmin.getPasswordHash())).isTrue();
 
         var admin = adminRepository.findByEmail("e2e-admin@likelion-khu.com").orElseThrow();
         assertThat(passwordEncoder.matches("E2eAdmin!2026", admin.getPasswordHash())).isTrue();
@@ -37,7 +34,7 @@ class E2eAdminSeedRunnerTest {
         seedRunner.run(emptyArgs());
         seedRunner.run(emptyArgs());
 
-        assertThat(adminRepository.findAll()).hasSize(2);
+        assertThat(adminRepository.findAll()).hasSize(1);
     }
 
     private ApplicationArguments emptyArgs() {

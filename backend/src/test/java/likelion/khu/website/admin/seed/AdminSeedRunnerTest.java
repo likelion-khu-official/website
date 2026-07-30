@@ -27,8 +27,8 @@ class AdminSeedRunnerTest {
     EmailService emailService;
 
     @Test
-    void run_SeedsConfiguredSuperAdminsOnce() {
-        ReflectionTestUtils.setField(seedRunner, "superAdminsRaw", "seed-a@khu.ac.kr:이름A,seed-b@khu.ac.kr:이름B");
+    void run_SeedsConfiguredAdminsOnce() {
+        ReflectionTestUtils.setField(seedRunner, "adminsRaw", "seed-a@khu.ac.kr:이름A,seed-b@khu.ac.kr:이름B");
 
         seedRunner.run(emptyArgs());
 
@@ -39,7 +39,7 @@ class AdminSeedRunnerTest {
 
     @Test
     void run_CalledTwice_DoesNotDuplicateOrResend() {
-        ReflectionTestUtils.setField(seedRunner, "superAdminsRaw", "seed-c@khu.ac.kr:이름C");
+        ReflectionTestUtils.setField(seedRunner, "adminsRaw", "seed-c@khu.ac.kr:이름C");
 
         seedRunner.run(emptyArgs());
         seedRunner.run(emptyArgs());
