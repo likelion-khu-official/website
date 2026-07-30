@@ -1,6 +1,7 @@
 package likelion.khu.website.email;
 
 import jakarta.mail.Message;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.MimeMessage;
 import likelion.khu.website.email.exception.EmailSendException;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.env.MockEnvironment;
@@ -171,7 +173,7 @@ class EmailServiceTest {
         assertThat(log.getEmailType()).isEqualTo(EmailType.INVITE);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("SMTP 서버에 연결할 수 없어요");
-        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SMTP_CONNECTION_FAILED);
         assertThat(log.getMessageId()).isNull();
     }
 
@@ -199,6 +201,43 @@ class EmailServiceTest {
         assertThat(log.getFailureCause()).isNull();
     }
 
+    // SMTP_AUTHENTICATION_FAILED — 자격증명 실패는 우리 쪽(인프라) 원인이라 재시도 대상.
+    @Test
+    void sendInviteEmail_AuthenticationFailsEveryAttempt_RetriesAndClassifiesAsAuthenticationFailed() {
+        String to = "invitee@khu.ac.kr";
+        doThrow(new MailAuthenticationException("SMTP 인증 실패"))
+                .when(mailSender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, times(MAX_ATTEMPTS)).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.SMTP_AUTHENTICATION_FAILED);
+    }
+
+    // RECIPIENT_REJECTED_BY_SERVER — OCI 릴레이는 정상으로 응답했지만 그 수신자를 실제로 거부한
+    // 경우(SendFailedException, 예: 550 No such user) — 재시도해도 매번 같은 거부라 즉시 포기.
+    @Test
+    void sendInviteEmail_ServerRejectsRecipient_DoesNotRetryAndClassifiesAsRecipientRejected() throws Exception {
+        String to = "ghost@khu.ac.kr";
+        doThrow(new MailSendException("메일함이 없어요", new SendFailedException("550 No such user")))
+                .when(mailSender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.RECIPIENT_REJECTED_BY_SERVER);
+    }
+
     // AddressException(주소 형식 오류)은 유저 쪽 원인이라 재시도해도 결과가 똑같음 — 즉시 포기해야
     // 함(assertMalformedAddressRejected가 send() 자체가 안 불림을 이미 검증하지만, 여기선 "재시도
     // 루프를 아예 안 탄다"는 걸 명시적으로 시도 횟수 0으로 재확인).
@@ -213,7 +252,7 @@ class EmailServiceTest {
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository, times(1)).save(logCaptor.capture());
-        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.USER_CAUSED);
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.RECIPIENT_ADDRESS_INVALID);
     }
 
     // 서로 다른 두 형식 오류(@ 없음 / 꺾쇠 안 닫힘)를 각각 테스트로 남긴 이유는 email-module.md 39번 줄 참고 —
@@ -242,7 +281,7 @@ class EmailServiceTest {
         assertThat(log.getRecipient()).isEqualTo(malformedTo);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).isNotBlank();
-        assertThat(log.getFailureCause()).isEqualTo(FailureCause.USER_CAUSED);
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.RECIPIENT_ADDRESS_INVALID);
         // saveChanges()가 실행된 적 없어 Message-ID 자체가 안 생김 — SMTP 서버 거부(다른 테스트)와 다른 실패 지점
         assertThat(log.getMessageId()).isNull();
     }
@@ -293,9 +332,9 @@ class EmailServiceTest {
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
-        // AddressException이 아니라 NPE라 재시도 대상(SYSTEM_CAUSED)으로 분류됨 — 재시도해도 매번
-        // 같은 NPE라 결국 소진돼 실패로 남지만, "유저가 형식을 잘못 적은 것"과는 다른 원인이라 구분한다.
-        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
+        // AddressException이 아니라 NPE라 INVALID_INPUT으로 분류됨 — 재시도해도 매번 같은 NPE라
+        // 재시도는 안 하지만(호출자가 준 값 자체가 안 바뀜), "우리 코드/호출자 버그"라 알람 대상이다.
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.INVALID_INPUT);
         assertThat(log.getMessageId()).isNull();
     }
 
@@ -327,8 +366,10 @@ class EmailServiceTest {
         EmailLog log = logCaptor.getValue();
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("템플릿이 깨졌어요");
-        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.TEMPLATE_RENDERING_FAILED);
         assertThat(log.getMessageId()).isNull();
+        // TEMPLATE_RENDERING_FAILED는 재시도 대상이 아님(같은 템플릿이면 매번 같은 결과) — 1번만 시도
+        verify(brokenTemplateEngine, times(1)).process(anyString(), any(IContext.class));
     }
 
     // #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 활성 트랜잭션 안에서 부르면 email_log를 직접
@@ -382,7 +423,7 @@ class EmailServiceTest {
             assertThat(event.recipient()).isEqualTo(to);
             assertThat(event.status()).isEqualTo(EmailStatus.FAILURE);
             assertThat(event.errorMessage()).contains("SMTP 서버에 연결할 수 없어요");
-            assertThat(event.failureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
+            assertThat(event.failureCause()).isEqualTo(FailureCause.SMTP_CONNECTION_FAILED);
         } finally {
             TransactionSynchronizationManager.setActualTransactionActive(false);
         }

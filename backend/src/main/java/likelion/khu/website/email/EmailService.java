@@ -1,6 +1,7 @@
 package likelion.khu.website.email;
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -11,12 +12,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -82,17 +86,16 @@ public class EmailService {
     // 그 외(템플릿 렌더링·메일 객체 생성·주소검증·전송·로그저장)는 전부 try 안 — "무슨 예외가 나든 반드시
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
     //
-    // 재시도는 딱 하나만 구분한다 — AddressException(주소 형식 자체가 틀림, toAddress.validate()가
-    // 던짐)은 몇 번을 다시 보내도 똑같이 실패하는 유저 쪽 원인이라 즉시 포기. 그 외(SMTP 전송 실패,
-    // 템플릿 렌더링 예외, to=null일 때의 NPE 등)는 전부 "다시 시도하면 풀릴 수도 있는" 쪽으로 보고
-    // maxAttempts까지 재시도한다. email_log엔 매 시도마다가 아니라 "최종 결과 한 줄"만 남긴다 —
-    // 재시도 중간의 일시적 실패까지 FAILURE로 쌓으면, #113 실패 임계치 알람(5분에 3건↑)이 재시도로
-    // 결국 성공한 건까지 세어 오탐을 낼 수 있어서(관측 소음과 "결국 성공했다"는 결과가 서로 다른 신호이므로
-    // 섞으면 안 됨).
+    // 재시도 여부는 classify()가 돌려주는 FailureCause.isRetryable()로 판단한다(단순히 "주소 형식
+    // 오류냐 아니냐" 이분법이 아니라 원인별로 다름 — FailureCause 참고). email_log엔 매 시도마다가
+    // 아니라 "최종 결과 한 줄"만 남긴다 — 재시도 중간의 일시적 실패까지 FAILURE로 쌓으면, #113 실패
+    // 임계치 알람(5분에 3건↑)이 재시도로 결국 성공한 건까지 세어 오탐을 낼 수 있어서(관측 소음과
+    // "결국 성공했다"는 결과가 서로 다른 신호이므로 섞으면 안 됨).
     private void send(String to, EmailType type, Context context) {
         String subject = subjectFor(type);
         MimeMessage message = null;
         Exception lastFailure = null;
+        FailureCause lastCause = null;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
@@ -113,23 +116,55 @@ public class EmailService {
                 mailSender.send(message);
                 recordSuccess(to, type, subject, messageIdOf(message));
                 return;
-            } catch (AddressException e) {
-                recordFailureSafely(to, type, subject, message, e, FailureCause.USER_CAUSED);
-                throw new EmailSendException(type, to, e);
             } catch (Exception e) {
                 lastFailure = e;
-                log.warn("이메일 발송 실패 (시도 {}/{}) - to={}, type={}, cause={}",
-                        attempt, maxAttempts, to, type, e.toString());
-                if (attempt < maxAttempts) {
-                    sleepBeforeRetry();
+                lastCause = classify(e);
+                log.warn("이메일 발송 실패 (시도 {}/{}) - to={}, type={}, cause={}, exception={}",
+                        attempt, maxAttempts, to, type, lastCause, e.toString());
+                if (!lastCause.isRetryable() || attempt == maxAttempts) {
+                    break;
                 }
+                sleepBeforeRetry();
             }
         }
 
-        // maxAttempts까지 전부 실패 — AddressException이 아닌 이상 전부 우리 쪽·인프라 쪽 원인으로
-        // 분류한다(#113 실패 임계치 알람이 이 값으로 유저 원인을 걸러낸다, FailureCause 참고).
-        recordFailureSafely(to, type, subject, message, lastFailure, FailureCause.SYSTEM_CAUSED);
+        recordFailureSafely(to, type, subject, message, lastFailure, lastCause);
         throw new EmailSendException(type, to, lastFailure);
+    }
+
+    // 예외 타입으로 FailureCause를 판정한다 — 순서가 중요하다. AddressException·SendFailedException
+    // (또는 그걸 감싼 MailSendException)이 가장 먼저 걸러져야, 뒤의 넓은 MailAuthenticationException/
+    // MailException 체크가 이 둘을 삼키지 않는다(MailAuthenticationException도 MailException의
+    // 하위 타입이라 이것도 넓은 체크보다 먼저 와야 함). 표(backend/docs/email-module.md 참고)에
+    // 없는 예외는 UNKNOWN_FAILURE로 안전하게(재시도·알람 둘 다 대상) 떨어진다.
+    private FailureCause classify(Exception e) {
+        if (e instanceof AddressException) {
+            return FailureCause.RECIPIENT_ADDRESS_INVALID;
+        }
+        if (isRecipientRejection(e)) {
+            return FailureCause.RECIPIENT_REJECTED_BY_SERVER;
+        }
+        if (e instanceof MailAuthenticationException) {
+            return FailureCause.SMTP_AUTHENTICATION_FAILED;
+        }
+        if (e instanceof MailException) {
+            return FailureCause.SMTP_CONNECTION_FAILED;
+        }
+        if (e instanceof TemplateProcessingException) {
+            return FailureCause.TEMPLATE_RENDERING_FAILED;
+        }
+        if (e instanceof NullPointerException) {
+            return FailureCause.INVALID_INPUT;
+        }
+        return FailureCause.UNKNOWN_FAILURE;
+    }
+
+    // SendFailedException(jakarta.mail)은 SMTP가 특정 수신자를 실제로 거부했을 때(예: 550 No such
+    // user, 552 mailbox full) 던져진다 — OCI 릴레이는 정상, 그 메일함 쪽 문제. Spring의
+    // JavaMailSenderImpl은 이 체크 예외를 잡아 언체크 MailSendException으로 감싸 올리므로
+    // getCause()까지 확인해야 실제로 잡힌다.
+    private boolean isRecipientRejection(Exception e) {
+        return e instanceof SendFailedException || e.getCause() instanceof SendFailedException;
     }
 
     private void sleepBeforeRetry() {

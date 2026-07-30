@@ -8,7 +8,7 @@
 |---|---|
 | `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`)마다 템플릿 이름 + 고정 제목 매핑 |
 | `EmailStatus.java` | `SUCCESS` / `FAILURE` |
-| `FailureCause.java` | `USER_CAUSED`(주소 형식 오류 — 재시도 대상 아님) / `SYSTEM_CAUSED`(그 외 — 재시도 대상, 소진되면 이 값으로 남음). FAILURE 행에만 값이 있고 SUCCESS는 `null`. `#113` 실패 임계치 알람(`infra/scripts/push-email-failure-metric.py`)이 `USER_CAUSED`는 카운트에서 제외하는 데 씀 |
+| `FailureCause.java` | 발송 실패 예외를 7가지로 분류하는 enum(`RECIPIENT_ADDRESS_INVALID`/`RECIPIENT_REJECTED_BY_SERVER`/`INVALID_INPUT`/`TEMPLATE_RENDERING_FAILED`/`SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`/`UNKNOWN_FAILURE`), 값마다 재시도 대상 여부·`#113` 알람 대상 여부가 다름 — 아래 "실패 원인 분류" 절 참고. FAILURE 행에만 값이 있고 SUCCESS는 `null` |
 | `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·failureCause·messageId·sentAt (본문·토큰은 저장 안 함) |
 | `EmailLogRepository.java` | JPA 리포지토리 |
 | `EmailLogEvent.java` | `email_log` 저장에 필요한 값만 담는 이벤트 페이로드(record) — 활성 트랜잭션 안에서 호출됐을 때만 씀, 아래 "트랜잭션 경계" 절 참고 |
@@ -29,8 +29,12 @@
 | 3 | 발송 성공 시 `email_log` 기록 | 1·2번과 동일 호출 | `email_log`에 `status=SUCCESS`, `errorMessage=null`, `subject`=실제 보낸 제목과 동일 | 단위: `EmailServiceTest` 1·2번 테스트(목 리포지토리) / 통합: `EmailServiceIntegrationTest` 두 테스트(진짜 SQLite, 아래 7번과 동일 지점) |
 | 4 | 발송 실패 시 처리(SMTP 연결·전송 단계) | SMTP 서버 연결 실패, `max-attempts`(기본 3)회 모두 실패 | `EmailSendException` 던짐, `email_log`엔 시도별이 아니라 **최종 결과 한 줄**만 `status=FAILURE`, `errorMessage`에 원인 포함, **`messageId=null`**(연결 자체가 안 돼서 `saveChanges()`까지 못 감 — 실측 확인) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`(목이 매 시도 `MailSendException` 던짐, `mailSender.send()` 3회 호출 확인) / 통합: `EmailServiceFailureIntegrationTest#sendInviteEmail_SmtpServerUnreachable_...`(Mailpit 컨테이너를 실제로 내려서 진짜 연결 실패 유발, 테스트에선 `mail-sender.max-attempts=1`로 오버라이드해 속도 유지) |
 | 4-2 | 발송 실패 후 재시도로 결국 성공 | 처음 두 번은 SMTP 예외, 세 번째는 성공 | 재시도 끝에 성공 — `email_log`엔 중간 실패 없이 **SUCCESS 한 줄만** 남음(유저 원인이 아닌 실패는 결국 성공으로 수렴해야 한다는 요구, #113 후속) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsThenSucceeds_...` |
-| 4-3 | 주소 형식 오류는 재시도 안 함 + `USER_CAUSED`로 분류 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 유저 쪽 원인이라 즉시 포기, `email_log.failure_cause=USER_CAUSED` | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry`, `#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` |
-| 4-4 | 재시도 소진 실패는 `SYSTEM_CAUSED`로 분류 | 4번과 동일(매 시도 SMTP 예외) | `email_log.failure_cause=SYSTEM_CAUSED` — `#113` 알람이 이 값만 센다(`USER_CAUSED`는 제외) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`, `#sendInviteEmail_TemplateRenderingFails_...`, `#sendInviteEmail_NullRecipient_...` |
+| 4-3 | 주소 형식 오류는 재시도 안 함 + `RECIPIENT_ADDRESS_INVALID`로 분류 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 수신자 쪽 원인이라 즉시 포기, `email_log.failure_cause=RECIPIENT_ADDRESS_INVALID` | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry`, `#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` |
+| 4-4 | SMTP 연결 실패는 재시도 소진 후 `SMTP_CONNECTION_FAILED`로 분류 | 4번과 동일(매 시도 `MailSendException`) | `email_log.failure_cause=SMTP_CONNECTION_FAILED` — `#113` 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...` |
+| 4-5 | SMTP 인증 실패는 재시도 소진 후 `SMTP_AUTHENTICATION_FAILED`로 분류 | 매 시도 `MailAuthenticationException` | 재시도(`maxAttempts`까지) 후 `email_log.failure_cause=SMTP_AUTHENTICATION_FAILED` — 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_AuthenticationFailsEveryAttempt_...` |
+| 4-6 | SMTP가 수신자를 실제로 거부하면 재시도 안 함 + `RECIPIENT_REJECTED_BY_SERVER`로 분류 | `SendFailedException`(예: 550 No such user) | 1번만 시도 — OCI는 정상 응답, 메일함 쪽 문제라 재시도 무의미. 알람 대상 아님 | 단위: `EmailServiceTest#sendInviteEmail_ServerRejectsRecipient_...` |
+| 4-7 | 호출자 입력 오류(수신자 null)는 재시도 안 함 + `INVALID_INPUT`로 분류 | `to=null` → `NullPointerException` | 1번만 시도, `email_log.failure_cause=INVALID_INPUT` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_NullRecipient_...` |
+| 4-8 | 템플릿 렌더링 실패는 재시도 안 함 + `TEMPLATE_RENDERING_FAILED`로 분류 | `TemplateProcessingException` | 1번만 시도(`verify(times(1))`로 확인), `email_log.failure_cause=TEMPLATE_RENDERING_FAILED` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_TemplateRenderingFails_...` |
 | 4-1 | 발송 실패 시 처리(주소 형식 검증 단계) | 형식이 깨진 수신자 주소 — `not-an-email-address`(`@` 없음), `broken<address@@khu.ac.kr`(꺾쇠 안 닫힘) | `mailSender.send()`를 시도조차 안 함(`verify(never())`), `EmailSendException` 던짐, `email_log`에 `status=FAILURE`, **`messageId=null`** | 단위: `EmailServiceTest#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` — 로컬 주소 파싱 문제라 실제 SMTP·환경과 무관하게 항상 같은 결과, 통합테스트는 중복이라 안 둠 |
 | 5 | stage 제목 접두어 | active profile = `stage`로 초대 발송 | 제목이 `[stage] [멋쟁이사자처럼 경희대] 운영진 초대`, `email_log.subject`도 접두어 포함 그대로 | 단위: `EmailServiceTest#sendInviteEmail_StageProfile_...` / 통합: `EmailServiceStageProfileIntegrationTest#sendInviteEmail_StageProfileRealSmtp_...`(`@ActiveProfiles("stage")` + 실제 Mailpit 수신함에서 확인) |
 | 6 | prod(비-stage) 접두어 없음 | active profile = `prod`로 동일 발송 | 접두어 없이 원래 제목 그대로 | 단위: `EmailServiceTest#sendInviteEmail_ProdProfile_...` / 통합: `EmailServiceIntegrationTest`(`@ActiveProfiles("prod")` 클래스 레벨로 명시, 두 테스트 모두 접두어 없는 제목 확인) |
@@ -145,11 +149,23 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 
 **후속으로 리스크를 더 좁히고 싶다면**: JavaMail의 `Transport.connect()` 단계 예외(연결 자체가 안 됨 — 100% 안전)와 `Transport.sendMessage()` 이후 예외(응답 유실 가능성 있음 — 재시도 시 중복 위험)를 분리해서, 후자는 재시도하지 않고 즉시 포기하는 방향으로 좁힐 수 있다. 지금은 `JavaMailSender.send()`가 이 둘을 구분해서 던지지 않아(둘 다 `MailException` 계열로 뭉뚱그려짐) 바로 적용하긴 어렵고, 필요성이 실제로 확인되면(예: 중복 발송 신고가 들어오면) 그때 이 구분을 추가하는 걸 검토.
 
-## 실패 원인 분류(`FailureCause`) — 알람이 유저 잘못까지 세지 않게
+## 실패 원인 분류(`FailureCause`) — 알람이 손볼 수 없는 원인까지 세지 않게
 
-재시도와는 별개 문제: `#113` 실패 임계치 알람(`EmailFailureCountProd[5m] > 2`)은 원래 `email_log`의 FAILURE를 원인 구분 없이 다 셌다. 그런데 이 알람의 목적은 "우리 시스템이 고장났다"를 사람에게 알리는 것이지, "누군가 이메일 주소를 잘못 적었다"는 인프라가 손볼 수 없는 신호까지 울릴 이유가 없다(장찬욱 지적, #113 후속). 재시도해도 결과가 똑같은 `USER_CAUSED`(주소 형식 오류) 실패가 우연히 몰리면(예: 모집 안내메일을 구독자 수백 명에게 한 번에 보낼 때) 인프라가 대응할 게 전혀 없는데도 알람이 울릴 수 있었다.
+`#113` 실패 임계치 알람(`EmailFailureCountProd[5m] > 2`)은 원래 `email_log`의 FAILURE를 원인 구분 없이 다 셌다. 처음엔 "유저(주소 형식 오류) vs 시스템"으로 딱 두 갈래만 나눴는데, 리뷰 중 "이게 정말 유저/시스템을 나누는 기준이 맞냐"는 지적이 나왔다 — 실제로는 `AddressException`이냐 아니냐만 봤을 뿐이라, 그 뒤 단계에서 나는 예외는 인프라 문제(SMTP 인증 실패)든 우리 코드 버그(템플릿 렌더링 실패)든 심지어 또 다른 수신자 쪽 원인(SMTP가 존재하지 않는 메일함을 거부)이든 전부 "시스템"으로 뭉뚱그려졌다. 그래서 `EmailService.send()`가 실제로 만날 수 있는 예외를 표로 펼쳐서 원인별로 나누고, **재시도 여부**와 **`#113` 알람 대상 여부**를 각각 독립된 축으로 재정의했다(둘이 항상 같이 가지 않는다 — 아래 표 참고).
 
-그래서 `EmailService`가 실패마다 `FailureCause`(`USER_CAUSED`/`SYSTEM_CAUSED`)를 분류해 `email_log.failure_cause`에 남기고(재시도 판단과 같은 분기 — `AddressException`만 `USER_CAUSED`), `push-email-failure-metric.py`는 `failure_cause != 'USER_CAUSED'`인 행만 센다. 이 컬럼 도입 이전의 과거 FAILURE 행·향후 분류가 안 된 예외 케이스는 `NULL`인데, "시스템 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
+| `FailureCause` | 실제 예외 | 재시도 | 알람 대상 | 의미 |
+|---|---|---|---|---|
+| `RECIPIENT_ADDRESS_INVALID` | `AddressException`(`InternetAddress.validate()`) | ❌ | ❌ | 주소 형식 자체가 틀림 — 수신자 쪽 원인 |
+| `RECIPIENT_REJECTED_BY_SERVER` | `SendFailedException`(SMTP가 실제로 거부 — 550 No such user 등, `MailSendException`이 감싸서 옴) | ❌ | ❌ | OCI 릴레이는 정상, 그 메일함이 없거나 가득 참 — 수신자 쪽 원인 |
+| `INVALID_INPUT` | `NullPointerException`(수신자 `null` 등) | ❌ | ✅ | 호출자가 잘못된 값을 줌 — 우리 코드/호출자 버그 |
+| `TEMPLATE_RENDERING_FAILED` | `TemplateProcessingException` | ❌ | ✅ | 템플릿 자체가 깨짐 — 우리 코드 버그 |
+| `SMTP_AUTHENTICATION_FAILED` | `MailAuthenticationException` | ✅ | ✅ | 자격증명 실패 — 우리 쪽(인프라) 원인 |
+| `SMTP_CONNECTION_FAILED` | `MailSendException`(연결·타임아웃 등) | ✅ | ✅ | 그 외 SMTP 전송 실패 — 우리 쪽(인프라) 원인, 순간 장애일 수 있음 |
+| `UNKNOWN_FAILURE` | 위 어디에도 안 걸리는 예외 | ✅ | ✅ | 분류 불가 — "놓치는 것보다 오탐이 낫다" 원칙으로 안전하게 포함 |
+
+앞의 두 값(`RECIPIENT_ADDRESS_INVALID`·`RECIPIENT_REJECTED_BY_SERVER`)만 재시도·알람 둘 다 대상이 아니다 — 나머지 다섯은 "재시도해도 안 풀리지만 우리가 고쳐야 하는 문제"(`INVALID_INPUT`·`TEMPLATE_RENDERING_FAILED`)와 "재시도하면 풀릴 수도 있고 우리가 고쳐야 하는 문제"(`SMTP_AUTHENTICATION_FAILED`·`SMTP_CONNECTION_FAILED`·`UNKNOWN_FAILURE`)로 갈리지만 알람 대상인 건 같다. 분류 로직은 `EmailService.classify(Exception)` — 판정 순서가 중요하다(`AddressException`·`SendFailedException`이 넓은 `MailException` 체크보다 먼저 와야 함, 코드 주석 참고).
+
+`push-email-failure-metric.py`는 `failure_cause NOT IN ('RECIPIENT_ADDRESS_INVALID', 'RECIPIENT_REJECTED_BY_SERVER')`인 행만 센다(Python 쪽 `EXCLUDED_FAILURE_CAUSES`가 이 두 값과 반드시 일치해야 함 — 새 `FailureCause`를 추가하면 `isAlarmWorthy()`부터 정하고 그 값에 맞춰 스크립트를 갱신할 것). 이 컬럼 도입 이전의 과거 FAILURE 행·분류 실패 케이스는 `NULL`인데, "수신자 쪽 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
 
 ## 아직 못 메꾼 빈틈
 
