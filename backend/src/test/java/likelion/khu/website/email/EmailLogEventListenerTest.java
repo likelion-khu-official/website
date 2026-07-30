@@ -52,7 +52,7 @@ class EmailLogEventListenerTest {
     void onEmailLogEvent_FailureEvent_SavesEmailLogWithFailureFieldsAndErrorMessage() {
         EmailLogEvent event = EmailLogEvent.failure(
                 "invitee@khu.ac.kr", EmailType.PASSWORD_RESET, EmailType.PASSWORD_RESET.getSubject(),
-                "SMTP 서버에 연결할 수 없어요", null);
+                "SMTP 서버에 연결할 수 없어요", FailureCause.SYSTEM_CAUSED, null);
 
         listener.onEmailLogEvent(event);
 
@@ -62,6 +62,7 @@ class EmailLogEventListenerTest {
         assertThat(log.getEmailType()).isEqualTo(EmailType.PASSWORD_RESET);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).isEqualTo("SMTP 서버에 연결할 수 없어요");
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
         assertThat(log.getMessageId()).isNull();
     }
 

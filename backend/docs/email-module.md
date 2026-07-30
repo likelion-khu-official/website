@@ -8,7 +8,8 @@
 |---|---|
 | `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`)마다 템플릿 이름 + 고정 제목 매핑 |
 | `EmailStatus.java` | `SUCCESS` / `FAILURE` |
-| `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·messageId·sentAt (본문·토큰은 저장 안 함) |
+| `FailureCause.java` | `USER_CAUSED`(주소 형식 오류 — 재시도 대상 아님) / `SYSTEM_CAUSED`(그 외 — 재시도 대상, 소진되면 이 값으로 남음). FAILURE 행에만 값이 있고 SUCCESS는 `null`. `#113` 실패 임계치 알람(`infra/scripts/push-email-failure-metric.py`)이 `USER_CAUSED`는 카운트에서 제외하는 데 씀 |
+| `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·failureCause·messageId·sentAt (본문·토큰은 저장 안 함) |
 | `EmailLogRepository.java` | JPA 리포지토리 |
 | `EmailLogEvent.java` | `email_log` 저장에 필요한 값만 담는 이벤트 페이로드(record) — 활성 트랜잭션 안에서 호출됐을 때만 씀, 아래 "트랜잭션 경계" 절 참고 |
 | `EmailLogEventListener.java` | `EmailLogEvent`를 받아 `@Async` + `@TransactionalEventListener(AFTER_COMPLETION)`로 별도 스레드·트랜잭션 완료 후에 `email_log` 저장 |
@@ -28,7 +29,8 @@
 | 3 | 발송 성공 시 `email_log` 기록 | 1·2번과 동일 호출 | `email_log`에 `status=SUCCESS`, `errorMessage=null`, `subject`=실제 보낸 제목과 동일 | 단위: `EmailServiceTest` 1·2번 테스트(목 리포지토리) / 통합: `EmailServiceIntegrationTest` 두 테스트(진짜 SQLite, 아래 7번과 동일 지점) |
 | 4 | 발송 실패 시 처리(SMTP 연결·전송 단계) | SMTP 서버 연결 실패, `max-attempts`(기본 3)회 모두 실패 | `EmailSendException` 던짐, `email_log`엔 시도별이 아니라 **최종 결과 한 줄**만 `status=FAILURE`, `errorMessage`에 원인 포함, **`messageId=null`**(연결 자체가 안 돼서 `saveChanges()`까지 못 감 — 실측 확인) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`(목이 매 시도 `MailSendException` 던짐, `mailSender.send()` 3회 호출 확인) / 통합: `EmailServiceFailureIntegrationTest#sendInviteEmail_SmtpServerUnreachable_...`(Mailpit 컨테이너를 실제로 내려서 진짜 연결 실패 유발, 테스트에선 `mail-sender.max-attempts=1`로 오버라이드해 속도 유지) |
 | 4-2 | 발송 실패 후 재시도로 결국 성공 | 처음 두 번은 SMTP 예외, 세 번째는 성공 | 재시도 끝에 성공 — `email_log`엔 중간 실패 없이 **SUCCESS 한 줄만** 남음(유저 원인이 아닌 실패는 결국 성공으로 수렴해야 한다는 요구, #113 후속) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsThenSucceeds_...` |
-| 4-3 | 주소 형식 오류는 재시도 안 함 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 유저 쪽 원인이라 즉시 포기 | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry` |
+| 4-3 | 주소 형식 오류는 재시도 안 함 + `USER_CAUSED`로 분류 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 유저 쪽 원인이라 즉시 포기, `email_log.failure_cause=USER_CAUSED` | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry`, `#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` |
+| 4-4 | 재시도 소진 실패는 `SYSTEM_CAUSED`로 분류 | 4번과 동일(매 시도 SMTP 예외) | `email_log.failure_cause=SYSTEM_CAUSED` — `#113` 알람이 이 값만 센다(`USER_CAUSED`는 제외) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`, `#sendInviteEmail_TemplateRenderingFails_...`, `#sendInviteEmail_NullRecipient_...` |
 | 4-1 | 발송 실패 시 처리(주소 형식 검증 단계) | 형식이 깨진 수신자 주소 — `not-an-email-address`(`@` 없음), `broken<address@@khu.ac.kr`(꺾쇠 안 닫힘) | `mailSender.send()`를 시도조차 안 함(`verify(never())`), `EmailSendException` 던짐, `email_log`에 `status=FAILURE`, **`messageId=null`** | 단위: `EmailServiceTest#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` — 로컬 주소 파싱 문제라 실제 SMTP·환경과 무관하게 항상 같은 결과, 통합테스트는 중복이라 안 둠 |
 | 5 | stage 제목 접두어 | active profile = `stage`로 초대 발송 | 제목이 `[stage] [멋쟁이사자처럼 경희대] 운영진 초대`, `email_log.subject`도 접두어 포함 그대로 | 단위: `EmailServiceTest#sendInviteEmail_StageProfile_...` / 통합: `EmailServiceStageProfileIntegrationTest#sendInviteEmail_StageProfileRealSmtp_...`(`@ActiveProfiles("stage")` + 실제 Mailpit 수신함에서 확인) |
 | 6 | prod(비-stage) 접두어 없음 | active profile = `prod`로 동일 발송 | 접두어 없이 원래 제목 그대로 | 단위: `EmailServiceTest#sendInviteEmail_ProdProfile_...` / 통합: `EmailServiceIntegrationTest`(`@ActiveProfiles("prod")` 클래스 레벨로 명시, 두 테스트 모두 접두어 없는 제목 확인) |
@@ -142,6 +144,12 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 - **완전한 멱등성 보장은 이번 스코프 밖** — 하려면 OCI 쪽 message-id 기반 dedup 조회 또는 "발송 전 이미 성공 기록이 있는지 먼저 확인" 같은 별도 인프라가 필요한데, 지금 필요성(클럽 사이트, 저트래픽) 대비 과함.
 
 **후속으로 리스크를 더 좁히고 싶다면**: JavaMail의 `Transport.connect()` 단계 예외(연결 자체가 안 됨 — 100% 안전)와 `Transport.sendMessage()` 이후 예외(응답 유실 가능성 있음 — 재시도 시 중복 위험)를 분리해서, 후자는 재시도하지 않고 즉시 포기하는 방향으로 좁힐 수 있다. 지금은 `JavaMailSender.send()`가 이 둘을 구분해서 던지지 않아(둘 다 `MailException` 계열로 뭉뚱그려짐) 바로 적용하긴 어렵고, 필요성이 실제로 확인되면(예: 중복 발송 신고가 들어오면) 그때 이 구분을 추가하는 걸 검토.
+
+## 실패 원인 분류(`FailureCause`) — 알람이 유저 잘못까지 세지 않게
+
+재시도와는 별개 문제: `#113` 실패 임계치 알람(`EmailFailureCountProd[5m] > 2`)은 원래 `email_log`의 FAILURE를 원인 구분 없이 다 셌다. 그런데 이 알람의 목적은 "우리 시스템이 고장났다"를 사람에게 알리는 것이지, "누군가 이메일 주소를 잘못 적었다"는 인프라가 손볼 수 없는 신호까지 울릴 이유가 없다(장찬욱 지적, #113 후속). 재시도해도 결과가 똑같은 `USER_CAUSED`(주소 형식 오류) 실패가 우연히 몰리면(예: 모집 안내메일을 구독자 수백 명에게 한 번에 보낼 때) 인프라가 대응할 게 전혀 없는데도 알람이 울릴 수 있었다.
+
+그래서 `EmailService`가 실패마다 `FailureCause`(`USER_CAUSED`/`SYSTEM_CAUSED`)를 분류해 `email_log.failure_cause`에 남기고(재시도 판단과 같은 분기 — `AddressException`만 `USER_CAUSED`), `push-email-failure-metric.py`는 `failure_cause != 'USER_CAUSED'`인 행만 센다. 이 컬럼 도입 이전의 과거 FAILURE 행·향후 분류가 안 된 예외 케이스는 `NULL`인데, "시스템 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
 
 ## 아직 못 메꾼 빈틈
 

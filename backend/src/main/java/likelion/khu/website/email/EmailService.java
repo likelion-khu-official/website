@@ -114,7 +114,7 @@ public class EmailService {
                 recordSuccess(to, type, subject, messageIdOf(message));
                 return;
             } catch (AddressException e) {
-                recordFailureSafely(to, type, subject, message, e);
+                recordFailureSafely(to, type, subject, message, e, FailureCause.USER_CAUSED);
                 throw new EmailSendException(type, to, e);
             } catch (Exception e) {
                 lastFailure = e;
@@ -126,7 +126,9 @@ public class EmailService {
             }
         }
 
-        recordFailureSafely(to, type, subject, message, lastFailure);
+        // maxAttempts까지 전부 실패 — AddressException이 아닌 이상 전부 우리 쪽·인프라 쪽 원인으로
+        // 분류한다(#113 실패 임계치 알람이 이 값으로 유저 원인을 걸러낸다, FailureCause 참고).
+        recordFailureSafely(to, type, subject, message, lastFailure, FailureCause.SYSTEM_CAUSED);
         throw new EmailSendException(type, to, lastFailure);
     }
 
@@ -172,13 +174,16 @@ public class EmailService {
     // 실패 로그 저장 자체가 또 실패하는 경우(예: DB 커넥션 자체가 죽음)를 대비 — 여기서 예외를 삼켜서
     // send()의 catch가 원래 원인(cause)을 담은 EmailSendException을 반드시 던지도록 보장.
     // (이 로그 저장을 못 하면 email_log엔 안 남지만, 호출자에게 실패를 알리는 것 자체는 절대 놓치지 않음)
-    private void recordFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
+    private void recordFailureSafely(String to, EmailType type, String subject, MimeMessage message,
+                                      Exception cause, FailureCause failureCause) {
         try {
             String messageId = messageIdOf(message);
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
-                eventPublisher.publishEvent(EmailLogEvent.failure(to, type, subject, cause.getMessage(), messageId));
+                eventPublisher.publishEvent(
+                        EmailLogEvent.failure(to, type, subject, cause.getMessage(), failureCause, messageId));
             } else {
-                emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageId));
+                emailLogRepository.save(
+                        EmailLog.failure(to, type, subject, cause.getMessage(), failureCause, messageId));
             }
         } catch (Exception loggingFailure) {
             // 의도적으로 무시 — 로깅 실패로 원래 예외 전파(EmailSendException)가 막히면 안 됨

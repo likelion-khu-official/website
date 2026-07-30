@@ -171,6 +171,7 @@ class EmailServiceTest {
         assertThat(log.getEmailType()).isEqualTo(EmailType.INVITE);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("SMTP 서버에 연결할 수 없어요");
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
         assertThat(log.getMessageId()).isNull();
     }
 
@@ -195,6 +196,7 @@ class EmailServiceTest {
         assertThat(log.getRecipient()).isEqualTo(to);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
         assertThat(log.getErrorMessage()).isNull();
+        assertThat(log.getFailureCause()).isNull();
     }
 
     // AddressException(주소 형식 오류)은 유저 쪽 원인이라 재시도해도 결과가 똑같음 — 즉시 포기해야
@@ -208,7 +210,10 @@ class EmailServiceTest {
                 .isInstanceOf(EmailSendException.class);
 
         verify(mailSender, never()).send(any(MimeMessage.class));
-        verify(emailLogRepository, times(1)).save(any());
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository, times(1)).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.USER_CAUSED);
     }
 
     // 서로 다른 두 형식 오류(@ 없음 / 꺾쇠 안 닫힘)를 각각 테스트로 남긴 이유는 email-module.md 39번 줄 참고 —
@@ -237,6 +242,7 @@ class EmailServiceTest {
         assertThat(log.getRecipient()).isEqualTo(malformedTo);
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).isNotBlank();
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.USER_CAUSED);
         // saveChanges()가 실행된 적 없어 Message-ID 자체가 안 생김 — SMTP 서버 거부(다른 테스트)와 다른 실패 지점
         assertThat(log.getMessageId()).isNull();
     }
@@ -287,6 +293,9 @@ class EmailServiceTest {
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
+        // AddressException이 아니라 NPE라 재시도 대상(SYSTEM_CAUSED)으로 분류됨 — 재시도해도 매번
+        // 같은 NPE라 결국 소진돼 실패로 남지만, "유저가 형식을 잘못 적은 것"과는 다른 원인이라 구분한다.
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
         assertThat(log.getMessageId()).isNull();
     }
 
@@ -318,6 +327,7 @@ class EmailServiceTest {
         EmailLog log = logCaptor.getValue();
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
         assertThat(log.getErrorMessage()).contains("템플릿이 깨졌어요");
+        assertThat(log.getFailureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
         assertThat(log.getMessageId()).isNull();
     }
 
@@ -372,6 +382,7 @@ class EmailServiceTest {
             assertThat(event.recipient()).isEqualTo(to);
             assertThat(event.status()).isEqualTo(EmailStatus.FAILURE);
             assertThat(event.errorMessage()).contains("SMTP 서버에 연결할 수 없어요");
+            assertThat(event.failureCause()).isEqualTo(FailureCause.SYSTEM_CAUSED);
         } finally {
             TransactionSynchronizationManager.setActualTransactionActive(false);
         }
