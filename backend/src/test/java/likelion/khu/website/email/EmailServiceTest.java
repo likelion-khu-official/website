@@ -17,8 +17,6 @@ import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.IContext;
-import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -29,9 +27,7 @@ import java.time.Month;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -221,6 +217,14 @@ class EmailServiceTest {
 
     // RECIPIENT_REJECTED_BY_SERVER — OCI 릴레이는 정상으로 응답했지만 그 수신자를 실제로 거부한
     // 경우(SendFailedException, 예: 550 No such user) — 재시도해도 매번 같은 거부라 즉시 포기.
+    // 다른 5개 분류(RECIPIENT_ADDRESS_INVALID·INVALID_INPUT·TEMPLATE_RENDERING_FAILED·
+    // SMTP_AUTHENTICATION_FAILED·SMTP_CONNECTION_FAILED)는 진짜 그 상황(실제 잘못된 주소, 실제
+    // null 값, 실제 존재하지 않는 템플릿, 실제 SMTP AUTH 거부·연결 거부)을 만들어 실제 예외가
+    // 나오는지까지 확인하는데, 이 케이스만 예외적으로 Mockito로 SendFailedException을 직접 만들어
+    // 던진다 — Mailpit은 "들어오는 메일을 전부 캡처하는" 테스트 도구라 RCPT TO를 실제로 거부하는
+    // 기능 자체가 없다(존재하지 않는 메일함·가득 찬 메일함 같은 개념이 없음). 그래서 이 원인만큼은
+    // 진짜 SMTP 서버로 재현할 방법이 없고, classify()가 SendFailedException 타입을 올바르게
+    // 인식하는지(타입 분기 로직 자체의 정확성)만 검증할 수 있다 — 알려진 한계.
     @Test
     void sendInviteEmail_ServerRejectsRecipient_DoesNotRetryAndClassifiesAsRecipientRejected() throws Exception {
         String to = "ghost@khu.ac.kr";
@@ -342,9 +346,18 @@ class EmailServiceTest {
     // EmailSendException으로 통일해 던지는지 확인 — templateEngine만 이 테스트 한정으로 별도 목으로 교체.
     @Test
     void sendInviteEmail_TemplateRenderingFails_LogsFailureAndThrowsEmailSendException() {
-        TemplateEngine brokenTemplateEngine = mock(TemplateEngine.class);
-        when(brokenTemplateEngine.process(anyString(), any(IContext.class)))
-                .thenThrow(new TemplateProcessingException("템플릿이 깨졌어요"));
+        // mock으로 TemplateProcessingException을 직접 던지게 하는 대신, 실제 SpringTemplateEngine을
+        // 존재하지 않는 템플릿 디렉터리에 연결해서 진짜 렌더링 실패를 유발한다 — "그 상황을 실제로
+        // 만들었을 때 classify()가 맞게 분류하는가"를 검증(가짜 예외 객체를 손으로 만들어 던지는 것과
+        // 다름). Thymeleaf가 템플릿을 못 찾으면 TemplateInputException(TemplateProcessingException의
+        // 실제 하위 클래스)을 던진다.
+        ClassLoaderTemplateResolver brokenResolver = new ClassLoaderTemplateResolver();
+        brokenResolver.setPrefix("nonexistent-templates/");
+        brokenResolver.setSuffix(".html");
+        brokenResolver.setTemplateMode(TemplateMode.HTML);
+        brokenResolver.setCharacterEncoding("UTF-8");
+        SpringTemplateEngine brokenTemplateEngine = new SpringTemplateEngine();
+        brokenTemplateEngine.setTemplateResolver(brokenResolver);
 
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("prod");
@@ -365,11 +378,29 @@ class EmailServiceTest {
         verify(emailLogRepository).save(logCaptor.capture());
         EmailLog log = logCaptor.getValue();
         assertThat(log.getStatus()).isEqualTo(EmailStatus.FAILURE);
-        assertThat(log.getErrorMessage()).contains("템플릿이 깨졌어요");
+        assertThat(log.getErrorMessage()).isNotBlank();
         assertThat(log.getFailureCause()).isEqualTo(FailureCause.TEMPLATE_RENDERING_FAILED);
         assertThat(log.getMessageId()).isNull();
-        // TEMPLATE_RENDERING_FAILED는 재시도 대상이 아님(같은 템플릿이면 매번 같은 결과) — 1번만 시도
-        verify(brokenTemplateEngine, times(1)).process(anyString(), any(IContext.class));
+    }
+
+    // UNKNOWN_FAILURE — classify()의 6가지 구체 분기 어디에도 안 걸리는, 진짜 미분류 예외를 실제로
+    // 던져서 fallback이 정말로 동작하는지 확인한다(이전엔 이 분기 자체가 테스트로 커버되지 않았음).
+    @Test
+    void sendInviteEmail_UnclassifiedExceptionEveryAttempt_RetriesAndClassifiesAsUnknownFailure() {
+        String to = "invitee@khu.ac.kr";
+        doThrow(new IllegalStateException("정체불명의 오류"))
+                .when(mailSender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        // UNKNOWN_FAILURE는 "안전하게" 재시도 대상 — maxAttempts까지 전부 시도한다
+        verify(mailSender, times(MAX_ATTEMPTS)).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.UNKNOWN_FAILURE);
     }
 
     // #85 리뷰(신선우) + SQLite 커넥션 풀 실측 재현 — 활성 트랜잭션 안에서 부르면 email_log를 직접
