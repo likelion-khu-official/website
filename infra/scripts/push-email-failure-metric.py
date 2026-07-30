@@ -62,7 +62,22 @@ def instance_metadata():
     return data["id"], data["compartmentId"]
 
 
+_LEGACY_QUERY_TEMPLATE = (
+    "SELECT COUNT(*) FROM email_log "
+    "WHERE status = 'FAILURE' AND sent_at >= datetime('now', '-{window} minutes');"
+)
+
+
 def failure_count(db_name):
+    """dev/stage와 main/prod가 서로 다른 주기로 배포되는 것과 이 스크립트의 배포 경로가
+    엇갈리는 경우를 방어한다. infra/scripts/*는 git으로 서버에 바로 동기화되지만, failure_cause
+    컬럼은 backend Docker 이미지 배포(마이그레이션)로만 생긴다 - dev가 먼저 머지되면(stage에
+    컬럼이 생김) 이 파일도 즉시 새 쿼리로 바뀌는데, main이 아직 안 머지된 prod는 컬럼이 없는
+    채로 이 새 쿼리를 받는 과도기가 생긴다(2026-07-30 실측 - prod에서 "no such column:
+    failure_cause"로 크론이 계속 죽는 걸 확인). 컬럼이 없으면 원인 구분 없이 세던 예전 쿼리로
+    자동 폴백해서, main이 언제 머지되든 그 사이 알람이 아예 죽어있는 공백이 안 생기게 한다 -
+    main 머지 후 prod에도 컬럼이 생기면 다음 호출부터 자동으로 위 필터링 쿼리가 다시 통과한다.
+    """
     db_file = f"{_DATA_DIR}/{db_name}.db"
     excluded = ", ".join(f"'{cause}'" for cause in EXCLUDED_FAILURE_CAUSES)
     query = (
@@ -76,8 +91,25 @@ def failure_count(db_name):
         capture_output=True,
         text=True,
         timeout=10,
-        check=True,
     )
+    if result.returncode != 0:
+        if "no such column: failure_cause" not in result.stderr:
+            raise subprocess.CalledProcessError(
+                result.returncode, result.args, result.stdout, result.stderr
+            )
+        print(
+            f"[{db_name}] failure_cause 컬럼이 아직 없음(마이그레이션 전) - "
+            "원인 구분 없는 예전 쿼리로 폴백",
+            file=sys.stderr,
+        )
+        legacy_query = _LEGACY_QUERY_TEMPLATE.format(window=WINDOW_MINUTES)
+        result = subprocess.run(
+            ["sqlite3", db_file, legacy_query],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        )
     return int(result.stdout.strip() or 0)
 
 
