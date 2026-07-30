@@ -109,6 +109,7 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | `infra/docs/` | 이 CLAUDE.md·AGENTS.md·SECURITY.md를 뺀 나머지 인프라 문서 전부 — 2026-07-27 스크립트와 분리(Claude Code가 디렉터리별로 자동 로드하는 CLAUDE.md/AGENTS.md만 `infra/` 루트에 남음) |
 | [`infra/docs/logging.md`](./docs/logging.md) | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
 | [`infra/docs/RUNBOOK.md`](./docs/RUNBOOK.md) | 인프라 운영 러너북 — 알람별 대응 절차·자주 쓰는 명령(배포·롤백·DB복원). infra 바뀌면 같은 PR에서 이 문서도 갱신 |
+| [`infra/docs/prod-deploy-criteria.md`](./docs/prod-deploy-criteria.md) | dev→main(prod) 배포 통과 기준 — 논의 중(초안), CI 통과·stage 체류·QA verification·마이그레이션 안전성·롤백 준비 |
 | [`infra/docs/handoff.md`](./docs/handoff.md) | 이 역할의 마인드셋·지표·역량 체크리스트·평소 루틴·협업 인터페이스·인수인계 체크리스트·계정 인벤토리(`pm/docs/handoff.md`의 인프라 절 상세) |
 | [`infra/docs/db-access.md`](./docs/db-access.md) | DB 접속 방법 · Flyway 기준 허용/금지 · 백업 전략 · GUI 뷰어(sqlite-web) 구성 |
 | `infra/scripts/db-dev-ui.sh` | 개발자 로컬 실행용 — tmux로 sqlite-web 조회(브라우저)+dbclient 조작(CLI)을 한 창에 띄움 |

@@ -16,6 +16,7 @@
 | [`backend/.claude/skills/db-man/SKILL.md`](../../backend/.claude/skills/db-man/SKILL.md) | 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 관리하는 스킬 — 엔티티 변경 시 마이그레이션 파일을 빠뜨리지 않게 함 |
 | [`logging.md`](./logging.md) | 로그 구조 |
 | [`CI-CD.md`](./CI-CD.md) | CI/CD 절차 설명 |
+| [`prod-deploy-criteria.md`](./prod-deploy-criteria.md) | dev→main(prod) 배포 통과 기준 — 논의 중(초안) |
 | `pm/docs/learnings.md` "인프라 · CI/CD" 절 | 실제 사고 히스토리 — 같은 함정을 반복하지 않기 위한 원본 |
 
 ---
