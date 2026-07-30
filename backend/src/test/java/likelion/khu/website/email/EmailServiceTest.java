@@ -197,38 +197,15 @@ class EmailServiceTest {
         assertThat(log.getFailureCause()).isNull();
     }
 
-    // SMTP_AUTHENTICATION_FAILED — 자격증명 실패는 우리 쪽(인프라) 원인이라 재시도 대상.
+    // SMTP_AUTHENTICATION_FAILED — 자격증명 실패는 우리 쪽(인프라) 원인이지만 재시도는 안 한다.
+    // OCI 문서에 "421 Too many auth failures, try again later"(반복된 인증 실패에 대한 IP 단위
+    // 스로틀)가 명시돼 있어서다 — 우리가 자동으로 재시도하면 그 스로틀을 스스로 유발해 같은 IP에서
+    // 나가는 다른 정상 발송까지 막을 위험이 있다. 그래서 1번만 시도하고 즉시 포기(알람은 여전히
+    // 대상).
     @Test
-    void sendInviteEmail_AuthenticationFailsEveryAttempt_RetriesAndClassifiesAsAuthenticationFailed() {
+    void sendInviteEmail_AuthenticationFails_DoesNotRetryAndClassifiesAsAuthenticationFailed() {
         String to = "invitee@khu.ac.kr";
         doThrow(new MailAuthenticationException("SMTP 인증 실패"))
-                .when(mailSender).send(any(MimeMessage.class));
-
-        assertThatThrownBy(() -> emailService.sendInviteEmail(
-                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
-                .isInstanceOf(EmailSendException.class);
-
-        verify(mailSender, times(MAX_ATTEMPTS)).send(any(MimeMessage.class));
-
-        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
-        verify(emailLogRepository).save(logCaptor.capture());
-        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.SMTP_AUTHENTICATION_FAILED);
-    }
-
-    // RECIPIENT_REJECTED_BY_SERVER — OCI 릴레이는 정상으로 응답했지만 그 수신자를 실제로 거부한
-    // 경우(SendFailedException, 예: 550 No such user) — 재시도해도 매번 같은 거부라 즉시 포기.
-    // 다른 5개 분류(RECIPIENT_ADDRESS_INVALID·INVALID_INPUT·TEMPLATE_RENDERING_FAILED·
-    // SMTP_AUTHENTICATION_FAILED·SMTP_CONNECTION_FAILED)는 진짜 그 상황(실제 잘못된 주소, 실제
-    // null 값, 실제 존재하지 않는 템플릿, 실제 SMTP AUTH 거부·연결 거부)을 만들어 실제 예외가
-    // 나오는지까지 확인하는데, 이 케이스만 예외적으로 Mockito로 SendFailedException을 직접 만들어
-    // 던진다 — Mailpit은 "들어오는 메일을 전부 캡처하는" 테스트 도구라 RCPT TO를 실제로 거부하는
-    // 기능 자체가 없다(존재하지 않는 메일함·가득 찬 메일함 같은 개념이 없음). 그래서 이 원인만큼은
-    // 진짜 SMTP 서버로 재현할 방법이 없고, classify()가 SendFailedException 타입을 올바르게
-    // 인식하는지(타입 분기 로직 자체의 정확성)만 검증할 수 있다 — 알려진 한계.
-    @Test
-    void sendInviteEmail_ServerRejectsRecipient_DoesNotRetryAndClassifiesAsRecipientRejected() throws Exception {
-        String to = "ghost@khu.ac.kr";
-        doThrow(new MailSendException("메일함이 없어요", new SendFailedException("550 No such user")))
                 .when(mailSender).send(any(MimeMessage.class));
 
         assertThatThrownBy(() -> emailService.sendInviteEmail(
@@ -239,7 +216,37 @@ class EmailServiceTest {
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());
-        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.RECIPIENT_REJECTED_BY_SERVER);
+        assertThat(logCaptor.getValue().getFailureCause()).isEqualTo(FailureCause.SMTP_AUTHENTICATION_FAILED);
+    }
+
+    // RECIPIENT_ADDRESS_REJECTED_BY_SERVER — 우리 클라이언트 쪽 InternetAddress.validate()는
+    // 통과했는데, OCI가 RCPT 단계에서 자체 RFC-822 재검증 후 거부한 경우(SendFailedException, OCI
+    // 문서 553 "Invalid email address") — "메일함이 없음"이 아니라 결국 같은 "주소 형식" 문제를
+    // OCI가 대신 잡아준 것뿐이라 재시도해도 매번 같은 거부다. 즉시 포기.
+    // 다른 5개 분류(RECIPIENT_ADDRESS_INVALID·INVALID_INPUT·TEMPLATE_RENDERING_FAILED·
+    // SMTP_AUTHENTICATION_FAILED·SMTP_CONNECTION_FAILED)는 진짜 그 상황(실제 잘못된 주소, 실제
+    // null 값, 실제 존재하지 않는 템플릿, 실제 SMTP AUTH 거부·연결 거부)을 만들어 실제 예외가
+    // 나오는지까지 확인하는데, 이 케이스만 예외적으로 Mockito로 SendFailedException을 직접 만들어
+    // 던진다 — Mailpit은 "들어오는 메일을 전부 캡처하는" 테스트 도구라 RCPT TO를 실제로 거부하는
+    // 기능 자체가 없다. 그래서 이 원인만큼은 진짜 SMTP 서버로 재현할 방법이 없고, classify()가
+    // SendFailedException 타입을 올바르게 인식하는지(타입 분기 로직 자체의 정확성)만 검증할 수
+    // 있다 — 알려진 한계.
+    @Test
+    void sendInviteEmail_ServerRejectsRecipientAddress_DoesNotRetryAndClassifiesAsRejectedByServer() throws Exception {
+        String to = "ghost@khu.ac.kr";
+        doThrow(new MailSendException("주소 재검증 실패", new SendFailedException("553 Invalid email address")))
+                .when(mailSender).send(any(MimeMessage.class));
+
+        assertThatThrownBy(() -> emailService.sendInviteEmail(
+                to, "https://admin.likelion-khu.com/invite?token=abc123", LocalDateTime.now().plusDays(1)))
+                .isInstanceOf(EmailSendException.class);
+
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
+
+        ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
+        verify(emailLogRepository).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getFailureCause())
+                .isEqualTo(FailureCause.RECIPIENT_ADDRESS_REJECTED_BY_SERVER);
     }
 
     // AddressException(주소 형식 오류)은 유저 쪽 원인이라 재시도해도 결과가 똑같음 — 즉시 포기해야

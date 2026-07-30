@@ -5,7 +5,7 @@
 -- nullable 컬럼 추가만으로 충분하다(재생성 패턴 불필요, db-man 스킬 "컬럼 추가(nullable)" 케이스).
 alter table email_log add column failure_cause varchar(255) check (failure_cause in (
     'RECIPIENT_ADDRESS_INVALID',
-    'RECIPIENT_REJECTED_BY_SERVER',
+    'RECIPIENT_ADDRESS_REJECTED_BY_SERVER',
     'INVALID_INPUT',
     'TEMPLATE_RENDERING_FAILED',
     'SMTP_AUTHENTICATION_FAILED',

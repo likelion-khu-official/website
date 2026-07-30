@@ -8,7 +8,7 @@
 |---|---|
 | `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`)마다 템플릿 이름 + 고정 제목 매핑 |
 | `EmailStatus.java` | `SUCCESS` / `FAILURE` |
-| `FailureCause.java` | 발송 실패 예외를 7가지로 분류하는 enum(`RECIPIENT_ADDRESS_INVALID`/`RECIPIENT_REJECTED_BY_SERVER`/`INVALID_INPUT`/`TEMPLATE_RENDERING_FAILED`/`SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`/`UNKNOWN_FAILURE`), 값마다 재시도 대상 여부·`#113` 알람 대상 여부가 다름 — 아래 "실패 원인 분류" 절 참고. FAILURE 행에만 값이 있고 SUCCESS는 `null` |
+| `FailureCause.java` | 발송 실패 예외를 7가지로 분류하는 enum(`RECIPIENT_ADDRESS_INVALID`/`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`/`INVALID_INPUT`/`TEMPLATE_RENDERING_FAILED`/`SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`/`UNKNOWN_FAILURE`), 값마다 재시도 대상 여부·`#113` 알람 대상 여부가 다름 — 아래 "실패 원인 분류" 절 참고. FAILURE 행에만 값이 있고 SUCCESS는 `null` |
 | `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·failureCause·messageId·sentAt (본문·토큰은 저장 안 함) |
 | `EmailLogRepository.java` | JPA 리포지토리 |
 | `EmailLogEvent.java` | `email_log` 저장에 필요한 값만 담는 이벤트 페이로드(record) — 활성 트랜잭션 안에서 호출됐을 때만 씀, 아래 "트랜잭션 경계" 절 참고 |
@@ -31,8 +31,8 @@
 | 4-2 | 발송 실패 후 재시도로 결국 성공 | 처음 두 번은 SMTP 예외, 세 번째는 성공 | 재시도 끝에 성공 — `email_log`엔 중간 실패 없이 **SUCCESS 한 줄만** 남음(유저 원인이 아닌 실패는 결국 성공으로 수렴해야 한다는 요구, #113 후속) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsThenSucceeds_...` |
 | 4-3 | 주소 형식 오류는 재시도 안 함 + `RECIPIENT_ADDRESS_INVALID`로 분류 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 수신자 쪽 원인이라 즉시 포기, `email_log.failure_cause=RECIPIENT_ADDRESS_INVALID` | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry`, `#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` |
 | 4-4 | SMTP 연결 실패는 재시도 소진 후 `SMTP_CONNECTION_FAILED`로 분류 | 4번과 동일(매 시도 `MailSendException`) | `email_log.failure_cause=SMTP_CONNECTION_FAILED` — `#113` 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...` |
-| 4-5 | SMTP 인증 실패는 재시도 소진 후 `SMTP_AUTHENTICATION_FAILED`로 분류 | 매 시도 `MailAuthenticationException`(단위) / 실제 SMTP 535 거부(통합) | 재시도(`maxAttempts`까지) 후 `email_log.failure_cause=SMTP_AUTHENTICATION_FAILED` — 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_AuthenticationFailsEveryAttempt_...` / 통합: `EmailServiceAuthenticationFailureIntegrationTest#sendInviteEmail_WrongSmtpCredentials_...`(Mailpit `--smtp-auth-file`로 진짜 자격증명을 요구하게 하고 일부러 틀린 비밀번호로 접속 — 실제 SMTP `535 Authentication credentials invalid` 응답에서 나온 진짜 예외로 검증) |
-| 4-6 | SMTP가 수신자를 실제로 거부하면 재시도 안 함 + `RECIPIENT_REJECTED_BY_SERVER`로 분류 | `SendFailedException`(예: 550 No such user) | 1번만 시도 — OCI는 정상 응답, 메일함 쪽 문제라 재시도 무의미. 알람 대상 아님 | 단위: `EmailServiceTest#sendInviteEmail_ServerRejectsRecipient_...` — **알려진 한계**: Mailpit은 들어오는 메일을 전부 캡처하는 도구라 RCPT TO를 실제로 거부하는 기능 자체가 없음(존재하지 않는 메일함 같은 개념이 없음). 그래서 이 원인만 진짜 SMTP 서버로 재현 불가 — `classify()`가 `SendFailedException` 타입을 올바르게 인식하는지만 검증 |
+| 4-5 | SMTP 인증 실패는 재시도 안 함 + `SMTP_AUTHENTICATION_FAILED`로 분류 | `MailAuthenticationException`(단위) / 실제 SMTP 535 거부(통합) | 1번만 시도 — OCI 문서의 `421` 인증실패 스로틀을 스스로 유발하지 않기 위함(아래 "실패 원인 분류" 절 참고). `email_log.failure_cause=SMTP_AUTHENTICATION_FAILED` — 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_AuthenticationFails_...` / 통합: `EmailServiceAuthenticationFailureIntegrationTest#sendInviteEmail_WrongSmtpCredentials_...`(Mailpit `--smtp-auth-file`로 진짜 자격증명을 요구하게 하고 일부러 틀린 비밀번호로 접속 — 실제 SMTP `535 Authentication credentials invalid` 응답에서 나온 진짜 예외로 검증, OCI 공식 문서의 문구와 일치 확인) |
+| 4-6 | OCI가 주소를 자체 재검증 후 거부하면 재시도 안 함 + `RECIPIENT_ADDRESS_REJECTED_BY_SERVER`로 분류 | `SendFailedException`(OCI 문서 553 Invalid email address) | 1번만 시도 — 결국 주소 형식 문제라 재시도 무의미. 알람 대상 아님 | 단위: `EmailServiceTest#sendInviteEmail_ServerRejectsRecipientAddress_...` — **알려진 한계**: Mailpit은 들어오는 메일을 전부 캡처하는 도구라 RCPT TO를 실제로 거부하는 기능 자체가 없음. 그래서 이 원인만 진짜 SMTP 서버로 재현 불가 — `classify()`가 `SendFailedException` 타입을 올바르게 인식하는지만 검증 |
 | 4-7 | 호출자 입력 오류(수신자 null)는 재시도 안 함 + `INVALID_INPUT`로 분류 | `to=null` → `NullPointerException`(실제 트리거) | 1번만 시도, `email_log.failure_cause=INVALID_INPUT` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_NullRecipient_...` |
 | 4-8 | 템플릿 렌더링 실패는 재시도 안 함 + `TEMPLATE_RENDERING_FAILED`로 분류 | 존재하지 않는 템플릿 디렉터리를 가리키는 실제 `SpringTemplateEngine`(실제 트리거) | 1번만 시도, `email_log.failure_cause=TEMPLATE_RENDERING_FAILED` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_TemplateRenderingFails_...` |
 | 4-9 | 미분류 예외는 재시도 후 `UNKNOWN_FAILURE`로 분류(fallback) | 매 시도 `IllegalStateException`(classify()의 6가지 구체 분기 어디에도 안 걸림) | 재시도(`maxAttempts`까지) 후 `email_log.failure_cause=UNKNOWN_FAILURE` — "안전하게" 재시도·알람 둘 다 대상 | 단위: `EmailServiceTest#sendInviteEmail_UnclassifiedExceptionEveryAttempt_...` |
@@ -156,17 +156,26 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 
 | `FailureCause` | 실제 예외 | 재시도 | 알람 대상 | 의미 |
 |---|---|---|---|---|
-| `RECIPIENT_ADDRESS_INVALID` | `AddressException`(`InternetAddress.validate()`) | ❌ | ❌ | 주소 형식 자체가 틀림 — 수신자 쪽 원인 |
-| `RECIPIENT_REJECTED_BY_SERVER` | `SendFailedException`(SMTP가 실제로 거부 — 550 No such user 등, `MailSendException`이 감싸서 옴) | ❌ | ❌ | OCI 릴레이는 정상, 그 메일함이 없거나 가득 참 — 수신자 쪽 원인 |
+| `RECIPIENT_ADDRESS_INVALID` | `AddressException`(`InternetAddress.validate()`) | ❌ | ❌ | 우리 클라이언트 검증에서 걸린 주소 형식 오류 — 수신자 쪽 원인 |
+| `RECIPIENT_ADDRESS_REJECTED_BY_SERVER` | `SendFailedException`(OCI가 RCPT 단계에서 자체 형식 재검증 후 거부, `MailSendException`이 감싸서 옴) | ❌ | ❌ | 결국 `RECIPIENT_ADDRESS_INVALID`와 같은 "주소 형식" 문제를 OCI가 대신 잡아준 경우 — 수신자 쪽 원인 |
 | `INVALID_INPUT` | `NullPointerException`(수신자 `null` 등) | ❌ | ✅ | 호출자가 잘못된 값을 줌 — 우리 코드/호출자 버그 |
 | `TEMPLATE_RENDERING_FAILED` | `TemplateProcessingException` | ❌ | ✅ | 템플릿 자체가 깨짐 — 우리 코드 버그 |
-| `SMTP_AUTHENTICATION_FAILED` | `MailAuthenticationException` | ✅ | ✅ | 자격증명 실패 — 우리 쪽(인프라) 원인 |
+| `SMTP_AUTHENTICATION_FAILED` | `MailAuthenticationException` | ❌ | ✅ | 자격증명 실패 — 우리 쪽(인프라) 원인. 재시도는 안 함(아래 참고) |
 | `SMTP_CONNECTION_FAILED` | `MailSendException`(연결·타임아웃 등) | ✅ | ✅ | 그 외 SMTP 전송 실패 — 우리 쪽(인프라) 원인, 순간 장애일 수 있음 |
 | `UNKNOWN_FAILURE` | 위 어디에도 안 걸리는 예외 | ✅ | ✅ | 분류 불가 — "놓치는 것보다 오탐이 낫다" 원칙으로 안전하게 포함 |
 
-앞의 두 값(`RECIPIENT_ADDRESS_INVALID`·`RECIPIENT_REJECTED_BY_SERVER`)만 재시도·알람 둘 다 대상이 아니다 — 나머지 다섯은 "재시도해도 안 풀리지만 우리가 고쳐야 하는 문제"(`INVALID_INPUT`·`TEMPLATE_RENDERING_FAILED`)와 "재시도하면 풀릴 수도 있고 우리가 고쳐야 하는 문제"(`SMTP_AUTHENTICATION_FAILED`·`SMTP_CONNECTION_FAILED`·`UNKNOWN_FAILURE`)로 갈리지만 알람 대상인 건 같다. 분류 로직은 `EmailService.classify(Exception)` — 판정 순서가 중요하다(`AddressException`·`SendFailedException`이 넓은 `MailException` 체크보다 먼저 와야 함, 코드 주석 참고).
+앞의 두 값(`RECIPIENT_ADDRESS_INVALID`·`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`)과 `SMTP_AUTHENTICATION_FAILED`는 재시도 대상이 아니다(이유는 각각 다름 — 앞 둘은 "재시도해도 결과가 똑같아서", 인증 실패는 아래 참고). 나머지도 재시도 여부는 갈리지만(코드 버그는 재시도해도 안 풀림) `RECIPIENT_*` 두 값을 뺀 다섯 전부 알람 대상이다. 분류 로직은 `EmailService.classify(Exception)` — 판정 순서가 중요하다(`AddressException`·`SendFailedException`이 넓은 `MailException` 체크보다 먼저 와야 함, 코드 주석 참고).
 
-`push-email-failure-metric.py`는 `failure_cause NOT IN ('RECIPIENT_ADDRESS_INVALID', 'RECIPIENT_REJECTED_BY_SERVER')`인 행만 센다(Python 쪽 `EXCLUDED_FAILURE_CAUSES`가 이 두 값과 반드시 일치해야 함 — 새 `FailureCause`를 추가하면 `isAlarmWorthy()`부터 정하고 그 값에 맞춰 스크립트를 갱신할 것). 이 컬럼 도입 이전의 과거 FAILURE 행·분류 실패 케이스는 `NULL`인데, "수신자 쪽 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
+**`SMTP_AUTHENTICATION_FAILED`는 왜 재시도하지 않는가 — OCI 공식 문서 근거.** 처음엔 이것도 재시도 대상이었는데, [OCI Email Delivery 트러블슈팅 문서](https://docs.oracle.com/en-us/iaas/Content/Email/Concepts/troubleshooting.htm)를 찾아보니 `421 Too many auth failures, try again later`라는 응답이 별도로 명시돼 있었다 — 반복된 인증 실패에 대한 **IP 단위 스로틀**이다. 자격증명이 실제로 깨졌을 때 우리가 자동으로 여러 번 재시도하면 이 스로틀을 스스로 유발할 수 있고, 스로틀이 걸리면 같은 IP(=우리 서버)에서 나가는 **다른 정상 발송까지** 함께 막힌다 — 한 통을 재시도해서 얻는 이득보다 전체 발신 경로가 막힐 위험이 훨씬 커서 1번만 시도하고 즉시 포기하도록 바꿨다.
+
+**`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`의 의미도 OCI 문서를 보고 정정했다.** 처음엔 "메일함이 없음/가득참"(수신 메일서버가 실제로 거부)이라고 생각해서 이름을 `RECIPIENT_REJECTED_BY_SERVER`로 지었는데, OCI 문서엔 그런 응답이 없다 — 있는 건 `553 <address> Invalid email address`(RFC-822 형식 재검증)뿐이다. `infra/docs/email-delivery.md`에 이미 정리된 계층 구분(①우리→OCI 접수, ②OCI→수신 메일서버)을 다시 보면, "메일함이 진짜 존재하는지"는 ②단계의 결과라 OCI Logging을 별도 조회해야 나오는 값이지 `mailSender.send()`가 던지는 예외로는 알 수 없다. 그래서 이름을 `RECIPIENT_ADDRESS_REJECTED_BY_SERVER`로 바꾸고 "결국 주소 형식 문제의 연장"이라는 의미로 정정했다.
+
+**증명된 것과 안 된 것을 구분해야 한다** — 이 표의 신뢰도는 값마다 다르다:
+- Mailpit(테스트 도구)으로 **실제 재현·검증됨**: `RECIPIENT_ADDRESS_INVALID`(진짜 InternetAddress 검증), `INVALID_INPUT`(진짜 NPE), `TEMPLATE_RENDERING_FAILED`(진짜 Thymeleaf 예외), `SMTP_CONNECTION_FAILED`(진짜 연결 거부), `SMTP_AUTHENTICATION_FAILED`(Mailpit `--smtp-auth-file`로 진짜 SMTP `535` 거부 — 문구가 OCI 문서와 정확히 일치해 신뢰도 높음).
+- **재현 자체가 불가능해서 mock으로만 타입 분기를 검증함**: `RECIPIENT_ADDRESS_REJECTED_BY_SERVER` — Mailpit은 "들어오는 메일을 전부 캡처"하는 도구라 RCPT TO를 실제로 거부하는 기능이 없다.
+- **문서로만 확인, 실제 OCI 자격증명으로 재현 안 함**: `SMTP_AUTHENTICATION_FAILED`의 `421` 스로틀 자체(반복 재현이 실제 운영 IP에 리스크가 있어 시도 안 함), OCI 문서에 별도로 있는 `535 Authorization failed: address not authorized`(Approved Sender 정책 위반 — 자격증명 오류와 같은 코드 535라 JavaMail이 이것도 `MailAuthenticationException`으로 묶을 가능성이 높지만 확인 안 됨, 원인은 전혀 다름 — 비밀번호 문제가 아니라 발신 주소 설정 문제).
+
+`push-email-failure-metric.py`는 `failure_cause NOT IN ('RECIPIENT_ADDRESS_INVALID', 'RECIPIENT_ADDRESS_REJECTED_BY_SERVER')`인 행만 센다(Python 쪽 `EXCLUDED_FAILURE_CAUSES`가 이 두 값과 반드시 일치해야 함 — 새 `FailureCause`를 추가하면 `isAlarmWorthy()`부터 정하고 그 값에 맞춰 스크립트를 갱신할 것). 이 컬럼 도입 이전의 과거 FAILURE 행·분류 실패 케이스는 `NULL`인데, "수신자 쪽 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
 
 ## 아직 못 메꾼 빈틈
 

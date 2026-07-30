@@ -174,21 +174,26 @@ ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --ta
 <a id="alarm-email-failure"></a>
 ### 1-6. OCI Monitoring — 모집 이메일 실패 임계치 초과 (prod/stage, OCI 심각도: WARNING / 대응 긴급도: 예방적 경고, #113)
 
-**경고**: 최근 5분 안에 `email_log`에 `FAILURE`로 기록된 행이 2건을 넘었다는 뜻이다(첫 breach에 바로 발동 — 이메일 발송은 뜸하다가 몰릴 때 한꺼번에 몰리는 성격이라, 디스크·메모리처럼 "연속 2번 나쁨"을 요구하면 burst성 장애를 오히려 못 잡는다. 설계 근거는 `observability.md` "모집 이메일 실패 임계치 알림 이유" 참고). 개별 실패 1~2건은 정상 범위(주소 오탈자 등)라 3건부터는 시스템적으로 무언가 실패 중이라는 신호로 본다.
+**경고**: 최근 5분 안에 `email_log`에 `FAILURE`로 기록된 행 중 **`failure_cause`가 수신자 쪽 원인(`RECIPIENT_ADDRESS_INVALID`·`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`)이 아닌 것**이 2건을 넘었다는 뜻이다(첫 breach에 바로 발동 — 이메일 발송은 뜸하다가 몰릴 때 한꺼번에 몰리는 성격이라, 디스크·메모리처럼 "연속 2번 나쁨"을 요구하면 burst성 장애를 오히려 못 잡는다. 설계 근거는 `observability.md` "모집 이메일 실패 임계치 알림 이유" 참고). **개별 수신자 주소 오탈자·존재하지 않는 메일함은 애초에 카운트에서 제외된다(#113 후속)** — 그래서 이 알람이 울렸다면 그건 오탈자가 아니라 우리 쪽(코드 버그·인프라) 문제이거나 원인을 아직 못 알아낸 것 중 하나로 좁혀진다. `EmailService`가 순간적인 SMTP 장애는 최대 3회 자동 재시도까지 마친 뒤에야 이 카운트에 반영되므로(#113 후속, `backend/docs/email-module.md` "재시도와 멱등성" 참고), 알람이 울렸다면 재시도로도 안 풀린 경우다.
 
 **영향**: 사이트 자체는 멀쩡하다 — 모집 알림 신청·초대·비번재설정 메일이 실제 수신자에게 안 가고 있을 뿐이다. 다만 모집 알림 신청자가 다음 모집 안내를 못 받으면(#124/#126) 그 사람은 모집이 열린 것 자체를 모르고 지나칠 수 있어, 방치 시간에 비례해 실제 지원 기회 손실이 쌓인다.
 
-**원인 후보**: OCI Email Delivery SMTP 자격증명 만료·회전(`email-delivery.md`), OCI 측 릴레이 장애, 수신자 주소 대량 오탈자(가능성 낮음 — 개별 사유는 보통 2건 임계치를 안 넘음), Approved Sender 설정이 풀린 경우.
+**원인 후보 — `failure_cause` 값으로 바로 좁혀진다**(`backend/docs/email-module.md` "실패 원인 분류" 표 참고):
+- `SMTP_AUTHENTICATION_FAILED` → OCI Email Delivery SMTP 자격증명 만료·회전, 또는 Approved Sender 설정이 풀림
+- `SMTP_CONNECTION_FAILED` → OCI 측 릴레이 장애·연결 타임아웃(순간 장애일 수 있음 — 재시도 3회를 이미 거치고도 실패)
+- `TEMPLATE_RENDERING_FAILED` → 최근 배포에서 이메일 템플릿이 깨짐(코드 버그, 배포 롤백 검토)
+- `INVALID_INPUT` → 우리 코드나 DB 데이터에 문제(예: 수신자 이메일이 `null`인 채로 저장됨)
+- `UNKNOWN_FAILURE` → 아직 분류 안 된 새로운 원인, `error_message`를 직접 읽어서 판단(반복되면 `FailureCause`에 새 값 추가 검토)
 
 ```bash
-ssh likelion-oci 'sqlite3 ~/website/infra/data/<prod|stage>.db "SELECT sent_at, recipient, email_type, error_message FROM email_log WHERE status='"'"'FAILURE'"'"' ORDER BY sent_at DESC LIMIT 20;"'
-# ↑ 최근 실패 20건의 원인 메시지를 직접 확인 — 전부 같은 에러면 시스템적 원인(SMTP 등), 제각각이면 개별 주소 문제일 가능성이 큼
+ssh likelion-oci 'sqlite3 ~/website/infra/data/<prod|stage>.db "SELECT sent_at, recipient, email_type, failure_cause, error_message FROM email_log WHERE status='"'"'FAILURE'"'"' ORDER BY sent_at DESC LIMIT 20;"'
+# ↑ failure_cause 컬럼으로 원인 카테고리를 바로 확인 — error_message는 그 안에서 더 상세히 볼 때만
 
 ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --tail=100 backend-<stage|prod> | grep -i mail'
 # ↑ 애플리케이션 로그에서 발송 관련 에러 스택 확인
 ```
 
-**복구**: 로그가 SMTP 연결·인증 실패(예: `MailAuthenticationException`, connection timeout)를 가리키면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). 원인이 해소되면 이후 발송은 자동으로 다시 성공하고, 마지막 실패가 5분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 5~10분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
+**복구**: `failure_cause`가 `SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). `TEMPLATE_RENDERING_FAILED`면 최근 배포 커밋을 확인한다. 원인이 해소되면 **그 이후에 새로 시도되는 발송**은 자동으로 다시 성공하고, 마지막 실패가 5분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 5~10분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. **주의**: `SMTP_AUTHENTICATION_FAILED`는 재시도를 안 하므로(OCI의 반복 인증실패 IP 스로틀을 스스로 유발하지 않기 위함, `FailureCause.java` 참고), 이미 실패로 기록된 그 특정 메일은 자격증명을 고쳐도 저절로 재발송되지 않는다 — 초대·비번재설정은 유저/관리자가 재요청하면 새 토큰으로 재발송되지만(기존 기능), 모집 안내 메일은 개별 재발송 수단이 없어 그 구독자는 못 받은 채로 남는다. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
 
 ---
 

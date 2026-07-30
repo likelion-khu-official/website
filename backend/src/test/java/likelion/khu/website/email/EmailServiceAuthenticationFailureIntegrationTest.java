@@ -68,8 +68,9 @@ class EmailServiceAuthenticationFailureIntegrationTest {
         registry.add("spring.mail.properties.mail.smtp.ssl.trust", () -> "*");
         registry.add("spring.mail.properties.mail.smtp.connectiontimeout", () -> "3000");
         registry.add("spring.mail.properties.mail.smtp.timeout", () -> "3000");
-        // 인증 실패는 재시도해도 매번 같은 결과 — 1회로 속도 확보(그래도 SMTP_AUTHENTICATION_FAILED
-        // 자체는 재시도 대상으로 분류돼 있음, 실제 운영값은 기본 3회 — FailureCause 참고)
+        // SMTP_AUTHENTICATION_FAILED는 재시도 대상이 아니라(OCI의 421 스로틀을 스스로 유발하지
+        // 않기 위함, FailureCause 참고) 실제 운영값도 1회 — 여기선 값 자체보다 "1회만 시도한다"는
+        // 걸 명시적으로 맞춰둔 것뿐, 속도를 위해 줄인 오버라이드가 아님
         registry.add("mail-sender.max-attempts", () -> "1");
         registry.add("mail-sender.retry-delay-ms", () -> "0");
     }

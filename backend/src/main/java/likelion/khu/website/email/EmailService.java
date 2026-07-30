@@ -142,7 +142,7 @@ public class EmailService {
             return FailureCause.RECIPIENT_ADDRESS_INVALID;
         }
         if (isRecipientRejection(e)) {
-            return FailureCause.RECIPIENT_REJECTED_BY_SERVER;
+            return FailureCause.RECIPIENT_ADDRESS_REJECTED_BY_SERVER;
         }
         if (e instanceof MailAuthenticationException) {
             return FailureCause.SMTP_AUTHENTICATION_FAILED;
@@ -159,10 +159,11 @@ public class EmailService {
         return FailureCause.UNKNOWN_FAILURE;
     }
 
-    // SendFailedException(jakarta.mail)은 SMTP가 특정 수신자를 실제로 거부했을 때(예: 550 No such
-    // user, 552 mailbox full) 던져진다 — OCI 릴레이는 정상, 그 메일함 쪽 문제. Spring의
-    // JavaMailSenderImpl은 이 체크 예외를 잡아 언체크 MailSendException으로 감싸 올리므로
-    // getCause()까지 확인해야 실제로 잡힌다.
+    // SendFailedException(jakarta.mail)은 SMTP가 특정 수신자를 RCPT 단계에서 실제로 거부했을 때
+    // 던져진다 — OCI 문서(553 "Invalid email address") 기준으로는 "메일함이 없음/가득참"이 아니라
+    // OCI 자체의 RFC-822 형식 재검증에 걸린 경우다(우리 클라이언트 검증이 놓친 걸 OCI가 잡아준
+    // 것). Spring의 JavaMailSenderImpl은 이 체크 예외를 잡아 언체크 MailSendException으로 감싸
+    // 올리므로 getCause()까지 확인해야 실제로 잡힌다.
     private boolean isRecipientRejection(Exception e) {
         return e instanceof SendFailedException || e.getCause() instanceof SendFailedException;
     }
