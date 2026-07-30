@@ -3,13 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  refreshSession,
-  logout,
-  getRecruitmentStatus,
-  AdminApiError,
-} from '@/lib/adminApi';
-import type { AdminAccount } from '@shared/types/admin';
+import { getRecruitmentStatus, AdminApiError } from '@/lib/adminApi';
 import type { RecruitmentStatusResponse } from '@shared/types/recruitment';
 
 interface QuickAction {
@@ -91,14 +85,9 @@ function isUnauthenticated(error: unknown) {
 export default function AdminDashboard() {
   const router = useRouter();
 
-  const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [sessionError, setSessionError] = useState('');
-  const [sessionReloadIndex, setSessionReloadIndex] = useState(0);
-
   const [recruitmentStatus, setRecruitmentStatus] =
     useState<RecruitmentStatusResponse | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState('');
 
   const loadRecruitmentStatus = useCallback(async () => {
@@ -126,78 +115,35 @@ export default function AdminDashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      setSessionLoading(true);
-      setSessionError('');
-      try {
-        const session = await refreshSession();
-        if (cancelled) return;
-        setCurrentAdmin(session.admin);
-        setSessionLoading(false);
-        await loadRecruitmentStatus();
-      } catch (error) {
+    getRecruitmentStatus()
+      .then((status) => {
+        if (!cancelled) setRecruitmentStatus(status);
+      })
+      .catch((error) => {
         if (cancelled) return;
         if (isUnauthenticated(error)) {
           router.replace('/admin/login');
           return;
         }
-        setSessionError(
+        setRecruitmentStatus(null);
+        setStatusError(
           error instanceof AdminApiError
             ? error.message
-            : '세션을 확인하지 못했어요.'
+            : '모집 상태를 불러오지 못했어요.'
         );
-      } finally {
-        if (!cancelled) setSessionLoading(false);
-      }
-    })();
+      })
+      .finally(() => {
+        if (!cancelled) setStatusLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [loadRecruitmentStatus, router, sessionReloadIndex]);
-
-  async function handleLogout() {
-    try {
-      await logout();
-    } catch {
-      // 서버 요청이 실패해도 현재 화면에 머물게 하지 않는다.
-    }
-    router.push('/admin/login');
-    router.refresh();
-  }
-
-  if (sessionLoading) {
-    return (
-      <div
-        className="mx-auto w-full max-w-6xl py-24 text-center"
-        aria-live="polite"
-      >
-        <p className="text-sm text-muted">운영 공간을 준비하고 있어요…</p>
-      </div>
-    );
-  }
-
-  if (sessionError) {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
-        <div>
-          <p className="font-medium text-white">대시보드에 들어오지 못했어요.</p>
-          <p className="mt-2 text-sm text-muted">{sessionError}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setSessionReloadIndex((value) => value + 1)}
-          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          세션 다시 확인
-        </button>
-      </div>
-    );
-  }
+  }, [router]);
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <header className="flex flex-col gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end sm:justify-between">
+      <header className="border-b border-white/10 pb-7">
         <div>
           <p className="text-xs font-semibold tracking-[0.2em] text-accent">
             ADMIN WORKSPACE
@@ -205,19 +151,10 @@ export default function AdminDashboard() {
           <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
             오늘의 운영을 시작해볼까요?
           </h1>
-          {currentAdmin && (
-            <p className="mt-2 break-all text-sm text-muted">
-              {currentAdmin.name}님 · {currentAdmin.email}
-            </p>
-          )}
+          <p className="mt-2 text-sm text-muted">
+            현재 상태를 확인하고 필요한 관리 업무로 바로 이동하세요.
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="min-h-11 self-start rounded-full border border-white/20 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent sm:self-auto"
-        >
-          로그아웃
-        </button>
       </header>
 
       <section

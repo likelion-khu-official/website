@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -245,7 +244,7 @@ export default function AdminAccountManagement() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-8">
         <div className="min-w-0">
           <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-accent uppercase">
             Admin accounts
@@ -255,12 +254,6 @@ export default function AdminAccountManagement() {
             다음 운영진을 초대하고, 더 이상 운영하지 않는 관리자 계정을 정리해요.
           </p>
         </div>
-        <Link
-          href="/admin"
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-white/20 px-4 py-2 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent sm:w-auto"
-        >
-          ← 대시보드
-        </Link>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
