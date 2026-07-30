@@ -29,23 +29,23 @@ public class E2eAdminSeedRunner implements ApplicationRunner {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${admin.e2e-seed.super-admin-email:e2e-super-admin@likelion-khu.com}")
-    private String superAdminEmail;
+    @Value("${admin.e2e-seed.first-admin-email:e2e-super-admin@likelion-khu.com}")
+    private String firstAdminEmail;
 
-    @Value("${admin.e2e-seed.super-admin-password:E2eSuperAdmin!2026}")
-    private String superAdminPassword;
+    @Value("${admin.e2e-seed.first-admin-password:E2eSuperAdmin!2026}")
+    private String firstAdminPassword;
 
-    @Value("${admin.e2e-seed.admin-email:e2e-admin@likelion-khu.com}")
-    private String adminEmail;
+    @Value("${admin.e2e-seed.second-admin-email:e2e-admin@likelion-khu.com}")
+    private String secondAdminEmail;
 
-    @Value("${admin.e2e-seed.admin-password:E2eAdmin!2026}")
-    private String adminPassword;
+    @Value("${admin.e2e-seed.second-admin-password:E2eAdmin!2026}")
+    private String secondAdminPassword;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        seedOne(superAdminEmail, "E2E Super Admin", superAdminPassword);
-        seedOne(adminEmail, "E2E Admin", adminPassword);
+        seedOne(firstAdminEmail, "E2E Admin 1", firstAdminPassword);
+        seedOne(secondAdminEmail, "E2E Admin 2", secondAdminPassword);
     }
 
     private void seedOne(String email, String name, String rawPassword) {

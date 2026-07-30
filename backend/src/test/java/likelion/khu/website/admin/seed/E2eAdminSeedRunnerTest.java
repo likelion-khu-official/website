@@ -22,14 +22,14 @@ class E2eAdminSeedRunnerTest {
     @Autowired PasswordEncoder passwordEncoder;
 
     @Test
-    void run_SeedsFixedPasswordSuperAdminAndAdmin() {
+    void run_SeedsFixedPasswordAdmins() {
         seedRunner.run(emptyArgs());
 
-        var superAdmin = adminRepository.findByEmail("e2e-super-admin@likelion-khu.com").orElseThrow();
-        assertThat(passwordEncoder.matches("E2eSuperAdmin!2026", superAdmin.getPasswordHash())).isTrue();
+        var firstAdmin = adminRepository.findByEmail("e2e-super-admin@likelion-khu.com").orElseThrow();
+        assertThat(passwordEncoder.matches("E2eSuperAdmin!2026", firstAdmin.getPasswordHash())).isTrue();
 
-        var admin = adminRepository.findByEmail("e2e-admin@likelion-khu.com").orElseThrow();
-        assertThat(passwordEncoder.matches("E2eAdmin!2026", admin.getPasswordHash())).isTrue();
+        var secondAdmin = adminRepository.findByEmail("e2e-admin@likelion-khu.com").orElseThrow();
+        assertThat(passwordEncoder.matches("E2eAdmin!2026", secondAdmin.getPasswordHash())).isTrue();
     }
 
     @Test
