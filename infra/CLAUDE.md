@@ -215,12 +215,21 @@ OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/docs/iam.md`(로컬 �
 
 **DB 파일도 롤백과 함께 자동 복원하는 건 의도적으로 안 한다.** 그 자동화를 걸어두면, 마이그레이션이 문제없이 커밋된 뒤 실사용자가 새로 쓴 데이터(신규 가입·글 등)가 있어도 헬스체크 실패 시점에 무조건 배포 이전 스냅샷으로 덮어써서 그 진짜 데이터까지 날려버린다 — "이 실패가 마이그레이션 때문인지, 완전히 무관한 문제인지"는 스크립트가 구분 못 하는 판단이라, DB 복원은 항상 사람이 상황을 보고 결정해서 수동으로 한다. 대신 행을 삭제하는 마이그레이션을 배포하기 *전에* 신선한 복구 지점을 만들어두는 수동 백업 절차는 [`db-access.md`](./db-access.md)의 "백업 전략" 절 하위 항목 참고.
 
+## 서버 `dev` 동기화 — `pull` 말고 `fetch` + `reset --hard`
+
+서버 배포 키는 origin에서 **fetch만 되고 push는 안 된다**(의도적 — 서버가 뚫려도 레포에 악성 코드를 못 밀어넣게 하는 최소권한). 이 권한 구조 자체는 유지한다. 문제는 서버를 갱신할 때 `git pull`(=내부적으로 `fetch` + `merge`)을 써온 습관이었다 — 로컬·원격 히스토리가 조금이라도 갈라져 있으면 merge가 **로컬에만 있는 머지 커밋**을 새로 만드는데, 그 커밋은 push가 안 되니 다음 pull 때 또 다른 로컬 전용 머지 커밋이 쌓이는 식으로 영원히 반복된다(2026-07-26 최초 발견 시 26커밋 → 2026-07-30 확인 시 54커밋까지 불어남 — `reset --hard origin/dev`로 정리 완료, 내용 손실 없음 확인됨).
+
+서버는 개발하는 곳이 아니라 배포 대상일 뿐이라 로컬 전용 커밋이 애초에 "지켜야 할 작업"일 이유가 없다. **앞으로 서버 `dev`를 갱신할 땐 항상:**
+```bash
+cd ~/website && git fetch origin && git reset --hard origin/dev
+```
+`git pull`(과 그 별칭들)은 쓰지 않는다 — merge가 필요한 상황 자체가 이 서버에선 "뭔가 잘못됐다"는 신호이지 정상 동작이 아니다.
+
 ## 미결 사항
 
 살아있는 "지금 안 끝난 것"만 한 줄씩 — 상세·경위는 각 문서가 갖고 있다(여기 복붙 안 함). 완료된 항목은 지운다(히스토리는 `pm/docs/learnings.md`·git log가 가짐).
 
 > 2026-07-26 서버 SSH 실측 재확인: 신선우 공개키 등록·sqlite-web GUI 뷰어(`main` 승격 포함)·이메일 자격증명 전달(#75 closed)·#83 PR 제출(머지·이슈 closed) — **전부 완료 확인.** 이전 버전의 이 섹션에 "미결"로 남아있던 항목들이 실제로는 이미 끝나 있었음(문서 갱신 누락).
 
-- **서버 `dev`가 `origin/dev`와 커밋 단위로 갈라져 있음(2026-07-26 실측: 로컬 전용 26개, origin 전용 16개)** — 서버 배포 키가 read-only라 `git pull`이 만드는 병합 커밋을 다시 push 못 해 반복 누적된 것으로 보임. 지금까지 실제 파일 내용(`docker-compose.yml` 등)엔 drift 없음을 확인했으나, 다음 `git pull`이 진짜 충돌을 낼 위험 있음 — 정리 방법(어느 쪽을 기준으로 reconcile할지)은 장찬욱 결정 필요. 대응 시 주의사항은 [`RUNBOOK.md`](./docs/RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
 - **`infra/scripts/cleanup-old-logs.sh`(2026-07-26 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 미머지 브랜치 상태로 서버에 먼저 올리면 git 드리프트 알람만 오탐 유발(`docs/observability.md` 참고)하므로 일부러 안 함. 머지 후: `crontab -e`에 `0 19 * * * /home/ubuntu/website/infra/scripts/cleanup-old-logs.sh >> /home/ubuntu/cleanup-logs.log 2>&1` 한 줄 추가(백업 cron 1시간 뒤 시간대), `git ls-tree HEAD -- infra/scripts/cleanup-old-logs.sh`로 `100755` 확인.
-- **`infra/scripts/push-email-success-metric.py`(#113 후속 추가) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 필요.** 같은 이유로 미머지 상태론 서버에 안 올림. 머지 후: `crontab -e`에 `*/5 * * * * /home/ubuntu/oci-monitor-venv/bin/python3 /home/ubuntu/website/infra/scripts/push-email-success-metric.py prod` + `stage` 두 줄 추가(`push-email-failure-metric.py`와 동일 venv·동일 등록 방식), `git ls-tree HEAD -- infra/scripts/push-email-success-metric.py`로 `100755` 확인.
+- **prod `email_log`에 `failure_cause` 컬럼이 아직 없음** — #113 후속(#302)이 `dev`→`stage`에만 배포되고 `main`→`prod`는 아직이라, prod DB는 이 컬럼이 생기는 마이그레이션을 못 받았다. `push-email-failure-metric.py`는 컬럼이 없으면 자동으로 예전 쿼리(원인 구분 없이 카운트)로 폴백하도록 이미 고쳐둬서(#310) 알람 자체는 안 죽지만, `failure_cause` 기반의 원인 세분화는 `main` 머지 전까지 prod엔 아직 안 먹는다 — `main` 머지 시점에 자동 해소, 별도 조치 불필요.
