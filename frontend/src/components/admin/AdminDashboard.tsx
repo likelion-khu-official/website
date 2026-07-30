@@ -1,305 +1,360 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   refreshSession,
   logout,
-  listAdmins,
-  createInvitation,
-  deleteAdmin,
-  getSubscribers,
+  getRecruitmentStatus,
   AdminApiError,
 } from '@/lib/adminApi';
-import type { AdminAccount, AdminSummary } from '@shared/types/admin';
-import type { SubscriberSummary } from '@shared/types/recruitment';
+import type { AdminAccount } from '@shared/types/admin';
+import type { RecruitmentStatusResponse } from '@shared/types/recruitment';
 
-const STATUS_LABEL: Record<AdminSummary['status'], string> = { ACTIVE: '활성', LOCKED: '잠김' };
+interface QuickAction {
+  href: string;
+  title: string;
+  description: string;
+}
+
+interface ActionGroup {
+  eyebrow: string;
+  title: string;
+  description: string;
+  actions: QuickAction[];
+}
+
+const ACTION_GROUPS: ActionGroup[] = [
+  {
+    eyebrow: 'PEOPLE',
+    title: '사람과 계정',
+    description: '새 부원을 맞이하고 사이트를 함께 운영할 사람을 관리해요.',
+    actions: [
+      {
+        href: '/admin/members',
+        title: '멤버 관리',
+        description: '부원 등록 · 정보 수정 · 비밀번호 초기화',
+      },
+      {
+        href: '/admin/admins',
+        title: '관리자 계정',
+        description: '관리자 초대 · 계정 상태 확인',
+      },
+    ],
+  },
+  {
+    eyebrow: 'RECRUIT',
+    title: '모집 운영',
+    description: '모집을 열기 전 준비부터 접수된 지원서 확인까지 이어서 처리해요.',
+    actions: [
+      {
+        href: '/admin/recruitment',
+        title: '모집 관리',
+        description: '모집 시작 · 종료 · 공개 화면 미리보기',
+      },
+      {
+        href: '/admin/applications',
+        title: '지원자 확인',
+        description: '접수된 지원서 명단과 답변 열람',
+      },
+      {
+        href: '/admin/application-form',
+        title: '지원서 양식',
+        description: '질문 구성과 안내 문구 편집',
+      },
+    ],
+  },
+  {
+    eyebrow: 'CONTENT',
+    title: '콘텐츠',
+    description: '공식 사이트에 공개된 콘텐츠를 살피고 필요한 조치를 해요.',
+    actions: [
+      {
+        href: '/admin/blog',
+        title: '블로그 관리',
+        description: '게시된 글 숨김 · 다시 게시',
+      },
+    ],
+  },
+];
+
+function isUnauthenticated(error: unknown) {
+  return (
+    error instanceof AdminApiError &&
+    (error.status === 401 ||
+      error.code === 'UNAUTHENTICATED' ||
+      error.code === 'INVALID_REFRESH_TOKEN')
+  );
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
 
   const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
-  const [admins, setAdmins] = useState<AdminSummary[]>([]);
-  const [subscribers, setSubscribers] = useState<SubscriberSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionError, setSessionError] = useState('');
+  const [sessionReloadIndex, setSessionReloadIndex] = useState(0);
 
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-  const [inviteSuccess, setInviteSuccess] = useState('');
+  const [recruitmentStatus, setRecruitmentStatus] =
+    useState<RecruitmentStatusResponse | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState('');
 
-  const [busyId, setBusyId] = useState<number | null>(null);
-  const [rowError, setRowError] = useState('');
-
-  const [reloadIndex, setReloadIndex] = useState(0);
+  const loadRecruitmentStatus = useCallback(async () => {
+    setStatusLoading(true);
+    setStatusError('');
+    try {
+      const status = await getRecruitmentStatus();
+      setRecruitmentStatus(status);
+    } catch (error) {
+      if (isUnauthenticated(error)) {
+        router.replace('/admin/login');
+        return;
+      }
+      setRecruitmentStatus(null);
+      setStatusError(
+        error instanceof AdminApiError
+          ? error.message
+          : '모집 상태를 불러오지 못했어요.'
+      );
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
-      setLoadError('');
+      setSessionLoading(true);
+      setSessionError('');
       try {
-        // 별도 "me" 엔드포인트가 없어 refresh 응답으로 현재 세션 신원을 확인한다.
         const session = await refreshSession();
         if (cancelled) return;
         setCurrentAdmin(session.admin);
-        const list = await listAdmins();
+        setSessionLoading(false);
+        await loadRecruitmentStatus();
+      } catch (error) {
         if (cancelled) return;
-        setAdmins(list);
-        const subs = await getSubscribers();
-        if (cancelled) return;
-        setSubscribers(subs);
-      } catch (err) {
-        if (cancelled) return;
-        if (
-          err instanceof AdminApiError &&
-          (err.status === 401 || err.code === 'UNAUTHENTICATED' || err.code === 'INVALID_REFRESH_TOKEN')
-        ) {
+        if (isUnauthenticated(error)) {
           router.replace('/admin/login');
           return;
         }
-        setLoadError(err instanceof AdminApiError ? err.message : '불러오지 못했어요.');
+        setSessionError(
+          error instanceof AdminApiError
+            ? error.message
+            : '세션을 확인하지 못했어요.'
+        );
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setSessionLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [reloadIndex, router]);
+  }, [loadRecruitmentStatus, router, sessionReloadIndex]);
 
   async function handleLogout() {
     try {
       await logout();
     } catch {
-      // 로그아웃 요청이 실패해도 어차피 로그인 화면으로 보낸다
+      // 서버 요청이 실패해도 현재 화면에 머물게 하지 않는다.
     }
     router.push('/admin/login');
     router.refresh();
   }
 
-  async function handleInviteSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (inviteSubmitting) return;
-    setInviteSubmitting(true);
-    setInviteError('');
-    setInviteSuccess('');
-    try {
-      const invitation = await createInvitation({ email: inviteEmail.trim() });
-      setInviteSuccess(`${invitation.email}로 초대를 보냈어요.`);
-      setInviteEmail('');
-    } catch (err) {
-      setInviteError(err instanceof AdminApiError ? err.message : '초대에 실패했어요.');
-    } finally {
-      setInviteSubmitting(false);
-    }
+  if (sessionLoading) {
+    return (
+      <div
+        className="mx-auto w-full max-w-6xl py-24 text-center"
+        aria-live="polite"
+      >
+        <p className="text-sm text-muted">운영 공간을 준비하고 있어요…</p>
+      </div>
+    );
   }
 
-  async function handleDelete(admin: AdminSummary) {
-    if (!window.confirm(`${admin.name}님을 운영진에서 삭제할까요? 되돌릴 수 없어요.`)) return;
-    setBusyId(admin.id);
-    setRowError('');
-    try {
-      await deleteAdmin(admin.id);
-      setAdmins((prev) => prev.filter((a) => a.id !== admin.id));
-    } catch (err) {
-      setRowError(err instanceof AdminApiError ? err.message : '삭제에 실패했어요.');
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;
-  }
-
-  if (loadError) {
+  if (sessionError) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
-        <p className="text-sm text-muted">{loadError}</p>
+        <div>
+          <p className="font-medium text-white">대시보드에 들어오지 못했어요.</p>
+          <p className="mt-2 text-sm text-muted">{sessionError}</p>
+        </div>
         <button
           type="button"
-          onClick={() => setReloadIndex((v) => v + 1)}
+          onClick={() => setSessionReloadIndex((value) => value + 1)}
           className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
-          다시 시도
+          세션 다시 확인
         </button>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-6xl">
+      <header className="flex flex-col gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">어드민 대시보드</h1>
+          <p className="text-xs font-semibold tracking-[0.2em] text-accent">
+            ADMIN WORKSPACE
+          </p>
+          <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
+            오늘의 운영을 시작해볼까요?
+          </h1>
           {currentAdmin && (
-            <p className="mt-1 break-all text-sm text-muted">
-              {currentAdmin.name} ({currentAdmin.email})
+            <p className="mt-2 break-all text-sm text-muted">
+              {currentAdmin.name}님 · {currentAdmin.email}
             </p>
           )}
         </div>
         <button
           type="button"
           onClick={handleLogout}
-          className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-11 self-start rounded-full border border-white/20 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent sm:self-auto"
         >
           로그아웃
         </button>
-      </div>
+      </header>
 
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">운영진 목록</h2>
-        <button
-          type="button"
-          onClick={() => setInviteOpen((v) => !v)}
-          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          {inviteOpen ? '닫기' : '+ 초대'}
-        </button>
-      </div>
+      <section
+        className="mt-7 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]"
+        aria-labelledby="recruitment-status-title"
+      >
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+          <div className="p-5 sm:p-7">
+            <p className="text-xs font-semibold tracking-[0.16em] text-muted">
+              RECRUITMENT STATUS
+            </p>
+            <h2
+              id="recruitment-status-title"
+              className="mt-2 text-lg font-semibold text-white"
+            >
+              현재 모집 상태
+            </h2>
 
-      {inviteOpen && (
-        <form
-          onSubmit={handleInviteSubmit}
-          className="mb-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-end"
-        >
-          <div className="flex-1">
-            <label className="mb-2 block text-sm font-medium text-white" htmlFor="invite-email">
-              초대할 이메일
-            </label>
-            <input
-              id="invite-email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              required
-              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
+            {statusLoading ? (
+              <p className="mt-5 text-sm text-muted" aria-live="polite">
+                모집 상태를 확인하고 있어요…
+              </p>
+            ) : statusError ? (
+              <div className="mt-5" role="status">
+                <p className="text-sm font-medium text-white">
+                  지금은 상태를 확인할 수 없어요.
+                </p>
+                <p className="mt-1 text-sm text-muted">{statusError}</p>
+                <button
+                  type="button"
+                  onClick={loadRecruitmentStatus}
+                  className="mt-4 min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  상태 다시 불러오기
+                </button>
+              </div>
+            ) : recruitmentStatus ? (
+              <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2">
+                <p
+                  className={`text-3xl font-bold ${
+                    recruitmentStatus.open
+                      ? 'text-emerald-300'
+                      : 'text-white'
+                  }`}
+                >
+                  {recruitmentStatus.open ? '모집중' : '평소'}
+                </p>
+                <p className="pb-0.5 text-sm text-muted">
+                  모집 알림 구독자{' '}
+                  <strong className="font-semibold text-white">
+                    {recruitmentStatus.subscriberCount}명
+                  </strong>
+                </p>
+              </div>
+            ) : null}
           </div>
-          <button
-            type="submit"
-            disabled={inviteSubmitting}
-            className="min-h-11 w-full rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 sm:w-auto"
+
+          <div className="flex flex-col justify-between gap-5 border-t border-white/10 bg-white/[0.025] p-5 sm:p-7 lg:border-t-0 lg:border-l">
+            <p className="text-sm leading-6 text-muted">
+              {recruitmentStatus?.open
+                ? '지원자가 보는 모집 화면을 확인하고, 접수 현황을 이어서 살펴보세요.'
+                : recruitmentStatus?.subscriberCount === 0
+                  ? '아직 안내를 기다리는 구독자가 없어요. 모집 화면을 미리 준비할 수 있어요.'
+                  : '모집을 시작하면 기다리고 있는 구독자에게 안내 메일이 한 번 발송돼요.'}
+            </p>
+            <Link
+              href="/admin/recruitment"
+              className="inline-flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-medium text-white outline-none transition-colors hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              모집 관리 열기
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10" aria-labelledby="quick-actions-title">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.16em] text-muted">
+            QUICK ACTIONS
+          </p>
+          <h2
+            id="quick-actions-title"
+            className="mt-2 text-xl font-semibold text-white"
           >
-            {inviteSubmitting ? '보내는 중…' : '초대 보내기'}
-          </button>
-        </form>
-      )}
-      {inviteError && <p className="mb-4 text-sm text-red-400">{inviteError}</p>}
-      {inviteSuccess && <p className="mb-4 text-sm text-emerald-400">{inviteSuccess}</p>}
-      {rowError && <p className="mb-4 text-sm text-red-400">{rowError}</p>}
+            어떤 일을 하러 오셨나요?
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            목적을 고르면 필요한 관리 화면으로 바로 이동해요.
+          </p>
+        </div>
 
-      {admins.length === 0 ? (
-        <p className="py-12 text-center text-sm text-muted">운영진이 없어요.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {admins.map((admin) => {
-            const isSelf = admin.id === currentAdmin?.id;
-            const busy = busyId === admin.id;
-            return (
-              <li
-                key={admin.id}
-                className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-medium text-white">
-                    {admin.name}
-                    {isSelf && <span className="ml-1 text-muted">(나)</span>}
-                  </p>
-                  <p className="break-all text-sm text-muted">{admin.email}</p>
-                  <p className="mt-1 text-xs text-muted">{STATUS_LABEL[admin.status]}</p>
-                </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {ACTION_GROUPS.map((group) => (
+            <article
+              key={group.eyebrow}
+              className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6"
+            >
+              <p className="text-xs font-semibold tracking-[0.16em] text-accent">
+                {group.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                {group.title}
+              </h3>
+              <p className="mt-2 min-h-12 text-sm leading-6 text-muted">
+                {group.description}
+              </p>
 
-                {!isSelf && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleDelete(admin)}
-                      className="min-h-11 rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+              <ul className="mt-5 flex flex-1 flex-col gap-2">
+                {group.actions.map((action) => (
+                  <li key={action.href}>
+                    <Link
+                      href={action.href}
+                      className="group flex min-h-16 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      삭제
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div className="mt-10 flex flex-wrap justify-center gap-3">
-        <button
-          type="button"
-          onClick={() => router.push('/admin/recruitment')}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
-        >
-          모집 관리로 이동
-        </button>
-      </div>
-
-      <div className="mt-10 flex justify-center">
-        <button
-          type="button"
-          onClick={() => router.push('/admin/members')}
-          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          멤버 관리로 이동
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push('/admin/applications')}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
-        >
-          지원자 보기
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push('/admin/application-form')}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/20"
-        >
-          지원서 양식 편집
-        </button>
-      </div>
-
-      <div className="mt-10 border-t border-white/10 pt-6">
-        <h2 className="mb-3 text-lg font-semibold text-white">모집 알림 구독자 명단</h2>
-        {subscribers.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted">아직 신청자가 없어요.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {subscribers.map((sub) => (
-              <li
-                key={sub.email}
-                className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-sm text-white">{sub.email}</span>
-                <span className="text-xs text-muted">
-                  {new Date(sub.subscribedAt).toLocaleString('ko-KR')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-10 border-t border-white/10 pt-6">
-        <h2 className="mb-3 text-lg font-semibold text-white">콘텐츠 관리</h2>
-        <Link
-          href="/admin/blog"
-          className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <span>블로그 관리</span>
-          <span className="hidden text-muted sm:inline">게시된 글 숨김·재게시 →</span>
-        </Link>
-      </div>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-white">
+                          {action.title}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-muted">
+                          {action.description}
+                        </span>
+                      </span>
+                      <span
+                        className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-white"
+                        aria-hidden="true"
+                      >
+                        →
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
