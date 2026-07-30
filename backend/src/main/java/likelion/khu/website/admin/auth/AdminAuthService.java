@@ -7,9 +7,11 @@ import likelion.khu.website.admin.dto.AdminSessionResponse;
 import likelion.khu.website.admin.exception.AccountLockedException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
+import likelion.khu.website.common.LogMasker;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminAuthService {
@@ -51,17 +54,23 @@ public class AdminAuthService {
     @Transactional(noRollbackFor = {InvalidCredentialsException.class, AccountLockedException.class})
     public LoginResult login(String email, String rawPassword) {
         Admin admin = adminRepository.findByEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> {
+                    log.warn("관리자 로그인 실패(존재하지 않는 계정) - {}", LogMasker.maskEmail(email));
+                    return new InvalidCredentialsException();
+                });
 
         if (admin.isLocked()) {
+            log.warn("관리자 로그인 실패(계정 잠김) - {}", LogMasker.maskEmail(email));
             throw new AccountLockedException();
         }
 
         if (!passwordEncoder.matches(rawPassword, admin.getPasswordHash())) {
             admin.recordFailedLogin(maxAttempts, Duration.ofMinutes(lockoutDurationMinutes));
             if (admin.isLocked()) {
+                log.warn("관리자 로그인 실패(비밀번호 오류 누적으로 계정 잠김) - {}", LogMasker.maskEmail(email));
                 throw new AccountLockedException();
             }
+            log.warn("관리자 로그인 실패(비밀번호 불일치) - {}", LogMasker.maskEmail(email));
             throw new InvalidCredentialsException();
         }
 

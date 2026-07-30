@@ -6,6 +6,7 @@ import likelion.khu.website.admin.auth.JwtProvider;
 import likelion.khu.website.admin.exception.AccountLockedException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
+import likelion.khu.website.common.LogMasker;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.auth.dto.MemberSessionResponse;
@@ -13,6 +14,7 @@ import likelion.khu.website.member.exception.MemberNotFoundException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import java.util.HexFormat;
 
 // admin.auth.AdminAuthService와 같은 로그인/JWT/쿠키 로직을 멤버(학번 로그인)용으로 그대로 반복한다.
 // #117 계획대로 admins/refresh_tokens 테이블은 건드리지 않고 나란히 둔다.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberAuthService {
@@ -53,17 +56,23 @@ public class MemberAuthService {
     @Transactional(noRollbackFor = {InvalidCredentialsException.class, AccountLockedException.class})
     public LoginResult login(String studentId, String rawPassword) {
         Member member = memberRepository.findByStudentId(studentId)
-                .orElseThrow(() -> new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요."));
+                .orElseThrow(() -> {
+                    log.warn("멤버 로그인 실패(존재하지 않는 학번) - {}", LogMasker.maskId(studentId));
+                    return new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요.");
+                });
 
         if (member.isLocked()) {
+            log.warn("멤버 로그인 실패(계정 잠김) - {}", LogMasker.maskId(studentId));
             throw new AccountLockedException();
         }
 
         if (!passwordEncoder.matches(rawPassword, member.getPasswordHash())) {
             member.recordFailedLogin(maxAttempts, Duration.ofMinutes(lockoutDurationMinutes));
             if (member.isLocked()) {
+                log.warn("멤버 로그인 실패(비밀번호 오류 누적으로 계정 잠김) - {}", LogMasker.maskId(studentId));
                 throw new AccountLockedException();
             }
+            log.warn("멤버 로그인 실패(비밀번호 불일치) - {}", LogMasker.maskId(studentId));
             throw new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요.");
         }
 

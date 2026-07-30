@@ -16,4 +16,6 @@
 
 ## 규칙
 
-(아직 없음)
+### 로그에 이메일·학번 등 개인정보를 원문으로 남기지 않는다
+
+로그 파일이 서버 디스크에 최대 30일 평문으로 보관된다(`infra/scripts/cleanup-old-logs.sh`). 운영 원인추적용 로깅을 도입하면서(로그인 실패 추적, 이메일 발송 실패 등) 개인정보가 로그에 섞여 들어갈 여지가 생겼다 — `LogMasker`(`backend/src/main/java/likelion/khu/website/common/LogMasker.java`)로 항상 마스킹해서 남긴다(`ab***@domain.com`, `ab***`). 새로 로깅을 추가할 때 이메일·학번·전화번호 등을 로그 메시지에 넣게 되면 반드시 이 유틸을 거칠 것.

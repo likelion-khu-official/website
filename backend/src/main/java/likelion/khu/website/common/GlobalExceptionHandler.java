@@ -27,6 +27,10 @@ import likelion.khu.website.project.exception.SelfNotIncludedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -34,6 +38,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -185,8 +190,40 @@ public class GlobalExceptionHandler {
     // 계정 열거 방지 스펙(#90)을 유지한다 — AdminPasswordResetService 주석 참고.
     @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
+    }
+
+    // AccessDeniedException/AuthenticationException은 원래 여기까지 안 오고 SecurityConfig의
+    // exceptionHandling()이 필터 레벨에서 401/403 JSON을 직접 씀(SecurityConfig 주석 참고). 아래
+    // catch-all(Exception.class)이 이보다 먼저 가로채면 403/401이 500으로 바뀌는 회귀가 생겨서,
+    // 여기서 다시 던져 원래 경로(필터 체인)로 돌려보낸다.
+    @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+    public void rethrowSecurityException(RuntimeException ex) throws RuntimeException {
+        throw ex;
+    }
+
+    // 위에서 다루지 않는 예외를 위한 마지막 그물. 이게 없으면 이런 예외는 여기까지 오지 않고 Spring
+    // 기본 처리(BasicErrorController)로 빠져서 로그도 안 남고 응답 형태(success/message/code)도
+    // 다른 API와 달라진다.
+    //
+    // NoResourceFoundException(존재하지 않는 경로 → 404) 등 Spring이 이미 상태 코드를 알고 있는
+    // 예외는 ErrorResponse 인터페이스로 통일돼 있다 — 다만 클래스가 제각각이라(NoResourceFoundException은
+    // ErrorResponseException이 아니라 ServletException을 상속) @ExceptionHandler 타입으로 따로 못
+    // 걸어서 여기서 instanceof로 분기한다. 이 경우는 정상적인 클라이언트 흐름(404/405 등)이라 ERROR
+    // 로깅은 안 하고 Spring이 정한 상태 코드를 그대로 존중만 한다.
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        if (ex instanceof ErrorResponse errorResponse) {
+            String detail = errorResponse.getBody().getDetail();
+            return ResponseEntity.status(errorResponse.getStatusCode())
+                    .body(Map.of("success", false, "message", detail != null ? detail : "요청을 처리할 수 없어요."));
+        }
+        log.error("예상하지 못한 서버 에러", ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("success", false, "message", "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."));
     }
 
     private Map<String, Object> errorBody(String message, String code) {
