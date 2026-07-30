@@ -14,8 +14,52 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "멋쟁이사자처럼 at 경희대",
-  description: "코딩으로 성장하는 경희대 개발 동아리",
+  metadataBase: new URL("https://likelion-khu.com"),
+  title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
+  description:
+    "멋쟁이사자처럼 경희대학교 공식 웹사이트. 코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 프로젝트와 활동을 소개합니다.",
+  applicationName: "LIKELION KHU",
+  keywords: [
+    "멋쟁이사자처럼",
+    "멋쟁이사자처럼 경희대",
+    "LIKELION KHU",
+    "경희대학교",
+    "개발 동아리",
+    "대학생 IT 동아리",
+  ],
+  authors: [{ name: "LIKELION KHU" }],
+  creator: "LIKELION KHU",
+  publisher: "LIKELION KHU",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+  },
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: "/",
+    siteName: "LIKELION KHU",
+    title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
+    description:
+      "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교의 프로젝트와 활동을 만나보세요.",
+  },
+  twitter: {
+    card: "summary",
+    title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
+    description:
+      "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교 공식 웹사이트.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({
