@@ -56,11 +56,11 @@
 
 현재 `admin.seed.admins`(env `ADMIN_SEED_ADMINS`, `email:name,email2:name2`)를 앱 기동 때 읽는다. 여기서 만들어지는 계정도 다른 관리자와 같은 `ADMIN` 권한이다. 없는 계정만 무작위 폐기용 비밀번호로 만든 뒤 본인에게 재설정 메일을 보내므로, 초기 비밀번호를 전달하는 경로가 없다.
 
-실제 이메일은 public 저장소의 파일에 쓰지 않고 각 환경의 gitignore된 설정에서만 주입한다. 옛 이름 `admin.seed.super-admins`(env `ADMIN_SEED_SUPER_ADMINS`)를 아직 쓰는 stage/prod `.env`도 계속 동작하도록, `application.yml`이 새 이름이 비어 있을 때만 옛 이름을 fallback으로 읽는다(#297) — 재배포 없이도 안 깨지고, 다음 `.env` 정리 때 새 이름으로 옮기면 된다.
+실제 이메일은 public 저장소의 파일에 쓰지 않고 각 환경의 gitignore된 설정에서만 주입한다. 옛 이름 `admin.seed.super-admins`(env `ADMIN_SEED_SUPER_ADMINS`)의 fallback은 제거했다(#297) — stage/prod `.env`가 아직 옛 이름을 쓰고 있다면 배포 전에 `ADMIN_SEED_ADMINS`로 옮겨야 하며, 옮기지 않으면 관리자 시드가 조용히 비어 실행된다.
 
 ## e2e 관리자
 
-HttpOnly 쿠키는 JavaScript로 주입할 수 없어 Playwright가 실제 로그인할 고정 비밀번호 계정이 필요하다. `E2eAdminSeedRunner`는 `SPRING_PROFILES_ACTIVE=e2e`에서만 관리자 2명(`admin.e2e-seed.first-admin-*`/`second-admin-*`, env `ADMIN_E2E_FIRST_ADMIN_*`/`ADMIN_E2E_SECOND_ADMIN_*`)을 만든다. 두 계정의 실제 권한은 같고, 이름도 최고/일반이 아니라 첫 번째/두 번째로 중립적으로 표현한다(#297) — 다만 계정 자체의 이메일·비밀번호 값은 이미 다른 곳에서 참조할 수 있어 그대로 유지했다. 옛 이름 `ADMIN_E2E_SUPER_ADMIN_*`/`ADMIN_E2E_ADMIN_*`도 fallback으로 계속 읽힌다. 두 계정은 한 관리자가 다른 관리자를 삭제하는 흐름과 마지막 관리자 보호를 검증하기 위해 필요하다.
+HttpOnly 쿠키는 JavaScript로 주입할 수 없어 Playwright가 실제 로그인할 고정 비밀번호 계정이 필요하다. `E2eAdminSeedRunner`는 `SPRING_PROFILES_ACTIVE=e2e`에서만 관리자 1명(`admin.e2e-seed.admin-*`, env `ADMIN_E2E_ADMIN_*`)을 만든다(단일 관리자 모델). 옛 이름 `ADMIN_E2E_SUPER_ADMIN_*`의 fallback도 제거했다(#297). 한 관리자가 다른 관리자를 삭제하는 흐름이나 마지막 관리자 보호처럼 계정 2개가 필요한 e2e 시나리오는, 이 고정 시드 계정이 아니라 테스트 안에서 필요할 때 관리자 초대로 두 번째 계정을 직접 만들어 검증한다.
 
 stage·prod에서는 `e2e` 프로필과 `ADMIN_E2E_*` 값을 절대 사용하지 않는다.
 
