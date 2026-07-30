@@ -1,0 +1,36 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="brandGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(210 315) rotate(90) scale(315 390)">
+      <stop stop-color="#FF5000" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FF5000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0B0B0B"/>
+  <rect width="1200" height="630" fill="url(#brandGlow)"/>
+
+  <g transform="translate(46 158) scale(19.1)" fill="#FFFFFF">
+    <path d="M6.52381 5H2L5.75561 7.38994V11.4016H11.2183V9.95058H6.52381V5Z"/>
+    <path d="M11.2188 5H14.9744L11.2188 7.30458V5Z"/>
+  </g>
+  <rect x="378" y="208" width="4" height="214" rx="2" fill="#FF5000"/>
+
+  <text
+    x="438"
+    y="288"
+    fill="#FFFFFF"
+    font-family="Apple SD Gothic Neo, sans-serif"
+    font-size="68"
+    font-weight="700"
+    letter-spacing="-2.4"
+  >멋쟁이사자처럼</text>
+  <text
+    x="438"
+    y="374"
+    fill="#FFFFFF"
+    font-family="Apple SD Gothic Neo, sans-serif"
+    font-size="58"
+    font-weight="600"
+    letter-spacing="-1.8"
+  >경희대학교</text>
+</svg>
