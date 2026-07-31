@@ -1,27 +1,9 @@
 import Link from 'next/link';
 import type { PostSummary } from '@shared/types/feed';
 import PostAuthor from '@/components/blog/PostAuthor';
+import StoryThumbnail from '@/components/blog/StoryThumbnail';
 import { getPosts } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
-
-function StoryThumbnail({ post }: { post: PostSummary }) {
-  return (
-    <div className="aspect-[16/10] w-full overflow-hidden rounded-[12px] bg-[#202020]">
-      {post.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.thumbnailUrl}
-          alt=""
-          className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.04]"
-        />
-      ) : (
-        <div className="flex h-full items-end bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.26),transparent_38%),linear-gradient(145deg,#272727,#171717)] p-3 sm:p-4">
-          <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25 sm:text-xs">STORY</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StoryCard({ post }: { post: PostSummary }) {
   return (

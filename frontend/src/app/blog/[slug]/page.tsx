@@ -5,6 +5,7 @@ import { getBaseUrl } from '@/lib/serverBaseUrl';
 import CommentSection from '@/components/blog/CommentSection';
 import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
 import PostAuthor from '@/components/blog/PostAuthor';
+import PostThumbnail from '@/components/blog/PostThumbnail';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -55,12 +56,7 @@ export default async function PostPage({ params }: Props) {
       </header>
 
       {post.thumbnailUrl && !markdownIncludesImage(post.content, post.thumbnailUrl) ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.thumbnailUrl}
-          alt=""
-          className="mb-8 aspect-[16/9] w-full rounded-2xl object-cover"
-        />
+        <PostThumbnail src={post.thumbnailUrl} />
       ) : null}
 
       <MarkdownContent content={post.content} />

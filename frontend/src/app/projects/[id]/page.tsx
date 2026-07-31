@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import ProjectImageGallery from '@/components/projects/ProjectImageGallery';
 import { getProjectById } from '@/lib/projectApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
@@ -104,23 +105,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           프로젝트 이미지
         </h2>
         {project.images.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2">
-            {project.images.map((image, index) => (
-              <div
-                key={`${image.url}-${index}`}
-                className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-black/35"
-              >
-                {/* 상세에서는 4:5 원본을 자르지 않는다. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={image.url}
-                  alt={`${project.title} 프로젝트 이미지 ${index + 1}`}
-                  className="h-full w-full object-contain"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                />
-              </div>
-            ))}
-          </div>
+          <ProjectImageGallery title={project.title} images={project.images} />
         ) : (
           <div className="flex aspect-[4/2] items-center justify-center rounded-[24px] border border-dashed border-white/15 text-sm text-white/35">
             등록된 이미지가 없어요.

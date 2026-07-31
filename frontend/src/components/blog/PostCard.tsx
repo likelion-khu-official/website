@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import type { PostSummary } from '@shared/types/feed';
 import PostAuthor from './PostAuthor';
 
@@ -17,6 +20,25 @@ function PostImage({
   priority: boolean;
   featured: boolean;
 }) {
+  const [imgError, setImgError] = useState(false);
+  const [lastThumbnailUrl, setLastThumbnailUrl] = useState(post.thumbnailUrl);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  if (post.thumbnailUrl !== lastThumbnailUrl) {
+    setLastThumbnailUrl(post.thumbnailUrl);
+    setImgError(false);
+  }
+
+  // eager 로딩(priority)일 때 SSR HTML이 그려지자마자 요청이 시작돼, 하이드레이션이
+  // onError 리스너를 붙이기 전에 실패가 끝나버리면 이벤트가 유실된다(error는 버블링
+  // 안 함). 마운트 시 네이티브 로드 상태를 한 번 더 확인해 놓친 실패를 보정한다.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) {
+      setImgError(true);
+    }
+  }, [post.thumbnailUrl]);
+
   return (
     <div
       className={`relative overflow-hidden bg-[#202020] ${
@@ -25,13 +47,15 @@ function PostImage({
           : 'aspect-[16/10] rounded-[22px] border border-white/10'
       }`}
     >
-      {post.thumbnailUrl ? (
+      {post.thumbnailUrl && !imgError ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={post.thumbnailUrl}
           alt={`${post.title} 대표 이미지`}
           loading={priority ? 'eager' : 'lazy'}
           className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.025]"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="flex h-full flex-col justify-between bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.28),transparent_35%),linear-gradient(145deg,#272727,#171717)] p-6 sm:p-8">

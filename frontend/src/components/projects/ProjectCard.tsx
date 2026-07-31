@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import type { ProjectSummary } from '@shared/types/project';
 
 type Props = {
@@ -8,6 +11,25 @@ type Props = {
 };
 
 export default function ProjectCard({ project, priority = false, compact = false }: Props) {
+  const [imgError, setImgError] = useState(false);
+  const [lastImageUrl, setLastImageUrl] = useState(project.representativeImageUrl);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  if (project.representativeImageUrl !== lastImageUrl) {
+    setLastImageUrl(project.representativeImageUrl);
+    setImgError(false);
+  }
+
+  // eager 로딩(priority)일 때 SSR HTML이 그려지자마자 요청이 시작돼, 하이드레이션이
+  // onError 리스너를 붙이기 전에 실패가 끝나버리면 이벤트가 유실된다(error는 버블링
+  // 안 함). 마운트 시 네이티브 로드 상태를 한 번 더 확인해 놓친 실패를 보정한다.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) {
+      setImgError(true);
+    }
+  }, [project.representativeImageUrl]);
+
   return (
     <Link
       href={`/projects/${project.id}`}
@@ -19,14 +41,16 @@ export default function ProjectCard({ project, priority = false, compact = false
           compact ? 'aspect-[4/3]' : 'aspect-[4/5]'
         }`}
       >
-        {project.representativeImageUrl ? (
+        {project.representativeImageUrl && !imgError ? (
           // 프로젝트 이미지는 OCI URL이라 Next 이미지 도메인을 고정하지 않는다.
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            ref={imgRef}
             src={project.representativeImageUrl}
             alt={`${project.title} 대표 이미지`}
             className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.025]"
             loading={priority ? 'eager' : 'lazy'}
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex h-full flex-col justify-between bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.24),transparent_36%),linear-gradient(145deg,#272727,#181818)] p-6">
