@@ -201,6 +201,70 @@ textarea {
   }
 }
 
+/* 히어로 최초 등장 — 카피가 blur→선명 + 아래에서 순차로 떠오른다. 스크롤 패럴럭스는
+   .hero-copy(부모)에 걸리므로, 자식 문구에 애니메이션을 둬 서로 간섭하지 않는다.
+   animation-fill-mode:both → 각자 delay 동안 시작 상태(투명)로 숨어 있다 순차 등장. */
+.hero-intro-eyebrow,
+.hero-intro-title,
+.hero-intro-sub {
+  animation-fill-mode: both;
+  animation-timing-function: var(--motion-ease-out);
+  will-change: transform, opacity, filter;
+}
+
+.hero-intro-eyebrow {
+  animation-name: hero-copy-rise;
+  animation-duration: 0.85s;
+  animation-delay: 0.15s;
+}
+
+.hero-intro-title {
+  animation-name: hero-title-in;
+  animation-duration: 1.15s;
+  animation-delay: 0.32s;
+}
+
+.hero-intro-sub {
+  animation-name: hero-copy-rise;
+  animation-duration: 0.95s;
+  animation-delay: 0.66s;
+}
+
+@keyframes hero-copy-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes hero-title-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 42px, 0) scale(1.045);
+    filter: blur(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-intro-eyebrow,
+  .hero-intro-title,
+  .hero-intro-sub {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
 @media (max-width: 639px) {
   .hero-brand-mark {
     top: 16%;

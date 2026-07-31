@@ -13,17 +13,17 @@ export default function Thumbnail() {
         <div aria-hidden className="hero-brand-mark" />
 
         <div className="hero-copy relative flex w-full max-w-[1480px] flex-col items-center text-center">
-          <p className="text-sm tracking-[-0.3px] text-[#cdcdcd] sm:text-xl sm:tracking-[-0.64px] md:text-[28px]">
+          <p className="hero-intro-eyebrow text-sm tracking-[-0.3px] text-[#cdcdcd] sm:text-xl sm:tracking-[-0.64px] md:text-[28px]">
             Kyunghee Univ. Like Lions
           </p>
           <div
             className="mt-3 flex max-w-full flex-col items-center gap-1 sm:mt-4"
             style={{ fontFamily: 'var(--font-gremlin-trial)' }}
           >
-            <h1 className="max-w-full whitespace-nowrap text-[clamp(36px,12vw,144px)] leading-[0.86] tracking-[-0.04em] text-white">
+            <h1 className="hero-intro-title max-w-full whitespace-nowrap text-[clamp(36px,12vw,144px)] leading-[0.86] tracking-[-0.04em] text-white">
               Possibility
             </h1>
-            <p className="text-[clamp(25px,6vw,72px)] leading-none tracking-[-0.035em] text-accent/50">
+            <p className="hero-intro-sub text-[clamp(25px,6vw,72px)] leading-none tracking-[-0.035em] text-accent/50">
               to reality
             </p>
           </div>
