@@ -229,7 +229,7 @@ class PostServiceTest {
     void deletePost_OwnPost_DeletesPostAndComments() {
         PostDetailResponse created = postService.createPost(member.getId(), sampleRequest());
         Post post = postRepository.findById(created.getId()).orElseThrow();
-        commentRepository.save(Comment.create(post, "익명", "댓글"));
+        commentRepository.save(Comment.create(post, "익명", "댓글", null, null, null));
 
         postService.deletePost(created.getId(), member.getId());
 

@@ -13,12 +13,17 @@ public class CommentResponse {
     private String nickname;
     private String content;
     private LocalDateTime createdAt;
+    private boolean hidden;
 
     public static CommentResponse from(Comment comment) {
+        if (comment.isHidden()) {
+            return new CommentResponse(comment.getId(), null, null, comment.getCreatedAt(), true);
+        }
         return new CommentResponse(
                 comment.getId(),
                 comment.getNickname(),
                 comment.getContent(),
-                comment.getCreatedAt());
+                comment.getCreatedAt(),
+                false);
     }
 }

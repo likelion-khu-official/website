@@ -74,6 +74,11 @@ const ACTION_GROUPS: ActionGroup[] = [
         title: '블로그 관리',
         description: '게시된 글 숨김 · 다시 게시',
       },
+      {
+        href: '/admin/comments',
+        title: '댓글 검열',
+        description: '익명 댓글 추적 · 가리기 · 다시 공개',
+      },
     ],
   },
 ];

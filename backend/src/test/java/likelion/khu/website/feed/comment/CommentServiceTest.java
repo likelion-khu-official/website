@@ -1,5 +1,7 @@
 package likelion.khu.website.feed.comment;
 
+import likelion.khu.website.admin.Admin;
+import likelion.khu.website.admin.AdminRepository;
 import likelion.khu.website.feed.comment.dto.CommentCreateRequest;
 import likelion.khu.website.feed.comment.dto.CommentResponse;
 import likelion.khu.website.feed.post.PostRepository;
@@ -31,14 +33,18 @@ class CommentServiceTest {
     @Autowired PostService postService;
     @Autowired PostRepository postRepository;
     @Autowired MemberRepository memberRepository;
+    @Autowired AdminRepository adminRepository;
 
     private Member member;
+    private Admin admin;
 
     @BeforeEach
     void setUp() {
         member = memberRepository.save(Member.create(
                 "시현", Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@khu.ac.kr",
                 "20240001", "01012345678", "hash"));
+        admin = adminRepository.save(Admin.register(
+                "comment-service-admin@khu.ac.kr", "댓글 관리자", "hash"));
     }
 
     private Long createPublishedPost() {
@@ -58,7 +64,8 @@ class CommentServiceTest {
     @Test
     void create_WithNickname_SavesNickname() {
         Long postId = createPublishedPost();
-        CommentResponse res = commentService.create(postId, commentRequest("구경꾼", "좋아요!"));
+        CommentResponse res = commentService.create(
+                postId, commentRequest("구경꾼", "좋아요!"), tracking());
 
         assertThat(res.getNickname()).isEqualTo("구경꾼");
         assertThat(res.getContent()).isEqualTo("좋아요!");
@@ -67,7 +74,8 @@ class CommentServiceTest {
     @Test
     void create_WithoutNickname_SavesNull() {
         Long postId = createPublishedPost();
-        CommentResponse res = commentService.create(postId, commentRequest(null, "익명 댓글"));
+        CommentResponse res = commentService.create(
+                postId, commentRequest(null, "익명 댓글"), tracking());
 
         assertThat(res.getNickname()).isNull();
     }
@@ -77,36 +85,49 @@ class CommentServiceTest {
         Long hiddenId = createPublishedPost();
         postService.updateStatus(hiddenId, PostStatus.HIDDEN);
 
-        assertThatThrownBy(() -> commentService.create(hiddenId, commentRequest(null, "댓글")))
+        assertThatThrownBy(() -> commentService.create(
+                hiddenId, commentRequest(null, "댓글"), tracking()))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
-    void list_ReturnsOnlyVisibleComments() {
+    void list_RedactsHiddenCommentAndPreservesVisibleComment() {
         Long postId = createPublishedPost();
-        CommentResponse visible = commentService.create(postId, commentRequest(null, "보이는 댓글"));
-        CommentResponse toHide = commentService.create(postId, commentRequest(null, "숨길 댓글"));
-        commentService.hide(toHide.getId());
+        CommentResponse visible = commentService.create(
+                postId, commentRequest(null, "보이는 댓글"), tracking());
+        CommentResponse toHide = commentService.create(
+                postId, commentRequest(null, "숨길 댓글"), tracking());
+        commentService.updateVisibility(toHide.getId(), true, admin.getId(), "테스트");
 
         List<CommentResponse> list = commentService.list(postId);
 
-        assertThat(list).hasSize(1);
+        assertThat(list).hasSize(2);
         assertThat(list.get(0).getId()).isEqualTo(visible.getId());
+        assertThat(list.get(1).isHidden()).isTrue();
+        assertThat(list.get(1).getContent()).isNull();
+        assertThat(list.get(1).getNickname()).isNull();
     }
 
     @Test
     void hide_HidesComment() {
         Long postId = createPublishedPost();
-        CommentResponse comment = commentService.create(postId, commentRequest(null, "댓글"));
+        CommentResponse comment = commentService.create(
+                postId, commentRequest(null, "댓글"), tracking());
 
-        commentService.hide(comment.getId());
+        commentService.updateVisibility(comment.getId(), true, admin.getId(), "테스트");
 
         assertThat(commentRepository.findById(comment.getId()).orElseThrow().isHidden()).isTrue();
     }
 
     @Test
     void hide_NotFound_ThrowsResponseStatusException() {
-        assertThatThrownBy(() -> commentService.hide(999L))
+        assertThatThrownBy(() -> commentService.updateVisibility(
+                999L, true, admin.getId(), "테스트"))
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    private CommentTrackingService.TrackingResult tracking() {
+        return new CommentTrackingService.TrackingResult(
+                "actor-test", "network-test", "데스크톱 · Chrome", null);
     }
 }
