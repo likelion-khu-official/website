@@ -6,16 +6,16 @@ import { getBaseUrl } from '@/lib/serverBaseUrl';
 
 function StoryThumbnail({ post }: { post: PostSummary }) {
   return (
-    <div className="aspect-[4/3] w-full overflow-hidden rounded-[14px] bg-[#202020]">
+    <div className="aspect-[16/10] w-full overflow-hidden rounded-[12px] bg-[#202020]">
       {post.thumbnailUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={post.thumbnailUrl}
           alt=""
-          className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.035]"
+          className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.04]"
         />
       ) : (
-        <div className="flex h-full items-end bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.26),transparent_38%),linear-gradient(145deg,#272727,#171717)] p-3 sm:p-5">
+        <div className="flex h-full items-end bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.26),transparent_38%),linear-gradient(145deg,#272727,#171717)] p-3 sm:p-4">
           <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25 sm:text-xs">STORY</span>
         </div>
       )}
@@ -23,35 +23,20 @@ function StoryThumbnail({ post }: { post: PostSummary }) {
   );
 }
 
-function StoryRow({ post }: { post: PostSummary }) {
+function StoryCard({ post }: { post: PostSummary }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
       aria-label={`${post.title} 글 읽기`}
-      className="group grid min-w-0 grid-cols-[minmax(0,1fr)_96px] items-center gap-4 border-b border-white/10 py-5 outline-none transition-colors hover:border-accent/45 focus-visible:ring-2 focus-visible:ring-accent sm:grid-cols-[minmax(0,1fr)_180px] sm:gap-7 sm:py-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10"
+      className="group flex min-w-0 flex-col outline-none transition duration-300 hover:-translate-y-1 focus-visible:rounded-[14px] focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <div className="min-w-0">
-        <div className="flex items-start gap-4">
-          <h3 className="line-clamp-2 min-w-0 flex-1 break-keep text-xl font-semibold leading-[1.3] tracking-[-0.035em] text-white transition-colors group-hover:text-accent sm:text-[26px] lg:text-[30px]">
-            {post.title}
-          </h3>
-          <span
-            aria-hidden
-            className="mt-0.5 hidden size-9 shrink-0 items-center justify-center rounded-full border border-white/15 text-sm text-white/45 transition group-hover:border-accent group-hover:bg-accent group-hover:text-white sm:inline-flex"
-          >
-            ↗
-          </span>
-        </div>
-        {post.summary ? (
-          <p className="mt-2 hidden line-clamp-2 max-w-3xl break-keep text-sm leading-6 text-white/45 sm:block">
-            {post.summary}
-          </p>
-        ) : null}
-        <div className="mt-4">
-          <PostAuthor post={post} compact />
-        </div>
-      </div>
       <StoryThumbnail post={post} />
+      <h3 className="mt-3.5 line-clamp-2 break-keep text-base font-semibold leading-[1.35] tracking-[-0.03em] text-white transition-colors group-hover:text-accent sm:text-[17px]">
+        {post.title}
+      </h3>
+      <div className="mt-2.5">
+        <PostAuthor post={post} compact />
+      </div>
     </Link>
   );
 }
@@ -90,12 +75,9 @@ export default async function Blog() {
           </div>
           <Link
             href="/blog"
-            className="group inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-accent hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#131313]"
           >
-            모든 글
-            <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
-              →
-            </span>
+            모든 글 <span aria-hidden>→</span>
           </Link>
         </div>
 
@@ -111,9 +93,9 @@ export default async function Blog() {
             <p className="mt-2 text-sm text-white/40">곧 멤버들의 기록으로 이 공간을 채울게요.</p>
           </div>
         ) : (
-          <div className="border-t border-white/10">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-9 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-3 lg:gap-x-8">
             {posts.map((post) => (
-              <StoryRow key={post.id} post={post} />
+              <StoryCard key={post.id} post={post} />
             ))}
           </div>
         )}
