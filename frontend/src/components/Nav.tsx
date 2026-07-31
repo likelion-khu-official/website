@@ -55,15 +55,31 @@ export default function Nav() {
         (section): section is { element: HTMLElement; href: string | null } => section !== null,
       );
 
+    // 각 섹션의 최신 교차 비율을 누적해 두고, 그중 가장 많이 보이는 섹션을 활성으로 삼는다.
+    // IntersectionObserver 콜백은 "이번에 상태가 바뀐" 엔트리만 넘겨주기 때문에, 그 배치 안에서만
+    // 승자를 고르면 — 빠른 스크롤이나 nav 연타로 여러 임계값이 얽힐 때 — 정작 화면을 채운 섹션이
+    // 배치에 없어(이미 교차 중이라 새 임계값을 안 넘음) 빠져나가는 섹션이 잘못 활성으로 남는다
+    // (스크롤 위치 ↔ nav 불일치). 전체 비율 맵으로 판정해 이 desync를 막는다.
+    const ratios = new Map<Element, number>();
+
     const observer = new IntersectionObserver(
       (entries) => {
-        const current = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        for (const entry of entries) {
+          ratios.set(entry.target, entry.isIntersecting ? entry.intersectionRatio : 0);
+        }
 
-        if (!current) return;
-        const match = sections.find(({ element }) => element === current.target);
-        if (match) setActiveHref(match.href);
+        let bestHref: string | null = null;
+        let bestRatio = 0;
+        for (const { element, href } of sections) {
+          const ratio = ratios.get(element) ?? 0;
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestHref = href;
+          }
+        }
+
+        // 밴드 안에 아무 섹션도 없으면(섹션 사이 등) 직전 활성을 유지해 깜빡임을 막는다.
+        if (bestRatio > 0) setActiveHref(bestHref);
       },
       {
         rootMargin: '-22% 0px -58% 0px',
