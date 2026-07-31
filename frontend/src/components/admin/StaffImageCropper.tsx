@@ -35,6 +35,7 @@ export default function StaffImageCropper({
   const [sourceUrl, setSourceUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
+  const [cropSize, setCropSize] = useState(360);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const [uploading, setUploading] = useState(false);
@@ -47,18 +48,14 @@ export default function StaffImageCropper({
     };
   }, []);
 
-  function frameSize() {
-    return frameRef.current?.clientWidth ?? 360;
-  }
-
   function scaleFor(nextZoom: number) {
     if (!imageSize) return 1;
-    return Math.max(frameSize() / imageSize.width, frameSize() / imageSize.height) * nextZoom;
+    return Math.max(cropSize / imageSize.width, cropSize / imageSize.height) * nextZoom;
   }
 
   function clampOffset(next: Point, nextZoom = zoom): Point {
     if (!imageSize) return next;
-    const size = frameSize();
+    const size = cropSize;
     const scale = scaleFor(nextZoom);
     const maxX = Math.max(0, (imageSize.width * scale - size) / 2);
     const maxY = Math.max(0, (imageSize.height * scale - size) / 2);
@@ -110,7 +107,7 @@ export default function StaffImageCropper({
       image.src = sourceUrl;
       await image.decode();
 
-      const size = frameSize();
+      const size = frameRef.current.clientWidth;
       const scale = scaleFor(zoom);
       const displayedWidth = imageSize.width * scale;
       const displayedHeight = imageSize.height * scale;
@@ -259,6 +256,7 @@ export default function StaffImageCropper({
                 alt=""
                 draggable={false}
                 onLoad={(event) => {
+                  setCropSize(frameRef.current?.clientWidth ?? 360);
                   const next = {
                     width: event.currentTarget.naturalWidth,
                     height: event.currentTarget.naturalHeight,

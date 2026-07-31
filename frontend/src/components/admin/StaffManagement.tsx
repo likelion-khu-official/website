@@ -64,7 +64,12 @@ function editorOf(person: DraftStaff): EditorForm {
 
 function snapshot(items: DraftStaff[]) {
   return JSON.stringify(
-    items.map(({ clientId: _clientId, persistedId: _persistedId, ...person }) => person)
+    items.map((person) => {
+      const comparable: Record<string, unknown> = { ...person };
+      delete comparable.clientId;
+      delete comparable.persistedId;
+      return comparable;
+    })
   );
 }
 
@@ -90,8 +95,6 @@ export default function StaffManagement() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setLoadError('');
     listStaff()
       .then((items) => {
         if (cancelled) return;
@@ -316,7 +319,11 @@ export default function StaffManagement() {
         <p className="text-sm text-muted">{loadError}</p>
         <button
           type="button"
-          onClick={() => setReloadIndex((value) => value + 1)}
+          onClick={() => {
+            setLoading(true);
+            setLoadError('');
+            setReloadIndex((value) => value + 1);
+          }}
           className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 text-sm text-white"
         >
           다시 시도
