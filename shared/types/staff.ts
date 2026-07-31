@@ -37,9 +37,12 @@ export interface StaffCreateRequest {
   publicationConsentedAt?: string;
 }
 
-/** PATCH /api/admin/staff/{id} — 관리자 전용. name·department·admissionYear는 등록 후 불변 */
+/** PATCH /api/admin/staff/{id} — 관리자 전용 */
 export interface StaffUpdateRequest {
+  name?: string;
   position?: string;
+  department?: string;
+  admissionYear?: number;
   photoUrl?: string;
   introduction?: string;
   /** null이 아니라 값이 오면 활동을 통째로 교체한다. */
@@ -56,4 +59,9 @@ export interface StaffAdminSummary extends Staff {
   studentId: string | null;
   publicationConsent: boolean;
   publicationConsentedAt: string | null;
+}
+
+/** POST /api/admin/staff/images — 크롭을 마친 운영진 프로필 이미지 업로드 */
+export interface StaffImageUploadResponse {
+  url: string;
 }

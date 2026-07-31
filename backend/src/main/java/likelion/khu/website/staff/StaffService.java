@@ -58,7 +58,8 @@ public class StaffService {
                 ? null
                 : validateConsent(request.getPublicationConsent(), request.getPublicationConsentedAt());
         staff.update(
-                request.getPosition(), request.getPhotoUrl(), request.getIntroduction(), request.getActivities(),
+                request.getName(), request.getPosition(), request.getDepartment(), request.getAdmissionYear(),
+                request.getPhotoUrl(), request.getIntroduction(), request.getActivities(),
                 request.getSortOrder(), request.getStudentId(), request.getPhone(),
                 request.getPublicationConsent(), consentedAt, updatedBy
         );

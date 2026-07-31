@@ -12,7 +12,15 @@ import java.util.List;
 public class StaffUpdateRequest {
 
     @Size(min = 1)
+    private String name;
+
+    @Size(min = 1)
     private String position;
+
+    @Size(min = 1)
+    private String department;
+
+    private Integer admissionYear;
 
     @Size(min = 1)
     private String photoUrl;
