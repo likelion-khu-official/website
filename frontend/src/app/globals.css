@@ -306,23 +306,18 @@ textarea {
    뷰포트 비율이 달라져도 회전한 SVG 레이어처럼 경계가 잘리지 않는다. */
 .session-intro-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-image:
-    radial-gradient(72% 62% at 0% 8%, rgba(176, 34, 12, 0.3), rgba(19, 19, 19, 0) 72%),
-    radial-gradient(68% 58% at 100% 92%, rgba(255, 80, 0, 0.22), rgba(19, 19, 19, 0) 70%),
-    linear-gradient(to bottom, #131313 0%, #171211 48%, #131313 100%);
 }
 
 .session-intro-bg::before {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
-  content: "";
+  display: none !important;
+  content: none !important;
+}
+
+.session-intro-surface {
+  z-index: 1 !important;
+  background:
+    radial-gradient(58% 48% at 100% 88%, rgba(255, 80, 0, 0.13), rgba(19, 19, 19, 0) 72%),
+    linear-gradient(to bottom, #131313 0%, #121313 54%, #131313 100%);
   pointer-events: none;
 }
 
