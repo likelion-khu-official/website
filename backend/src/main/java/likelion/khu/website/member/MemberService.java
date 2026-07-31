@@ -1,5 +1,8 @@
 package likelion.khu.website.member;
 
+import likelion.khu.website.audit.AuditChanges;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
 import likelion.khu.website.member.dto.MemberResponse;
@@ -40,6 +43,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<MemberResponse> getAll() {
@@ -61,6 +65,13 @@ public class MemberService {
         validateAvailability(request);
         Member member = buildMember(request, createdBy);
         memberRepository.save(member);
+        String createDetail = new AuditChanges()
+                .value("역할", new java.util.TreeSet<>(member.getRoles()))
+                .value("기수", member.getCohort())
+                .value("학과", member.getDepartment())
+                .toDetailOrNull();
+        auditService.recordStateChange("멤버 등록: " + member.getName() + " (" + member.getStudentId() + ")",
+                createDetail, "MEMBER", member.getId(), AuditOutcome.SUCCESS);
         return MemberAdminResponse.from(member);
     }
 
@@ -88,9 +99,11 @@ public class MemberService {
         List<Member> members = requests.stream()
                 .map(request -> buildMember(request, createdBy))
                 .toList();
-        return memberRepository.saveAllAndFlush(members).stream()
+        List<MemberAdminResponse> created = memberRepository.saveAllAndFlush(members).stream()
                 .map(MemberAdminResponse::from)
                 .toList();
+        auditService.recordStateChange("멤버 " + created.size() + "명 일괄 등록", "MEMBER", null, AuditOutcome.SUCCESS);
+        return created;
     }
 
     private void validateAvailability(MemberCreateRequest request) {
@@ -171,10 +184,25 @@ public class MemberService {
         LocalDateTime consentedAt = request.getPublicationConsent() == null
                 ? null
                 : validateConsent(request.getPublicationConsent(), request.getPublicationConsentedAt());
+        String beforeName = member.getName();
+        String beforeRoles = new java.util.TreeSet<>(member.getRoles()).toString();
+        String beforeDept = member.getDepartment();
+        String beforeReason = member.getJoinReason();
+        String beforePhoto = member.getPhotoUrl();
+        boolean beforeConsent = member.isPublicationConsent();
         member.update(
                 request.getName(), request.getRoles(), request.getPhotoUrl(), request.getJoinReason(),
                 request.getDepartment(), request.getPublicationConsent(), consentedAt, updatedBy
         );
+        String updateDetail = new AuditChanges()
+                .field("이름", beforeName, member.getName())
+                .field("역할", beforeRoles, new java.util.TreeSet<>(member.getRoles()).toString())
+                .field("학과", beforeDept, member.getDepartment())
+                .masked("입부계기", beforeReason, member.getJoinReason())
+                .masked("대표 사진", beforePhoto, member.getPhotoUrl())
+                .field("게재동의", beforeConsent ? "동의" : "미동의", member.isPublicationConsent() ? "동의" : "미동의")
+                .toDetailOrNull();
+        auditService.recordStateChange("멤버 수정: " + member.getName(), updateDetail, "MEMBER", id, AuditOutcome.SUCCESS);
         return MemberAdminResponse.from(member);
     }
 

@@ -3,6 +3,7 @@ package likelion.khu.website.member.auth;
 import likelion.khu.website.admin.auth.JwtProvider;
 import likelion.khu.website.admin.exception.AccountLockedException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
@@ -46,12 +47,15 @@ class MemberAuthServiceTest {
     @Mock
     private JwtProvider jwtProvider;
 
+    @Mock
+    private AuditService auditService;
+
     private MemberAuthService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new MemberAuthService(memberRepository, memberRefreshTokenRepository, passwordEncoder, jwtProvider);
+        service = new MemberAuthService(memberRepository, memberRefreshTokenRepository, passwordEncoder, jwtProvider, auditService);
         ReflectionTestUtils.setField(service, "maxAttempts", 5);
         ReflectionTestUtils.setField(service, "lockoutDurationMinutes", 15L);
     }

@@ -12,6 +12,8 @@ import likelion.khu.website.admin.exception.InvalidEmailDomainException;
 import likelion.khu.website.admin.invitation.dto.AdminInvitationAcceptResponse;
 import likelion.khu.website.admin.invitation.dto.AdminInvitationResponse;
 import likelion.khu.website.admin.invitation.dto.AdminInvitationVerifyResponse;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +39,7 @@ public class AdminInvitationService {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuditService auditService;
 
     @Value("${app.frontend-base-url}")
     private String frontendBaseUrl;
@@ -60,6 +63,7 @@ public class AdminInvitationService {
         String inviteUrl = frontendBaseUrl + "/admin/invite/" + token;
         emailService.sendInviteEmail(email, inviteUrl, invitation.getExpiresAt());
 
+        auditService.recordStateChange("관리자 초대: " + email, "ADMIN_INVITATION", invitation.getId(), AuditOutcome.SUCCESS);
         return AdminInvitationResponse.from(invitation);
     }
 
@@ -78,6 +82,7 @@ public class AdminInvitationService {
             throw new AdminInvitationAlreadyProcessedException();
         }
         invitation.markCancelled();
+        auditService.recordStateChange("관리자 초대 취소: " + invitation.getEmail(), "ADMIN_INVITATION", id, AuditOutcome.SUCCESS);
     }
 
     @Transactional(readOnly = true)

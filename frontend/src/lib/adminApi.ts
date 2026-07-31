@@ -43,6 +43,7 @@ import type {
   StaffImageUploadResponse,
   StaffUpdateRequest,
 } from '@shared/types/staff';
+import type { AuditLogQuery, AuditLogResponse } from '@shared/types/audit';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -403,6 +404,26 @@ export function updatePostStatus(id: number, status: PostStatus) {
     `/posts/${id}/status`,
     { method: 'PATCH', body: JSON.stringify({ status }) },
     '상태 변경에 실패했어요.',
+    true
+  );
+}
+
+// ── 감사 로그 (#338) ──────────────────────────────────────────────
+
+export function listAuditLogs(query: AuditLogQuery = {}) {
+  const params = new URLSearchParams();
+  if (query.actorType) params.set('actorType', query.actorType);
+  if (query.action) params.set('action', query.action);
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.q) params.set('q', query.q);
+  if (query.page != null) params.set('page', String(query.page));
+  if (query.size != null) params.set('size', String(query.size));
+  const qs = params.toString();
+  return request<AuditLogResponse>(
+    `/audit-logs${qs ? `?${qs}` : ''}`,
+    {},
+    '감사 로그를 불러오지 못했어요.',
     true
   );
 }

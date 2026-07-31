@@ -6,14 +6,34 @@ import { refreshSession, listApplications, AdminApiError } from '@/lib/adminApi'
 import { formatDate } from '@/lib/formatDate';
 import type { ApplicationAdminSummary } from '@shared/types/application';
 
+// 지원자 개인정보 열람은 서버에 감사 기록으로 남는다(#338). 열기 전에 한 번 각인시켜 무심결·사적
+// 호기심에 의한 열람을 줄인다. 경고 자체는 UX 억지 장치일 뿐, 실제 기록은 서버 경계에서 무조건 남는다.
+// 같은 세션에선 한 번만 물어 경고 피로를 막는다.
+const ACK_KEY = 'audit-ack-applications';
+
 export default function ApplicationList() {
   const router = useRouter();
 
+  const [acknowledged, setAcknowledged] = useState(false);
   const [applications, setApplications] = useState<ApplicationAdminSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
+  // 세션에 이미 열람 동의가 있으면 경고를 건너뛴다. sessionStorage는 클라이언트에만 있어 effect에서 확인한다.
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof window !== 'undefined' && sessionStorage.getItem(ACK_KEY) === 'true') {
+        if (!cancelled) setAcknowledged(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!acknowledged) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -38,7 +58,41 @@ export default function ApplicationList() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [acknowledged, router]);
+
+  function proceed() {
+    if (typeof window !== 'undefined') sessionStorage.setItem(ACK_KEY, 'true');
+    setAcknowledged(true);
+  }
+
+  if (!acknowledged) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+        <h1 className="text-lg font-bold text-white">지원자 개인정보 열람</h1>
+        <p className="text-sm leading-relaxed text-muted">
+          지원자의 실명·연락처 등 개인정보를 엽니다.{' '}
+          <span className="text-white">이 열람은 누가·언제 봤는지 감사 기록으로 남아요.</span> 업무상 필요한 경우에만
+          계속해 주세요.
+        </p>
+        <div className="flex w-full gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/admin')}
+            className="min-h-11 flex-1 rounded-xl border border-white/20 px-4 text-sm text-white transition-colors hover:bg-white/10"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={proceed}
+            className="min-h-11 flex-1 rounded-xl bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-white/90"
+          >
+            열람 계속
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;

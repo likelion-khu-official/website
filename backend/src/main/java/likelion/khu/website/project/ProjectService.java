@@ -1,5 +1,7 @@
 package likelion.khu.website.project;
 
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.project.dto.ProjectCreateRequest;
@@ -38,6 +40,7 @@ public class ProjectService {
     private final ProjectImageRepository projectImageRepository;
     private final ProjectParticipantRepository projectParticipantRepository;
     private final MemberRepository memberRepository;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<ProjectSummaryResponse> getPublicList(Integer limit) {
@@ -91,6 +94,7 @@ public class ProjectService {
         saveImages(project, request.getImages());
         saveParticipants(project, request.getParticipants());
 
+        auditService.recordStateChange("프로젝트 등록: " + request.getTitle(), "PROJECT", project.getId(), AuditOutcome.SUCCESS);
         return toDetailResponse(project);
     }
 
@@ -121,6 +125,7 @@ public class ProjectService {
             saveParticipants(project, request.getParticipants());
         }
 
+        auditService.recordStateChange("프로젝트 수정: " + project.getTitle(), "PROJECT", id, AuditOutcome.SUCCESS);
         return toDetailResponse(project);
     }
 
@@ -149,6 +154,7 @@ public class ProjectService {
         projectParticipantRepository.deleteAllByProjectId(id);
         saveParticipants(project, request.getParticipants());
 
+        auditService.recordStateChange("프로젝트 전체 수정: " + request.getTitle(), "PROJECT", id, AuditOutcome.SUCCESS);
         return toDetailResponse(project);
     }
 
@@ -159,12 +165,14 @@ public class ProjectService {
         projectImageRepository.deleteAllByProjectId(id);
         projectParticipantRepository.deleteAllByProjectId(id);
         projectRepository.deleteById(id);
+        auditService.recordStateChange("프로젝트 삭제 #" + id, "PROJECT", id, AuditOutcome.SUCCESS);
     }
 
     @Transactional
     public void setHidden(Long id, boolean hidden) {
         Project project = findProjectOrThrow(id);
         project.setHidden(hidden);
+        auditService.recordStateChange((hidden ? "프로젝트 숨김 #" : "프로젝트 공개 #") + id, "PROJECT", id, AuditOutcome.SUCCESS);
     }
 
     private Project findProjectOrThrow(Long id) {

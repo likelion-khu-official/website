@@ -1,5 +1,7 @@
 package likelion.khu.website.recruitment;
 
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
@@ -24,6 +26,7 @@ public class RecruitmentManagementService {
     private final NotificationSubscriptionRepository subscriptionRepository;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditService auditService;
 
     // app.frontend-base-url(admin.likelion-khu.com)이 아니라 이걸 쓴다 — frontend-base-url은
     // 어드민 초대·비밀번호 재설정 전용이고(#124 리뷰에서 혼용 발견), 이 메일은 일반 구독자에게
@@ -96,6 +99,7 @@ public class RecruitmentManagementService {
             // 이미 커밋된 뒤라 멱등 가드(isOpen()==true)는 이 시점부터 바로 유효하므로, 이벤트만
             // 발행하고 실제 발송은 RecruitmentOpenEmailEventListener(@Async)가 이어받아도 안전하다.
             eventPublisher.publishEvent(new RecruitmentOpenedEvent());
+            auditService.recordStateChange("모집 열기", "RECRUITMENT", null, AuditOutcome.SUCCESS);
         }
         return toResponse(status);
     }
@@ -108,6 +112,7 @@ public class RecruitmentManagementService {
         RecruitmentStatus status = findOrCreate();
         status.markClosed();
         statusRepository.save(status);
+        auditService.recordStateChange("모집 닫기", "RECRUITMENT", null, AuditOutcome.SUCCESS);
         return toResponse(status);
     }
 
