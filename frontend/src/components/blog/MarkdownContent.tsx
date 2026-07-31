@@ -1,6 +1,7 @@
 import type { ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import MarkdownImage from './MarkdownImage';
 
 function MarkdownLink({ href = '', children, ...props }: ComponentPropsWithoutRef<'a'>) {
   const external = /^https?:\/\//.test(href);
@@ -67,16 +68,7 @@ export default function MarkdownContent({ content }: { content: string }) {
             </blockquote>
           ),
           hr: () => <hr className="my-10 border-white/10" />,
-          img: ({ src, alt }) =>
-            src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={src}
-                alt={alt ?? ''}
-                loading="lazy"
-                className="my-8 h-auto max-h-[80svh] w-full rounded-2xl border border-white/10 bg-white/[0.025] object-contain"
-              />
-            ) : null,
+          img: ({ src, alt }) => (src ? <MarkdownImage src={src} alt={alt ?? ''} /> : null),
           table: ({ children }) => (
             <div className="my-7 overflow-x-auto rounded-xl border border-white/10">
               <table className="w-full min-w-[560px] border-collapse text-left text-sm">

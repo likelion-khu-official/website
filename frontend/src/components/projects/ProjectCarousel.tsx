@@ -54,10 +54,12 @@ export default function ProjectCarousel({ projects }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
   const [interacting, setInteracting] = useState(false);
+  const [failedIndexes, setFailedIndexes] = useState<Set<number>>(new Set());
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, () => false);
   const autoplay = autoplayEnabled && !reducedMotion;
   const pointerStart = useRef<number | null>(null);
   const didSwipe = useRef(false);
+  const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
 
   const move = useCallback(
     (direction: -1 | 1) => {
@@ -92,6 +94,29 @@ export default function ProjectCarousel({ projects }: Props) {
     pointerStart.current = null;
     setInteracting(false);
   }
+
+  const markImageFailed = useCallback((index: number) => {
+    setFailedIndexes((current) => {
+      if (current.has(index)) return current;
+      const next = new Set(current);
+      next.add(index);
+      return next;
+    });
+  }, []);
+
+  // <img>의 error 이벤트는 버블링되지 않아 React가 하이드레이션 커밋 때 리스너를
+  // 붙이는 시점보다 먼저 실패가 나면(SSR HTML이 그려지자마자 요청이 시작되는 eager
+  // 이미지에서 특히) onError가 아예 안 잡힌다. 마운트 직후 각 <img>의 네이티브 로드
+  // 상태(complete && naturalWidth === 0)를 한 번 더 확인해 놓친 실패를 보정한다.
+  useEffect(() => {
+    projects.forEach((project, index) => {
+      if (!project.representativeImageUrl) return;
+      const img = imageRefs.current[index];
+      if (img && img.complete && img.naturalWidth === 0) {
+        markImageFailed(index);
+      }
+    });
+  }, [projects, markImageFailed]);
 
   const activeProject = projects[activeIndex];
 
@@ -146,15 +171,19 @@ export default function ProjectCarousel({ projects }: Props) {
                 }
               }}
             >
-              {project.representativeImageUrl ? (
+              {project.representativeImageUrl && !failedIndexes.has(index) ? (
                 // 프로젝트 화면은 잘라내거나 늘이지 않고 업로드한 원본 비율 그대로 보여준다.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  ref={(el) => {
+                    imageRefs.current[index] = el;
+                  }}
                   src={project.representativeImageUrl}
                   alt={`${project.title} 대표 이미지`}
                   className="block h-full w-full object-contain"
                   loading={index < 4 ? 'eager' : 'lazy'}
                   draggable={false}
+                  onError={() => markImageFailed(index)}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_70%_20%,rgba(255,80,0,0.3),transparent_38%),linear-gradient(145deg,#2b2b2b,#151515)]">

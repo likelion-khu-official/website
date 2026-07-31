@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
 import { ROLE_LABELS } from '@/lib/roster';
 
@@ -120,7 +120,26 @@ export default function MemberCard({
   colorIndex: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [lastPhotoUrl, setLastPhotoUrl] = useState(member.photoUrl);
   const pointerStarted = useRef(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  if (member.photoUrl !== lastPhotoUrl) {
+    setLastPhotoUrl(member.photoUrl);
+    setImgError(false);
+  }
+
+  // 이 img는 loading 속성이 없어(=브라우저 기본값 eager) 하이드레이션 전에 요청이
+  // 시작될 수 있다. error는 버블링 안 하는 이벤트라 그 전에 실패하면 onError가
+  // 유실되므로, 마운트 시 네이티브 로드 상태를 한 번 더 확인해 놓친 실패를 보정한다.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) {
+      setImgError(true);
+    }
+  }, [member.photoUrl]);
+
   const roles = [...member.roles].sort(
     (left, right) => ROLE_ORDER.indexOf(left) - ROLE_ORDER.indexOf(right),
   );
@@ -167,12 +186,14 @@ export default function MemberCard({
         </span>
 
         <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-          {member.photoUrl ? (
+          {member.photoUrl && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
+              ref={imgRef}
               src={member.photoUrl}
               alt=""
               className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
+              onError={() => setImgError(true)}
             />
           ) : (
             <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
