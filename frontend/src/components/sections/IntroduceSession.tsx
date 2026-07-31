@@ -93,13 +93,13 @@ export default function IntroduceSession() {
             style={{ '--reveal-y': `${34 + index * 12}px` } as React.CSSProperties}
           >
             <article
-              className="group relative aspect-[337.037/260] rounded-[16.85px] border border-white/[0.04] bg-[rgba(27,29,31,0.71)] transition-colors duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-accent/20 hover:bg-[#fdf1e6] sm:aspect-[337.037/382.537] lg:hover:scale-[1.04]"
+              className="group relative aspect-[337.037/260] rounded-[16.85px] border border-white/[0.04] bg-[rgba(27,29,31,0.71)] transition-colors duration-[550ms] ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-accent/20 hover:bg-[#ece0cf] sm:aspect-[337.037/382.537] lg:hover:scale-[1.04]"
               style={{
                 transitionProperty: 'background-color, border-color, transform',
               }}
             >
               <div
-                className="absolute flex flex-col gap-3 text-[#9ba5b0] transition-colors duration-300 ease-out group-hover:text-accent sm:gap-4"
+                className="absolute flex flex-col gap-3 text-[#9ba5b0] transition-colors duration-[550ms] ease-out group-hover:text-accent sm:gap-4"
                 style={{ left: '11.9%', top: '10.5%', width: '80%' }}
               >
                 <p className="break-keep" style={{ fontSize: 'clamp(18px, 1.7vw, 32px)', letterSpacing: '-0.8px' }}>
@@ -121,7 +121,7 @@ export default function IntroduceSession() {
                   key={i}
                   src={icon.src}
                   alt=""
-                  className="pointer-events-none absolute transition-[filter] duration-300 ease-out group-hover:[filter:sepia(1)_saturate(6)_hue-rotate(-15deg)_brightness(1.05)]"
+                  className="pointer-events-none absolute transition-[filter] duration-[550ms] ease-out group-hover:[filter:sepia(1)_saturate(6)_hue-rotate(-15deg)_brightness(1.05)]"
                   style={{
                     left: `${(icon.left / CARD_W) * 100}%`,
                     top: `${ICON_TOP_PCT}%`,

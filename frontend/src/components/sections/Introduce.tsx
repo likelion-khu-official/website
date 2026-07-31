@@ -56,7 +56,7 @@ export default function Introduce() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn together</p>
           <p
             className="mt-5 text-balance break-keep font-semibold text-white"
-            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+            style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
           >
             <span className="text-accent">코딩이 처음이더라도</span>
             <br />
@@ -69,7 +69,7 @@ export default function Introduce() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Build for real</p>
           <p
             className="mt-5 text-balance break-keep font-semibold text-white"
-            style={{ fontSize: 'clamp(22px, 2.5vw, 38px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+            style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
           >
             머릿속의 <span className="text-accent">아이디어</span>를
             <br />
