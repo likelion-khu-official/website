@@ -6,11 +6,16 @@
   --muted: #9aa5b0;
   --accent: #ff5000;
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* 고정 네비 실제 높이(min-h-16 = 64px + 1px 보더). */
+  --nav-h: 65px;
 }
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 4rem;
+  /* 각 섹션이 이미 py-20~24(80~96px) 상단 패딩으로 네비를 비켜주므로, 앵커 정지선은
+     작게 둬야 제목이 네비 바로 밑에 붙는다. 크게 주면 그 패딩과 겹쳐 제목이 화면
+     한참 아래에 떠(= "너무 높이 멈춤 / 더 내려야 함") 보인다. */
+  scroll-padding-top: 8px;
   overflow-x: clip;
 }
 
@@ -62,10 +67,10 @@ body {
   z-index: 1;
   background: linear-gradient(
     to bottom,
-    #131313 0,
-    rgba(19, 19, 19, 0) 120px,
-    rgba(19, 19, 19, 0) calc(100% - 120px),
-    #131313 100%
+    rgba(19, 19, 19, 0.9) 0,
+    rgba(19, 19, 19, 0) 64px,
+    rgba(19, 19, 19, 0) calc(100% - 64px),
+    rgba(19, 19, 19, 0.9) 100%
   );
   content: "";
   pointer-events: none;
@@ -333,20 +338,21 @@ textarea {
 
 .project-section {
   --project-section-padding: 3svh;
-  --project-header-height: 20svh;
+  --project-header-height: 18svh;
   --project-carousel-offset: 1.5svh;
-  --project-stage-height: 50svh;
+  --project-stage-height: 44svh;
   --project-stage-gutter: 2svh;
-  --project-card-height: 34svh;
-  --project-meta-height: 10svh;
+  --project-card-height: 30svh;
+  --project-meta-height: 9svh;
   --project-pagination-offset: 1.5svh;
   padding-block: var(--project-section-padding);
 }
 
+/* 다른 섹션처럼 내용을 뷰포트 가운데에 두기 위해, inner를 화면에 꽉 채우지 않고
+   내용 높이(≈80svh)만큼만 잡는다. 섹션의 justify-center가 이 블록을 가운데로 보내
+   제목 위·아래에 여백이 생긴다(= 형제 섹션과 동일한 착지 리듬). */
 .project-section-inner {
-  height: calc(
-    100svh - (var(--project-section-padding) + var(--project-section-padding))
-  );
+  height: auto;
 }
 
 .project-section-header {
@@ -645,7 +651,7 @@ textarea {
    각 요소가 --reveal-y로 자기 이동거리를 정할 수 있어(카드마다 다른 오프셋) 계단식으로 떠오른다. */
 .scroll-reveal-ready .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, var(--reveal-y, 32px), 0) scale(0.985);
+  transform: translate3d(0, var(--reveal-y, 44px), 0) scale(0.985);
   -webkit-transition:
     opacity 520ms linear,
     -webkit-transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -725,6 +731,21 @@ textarea {
 /* 최근 블로그 레이아웃을 건드리지 않고 랜딩 진입 리듬만 동일하게 맞춘다. */
 .home-blog-chapter {
   background: #131313;
+}
+
+/* 풀뷰포트 섹션 스크롤 스냅 — proximity라 스크롤을 '가두지' 않고(트랙패드/터치 자유),
+   섹션 근처에 오면 top이 네비 밑선(scroll-padding)에 살짝 맞춰진다. 히어로(#thumbnail)는
+   스티키 패럴럭스라 스냅 대상에서 제외. 모션 최소화 설정에선 끈다. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+
+  .home-experience main > section:not(#thumbnail),
+  .home-blog-chapter {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

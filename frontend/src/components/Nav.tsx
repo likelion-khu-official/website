@@ -146,7 +146,7 @@ export default function Nav() {
                   href={href}
                   aria-current={active ? 'location' : undefined}
                   className={`group/nav relative inline-flex min-h-11 items-center rounded-md px-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
-                    active ? 'text-white' : 'text-accent/60 hover:text-accent'
+                    active ? 'text-accent' : 'text-accent/60 hover:text-accent'
                   }`}
                 >
                   {label}
@@ -208,7 +208,7 @@ export default function Nav() {
                 onClick={closeMenu}
                 aria-current={activeHref === href ? 'location' : undefined}
                 className={`flex min-h-12 items-center justify-between rounded-xl px-3 text-base outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-accent ${
-                  activeHref === href ? 'text-white' : 'text-white/65'
+                  activeHref === href ? 'bg-white/[0.06] text-white' : 'text-white/65'
                 }`}
               >
                 {label}

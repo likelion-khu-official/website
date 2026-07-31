@@ -66,7 +66,9 @@ export default function HomeMotion() {
     );
 
     root.classList.add('scroll-reveal-ready');
-    const pendingElements = new Set(revealElements);
+    // 모션 허용 시엔 뷰포트를 벗어난 요소의 is-visible을 다시 걷어내, 아래로→위로→아래로
+    // 오갈 때마다 등장 페이드가 매번 재생되게 한다. 모션 최소화 설정에선 1회만 등장 후 유지.
+    const repeatReveal = !reducedMotion;
     const cleanUpHero = reducedMotion ? () => {} : setupHeroMotion();
     let revealFrame = 0;
 
@@ -74,11 +76,13 @@ export default function HomeMotion() {
       revealFrame = 0;
       const triggerLine = window.innerHeight * 0.92;
 
-      pendingElements.forEach((element) => {
+      revealElements.forEach((element) => {
         const rect = element.getBoundingClientRect();
-        if (rect.top <= triggerLine && rect.bottom >= 0) {
+        const inView = rect.top <= triggerLine && rect.bottom >= 0;
+        if (inView) {
           element.classList.add('is-visible');
-          pendingElements.delete(element);
+        } else if (repeatReveal) {
+          element.classList.remove('is-visible');
         }
       });
     }
