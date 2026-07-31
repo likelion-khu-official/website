@@ -96,6 +96,9 @@ public class JwtProvider {
                                String type, long expirationMs) {
         Date now = new Date();
         return Jwts.builder()
+                // 매 발급마다 고유값 — 같은 관리자가 같은 초에 두 번 로그인해도 토큰(=refresh_tokens.token_hash)이
+                // 달라져 UNIQUE 충돌로 500이 나던 것을 막는다. iat가 초 단위라 이게 없으면 동일 토큰이 재생성됐다.
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(String.valueOf(id))
                 .claim(CLAIM_EMAIL, loginIdentifier)
                 .claim(CLAIM_ROLE, role)
