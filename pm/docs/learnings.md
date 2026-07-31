@@ -6,6 +6,7 @@
 ---
 
 ## 프론트엔드
+- **가려진 댓글의 원문을 프론트에서만 숨기면 개발자 도구·API 응답으로 그대로 노출된다 — 공개 DTO를 만드는 서버 경계에서 닉네임·원문을 `null`로 치환하고, 프론트는 `hidden` 상태로 자리 표시만 해야 검열이 실제 정보 비공개가 된다.**
 - **Vitest에서 `test.globals`를 안 켜면 React Testing Library의 자동 cleanup이 조용히 안 걸린다.** RTL의 cleanup 등록은 전역 `afterEach` 존재 여부로 스스로 판단하는데, globals를 꺼두면(=테스트 파일마다 `import { describe, it } from 'vitest'`로 명시) 그 전역이 없어 cleanup 자체가 스킵된다 — 증상은 "같은 파일의 두 번째 테스트에서만 요소가 여러 개 매치됨"으로만 드러나 원인을 짐작하기 어렵다. setup 파일에서 `afterEach(() => cleanup())`을 직접 등록해야 안전하다(frontend/vitest.setup.ts).
 - **어드민 세션이 HttpOnly 쿠키(`access_token`/`refresh_token`)라 Playwright storageState를 JS로 주입할 수 없다 — storageState는 반드시 실제 로그인 폼을 거쳐야 만들어진다.** 운영용 관리자 시드(`AdminSeedRunner`)는 비밀번호가 무작위로 생성되고 즉시 버려진 뒤 재설정 메일로만 실제 비밀번호가 정해지도록 의도적으로 설계돼 있어, 그 경로로는 e2e가 로그인할 수 없다 — `@Profile("e2e")`로 게이트된 별도 러너(`E2eAdminSeedRunner`, #291)가 고정 비밀번호 관리자 계정을 심는 식으로 분리해야 stage/prod 보안 설계를 안 건드리고 e2e 로그인을 확보할 수 있다(로컬에서 storageState 생성까지 실측 통과).
 - **프로젝트 대표 이미지처럼 원본 비율이 제각각이고 화면 전체가 정보인 콘텐츠를 `object-cover`로 통일하면 핵심 UI가 잘린다 — 쇼케이스 프레임의 비율은 일관되게 유지하되 이미지는 `object-contain`으로 온전히 보여주고, 앞뒤 항목의 깊이·밝기로 시각적 위계를 만드는 편이 안전하다.**

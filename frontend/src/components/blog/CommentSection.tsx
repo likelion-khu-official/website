@@ -100,17 +100,32 @@ export default function CommentSection({
             comments.map((comment) => (
               <li
                 key={comment.id}
-                className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                className={`rounded-xl border p-4 ${
+                  comment.hidden
+                    ? 'border-white/5 bg-white/[0.02]'
+                    : 'border-white/10 bg-white/[0.03]'
+                }`}
               >
-                <p className="mb-1 text-sm font-semibold text-accent">
-                  {comment.nickname ?? '익명'}
-                  <span className="ml-2 font-normal text-muted">
-                    {formatDate(comment.createdAt)}
-                  </span>
-                </p>
-                <p className="whitespace-pre-wrap break-words text-sm text-white/90">
-                  {comment.content}
-                </p>
+                {comment.hidden ? (
+                  <p className="text-sm text-muted">
+                    관리자에 의해 가려진 댓글입니다.
+                    <span className="ml-2 text-xs text-white/30">
+                      {formatDate(comment.createdAt)}
+                    </span>
+                  </p>
+                ) : (
+                  <>
+                    <p className="mb-1 text-sm font-semibold text-accent">
+                      {comment.nickname ?? '익명'}
+                      <span className="ml-2 font-normal text-muted">
+                        {formatDate(comment.createdAt)}
+                      </span>
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-white/90">
+                      {comment.content}
+                    </p>
+                  </>
+                )}
               </li>
             ))
           )}
@@ -146,6 +161,10 @@ export default function CommentSection({
           </button>
         </div>
         {submitError && <p className="text-sm text-red-400">{submitError}</p>}
+        <p className="text-xs leading-5 text-white/35">
+          서비스 보호를 위해 익명 브라우저 식별자와 가명 처리된 접속 정보를 일정 기간
+          사용할 수 있어요.
+        </p>
       </form>
     </section>
   );

@@ -65,8 +65,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
                 // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
                 .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*").permitAll()
-                // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
-                .requestMatchers("/api/posts/*/comments/**").permitAll()
+                // 피드 댓글 — 공개 읽기·작성만 허용. 검열은 /api/admin/comments/**에서 인증 후 처리.
+                .requestMatchers(HttpMethod.GET, "/api/posts/*/comments").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/posts/*/comments").permitAll()
                 // 어드민 로그인/로그아웃/리프레시 — SecurityContext가 아니라 refresh_token 쿠키 자체 내용으로
                 // 동작(만료된 access 토큰으로도 로그아웃·리프레시가 가능해야 함)이라 matcher 자체는 permitAll()
                 .requestMatchers("/api/admin/auth/**").permitAll()

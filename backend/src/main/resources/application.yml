@@ -28,6 +28,11 @@ spring:
         format_sql: true
     show-sql: true
 
+server:
+  # nginx가 전달한 실제 클라이언트 주소를 Tomcat이 remoteAddr로 해석한다.
+  # Tomcat 기본 신뢰 프록시 범위(사설망) 밖에서 온 임의 X-Forwarded-For는 신뢰하지 않는다.
+  forward-headers-strategy: native
+
   # === 스키마 마이그레이션 (Flyway, #133) ===
   # stage·prod는 이미 V1__baseline.sql과 동일한 스키마 상태라 baseline-on-migrate로 "이미 적용됨"만
   # 기록하고 V1을 실제로 재실행하지 않는다(실행하면 "table already exists"로 깨짐). 새로 뜨는 빈 DB

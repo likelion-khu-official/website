@@ -29,7 +29,10 @@ const NAV_GROUPS = [
   },
   {
     label: '콘텐츠',
-    items: [{ href: '/admin/blog', label: '블로그 관리' }],
+    items: [
+      { href: '/admin/blog', label: '블로그 관리' },
+      { href: '/admin/comments', label: '댓글 검열' },
+    ],
   },
 ] as const;
 

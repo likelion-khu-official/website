@@ -29,7 +29,13 @@ import type {
   ApplicationFormResponse,
   ApplicationFormSchema,
 } from '@shared/types/application';
-import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
+import type {
+  AdminComment,
+  CommentVisibilityRequest,
+  SpringPage,
+  PostSummary,
+  PostStatus,
+} from '@shared/types/feed';
 import type { SubscriberSummary } from '@shared/types/recruitment';
 import type {
   StaffAdminSummary,
@@ -253,6 +259,21 @@ export function uploadStaffImage(file: File) {
     '/staff/images',
     { method: 'POST', body: formData },
     '사진 업로드에 실패했어요.',
+    true
+  );
+}
+
+// ── 댓글 검열 ─────────────────────────────────────────────────────
+
+export function listAdminComments() {
+  return request<AdminComment[]>('/comments', {}, '댓글 목록을 불러오지 못했어요.', true);
+}
+
+export function updateCommentVisibility(id: number, body: CommentVisibilityRequest) {
+  return request<AdminComment>(
+    `/comments/${id}/visibility`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+    body.hidden ? '댓글을 가리지 못했어요.' : '댓글을 다시 공개하지 못했어요.',
     true
   );
 }

@@ -79,15 +79,42 @@ export interface PostStatusUpdateRequest {
 /** GET /api/posts/{postId}/comments */
 export interface Comment {
   id: number;
-  nickname: string | null;    // null이면 "익명" 표시
-  content: string;
+  nickname: string | null;    // null이면 "익명" 표시. hidden이면 항상 null
+  content: string | null;     // hidden이면 원문을 전달하지 않음
   createdAt: string;
+  hidden: boolean;
 }
 
 /** POST /api/posts/{postId}/comments */
 export interface CommentCreateRequest {
   nickname?: string;          // 선택, 최대 50자
   content: string;            // 필수, 최대 300자
+}
+
+/** GET /api/admin/comments — 관리자 댓글 검열 목록 */
+export interface AdminComment {
+  id: number;
+  postId: number;
+  postTitle: string;
+  postSlug: string;
+  nickname: string | null;
+  content: string;
+  createdAt: string;
+  hidden: boolean;
+  hiddenAt: string | null;
+  hiddenByAdminName: string | null;
+  hiddenReason: string | null;
+  anonymousActorLabel: string;
+  actorCommentCount: number;
+  networkLabel: string;
+  networkCommentCount: number;
+  userAgent: string;
+}
+
+/** PATCH /api/admin/comments/{commentId}/visibility */
+export interface CommentVisibilityRequest {
+  hidden: boolean;
+  reason?: string;
 }
 
 /**
