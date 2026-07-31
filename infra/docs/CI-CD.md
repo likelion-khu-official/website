@@ -4,54 +4,42 @@
 
 ## 배포 파이프라인 (CD)
 
-```
-PR → dev/main 머지 (backend/** 또는 shared/** 변경 시에만 트리거)
-       │
-       ▼
-┌──────────────────────────────────────────────────────────────┐
-│ GitHub Actions: build-and-deploy                              │
-│                                                                │
-│  ① 환경 판별      dev→stage / main→prod (또는 수동 workflow_dispatch)│
-│  ② 마이그레이션 위험도 판단  이번 배포에 새로 추가된 마이그레이션 파일에  │
-│       drop/rename(삭제·이름변경) 또는 update/delete(DML) 패턴이     │
-│       있는지 grep (#320, 2026-07-31 DML 보강)                     │
-│       push: 이전 커밋과 정확히 diff / workflow_dispatch: 판단 불가→위험 취급│
-│  ③ 이미지 빌드     docker buildx (arm64) → GHCR 푸시             │
-│       tags: backend:{stage|prod}-<sha>, backend:{stage|prod}-latest │
-└───────────────────────────┬────────────────────────────────┘
-                            │ SSH (appleboy/ssh-action)
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│ OCI 서버 (likelion-oci)                                        │
-│                                                                │
-│  ④ 이전 태그 백업   PREV_TAG → .prev_backend_tag_{env} 파일에 기록  │
-│  ⑤ (위험/판단불가일 때만) 배포 전 DB 자동 백업 — 실패하면 배포 중단(#320)│
-│  ⑥ git checkout -f <브랜치> && git reset --hard origin/<브랜치>   │
-│  ⑦ docker compose pull + up -d backend-{stage|prod}            │
-│       ← 이 안에서 Flyway가 마이그레이션 적용 (Spring 기동 초반)     │
-│  ⑧ 헬스체크 루프   GET localhost:{8080|8081}/actuator/health     │
-│       200 뜰 때까지 3초 간격, 최대 120초 — 못 넘기면 즉시 실패      │
-└───────────────────────────┬────────────────────────────────┘
-                            │ 헬스체크 통과
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│ ⑨ 스모크 테스트 (GitHub Actions → 실제 공개 도메인으로)           │
-│     GET https://api.{stage|prod}.likelion-khu.com/api/{members,staff,posts,projects}│
-│     (인증 없이 공개된 조회 엔드포인트만 — DNS·TLS·nginx까지 실경로 검증) │
-└─────────┬──────────────────────────────────────┬───────────┘
-          │ 전부 200                              │ 하나라도 실패
-          ▼                                      ▼
-┌──────────────────────────┐        ┌─────────────────────────────────────────┐
-│ ⑩ 배포 확정               │        │ ②에서 "안전(추가형)"으로 판단된 경우만:      │
-│   .prev_backend_tag_* 삭제 │        │  롤백 — PREV_TAG로 되돌려 up -d 재실행       │
-│   (이때부터 새 버전이 "확정")│        │  → 롤백 후에도 헬스체크로 실제 복구 확인(#320)│
-└──────────────────────────┘        │  → 통과해야만 "롤백 완료", 아니면 실패 유지    │
-                                    │                                           │
-                                    │ ②에서 "위험/판단불가"였던 경우:              │
-                                    │  자동 롤백 생략 — 안내 로그만 남기고 실패 유지  │
-                                    │  (사람이 fix-forward 우선 검토 → 필요시       │
-                                    │   RUNBOOK 수동 복구, ⑤의 백업을 재료로 판단)   │
-                                    └─────────────────────────────────────────┘
+PR이 `dev`/`main`에 머지되면(`backend/**` 또는 `shared/**` 변경 시에만 트리거) 아래 파이프라인이 돈다. 박스 왼쪽 열은 GitHub Actions 러너, 오른쪽 열은 OCI 서버(SSH)에서 실행되는 구간이다.
+
+```mermaid
+flowchart TD
+    Trigger["PR → dev/main 머지<br/>(backend/** 또는 shared/** 변경 시에만)"] --> S1
+
+    subgraph GHA["GitHub Actions: build-and-deploy"]
+        S1["① 환경 판별<br/>dev→stage / main→prod<br/>(또는 수동 workflow_dispatch)"] --> S2
+        S2["② 마이그레이션 위험도 판단<br/>새 마이그레이션 파일에 drop/rename<br/>또는 update/delete(DML) 패턴 grep<br/>push=이전 커밋과 diff / dispatch=판단불가→위험"] --> S3
+        S3["③ 이미지 빌드<br/>docker buildx(arm64) → GHCR 푸시"]
+    end
+
+    S3 -->|"SSH (appleboy/ssh-action)"| S4
+
+    subgraph OCI["OCI 서버 (likelion-oci)"]
+        S4["④ 이전 태그 백업<br/>PREV_TAG → .prev_backend_tag_{env}"] --> Risky{"⑤ ②에서<br/>위험/판단불가?"}
+        Risky -->|"예"| Backup["배포 전 DB 자동 백업<br/>실패하면 배포 자체 중단"]
+        Risky -->|"아니오(추가형)"| S7
+        Backup --> S7
+        S7["⑥ git reset --hard origin/&lt;브랜치&gt;<br/>⑦ docker compose pull + up -d<br/>← 이 안에서 Flyway가 마이그레이션 적용"] --> S8
+        S8["⑧ 헬스체크 루프<br/>GET localhost/actuator/health<br/>3초 간격, 최대 120초"]
+    end
+
+    S8 -->|"통과"| Smoke
+    S8 -->|"타임아웃"| Failed{"②에서<br/>위험 판정?"}
+
+    Smoke["⑨ 스모크 테스트 (GitHub Actions → 공개 도메인)<br/>GET /api/{members,staff,posts,projects}"]
+    Smoke -->|"전부 200"| Confirm["⑩ 배포 확정<br/>.prev_backend_tag_* 삭제<br/>(이때부터 새 버전이 '확정')"]
+    Smoke -->|"하나라도 실패"| Failed
+
+    Failed -->|"아니오 — 추가형(안전)"| Rollback["자동 롤백<br/>PREV_TAG로 up -d 재실행<br/>→ 롤백 후에도 헬스체크로 복구 확인<br/>→ 통과해야만 '롤백 완료', 아니면 실패 유지"]
+    Failed -->|"예 — 삭제/변경형 또는 판단불가"| Manual["자동 롤백 생략<br/>실패 상태 유지 + 안내 로그만 출력<br/>사람이 fix-forward 우선 검토<br/>(필요시 RUNBOOK 수동 복구, ⑤ 백업 활용)"]
+
+    style Confirm fill:#1a7f37,color:#fff
+    style Rollback fill:#9a6700,color:#fff
+    style Manual fill:#b32b2b,color:#fff
 ```
 
 **읽는 법 — 왜 순서가 이렇게 고정돼 있나**:
