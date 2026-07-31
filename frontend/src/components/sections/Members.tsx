@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Staff } from '@shared/types/staff';
 import { getStaff } from '@/lib/rosterApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import { sortStaffForLanding } from '@/lib/staffLanding';
 import StaffShowcaseCard from '@/components/staff/StaffShowcaseCard';
 
 export default async function Members() {
@@ -10,13 +11,11 @@ export default async function Members() {
   let failed = false;
 
   try {
-    staff = await getStaff(baseUrl);
+    staff = sortStaffForLanding(await getStaff(baseUrl));
   } catch {
     failed = true;
   }
 
-  // 회장부터 기획·홍보부장까지 핵심 운영진 7명을 소개하고, 전체 명단은 /members로 잇는다.
-  const featured = staff.slice(0, 7);
   return (
     <section
       id="members"
@@ -54,13 +53,13 @@ export default async function Members() {
           <div className="mt-16 rounded-[24px] border border-white/10 bg-black/20 py-20 text-center">
             <p className="text-sm text-white/50">운영진 명단을 불러오지 못했어요.</p>
           </div>
-        ) : featured.length === 0 ? (
+        ) : staff.length === 0 ? (
           <div className="mt-16 rounded-[24px] border border-white/10 bg-black/20 py-20 text-center">
             <p className="text-sm text-white/50">운영진 소개를 준비하고 있어요.</p>
           </div>
         ) : (
           <div className="mt-7 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 pt-7 sm:mt-8 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-5 sm:pt-8 xl:grid-cols-7 xl:gap-4">
-            {featured.map((person, index) => (
+            {staff.map((person, index) => (
               <div
                 key={person.id}
                 className="scroll-reveal member-card-reveal min-w-0"

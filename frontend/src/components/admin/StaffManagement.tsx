@@ -10,6 +10,7 @@ import {
 } from '@/lib/adminApi';
 import StaffImageCropper from '@/components/admin/StaffImageCropper';
 import StaffShowcaseCard from '@/components/staff/StaffShowcaseCard';
+import { selectPublishedStaff } from '@/lib/staffLanding';
 import type { StaffAdminSummary, StaffCreateRequest, StaffUpdateRequest } from '@shared/types/staff';
 
 type PreviewMode = 'desktop' | 'mobile';
@@ -160,6 +161,11 @@ export default function StaffManagement() {
   }, [saveSuccess]);
 
   const dirty = useMemo(() => snapshot(staff) !== snapshot(savedStaff), [savedStaff, staff]);
+  const landingStaff = useMemo(() => selectPublishedStaff(staff), [staff]);
+  const privateStaff = useMemo(
+    () => staff.filter((person) => !person.publicationConsent),
+    [staff]
+  );
 
   function openCreate() {
     const temporaryId = nextTemporaryId.current--;
@@ -339,7 +345,7 @@ export default function StaffManagement() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Landing preview</p>
           <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">운영진 소개 편집</h1>
           <p className="mt-2 text-sm leading-6 text-white/45">
-            카드를 눌러 수정하고, 손잡이를 끌어 실제 랜딩 순서를 바꾸세요.
+            공개된 카드는 아래 모습과 순서 그대로 랜딩에 노출돼요.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -378,14 +384,14 @@ export default function StaffManagement() {
           <div className="members-glow-accent" />
 
           <div className="relative z-[1] mx-auto w-full max-w-[1390px]">
-            {staff.length === 0 ? (
+            {landingStaff.length === 0 ? (
               <button
                 type="button"
                 onClick={openCreate}
                 className="mt-8 flex min-h-52 w-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-black/20 text-center outline-none hover:border-accent/40 focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <span className="text-sm font-medium text-white">아직 운영진 카드가 없어요.</span>
-                <span className="mt-2 text-xs text-white/40">첫 카드를 추가해 주세요.</span>
+                <span className="text-sm font-medium text-white">공개할 운영진 카드가 없어요.</span>
+                <span className="mt-2 text-xs text-white/40">카드를 추가하거나 공개 설정을 켜 주세요.</span>
               </button>
             ) : (
               <div
@@ -393,7 +399,7 @@ export default function StaffManagement() {
                   previewMode === 'desktop' ? 'grid-cols-7 gap-x-1 lg:gap-x-3' : 'grid-cols-2 gap-x-4'
                 }`}
               >
-                {staff.map((person) => (
+                {landingStaff.map((person) => (
                   <div
                     key={person.clientId}
                     data-staff-drag-id={person.clientId}
@@ -401,7 +407,7 @@ export default function StaffManagement() {
                       draggingId === person.clientId
                         ? 'border-accent bg-accent/10 opacity-80'
                         : 'border-transparent hover:border-white/15 hover:bg-white/[0.035]'
-                    } ${person.publicationConsent ? '' : 'opacity-45'}`}
+                    }`}
                   >
                     <button
                       type="button"
@@ -423,11 +429,6 @@ export default function StaffManagement() {
                     >
                       ⠿
                     </button>
-                    {!person.publicationConsent ? (
-                      <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/75 px-2 py-1 text-[9px] font-semibold text-white/65">
-                        비공개
-                      </span>
-                    ) : null}
                   </div>
                 ))}
               </div>
@@ -438,9 +439,41 @@ export default function StaffManagement() {
 
       <p className="mt-3 text-center text-xs text-white/35">
         {previewMode === 'desktop'
-          ? '데스크톱 랜딩에 보이는 7열 배치예요.'
+          ? '공개 설정된 모든 카드를 데스크톱 랜딩 순서 그대로 보여줘요.'
           : '390px 모바일 화면의 2열 배치예요.'}
       </p>
+
+      {privateStaff.length > 0 ? (
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-white">비공개 카드</h2>
+            <p className="mt-1 text-xs leading-5 text-white/40">
+              랜딩에는 보이지 않지만, 카드를 눌러 수정하거나 공개로 전환할 수 있어요.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {privateStaff.map((person) => (
+              <button
+                key={person.clientId}
+                type="button"
+                onClick={() => openEdit(person)}
+                className="flex min-h-16 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-left outline-none hover:border-white/20 hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={person.photoUrl}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full object-cover opacity-60"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-white/70">{person.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-white/35">{person.position}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {editor ? (
         <div
