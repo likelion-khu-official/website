@@ -6,6 +6,10 @@ import likelion.khu.website.admin.auth.JwtProvider;
 import likelion.khu.website.admin.exception.AccountLockedException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
+import likelion.khu.website.audit.ActorType;
+import likelion.khu.website.audit.AuditAction;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.auth.dto.MemberSessionResponse;
@@ -35,6 +39,7 @@ public class MemberAuthService {
     private final MemberRefreshTokenRepository memberRefreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final AuditService auditService;
 
     @Value("${admin.lockout.max-attempts:5}")
     private int maxAttempts;
@@ -55,15 +60,20 @@ public class MemberAuthService {
         // 학번은 (학번, 기수) 유니크라 오프보딩된 과거 기수 row가 남아있을 수 있다 — 활동 중인
         // 계정만 찾는다. 못 찾으면(미존재든 전부 오프보딩됐든) "이 학번은 탈퇴했다"를 알려주지
         // 않기 위해 미존재·오답과 같은 에러로 처리(#145).
-        Member member = memberRepository.findByStudentIdAndOffboardedAtIsNull(studentId)
-                .orElseThrow(() -> new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요."));
+        Member member = memberRepository.findByStudentIdAndOffboardedAtIsNull(studentId).orElse(null);
+        if (member == null) {
+            auditLoginFailure(null, studentId);
+            throw new InvalidCredentialsException("학번 또는 비밀번호가 올바르지 않아요.");
+        }
 
         if (member.isLocked()) {
+            auditLoginFailure(member.getId(), studentId);
             throw new AccountLockedException();
         }
 
         if (!passwordEncoder.matches(rawPassword, member.getPasswordHash())) {
             member.recordFailedLogin(maxAttempts, Duration.ofMinutes(lockoutDurationMinutes));
+            auditLoginFailure(member.getId(), studentId);
             if (member.isLocked()) {
                 throw new AccountLockedException();
             }
@@ -71,7 +81,15 @@ public class MemberAuthService {
         }
 
         member.recordSuccessfulLogin();
+        auditService.record(ActorType.MEMBER, member.getId(), member.getStudentId(), AuditAction.LOGIN_SUCCESS,
+                null, null, AuditOutcome.SUCCESS, null, null);
         return issueTokenPair(member);
+    }
+
+    // 로그인 실패를 남긴다 — 멤버 계정 탈취 시도의 흔적. login의 noRollbackFor 덕에 실패 예외에도 롤백되지 않는다.
+    private void auditLoginFailure(Long memberId, String studentId) {
+        auditService.record(ActorType.MEMBER, memberId, studentId, AuditAction.LOGIN_FAILURE,
+                null, null, AuditOutcome.FAILURE, null, null);
     }
 
     @Transactional
@@ -79,7 +97,11 @@ public class MemberAuthService {
         if (refreshToken == null) {
             return;
         }
-        memberRefreshTokenRepository.findByTokenHash(hash(refreshToken)).ifPresent(MemberRefreshToken::revoke);
+        memberRefreshTokenRepository.findByTokenHash(hash(refreshToken)).ifPresent(token -> {
+            token.revoke();
+            auditService.record(ActorType.MEMBER, token.getMemberId(), null, AuditAction.LOGOUT,
+                    null, null, AuditOutcome.SUCCESS, null, null);
+        });
     }
 
     @Transactional

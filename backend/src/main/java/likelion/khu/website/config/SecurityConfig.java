@@ -3,6 +3,7 @@ package likelion.khu.website.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import likelion.khu.website.admin.auth.JwtAuthenticationFilter;
+import likelion.khu.website.audit.AuditFilter;
 import likelion.khu.website.member.auth.MemberPasswordGuardFilter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
@@ -32,6 +33,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                             JwtAuthenticationFilter jwtAuthenticationFilter,
                                             MemberPasswordGuardFilter memberPasswordGuardFilter,
+                                            AuditFilter auditFilter,
                                             ObjectMapper objectMapper) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
@@ -98,7 +100,9 @@ public class SecurityConfig {
                     writeJsonError(response, objectMapper, 403, "FORBIDDEN", "권한이 없어요."))
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(memberPasswordGuardFilter, JwtAuthenticationFilter.class);
+            .addFilterAfter(memberPasswordGuardFilter, JwtAuthenticationFilter.class)
+            // 인증(principal 세팅) 뒤에 두어야 actor를 식별할 수 있다. 응답이 끝난 뒤 상태변경·민감 열람을 남긴다.
+            .addFilterAfter(auditFilter, MemberPasswordGuardFilter.class);
 
         return http.build();
     }

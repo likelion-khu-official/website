@@ -34,6 +34,10 @@ const NAV_GROUPS = [
       { href: '/admin/comments', label: '댓글 검열' },
     ],
   },
+  {
+    label: '보안',
+    items: [{ href: '/admin/audit-logs', label: '감사 로그' }],
+  },
 ] as const;
 
 interface AdminShellProps {
