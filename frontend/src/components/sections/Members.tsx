@@ -56,22 +56,29 @@ export default async function Members() {
       <div className="members-glow-base" />
       <div className="members-glow-accent" />
 
-      <div className="relative z-[1] mx-auto w-full max-w-[1390px]">
-        <header className="scroll-reveal grid gap-4 border-b border-white/10 pb-5 text-left sm:grid-cols-[1fr_auto] sm:items-end sm:gap-8 sm:pb-6">
+      <div className="relative z-[1] mx-auto w-full max-w-[1440px]">
+        <header className="scroll-reveal grid gap-6 pb-7 text-left lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/40">Our team · 14th</p>
-            <h2
-              className="max-w-[920px] text-balance break-keep font-semibold leading-[1.28] text-white"
-              style={{ fontSize: 'clamp(28px, 3.5vw, 52px)', letterSpacing: '-0.055em' }}
-            >
-              함께 방향을 만들고,
-              <br className="sm:hidden" /> 끝까지 실행합니다.
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+              Our team · 14th
+            </p>
+            <h2 className="mt-3 max-w-4xl text-balance break-keep text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.14] tracking-[-0.055em] text-white">
+              14기를 만드는 사람들
             </h2>
+            <p className="mt-4 max-w-3xl break-keep text-sm leading-6 text-white/50 sm:text-base">
+              세션을 기획하고, 멤버를 연결하고,
+              우리의 활동을 세상에 전합니다.
+            </p>
           </div>
-          <p className="max-w-[330px] break-keep text-[12px] leading-[1.65] text-white/45 sm:text-right sm:text-[13px]">
-            기획부터 세션, 홍보까지
-            <br className="hidden sm:block" /> 14기의 성장을 설계하는 운영진입니다.
-          </p>
+          <Link
+            href="/members"
+            className="group inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            14기 멤버 전체 보기
+            <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
+              →
+            </span>
+          </Link>
         </header>
 
         {failed ? (
@@ -83,7 +90,7 @@ export default async function Members() {
             <p className="text-sm text-white/50">운영진 소개를 준비하고 있어요.</p>
           </div>
         ) : (
-          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-5 xl:grid-cols-7 xl:gap-4">
+          <div className="mt-7 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 pt-7 sm:mt-8 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-5 sm:pt-8 xl:grid-cols-7 xl:gap-4">
             {featured.map((person, index) => (
               <div
                 key={person.id}
@@ -96,17 +103,6 @@ export default async function Members() {
           </div>
         )}
 
-        <div className="scroll-reveal mt-5 flex justify-end">
-          <Link
-            href="/members"
-            className="group inline-flex min-h-11 items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            14기 멤버 전체 보기
-            <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
-              →
-            </span>
-          </Link>
-        </div>
       </div>
     </section>
   );

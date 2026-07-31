@@ -90,9 +90,12 @@ export default async function Blog() {
           </div>
           <Link
             href="/blog"
-            className="inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-accent hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#131313]"
+            className="group inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            모든 글 <span aria-hidden>→</span>
+            모든 글
+            <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
+              →
+            </span>
           </Link>
         </div>
 
