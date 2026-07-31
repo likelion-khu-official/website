@@ -1,10 +1,18 @@
 package likelion.khu.website.audit;
 
+import jakarta.servlet.http.HttpServletRequest;
+import likelion.khu.website.admin.auth.AdminPrincipal;
+import likelion.khu.website.admin.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
 
@@ -25,7 +33,46 @@ public class AuditService {
     public void record(ActorType actorType, Long actorId, String actorLabel, AuditAction action,
                        String httpMethod, String path, AuditOutcome outcome, Integer statusCode, String clientIp) {
         repository.save(AuditEvent.of(actorType, actorId, actorLabel, action,
-                httpMethod, path, outcome, statusCode, clientIp));
+                null, null, null, null, httpMethod, path, outcome, statusCode, clientIp));
+    }
+
+    // 명시 계측 — 상태변경을 사람이 읽는 요약과 함께 남긴다. 현재 로그인 주체·요청 IP는 SecurityContext와
+    // 요청 컨텍스트에서 자동으로 채우므로, 각 서비스는 "무엇을 했는지"(요약·상세)만 넘기면 된다.
+    @Transactional
+    public void recordStateChange(String summary, String targetType, Long targetId, AuditOutcome outcome) {
+        recordStateChange(summary, null, targetType, targetId, outcome);
+    }
+
+    // detail = 변경 전→후 같은 상세(커밋 로그 본문 격). 없으면 null.
+    @Transactional
+    public void recordStateChange(String summary, String detail, String targetType, Long targetId, AuditOutcome outcome) {
+        Actor actor = currentActor();
+        repository.save(AuditEvent.of(actor.type(), actor.id(), actor.label(), AuditAction.STATE_CHANGE,
+                summary, detail, targetType, targetId, null, null, outcome, null, currentIp()));
+    }
+
+    private record Actor(ActorType type, Long id, String label) {}
+
+    private Actor currentActor() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AdminPrincipal principal) {
+            ActorType type = JwtProvider.MEMBER_ROLE.equals(principal.getRole()) ? ActorType.MEMBER : ActorType.ADMIN;
+            return new Actor(type, principal.getId(), principal.getEmail());
+        }
+        return new Actor(ActorType.ANONYMOUS, null, null);
+    }
+
+    private String currentIp() {
+        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes servletAttrs) {
+            HttpServletRequest request = servletAttrs.getRequest();
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                return forwarded.split(",")[0].trim();
+            }
+            return request.getRemoteAddr();
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)

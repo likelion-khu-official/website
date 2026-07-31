@@ -1,5 +1,6 @@
 package likelion.khu.website.recruitment;
 
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
 import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
@@ -37,12 +38,15 @@ class RecruitmentManagementServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private AuditService auditService;
+
     private RecruitmentManagementService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new RecruitmentManagementService(statusRepository, subscriptionRepository, emailService, eventPublisher);
+        service = new RecruitmentManagementService(statusRepository, subscriptionRepository, emailService, eventPublisher, auditService);
         ReflectionTestUtils.setField(service, "publicSiteUrl", "https://likelion-khu.com");
     }
 

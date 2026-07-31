@@ -1,5 +1,8 @@
 package likelion.khu.website.feed.post;
 
+import likelion.khu.website.audit.AuditChanges;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.feed.comment.CommentRepository;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
@@ -32,6 +35,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final MemberRepository memberRepository;
+    private final AuditService auditService;
 
     @Transactional
     public PostDetailResponse createPost(Long memberId, PostCreateRequest request) {
@@ -46,6 +50,7 @@ public class PostService {
         Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(),
                 authorName, authorParts, memberId, request.getThumbnailUrl());
         postRepository.save(post);
+        auditService.recordStateChange("블로그 글 작성: " + request.getTitle(), "POST", post.getId(), AuditOutcome.SUCCESS);
         return PostDetailResponse.from(post, member, 0);
     }
 
@@ -81,6 +86,7 @@ public class PostService {
         Post post = findPostOrThrow(id);
         requireAuthor(post, memberId);
         post.replace(request.getTitle(), request.getSummary(), request.getContent(), request.getThumbnailUrl());
+        auditService.recordStateChange("블로그 글 수정: " + request.getTitle(), "POST", id, AuditOutcome.SUCCESS);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
         return PostDetailResponse.from(post, findAuthor(post), commentCount);
     }
@@ -91,6 +97,7 @@ public class PostService {
         requireAuthor(post, memberId);
         commentRepository.deleteAllByPostId(id);
         postRepository.delete(post);
+        auditService.recordStateChange("블로그 글 삭제: " + post.getTitle(), "POST", id, AuditOutcome.SUCCESS);
     }
 
     @Transactional(readOnly = true)
@@ -101,7 +108,10 @@ public class PostService {
     @Transactional
     public PostSummaryResponse updateStatus(Long id, PostStatus status) {
         Post post = findPostOrThrow(id);
+        PostStatus before = post.getStatus();
         post.transitionTo(status);
+        String detail = new AuditChanges().field("상태", before, post.getStatus()).toDetailOrNull();
+        auditService.recordStateChange("블로그 글 상태 변경: " + post.getTitle(), detail, "POST", id, AuditOutcome.SUCCESS);
         return PostSummaryResponse.from(post, findAuthor(post));
     }
 

@@ -31,6 +31,10 @@ public class AuditLogResponse {
         private final Long actorId;
         private final String actorLabel;
         private final String action;
+        private final String summary;
+        private final String detail;
+        private final String targetType;
+        private final Long targetId;
         private final String httpMethod;
         private final String path;
         private final String outcome;
@@ -45,6 +49,10 @@ public class AuditLogResponse {
                     event.getActorId(),
                     event.getActorLabel(),
                     event.getAction().name(),
+                    event.getSummary(),
+                    event.getDetail(),
+                    event.getTargetType(),
+                    event.getTargetId(),
                     event.getHttpMethod(),
                     event.getPath(),
                     event.getOutcome().name(),

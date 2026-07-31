@@ -22,9 +22,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditFilter extends OncePerRequestFilter {
 
-    private static final Set<String> MUTATING_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
-
     // 조회지만 남겨야 하는 민감 열람 경로 — 지원자 개인정보 명단, 그리고 감사 로그 자체를 열어 본 것.
+    // (열람당 한 건만 남게 FE가 조회를 한 번만 보낸다.)
     private static final Set<String> SENSITIVE_READ_PATHS = Set.of(
             "/api/admin/applications",
             "/api/admin/audit-logs");
@@ -44,20 +43,11 @@ public class AuditFilter extends OncePerRequestFilter {
         }
     }
 
-    // 무엇을 남길지 결정한다. 관리자·멤버 네임스페이스의 쓰기 요청은 상태변경으로, 민감 열람 경로의 GET은
-    // SENSITIVE_READ로 남긴다. 로그인/로그아웃 경로는 AuthService가 따로 남기므로 여기선 제외해 중복을 막는다.
+    // 상태변경은 각 서비스가 사람이 읽는 요약과 함께 명시적으로 남긴다(#339 피드백 — "누구에게/무엇을"이
+    // 경로만으로는 안 드러나서). 이 필터는 흔적이 남지 않는 민감 '열람'만 서버 경계에서 보장한다.
     private AuditAction auditableAction(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        String method = request.getMethod();
-        if (path.startsWith("/api/admin/auth/") || path.startsWith("/api/member/auth/")) {
-            return null;
-        }
-        if ("GET".equals(method) && SENSITIVE_READ_PATHS.contains(path)) {
+        if ("GET".equals(request.getMethod()) && SENSITIVE_READ_PATHS.contains(request.getRequestURI())) {
             return AuditAction.SENSITIVE_READ;
-        }
-        boolean managedNamespace = path.startsWith("/api/admin/") || path.startsWith("/api/member/");
-        if (managedNamespace && MUTATING_METHODS.contains(method)) {
-            return AuditAction.STATE_CHANGE;
         }
         return null;
     }

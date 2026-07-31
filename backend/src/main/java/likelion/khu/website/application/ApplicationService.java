@@ -7,6 +7,8 @@ import likelion.khu.website.application.dto.ApplicationAdminResponse;
 import likelion.khu.website.application.dto.ApplicationFormResponse;
 import likelion.khu.website.application.exception.PrivacyConsentRequiredException;
 import likelion.khu.website.application.exception.RecruitmentClosedException;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.recruitment.RecruitmentStatus;
 import likelion.khu.website.recruitment.RecruitmentStatusRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final RecruitmentStatusRepository recruitmentStatusRepository;
     private final ObjectMapper objectMapper;
+    private final AuditService auditService;
 
     // 폼이 아직 한 번도 저장되지 않았을 때 돌려줄 빈 정의 — FE가 "질문 없음"으로 렌더한다.
     private static final String DEFAULT_SCHEMA_JSON = "{\"questions\":[]}";
@@ -42,6 +45,7 @@ public class ApplicationService {
                 })
                 .orElseGet(() -> new ApplicationForm(json, updatedBy));
         formRepository.save(form);
+        auditService.recordStateChange("지원서 양식 수정", "APPLICATION_FORM", null, AuditOutcome.SUCCESS);
         return new ApplicationFormResponse(readTree(json));
     }
 

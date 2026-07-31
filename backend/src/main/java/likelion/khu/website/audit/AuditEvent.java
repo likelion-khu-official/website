@@ -45,8 +45,23 @@ public class AuditEvent {
     @Column(nullable = false, length = 30)
     private AuditAction action;
 
-    // 상태변경·열람은 HTTP 메서드+경로로 무엇을 했는지 남긴다(예: DELETE /api/admin/members/5).
-    // 인증 이벤트는 메서드·경로가 비어 있을 수 있다.
+    // 사람이 읽는 행위 요약 — 명시 계측이 채운다(예: "운영진 '홍길동'을 삭제"). 인증·열람 이벤트는 비어 있고 action으로 표시된다.
+    @Column(length = 500)
+    private String summary;
+
+    // 변경 전→후 등 상세(커밋 로그 본문 격). 여러 줄일 수 있고 없을 수도 있다. 민감정보(전화·학번 등)는
+    // 값 없이 "…변경됨"으로만 담아 로그가 개인정보 사본이 되지 않게 한다(SECURITY.md).
+    @Column(length = 2000)
+    private String detail;
+
+    // 대상 종류·식별자 — 나중에 대상별로 걸러 보기 위한 것(예: MEMBER / 12). 없을 수 있다.
+    @Column(length = 40)
+    private String targetType;
+
+    @Column
+    private Long targetId;
+
+    // 필터가 남기는 열람 이벤트의 보조 정보. 명시 계측(상태변경)은 summary를 쓰므로 비어 있다.
     @Column(length = 10)
     private String httpMethod;
 
@@ -68,11 +83,16 @@ public class AuditEvent {
 
     // 생성만 가능하고 이후 상태를 바꾸는 경로가 없다 — 불변. 정적 팩토리로 생성 의도를 좁힌다.
     private AuditEvent(ActorType actorType, Long actorId, String actorLabel, AuditAction action,
+                       String summary, String detail, String targetType, Long targetId,
                        String httpMethod, String path, AuditOutcome outcome, Integer statusCode, String clientIp) {
         this.actorType = actorType;
         this.actorId = actorId;
         this.actorLabel = actorLabel;
         this.action = action;
+        this.summary = summary;
+        this.detail = detail;
+        this.targetType = targetType;
+        this.targetId = targetId;
         this.httpMethod = httpMethod;
         this.path = path;
         this.outcome = outcome;
@@ -82,8 +102,10 @@ public class AuditEvent {
     }
 
     public static AuditEvent of(ActorType actorType, Long actorId, String actorLabel, AuditAction action,
+                                String summary, String detail, String targetType, Long targetId,
                                 String httpMethod, String path, AuditOutcome outcome,
                                 Integer statusCode, String clientIp) {
-        return new AuditEvent(actorType, actorId, actorLabel, action, httpMethod, path, outcome, statusCode, clientIp);
+        return new AuditEvent(actorType, actorId, actorLabel, action, summary, detail, targetType, targetId,
+                httpMethod, path, outcome, statusCode, clientIp);
     }
 }

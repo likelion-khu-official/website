@@ -142,6 +142,7 @@ public class MemberAuthService {
         AdminPasswordPolicy.validate(newRawPassword);
         member.changePassword(passwordEncoder.encode(newRawPassword));
         revokeAllTokensFor(member.getId());
+        auditService.recordStateChange("비밀번호 변경", "MEMBER", member.getId(), AuditOutcome.SUCCESS);
         return issueTokenPair(member);
     }
 
@@ -159,6 +160,7 @@ public class MemberAuthService {
                 .orElseThrow(MemberNotFoundException::new);
         member.resetPasswordByAdmin(passwordEncoder.encode(member.getPhone()));
         revokeAllTokensFor(member.getId());
+        auditService.recordStateChange("멤버 비밀번호 초기화: " + member.getName(), "MEMBER", member.getId(), AuditOutcome.SUCCESS);
     }
 
     // 관리자(ADMIN 이상)가 졸업·탈퇴한 부원을 오프보딩 — 로그인만 막고 기존 글·프로젝트 등
@@ -170,6 +172,7 @@ public class MemberAuthService {
                 .orElseThrow(MemberNotFoundException::new);
         member.offboard();
         revokeAllTokensFor(member.getId());
+        auditService.recordStateChange("멤버 오프보딩: " + member.getName(), "MEMBER", member.getId(), AuditOutcome.SUCCESS);
     }
 
     private void revokeAllTokensFor(Long memberId) {

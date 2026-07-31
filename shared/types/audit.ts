@@ -24,7 +24,14 @@ export interface AuditLogEntry {
   /** 행위 시점의 로그인 식별자 스냅샷(어드민 이메일·멤버 학번). 개인정보 내용은 담지 않는다 */
   actorLabel: string | null;
   action: AuditActionType;
-  /** 상태변경·열람은 HTTP 메서드+경로로 남는다. 인증 이벤트는 null일 수 있다 */
+  /** 사람이 읽는 행위 요약 — 명시 계측(상태변경)이 채운다. 인증·열람 이벤트는 null */
+  summary: string | null;
+  /** 변경 전→후 등 상세(커밋 로그 본문 격, 여러 줄일 수 있다). 없으면 null */
+  detail: string | null;
+  /** 대상 종류·식별자(예: MEMBER / 12). 없을 수 있다 */
+  targetType: string | null;
+  targetId: number | null;
+  /** 열람 이벤트의 보조 정보. 인증·상태변경은 null일 수 있다 */
   httpMethod: string | null;
   path: string | null;
   outcome: AuditOutcome;

@@ -2,6 +2,9 @@ package likelion.khu.website.feed.comment;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
+import likelion.khu.website.audit.AuditChanges;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.feed.comment.dto.AdminCommentResponse;
 import likelion.khu.website.feed.comment.dto.CommentCreateRequest;
 import likelion.khu.website.feed.comment.dto.CommentResponse;
@@ -27,6 +30,7 @@ public class CommentService {
     private final CommentModerationEventRepository moderationEventRepository;
     private final PostRepository postRepository;
     private final AdminRepository adminRepository;
+    private final AuditService auditService;
 
     @Transactional
     public CommentResponse create(Long postId, CommentCreateRequest request,
@@ -91,6 +95,9 @@ public class CommentService {
         long networkCount = comment.getIpHash() == null ? 0
                 : commentRepository.findAll().stream()
                     .filter(item -> comment.getIpHash().equals(item.getIpHash())).count();
+        String detail = new AuditChanges().value("사유", normalizedReason).toDetailOrNull();
+        auditService.recordStateChange((hidden ? "댓글 가리기" : "댓글 공개") + " #" + commentId,
+                detail, "COMMENT", commentId, AuditOutcome.SUCCESS);
         return AdminCommentResponse.from(comment, hidden ? admin.getName() : null, actorCount, networkCount);
     }
 }

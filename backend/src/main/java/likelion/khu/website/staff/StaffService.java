@@ -1,5 +1,8 @@
 package likelion.khu.website.staff;
 
+import likelion.khu.website.audit.AuditChanges;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.staff.dto.StaffCreateRequest;
 import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffResponse;
@@ -18,6 +21,7 @@ import java.util.List;
 public class StaffService {
 
     private final StaffRepository staffRepository;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<StaffResponse> getAll() {
@@ -45,12 +49,24 @@ public class StaffService {
                 consentedAt, createdBy
         );
         staffRepository.save(staff);
+        String createDetail = new AuditChanges()
+                .value("직책", staff.getPosition())
+                .value("학과", staff.getDepartment())
+                .value("활동 수", staff.getActivities() == null ? 0 : staff.getActivities().size())
+                .toDetailOrNull();
+        auditService.recordStateChange("운영진 등록: " + staff.getName(), createDetail, "STAFF", staff.getId(), AuditOutcome.SUCCESS);
         return StaffAdminResponse.from(staff);
     }
 
     @Transactional
     public StaffAdminResponse update(Long id, StaffUpdateRequest request, String updatedBy) {
         Staff staff = findOrThrow(id);
+        String beforeName = staff.getName();
+        String beforePosition = staff.getPosition();
+        String beforeDept = staff.getDepartment();
+        String beforeIntro = staff.getIntroduction();
+        String beforeActivities = String.valueOf(staff.getActivities());
+        boolean beforeConsent = staff.isPublicationConsent();
         if (request.getPublicationConsent() == null && request.getPublicationConsentedAt() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게재 동의 여부와 동의 시각을 함께 입력해주세요.");
         }
@@ -63,6 +79,15 @@ public class StaffService {
                 request.getSortOrder(), request.getStudentId(), request.getPhone(),
                 request.getPublicationConsent(), consentedAt, updatedBy
         );
+        String updateDetail = new AuditChanges()
+                .field("이름", beforeName, staff.getName())
+                .field("직책", beforePosition, staff.getPosition())
+                .field("학과", beforeDept, staff.getDepartment())
+                .masked("소개", beforeIntro, staff.getIntroduction())
+                .masked("활동", beforeActivities, String.valueOf(staff.getActivities()))
+                .field("게재동의", beforeConsent ? "동의" : "미동의", staff.isPublicationConsent() ? "동의" : "미동의")
+                .toDetailOrNull();
+        auditService.recordStateChange("운영진 수정: " + staff.getName(), updateDetail, "STAFF", id, AuditOutcome.SUCCESS);
         return StaffAdminResponse.from(staff);
     }
 
@@ -70,6 +95,7 @@ public class StaffService {
     public void delete(Long id) {
         Staff staff = findOrThrow(id);
         staffRepository.delete(staff);
+        auditService.recordStateChange("운영진 삭제: " + staff.getName(), "STAFF", id, AuditOutcome.SUCCESS);
     }
 
     private Staff findOrThrow(Long id) {
