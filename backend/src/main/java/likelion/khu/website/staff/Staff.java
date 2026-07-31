@@ -94,10 +94,14 @@ public class Staff {
         return s;
     }
 
-    public void update(String position, String photoUrl, String introduction, List<String> activities, Integer sortOrder,
+    public void update(String name, String position, String department, Integer admissionYear,
+                       String photoUrl, String introduction, List<String> activities, Integer sortOrder,
                        String studentId, String phone, Boolean publicationConsent,
                        LocalDateTime publicationConsentedAt, String updatedBy) {
+        if (name != null) this.name = name;
         if (position != null) this.position = position;
+        if (department != null) this.department = department;
+        if (admissionYear != null) this.admissionYear = admissionYear;
         if (photoUrl != null) this.photoUrl = photoUrl;
         if (introduction != null) this.introduction = introduction;
         if (activities != null) {

@@ -65,6 +65,11 @@ const ACTION_GROUPS: ActionGroup[] = [
     description: '공식 사이트에 공개된 콘텐츠를 살피고 필요한 조치를 해요.',
     actions: [
       {
+        href: '/admin/staff',
+        title: '운영진 소개',
+        description: '랜딩 미리보기 · 카드 편집 · 노출 순서 변경',
+      },
+      {
         href: '/admin/blog',
         title: '블로그 관리',
         description: '게시된 글 숨김 · 다시 게시',

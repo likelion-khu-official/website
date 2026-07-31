@@ -31,6 +31,12 @@ import type {
 } from '@shared/types/application';
 import type { SpringPage, PostSummary, PostStatus } from '@shared/types/feed';
 import type { SubscriberSummary } from '@shared/types/recruitment';
+import type {
+  StaffAdminSummary,
+  StaffCreateRequest,
+  StaffImageUploadResponse,
+  StaffUpdateRequest,
+} from '@shared/types/staff';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -80,9 +86,10 @@ async function request<T>(
   fallbackMessage: string,
   retryOn401: boolean
 ): Promise<T> {
+  const isFormData = init.body instanceof FormData;
   const res = await fetch(`/api/admin${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+    headers: { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...init.headers },
   });
 
   if (res.ok) {
@@ -209,6 +216,45 @@ export function listAdmins() {
 
 export function deleteAdmin(id: number) {
   return request<void>(`/admins/${id}`, { method: 'DELETE' }, '삭제에 실패했어요.', true);
+}
+
+// ── 운영진 소개 관리 ─────────────────────────────────────────────
+
+export function listStaff() {
+  return request<StaffAdminSummary[]>('/staff', {}, '운영진 목록을 불러오지 못했어요.', true);
+}
+
+export function createStaff(body: StaffCreateRequest) {
+  return request<StaffAdminSummary>(
+    '/staff',
+    { method: 'POST', body: JSON.stringify(body) },
+    '운영진 등록에 실패했어요.',
+    true
+  );
+}
+
+export function updateStaff(id: number, body: StaffUpdateRequest) {
+  return request<StaffAdminSummary>(
+    `/staff/${id}`,
+    { method: 'PATCH', body: JSON.stringify(body) },
+    '운영진 수정에 실패했어요.',
+    true
+  );
+}
+
+export function deleteStaff(id: number) {
+  return request<void>(`/staff/${id}`, { method: 'DELETE' }, '운영진 삭제에 실패했어요.', true);
+}
+
+export function uploadStaffImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request<StaffImageUploadResponse>(
+    '/staff/images',
+    { method: 'POST', body: formData },
+    '사진 업로드에 실패했어요.',
+    true
+  );
 }
 
 // ── 모집 관리 (#151) ──────────────────────────────────────────────

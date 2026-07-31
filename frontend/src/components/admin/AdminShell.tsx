@@ -15,6 +15,7 @@ const NAV_GROUPS = [
     items: [
       { href: '/admin', label: '대시보드' },
       { href: '/admin/members', label: '멤버 관리' },
+      { href: '/admin/staff', label: '운영진 소개' },
       { href: '/admin/admins', label: '관리자 계정' },
     ],
   },
