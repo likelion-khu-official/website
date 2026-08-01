@@ -15,6 +15,19 @@ export type AuditActionType =
 
 export type AuditOutcome = 'SUCCESS' | 'FAILURE';
 
+/** 사람이 쓰는 요약문과 분리된, 필터 가능한 업무 영역 */
+export type AuditEventType =
+  | 'AUTHENTICATION'
+  | 'PEOPLE_MANAGEMENT'
+  | 'CONTENT_MANAGEMENT'
+  | 'RECRUITMENT_MANAGEMENT'
+  | 'APPLICATION_MANAGEMENT'
+  | 'SENSITIVE_ACCESS'
+  | 'AUDIT_REVIEW'
+  | 'OTHER';
+
+export type AuditView = 'IMPORTANT' | 'ALL';
+
 /** 감사 이벤트 한 건 */
 export interface AuditLogEntry {
   id: number;
@@ -24,6 +37,7 @@ export interface AuditLogEntry {
   /** 행위 시점의 로그인 식별자 스냅샷(어드민 이메일·멤버 학번). 개인정보 내용은 담지 않는다 */
   actorLabel: string | null;
   action: AuditActionType;
+  eventType: AuditEventType;
   /** 사람이 읽는 행위 요약 — 명시 계측(상태변경)이 채운다. 인증·열람 이벤트는 null */
   summary: string | null;
   /** 변경 전→후 등 상세(커밋 로그 본문 격, 여러 줄일 수 있다). 없으면 null */
@@ -52,9 +66,14 @@ export interface AuditLogResponse {
 export interface AuditLogQuery {
   actorType?: AuditActorType;
   action?: AuditActionType;
+  eventType?: AuditEventType;
+  targetType?: string;
+  targetId?: number;
+  outcome?: AuditOutcome;
+  view?: AuditView;
   from?: string; // ISO-8601
   to?: string; // ISO-8601
-  q?: string; // 행위자 라벨·경로 부분일치
+  q?: string; // 행위자 라벨·경로·요약·대상 유형 부분일치
   page?: number;
   size?: number;
 }

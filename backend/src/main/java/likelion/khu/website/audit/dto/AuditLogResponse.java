@@ -31,6 +31,7 @@ public class AuditLogResponse {
         private final Long actorId;
         private final String actorLabel;
         private final String action;
+        private final String eventType;
         private final String summary;
         private final String detail;
         private final String targetType;
@@ -49,6 +50,7 @@ public class AuditLogResponse {
                     event.getActorId(),
                     event.getActorLabel(),
                     event.getAction().name(),
+                    event.getEventType().name(),
                     event.getSummary(),
                     event.getDetail(),
                     event.getTargetType(),

@@ -29,6 +29,11 @@ public class AuditController {
     public AuditLogResponse list(
             @RequestParam(required = false) ActorType actorType,
             @RequestParam(required = false) AuditAction action,
+            @RequestParam(required = false) AuditEventType eventType,
+            @RequestParam(required = false) String targetType,
+            @RequestParam(required = false) Long targetId,
+            @RequestParam(required = false) AuditOutcome outcome,
+            @RequestParam(defaultValue = "ALL") AuditView view,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(required = false) String q,
@@ -36,8 +41,10 @@ public class AuditController {
             @RequestParam(defaultValue = "50") int size) {
         int cappedSize = Math.min(Math.max(size, 1), MAX_SIZE);
         String query = (q != null && q.isBlank()) ? null : q;
+        String target = (targetType != null && targetType.isBlank()) ? null : targetType;
         Page<AuditEvent> result = auditService.search(
-                actorType, action, from, to, query, PageRequest.of(Math.max(page, 0), cappedSize));
+                actorType, action, eventType, target, targetId, outcome, view, from, to, query,
+                PageRequest.of(Math.max(page, 0), cappedSize));
         return AuditLogResponse.from(result);
     }
 }

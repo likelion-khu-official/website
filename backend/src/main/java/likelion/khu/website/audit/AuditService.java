@@ -76,8 +76,11 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditEvent> search(ActorType actorType, AuditAction action,
+    public Page<AuditEvent> search(ActorType actorType, AuditAction action, AuditEventType eventType,
+                                   String targetType, Long targetId, AuditOutcome outcome, AuditView view,
                                    LocalDateTime from, LocalDateTime to, String q, Pageable pageable) {
-        return repository.search(actorType, action, from, to, q, pageable);
+        AuditEventType excludedEventType = view == AuditView.IMPORTANT ? AuditEventType.AUDIT_REVIEW : null;
+        return repository.search(actorType, action, eventType, targetType, targetId, outcome, excludedEventType,
+                from, to, q, pageable);
     }
 }

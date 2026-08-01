@@ -45,6 +45,10 @@ public class AuditEvent {
     @Column(nullable = false, length = 30)
     private AuditAction action;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private AuditEventType eventType;
+
     // 사람이 읽는 행위 요약 — 명시 계측이 채운다(예: "운영진 '홍길동'을 삭제"). 인증·열람 이벤트는 비어 있고 action으로 표시된다.
     @Column(length = 500)
     private String summary;
@@ -89,6 +93,7 @@ public class AuditEvent {
         this.actorId = actorId;
         this.actorLabel = actorLabel;
         this.action = action;
+        this.eventType = AuditEventType.classify(action, targetType, path);
         this.summary = summary;
         this.detail = detail;
         this.targetType = targetType;
