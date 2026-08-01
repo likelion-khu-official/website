@@ -24,7 +24,10 @@ html {
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --font-sans: "Pretendard Variable", var(--font-geist-sans), sans-serif;
+  /* 라틴은 Inter, 한글은 Inter에 글리프가 없으므로 Pretendard로 자연스럽게 폴백한다. */
+  --font-sans: var(--font-inter), "Pretendard Variable", sans-serif;
+  --font-latin: var(--font-inter), sans-serif;
+  --font-korean: "Pretendard Variable", sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -35,6 +38,35 @@ body {
   overflow-x: clip;
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 랜딩 섹션 공통 타이포그래피 — 트랙 시안의 위계를 전 섹션 헤더에 재사용한다. */
+.landing-section-kicker {
+  font-family: var(--font-latin);
+  color: var(--accent);
+  font-size: clamp(13px, 0.9765625vw, 15px);
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.landing-section-title {
+  font-family: var(--font-korean);
+  color: #f7f7f7;
+  font-size: clamp(36px, 3.125vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: clamp(0px, 0.0651042vw, 1px);
+}
+
+.landing-section-copy {
+  font-family: var(--font-korean);
+  color: #8d8d8d;
+  font-size: clamp(15px, 1.1067708vw, 17px);
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: 0;
 }
 
 /* 섹션별 글로우는 배경 레이어(z=0)에만 두고 콘텐츠는 z=2로 올린다.
@@ -371,10 +403,13 @@ textarea {
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1727 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.3'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-23.724 117.01 -173.69 -47.731 1010.1 117.54)'><stop stop-color='rgba(0,0,0,1)' offset='0'/><stop stop-color='rgba(0,0,0,1)' offset='0.48794'/><stop stop-color='rgba(11,2,1,1)' offset='0.50202'/><stop stop-color='rgba(22,4,2,1)' offset='0.5161'/><stop stop-color='rgba(44,9,3,1)' offset='0.54425'/><stop stop-color='rgba(88,17,6,1)' offset='0.60056'/><stop stop-color='rgba(132,26,9,1)' offset='0.65687'/><stop stop-color='rgba(176,34,12,1)' offset='0.71319'/><stop stop-color='rgba(186,59,35,1)' offset='0.74904'/><stop stop-color='rgba(196,84,58,1)' offset='0.78489'/><stop stop-color='rgba(206,109,81,1)' offset='0.82074'/><stop stop-color='rgba(216,133,105,1)' offset='0.85659'/><stop stop-color='rgba(235,183,151,1)' offset='0.9283'/><stop stop-color='rgba(255,233,197,1)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* 트랙 소개 배경 — 섹션 자체에서 시작과 끝이 배경색으로 수렴하므로
-   뷰포트 비율이 달라져도 회전한 SVG 레이어처럼 경계가 잘리지 않는다. */
+/* 트랙 소개 — 1536×1024 디자인 좌표를 컨테이너 비율로 동일하게 축소한다. */
 .session-intro-bg {
-  background-color: #131313;
+  display: flex;
+  height: 100svh;
+  align-items: flex-start;
+  justify-content: center;
+  background-color: #111212;
 }
 
 .session-intro-bg::before {
@@ -382,12 +417,255 @@ textarea {
   content: none !important;
 }
 
-.session-intro-surface {
-  z-index: 1 !important;
-  background:
-    radial-gradient(58% 48% at 100% 88%, rgba(255, 80, 0, 0.13), rgba(19, 19, 19, 0) 72%),
-    linear-gradient(to bottom, #131313 0%, #121313 54%, #131313 100%);
-  pointer-events: none;
+.session-intro-bg::after {
+  display: none !important;
+}
+
+.session-intro-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100svh - var(--nav-h) - 28px);
+  margin-top: calc(var(--nav-h) + 14px);
+  flex: none;
+  container-type: size;
+  font-family: var(--font-sans);
+}
+
+.session-intro-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.session-intro-header {
+  position: absolute;
+  top: 1.1470282cqh;
+  right: 4.8177083cqw;
+  left: 4.8177083cqw;
+}
+
+.session-track-label {
+  font-family: var(--font-latin);
+  color: #ff5000;
+  font-size: min(0.9114583cqw, 1.459854cqh);
+  font-weight: 600;
+  line-height: min(1.3020833cqw, 2.085506cqh);
+  letter-spacing: 0;
+}
+
+.session-intro-title {
+  margin-top: 1.668405cqh;
+  white-space: nowrap;
+}
+
+.session-intro-summary {
+  position: absolute;
+  top: 3.336809cqh;
+  left: 59.765625cqw;
+  width: 30.5989583cqw;
+}
+
+.session-intro-summary span,
+.session-track-description span {
+  display: block;
+  white-space: nowrap;
+}
+
+.session-grid-line {
+  position: absolute;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.session-grid-line--vertical {
+  top: 16.579771cqh;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.session-grid-line--horizontal {
+  top: 54.953076cqh;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.session-track-grid {
+  position: absolute;
+  inset: 16.579771cqh 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 38.373306cqh 45.046924cqh;
+}
+
+.session-track-card {
+  position: relative;
+  min-width: 0;
+  padding-top: 6.256517cqh;
+  padding-left: 4.8177083cqw;
+}
+
+.session-track-card:nth-child(even) {
+  padding-left: 3.515625cqw;
+}
+
+.session-track-title {
+  margin-top: 2.711157cqh;
+  font-family: var(--font-latin);
+  color: #f5f5f5;
+  font-size: min(2.4739583cqw, 3.962461cqh);
+  font-weight: 700;
+  line-height: min(2.9947917cqw, 4.796663cqh);
+  letter-spacing: 0;
+}
+
+.session-track-headline {
+  margin-top: 1.564129cqh;
+  font-family: var(--font-korean);
+  color: #f0f0f0;
+  font-size: min(1.3671875cqw, 2.189781cqh);
+  font-weight: 700;
+  line-height: min(1.8880208cqw, 3.023983cqh);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.session-track-description {
+  margin-top: 1.877cqh;
+  font-family: var(--font-korean);
+  color: #8d8d8d;
+  font-size: min(1.1067708cqw, 1.77268cqh);
+  font-weight: 400;
+  line-height: min(1.8880208cqw, 3.023983cqh);
+  letter-spacing: 0;
+}
+
+.session-track-motif {
+  position: absolute;
+  top: 7.507821cqh;
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+
+.session-track-motif--01 {
+  right: 2.6692708cqw;
+  width: min(13.0859375cqw, 20.959333cqh);
+}
+
+.session-track-motif--02 {
+  right: 3.3203125cqw;
+  width: min(13.0859375cqw, 20.959333cqh);
+}
+
+.session-track-motif--03 {
+  right: 2.6692708cqw;
+  width: min(11.8489583cqw, 18.978102cqh);
+}
+
+.session-track-motif--04 {
+  right: 2.9296875cqw;
+  width: min(13.4765625cqw, 21.585005cqh);
+}
+
+@media (max-width: 1023px) {
+  .session-intro-bg {
+    display: block;
+    height: auto;
+  }
+
+  .session-intro-canvas {
+    width: 100%;
+    height: auto;
+    margin-top: 0;
+    aspect-ratio: auto;
+    min-height: 100svh;
+    padding: 80px 20px;
+    container-type: normal;
+  }
+
+  .session-intro-header,
+  .session-intro-summary,
+  .session-track-grid {
+    position: relative;
+    inset: auto;
+  }
+
+  .session-intro-header {
+    right: auto;
+    left: auto;
+  }
+
+  .session-track-label {
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .session-intro-title {
+    margin-top: 12px;
+    white-space: normal;
+  }
+
+  .session-intro-summary {
+    width: auto;
+    margin-top: 24px;
+  }
+
+  .session-intro-summary span,
+  .session-track-description span {
+    display: inline;
+    white-space: normal;
+  }
+
+  .session-intro-summary span + span::before,
+  .session-track-description span + span::before {
+    content: " ";
+  }
+
+  .session-grid-line {
+    display: none;
+  }
+
+  .session-track-grid {
+    display: block;
+    margin-top: 48px;
+  }
+
+  .session-track-card,
+  .session-track-card:nth-child(even) {
+    min-height: 300px;
+    padding: 40px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+  }
+
+  .session-track-title {
+    margin-top: 24px;
+    font-size: 32px;
+    line-height: 40px;
+  }
+
+  .session-track-headline {
+    max-width: calc(100% - 128px);
+    margin-top: 12px;
+    font-size: 17px;
+    line-height: 26px;
+    white-space: normal;
+  }
+
+  .session-track-description {
+    max-width: 34rem;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 24px;
+  }
+
+  .session-track-motif {
+    top: 40px;
+    right: 0;
+    width: 112px;
+  }
 }
 
 /* Project(101:10) 섹션 배경 — 상단 warm 글로우는 컴포넌트 내 GLOW_SVG 요소로 렌더(107:609 원본) */

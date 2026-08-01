@@ -27,13 +27,13 @@ export default async function Members() {
       <div className="relative z-[1] mx-auto w-full max-w-[1440px]">
         <header className="scroll-reveal grid gap-6 pb-7 text-left lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className="landing-section-kicker">
               Our team · 14th
             </p>
-            <h2 className="mt-3 max-w-4xl text-balance break-keep text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.14] tracking-[-0.055em] text-white">
+            <h2 className="landing-section-title mt-3 max-w-4xl text-balance break-keep">
               14기를 만드는 사람들
             </h2>
-            <p className="mt-4 max-w-3xl break-keep text-sm leading-6 text-white/50 sm:text-base">
+            <p className="landing-section-copy mt-4 max-w-3xl break-keep">
               세션을 기획하고, 멤버를 연결하고,
               우리의 활동을 세상에 전합니다.
             </p>

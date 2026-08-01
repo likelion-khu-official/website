@@ -25,13 +25,13 @@ export default async function Project() {
       <div className="project-section-inner relative mx-auto w-full max-w-[1440px]">
         <div className="project-section-header scroll-reveal grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className="landing-section-kicker">
               Our projects
             </p>
-            <h2 className="mt-3 max-w-4xl break-keep text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.14] tracking-[-0.055em] text-white">
+            <h2 className="landing-section-title mt-3 max-w-4xl break-keep">
               아이디어부터 서비스까지
             </h2>
-            <p className="mt-4 max-w-3xl break-keep text-sm leading-6 text-white/50 sm:text-base">
+            <p className="landing-section-copy mt-4 max-w-3xl break-keep">
               아이디어 대회 기획부터 직접 개발한 서비스까지, 멋쟁이사자처럼 경희대
               멤버들이 함께 만든 프로젝트를 소개합니다.
             </p>
