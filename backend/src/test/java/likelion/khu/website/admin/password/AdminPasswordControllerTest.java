@@ -91,6 +91,40 @@ class AdminPasswordControllerTest {
     }
 
     @Test
+    void forgot_DuplicateRequestWithin30Min_SendsEmailOnlyOnce() throws Exception {
+        adminRepository.save(
+                Admin.register("ratelimit@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ratelimit@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ratelimit@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        verify(emailService, times(1)).sendPasswordResetEmail(anyString(), anyString(), any(LocalDateTime.class));
+    }
+
+    @Test
+    void forgot_UpperCaseEmail_NormalizesToLowercaseAndFindsAdmin() throws Exception {
+        adminRepository.save(
+                Admin.register("normalize@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"NORMALIZE@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        verify(emailService, times(1)).sendPasswordResetEmail(anyString(), anyString(), any(LocalDateTime.class));
+    }
+
+    @Test
     void reset_ExpiredToken_Returns410() throws Exception {
         Admin admin = adminRepository.save(
                 Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
