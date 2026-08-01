@@ -4,7 +4,7 @@
 
 ## 산출물
 
-- 리뷰 PR: 작성 예정
+- 리뷰 PR: [#352](https://github.com/likelion-khu-official/website/pull/352)
 - `/projects`의 압축 hero, lead project, 반응형 가로 카드 목록, 빈 상태·오류 복구 UI
 - 프로젝트 카드·목록 상태 컴포넌트 테스트 10개
 
