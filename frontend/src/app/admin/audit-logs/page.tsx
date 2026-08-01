@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import AuditLogViewer from '@/components/admin/AuditLogViewer';
 
 export const metadata: Metadata = {
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function AdminAuditLogsPage() {
-  return <AuditLogViewer />;
+  return (
+    <Suspense fallback={<p className="py-24 text-center text-sm text-muted">감사로그를 준비하고 있어요…</p>}>
+      <AuditLogViewer />
+    </Suspense>
+  );
 }
