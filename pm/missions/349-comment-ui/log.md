@@ -14,3 +14,11 @@
 - backend/shared와 범위 밖 기능은 건드리지 않는다.
 
 사용자가 연구·계획부터 구현·QA·PR까지 일괄 승인하고 PR을 리뷰 표면으로 정했으므로 RP·IQ 게이트는 멈추지 않고 진행한다.
+
+## Implementation · QA
+
+- 작성 composer를 목록 앞에 배치하고 초기 조회가 끝날 때까지 fieldset 전체를 비활성화했다.
+- 댓글 개수는 `hidden=false`만 세고, 가려진 댓글은 닉네임·원문 대신 자리표시자만 렌더한다.
+- 등록 성공은 status, 실패와 조회 오류는 alert로 전달하며 실패 입력을 보존한다.
+- 댓글 단위 테스트 6개, FE 전체 테스트 43개, ESLint, Next.js production build가 통과했다.
+- 독립 PR [#351](https://github.com/likelion-khu-official/website/pull/351)을 `dev` 대상으로 열었다. 이슈는 리뷰·병합 때 `Closes #349`로 닫힌다.
