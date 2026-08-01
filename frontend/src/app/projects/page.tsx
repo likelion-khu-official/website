@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import ProjectCard from '@/components/projects/ProjectCard';
+import ProjectsGallery from '@/components/projects/ProjectsGallery';
 import { getProjects } from '@/lib/projectApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
@@ -19,55 +19,28 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <main className="relative mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-12 sm:px-10 sm:pb-28 sm:pt-14 lg:px-16 lg:pt-24">
+    <main className="relative mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-[1440px] overflow-hidden px-5 pb-24 pt-6 sm:px-10 sm:pb-28 sm:pt-8 lg:px-16 lg:pt-12">
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[-400px] -z-0 h-[780px] w-[1050px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.33),rgba(19,19,19,0)_68%)] blur-2xl"
+        className="pointer-events-none absolute left-[12%] top-[-440px] -z-0 h-[720px] w-[980px] rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.28),rgba(19,19,19,0)_68%)] blur-2xl"
       />
 
-      <header className="relative z-[1] min-w-0 max-w-3xl">
-        <p className="mb-5 text-sm font-semibold uppercase tracking-[0.2em] text-accent">
-          Our projects
-        </p>
-        <h1 className="break-keep break-words text-[clamp(42px,7vw,88px)] font-semibold leading-[0.98] tracking-[-0.065em]">
-          아이디어를
-          <br />
-          세상에 꺼내는 사람들
-        </h1>
-        <p className="mt-7 max-w-xl break-keep break-words text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
-          문제를 발견하고, 팀을 만들고, 실제로 작동하는 서비스까지. 멋쟁이사자처럼
-          경희대가 함께 완성한 결과물입니다.
+      <header className="relative z-[1] grid min-w-0 gap-5 border-b border-white/10 pb-8 sm:pb-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,0.55fr)] lg:items-end lg:gap-16">
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            Project archive
+          </p>
+          <h1 className="break-keep text-[clamp(38px,5vw,64px)] font-semibold leading-[1.02] tracking-[-0.055em] text-white">
+            우리가 만든 것들
+          </h1>
+        </div>
+        <p className="max-w-xl break-keep text-sm leading-6 text-white/55 sm:text-base sm:leading-7 lg:justify-self-end">
+          아이디어를 실제 서비스로 완성한 멋쟁이사자처럼 경희대의 프로젝트를 모았습니다.
         </p>
       </header>
 
-      <section className="relative z-[1] mt-20 min-w-0 border-t border-white/10 pt-8 sm:mt-28">
-        <div className="mb-9 flex items-end justify-between">
-          <h2 className="text-sm font-medium text-white/45">전체 프로젝트</h2>
-          {!failed && projects ? (
-            <span className="text-sm tabular-nums text-white/35">{projects.length} projects</span>
-          ) : null}
-        </div>
-
-        {failed ? (
-          <div className="flex min-h-72 flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.025] px-6 text-center">
-            <p className="text-lg font-semibold text-white">프로젝트를 불러오지 못했어요.</p>
-            <p className="mt-2 text-sm text-white/45">잠시 후 페이지를 다시 열어주세요.</p>
-          </div>
-        ) : projects?.length === 0 ? (
-          <div className="flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 px-6 text-center">
-            <span className="mb-5 text-3xl text-accent/70" aria-hidden>
-              ◌
-            </span>
-            <p className="text-lg font-semibold text-white">첫 프로젝트를 준비하고 있어요.</p>
-            <p className="mt-2 text-sm text-white/45">곧 새로운 결과물로 만나요.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8 xl:gap-y-20">
-            {projects?.map((project, index) => (
-              <ProjectCard key={project.id} project={project} priority={index < 3} />
-            ))}
-          </div>
-        )}
+      <section className="relative z-[1] mt-6 min-w-0 sm:mt-8" aria-labelledby="projects-heading">
+        <ProjectsGallery projects={projects ?? []} failed={failed} />
       </section>
     </main>
   );
