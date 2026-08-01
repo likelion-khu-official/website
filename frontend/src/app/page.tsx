@@ -10,7 +10,6 @@ import Plan from '@/components/sections/Plan';
 import Blog from '@/components/sections/Blog';
 import Faq from '@/components/sections/Faq';
 import Recruit from '@/components/sections/Recruit';
-import Footer from '@/components/sections/Footer';
 
 export const metadata: Metadata = {
   alternates: {
@@ -42,7 +41,6 @@ export default function Home() {
         <Faq />
         <Recruit />
       </main>
-      <Footer />
     </div>
   );
 }

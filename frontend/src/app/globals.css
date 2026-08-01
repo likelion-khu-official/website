@@ -928,9 +928,11 @@ textarea {
   );
 }
 
-/* Footer(116:557) 배경 — 따뜻한 톤의 어두운 배경 */
+/* 전역 공개 푸터 — 본문과 구분되면서도 랜딩의 오렌지 글로우를 약하게 이어간다. */
 .footer-bg {
-  background-color: #171310;
+  background:
+    radial-gradient(48% 120% at 0% 100%, rgba(112, 32, 13, 0.18), transparent 70%),
+    #111212;
 }
 
 /* Recruit(116:532) 섹션 배경 — 상단에서 강하게 번지는 레드 글로우 (위→아래로 소멸) */
@@ -1084,9 +1086,14 @@ textarea {
   }
 
   .home-experience main > section:not(#thumbnail),
-  .home-blog-chapter {
+  .home-blog-chapter,
+  #site-footer {
     scroll-snap-align: start;
     scroll-snap-stop: normal;
+  }
+
+  #site-footer {
+    scroll-snap-align: end;
   }
 }
 
