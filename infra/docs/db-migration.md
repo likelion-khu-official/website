@@ -137,19 +137,21 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 ```java
 @Bean
 @Profile("stage")
-public FlywayMigrationStrategy stageCleanOnValidationErrorStrategy() {
+public FlywayMigrationStrategy stageRepairOnValidationErrorStrategy() {
     return flyway -> {
         try {
             flyway.migrate();
         } catch (FlywayValidateException e) {
-            flyway.clean();
+            flyway.repair();
             flyway.migrate();
         }
     };
 }
 ```
 
-**env var 방식보다 이게 더 안전한 이유:** env var는 이름을 실수로 `.env.prod`에 복붙하면 prod도 자동 clean 대상이 될 수 있었다 — `@Profile` 분리는 그 실수 자체가 구조적으로 불가능하다(prod엔 이 빈이 아예 안 생김). 서버 조치는 `.env.stage`에서 `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` 줄 삭제뿐, `.env.prod`는 원래부터 이 변수가 없어서 그대로 안전했다(`SPRING_FLYWAY_CLEAN_DISABLED=true`만 있음, 이건 지금도 유효한 설정).
+**env var 방식보다 이게 더 안전한 이유:** env var는 이름을 실수로 `.env.prod`에 복붙하면 prod도 자동 복구 대상이 될 수 있었다 — `@Profile` 분리는 그 실수 자체가 구조적으로 불가능하다(prod엔 이 빈이 아예 안 생김). 서버 조치는 `.env.stage`에서 `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` 줄 삭제뿐, `.env.prod`는 원래부터 이 변수가 없어서 그대로 안전했다(`SPRING_FLYWAY_CLEAN_DISABLED=true`만 있음, 이건 지금도 유효한 설정).
+
+**(2026-08-01, #320 검증 중 실제 사고로 `clean()`→`repair()`로 교체)** 위 코드는 원래 검증 실패 시 `flyway.clean()`(DB 전체 삭제)을 실행했다. 이미 적용된 테스트 마이그레이션 파일을 정리(`git rm`)만 해도 다음 배포에서 "장부엔 있는데 파일이 없음" 검증 오류가 나고, 이 코드가 그걸 그대로 "DB 전체 삭제 후 재구성"으로 처리해 stage의 실데이터(멤버·게시글 등)가 통째로 사라지는 사고가 실제로 났다(헬스체크는 빈 스키마 위에서도 통과해 CD 로그엔 이상이 안 남았음). `repair()`는 같은 검증 오류를 데이터를 지우지 않고 장부(`flyway_schema_history`)만 정정해서 해소한다. 1차 방어는 `.github/workflows/cd.yml`의 "마이그레이션 위험도 판단" job — 이미 배포된 마이그레이션 파일이 삭제·수정되면 그 시점에 배포 자체를 막아서(`exit 1`) 이 catch 블록에 도달할 일을 원천적으로 줄였다. 이 빈은 그래도 뚫고 들어오는 경우(수동 `workflow_dispatch` 등)를 위한 최후 방어선.
 
 ---
 

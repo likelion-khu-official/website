@@ -22,7 +22,7 @@
 - 로컬/CI: `SchemaMigrationConsistencyIntegrationTest`가 컨텍스트 기동 단계에서 바로 실패(빈 DB에 마이그레이션을 전부 적용한 뒤 엔티티 매핑과 대조)
 - 그래도 놓치면: stage/prod 배포 시 앱이 기동 자체를 못 해 헬스체크 실패 → CD가 자동 롤백
 
-SQLite는 `ALTER TABLE`이 `DROP COLUMN`·`UNIQUE` 컬럼 추가 등을 지원 안 함 — 이런 변경이 필요하면 "새 테이블 생성 → 데이터 복사 → 테이블 교체" 패턴으로 SQL을 직접 써야 한다. 상세·예시는 `infra/docs/db-migration.md` 참고. **한 번 머지된 마이그레이션 파일은 절대 수정하지 말 것**(체크섬 불일치로 stage는 자동 초기화, prod는 기동 실패).
+SQLite는 `ALTER TABLE`이 `DROP COLUMN`·`UNIQUE` 컬럼 추가 등을 지원 안 함 — 이런 변경이 필요하면 "새 테이블 생성 → 데이터 복사 → 테이블 교체" 패턴으로 SQL을 직접 써야 한다. 상세·예시는 `infra/docs/db-migration.md` 참고. **한 번 머지된 마이그레이션 파일은 절대 수정하거나 지우지 말 것**(체크섬 불일치·파일 누락 둘 다 Flyway 검증 실패로 이어짐 — stage는 CD의 "마이그레이션 위험도 판단"이 배포 자체를 막고, 그래도 뚫리면 `FlywayConfig`가 데이터는 안 지우고 장부만 `repair()`한다. prod는 이런 안전장치가 없어 그대로 기동 실패).
 
 ## SecurityConfig 추가 시 필수 체크
 
