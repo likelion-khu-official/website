@@ -2,6 +2,7 @@
 
 ## 산출물
 
+- 리뷰 PR [#355](https://github.com/likelion-khu-official/website/pull/355)
 - `/blog/[slug]`의 제목·본문·댓글에 모바일 20px, 큰 화면 40px 좌우 안전 여백을 적용했다.
 - loading·error·not-found도 같은 848px 바깥 셸과 반응형 padding을 사용한다.
 - 라우트 테스트로 모바일 여백과 데스크톱 본문 폭 보존 규칙을 고정했다.
