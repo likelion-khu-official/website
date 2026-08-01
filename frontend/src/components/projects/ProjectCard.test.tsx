@@ -24,7 +24,8 @@ describe('ProjectCard', () => {
       'object-contain',
     );
     expect(screen.getByRole('heading', { name: project.title })).toBeInTheDocument();
-    expect(screen.getByLabelText('기술 스택')).toHaveTextContent('Next.js');
+    expect(screen.getByText('14기')).toBeInTheDocument();
+    expect(screen.getByText('Next.js · Spring')).toBeInTheDocument();
   });
 
   it('대표 이미지가 없거나 로드에 실패하면 같은 프레임 안에 기수 폴백을 보여준다', () => {
@@ -32,18 +33,18 @@ describe('ProjectCard', () => {
 
     fireEvent.error(screen.getByRole('img', { name: `${project.title} 대표 이미지` }));
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.getByText('14')).toBeInTheDocument();
+    expect(screen.getByText('이미지 준비 중')).toBeInTheDocument();
 
     rerender(
       <ProjectCard project={{ ...project, id: 8, representativeImageUrl: null, cohort: 15 }} />,
     );
-    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('이미지 준비 중')).toBeInTheDocument();
   });
 
-  it('lead card는 최근 프로젝트로 구분하고 빈 기술 스택 영역을 만들지 않는다', () => {
-    render(<ProjectCard project={{ ...project, techStack: [] }} featured />);
+  it('기술 스택이 비어 있으면 기수만 간결하게 보여준다', () => {
+    render(<ProjectCard project={{ ...project, techStack: [] }} />);
 
-    expect(screen.getByText('최근 프로젝트 · 14기')).toBeInTheDocument();
-    expect(screen.queryByLabelText('기술 스택')).not.toBeInTheDocument();
+    expect(screen.getByText('14기')).toBeInTheDocument();
+    expect(screen.queryByText(/Next.js/)).not.toBeInTheDocument();
   });
 });

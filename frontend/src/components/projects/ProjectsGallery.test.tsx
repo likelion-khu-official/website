@@ -19,26 +19,21 @@ describe('ProjectsGallery', () => {
     render(<ProjectsGallery projects={projects(count)} />);
 
     expect(screen.getAllByRole('link', { name: /프로젝트 자세히 보기/ })).toHaveLength(count);
-    expect(screen.getByText(`${count}개의 프로젝트`)).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('마지막 행은 남은 카드 수에 맞춰 빈 열 없이 폭을 채운다', () => {
-    const { rerender } = render(<ProjectsGallery projects={projects(2)} />);
-    let links = screen.getAllByRole('link', { name: /프로젝트 자세히 보기/ });
-    expect(links[1].parentElement).toHaveClass('sm:col-span-2', 'xl:max-w-[860px]');
+  it('모든 프로젝트를 같은 포트폴리오 그리드 규칙으로 보여준다', () => {
+    const { container } = render(<ProjectsGallery projects={projects(6)} />);
 
-    rerender(<ProjectsGallery projects={projects(6)} />);
-    links = screen.getAllByRole('link', { name: /프로젝트 자세히 보기/ });
-    expect(links[4].parentElement).toHaveClass('xl:col-span-3');
-    expect(links[5].parentElement).toHaveClass('xl:col-span-3');
+    expect(container.querySelector('.grid-cols-2')).toBeInTheDocument();
+    expect(container.querySelector('.lg\\:grid-cols-3')).toBeInTheDocument();
+    expect(screen.queryByText(/최근 프로젝트/)).not.toBeInTheDocument();
   });
 
   it('프로젝트가 없으면 빈 상태를 보여준다', () => {
     render(<ProjectsGallery projects={[]} />);
 
-    expect(screen.getByText('첫 프로젝트를 준비하고 있어요.')).toBeInTheDocument();
-    expect(screen.getByText('0개의 프로젝트')).toBeInTheDocument();
+    expect(screen.getByText('아직 등록된 프로젝트가 없어요.')).toBeInTheDocument();
   });
 
   it('조회 실패 시 오류와 다시 불러오기 동작을 보여준다', () => {
@@ -49,6 +44,5 @@ describe('ProjectsGallery', () => {
       'href',
       '/projects',
     );
-    expect(screen.queryByText(/개의 프로젝트/)).not.toBeInTheDocument();
   });
 });
