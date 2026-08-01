@@ -47,7 +47,7 @@ export default async function PostPage({ params }: Props) {
   if (!post) notFound();
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <article className="mx-auto w-full max-w-[848px] px-5 sm:px-10">
       <header className="mb-8 flex flex-col gap-3">
         <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
           {post.title}

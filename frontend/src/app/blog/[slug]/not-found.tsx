@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function PostNotFound() {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 py-24 text-center">
+    <div className="mx-auto flex w-full max-w-[848px] flex-col items-center gap-4 px-5 py-24 text-center sm:px-10">
       <p className="text-lg font-bold text-white">글을 찾을 수 없어요.</p>
       <p className="text-sm text-muted">삭제되었거나 존재하지 않는 글이에요.</p>
       <Link
