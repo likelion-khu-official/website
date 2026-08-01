@@ -1,6 +1,6 @@
 export default function PostLoading() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto w-full max-w-[848px] px-5 sm:px-10">
       <div className="mb-3 h-9 w-3/4 animate-pulse rounded bg-white/10" />
       <div className="mb-8 h-4 w-40 animate-pulse rounded bg-white/5" />
       <div className="mb-8 aspect-[16/9] w-full animate-pulse rounded-2xl bg-white/10" />

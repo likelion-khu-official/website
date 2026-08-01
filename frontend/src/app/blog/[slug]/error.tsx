@@ -2,7 +2,7 @@
 
 export default function PostError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 py-24 text-center">
+    <div className="mx-auto flex w-full max-w-[848px] flex-col items-center gap-4 px-5 py-24 text-center sm:px-10">
       <p className="text-sm text-muted">글을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
       <button
         type="button"
