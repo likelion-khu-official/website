@@ -414,6 +414,11 @@ export function listAuditLogs(query: AuditLogQuery = {}) {
   const params = new URLSearchParams();
   if (query.actorType) params.set('actorType', query.actorType);
   if (query.action) params.set('action', query.action);
+  if (query.eventType) params.set('eventType', query.eventType);
+  if (query.targetType) params.set('targetType', query.targetType);
+  if (query.targetId != null) params.set('targetId', String(query.targetId));
+  if (query.outcome) params.set('outcome', query.outcome);
+  if (query.view) params.set('view', query.view);
   if (query.from) params.set('from', query.from);
   if (query.to) params.set('to', query.to);
   if (query.q) params.set('q', query.q);

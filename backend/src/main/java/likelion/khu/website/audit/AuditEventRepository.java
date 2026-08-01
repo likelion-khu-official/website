@@ -15,20 +15,33 @@ public interface AuditEventRepository extends Repository<AuditEvent, Long> {
 
     AuditEvent save(AuditEvent event);
 
-    // 넘기지 않은(=null) 조건은 무시하고, 검색어(q)는 행위자 라벨과 경로에 부분일치시킨다. 최신순.
+    // 넘기지 않은(=null) 조건은 무시하고, 검색어(q)는 사람이 목록에서 보는 주요 식별 정보에
+    // 부분일치시킨다. excludedEventType은 주요 활동 보기의 반복 기록을 숨기는 데만 쓴다. 최신순.
     @Query("""
             select e from AuditEvent e
             where (:actorType is null or e.actorType = :actorType)
               and (:action is null or e.action = :action)
+              and (:eventType is null or e.eventType = :eventType)
+              and (:targetType is null or lower(e.targetType) = lower(:targetType))
+              and (:targetId is null or e.targetId = :targetId)
+              and (:outcome is null or e.outcome = :outcome)
+              and (:excludedEventType is null or e.eventType <> :excludedEventType)
               and (:from is null or e.occurredAt >= :from)
               and (:to is null or e.occurredAt <= :to)
               and (:q is null
                    or lower(e.actorLabel) like lower(concat('%', :q, '%'))
-                   or lower(e.path) like lower(concat('%', :q, '%')))
+                   or lower(e.path) like lower(concat('%', :q, '%'))
+                   or lower(e.summary) like lower(concat('%', :q, '%'))
+                   or lower(e.targetType) like lower(concat('%', :q, '%')))
             order by e.occurredAt desc, e.id desc
             """)
     Page<AuditEvent> search(@Param("actorType") ActorType actorType,
                             @Param("action") AuditAction action,
+                            @Param("eventType") AuditEventType eventType,
+                            @Param("targetType") String targetType,
+                            @Param("targetId") Long targetId,
+                            @Param("outcome") AuditOutcome outcome,
+                            @Param("excludedEventType") AuditEventType excludedEventType,
                             @Param("from") LocalDateTime from,
                             @Param("to") LocalDateTime to,
                             @Param("q") String q,
