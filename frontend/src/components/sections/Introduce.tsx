@@ -56,7 +56,7 @@ export default function Introduce() {
       <div className="mt-[clamp(36px,5vh,64px)] grid w-full max-w-[1180px] gap-8 md:grid-cols-2 md:gap-12">
         <article className="scroll-reveal scroll-reveal--left relative border-t border-white/12 pt-5 md:pt-7">
           <span aria-hidden className="absolute left-0 top-0 h-px w-14 bg-accent" />
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Learn together</p>
+          <p className="landing-section-kicker">Learn together</p>
           <p
             className="mt-5 text-balance break-keep font-semibold text-white"
             style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
@@ -70,7 +70,7 @@ export default function Introduce() {
         </article>
         <article className="scroll-reveal scroll-reveal--right relative border-t border-white/12 pt-5 md:pt-7">
           <span aria-hidden className="absolute left-0 top-0 h-px w-14 bg-accent" />
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Build for real</p>
+          <p className="landing-section-kicker">Build for real</p>
           <p
             className="mt-5 text-balance break-keep font-semibold text-white"
             style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}

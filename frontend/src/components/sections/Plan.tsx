@@ -99,19 +99,13 @@ export default function Plan() {
       className="plan-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:px-8 sm:py-24 md:gap-16"
     >
       {/* 헤더 */}
-      <div className="scroll-reveal relative flex flex-col items-center gap-4 text-center">
-        <p
-          className="text-muted"
-          style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
-        >
+      <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
+        <p className="landing-section-copy">
           멋쟁이 사자처럼
         </p>
-        <p
-          className="text-balance break-keep font-semibold text-accent"
-          style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
-        >
+        <h2 className="landing-section-title text-balance break-keep">
           연간 활동 계획
-        </p>
+        </h2>
       </div>
 
       <div className="relative mt-4 flex w-full max-w-[1417px] flex-col gap-14 md:mt-8 md:gap-24">

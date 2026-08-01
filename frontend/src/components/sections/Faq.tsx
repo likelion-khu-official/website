@@ -39,19 +39,13 @@ export default function Faq() {
       id="faq"
       className="faq-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:px-8 sm:py-24"
     >
-      <div className="scroll-reveal relative flex flex-col items-center gap-4 text-center">
-        <p
-          className="text-muted"
-          style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
-        >
+      <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
+        <p className="landing-section-copy">
           궁금한 점이 있나요
         </p>
-        <p
-          className="text-balance break-keep font-semibold text-accent"
-          style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
-        >
+        <h2 className="landing-section-title text-balance break-keep">
           자주 묻는 질문
-        </p>
+        </h2>
       </div>
 
       <div className="scroll-reveal relative flex w-full max-w-[860px] flex-col gap-3">

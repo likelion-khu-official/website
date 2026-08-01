@@ -45,13 +45,13 @@ export default async function Blog() {
       <div className="scroll-reveal relative mx-auto w-full max-w-[1440px]">
         <div className="grid gap-6 pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className="landing-section-kicker">
               Our stories
             </p>
-            <h2 className="mt-3 max-w-4xl break-keep text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.14] tracking-[-0.055em] text-white">
+            <h2 className="landing-section-title mt-3 max-w-4xl break-keep">
               배운 것을 다음 경험으로
             </h2>
-            <p className="mt-4 max-w-xl break-keep text-sm leading-6 text-white/50 sm:text-base">
+            <p className="landing-section-copy mt-4 max-w-xl break-keep">
               활동하며 부딪히고 배운 기술과 생각을 기록해 다음 사람의 출발점으로 남깁니다.
             </p>
           </div>
