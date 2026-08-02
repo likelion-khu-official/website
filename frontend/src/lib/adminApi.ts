@@ -49,6 +49,7 @@ import type {
   AnalyticsPageViewResponse,
   BlogAnalyticsResponse,
   ProjectAnalyticsResponse,
+  RecruitmentAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -109,6 +110,15 @@ export function getProjectAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/projects?${params.toString()}`,
     {},
     '프로젝트 조회 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getRecruitmentAnalytics() {
+  return request<RecruitmentAnalyticsResponse>(
+    '/analytics/recruitment',
+    {},
+    '지원 수를 불러오지 못했어요.',
     true
   );
 }

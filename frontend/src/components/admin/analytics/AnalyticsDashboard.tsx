@@ -6,6 +6,7 @@ import { getAnalyticsPageViews } from '@/lib/adminApi';
 import AnalyticsTimeSeriesChart from './AnalyticsTimeSeriesChart';
 import BlogAnalyticsPanel from './BlogAnalyticsPanel';
 import ProjectAnalyticsPanel from './ProjectAnalyticsPanel';
+import RecruitmentApplicationCard from './RecruitmentApplicationCard';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -248,6 +249,8 @@ export default function AnalyticsDashboard() {
           방문자가 공개 페이지를 얼마나 봤는지 기간별로 확인해요. 조회수는 같은 사람이 여러 번 연 경우도 모두 포함합니다.
         </p>
       </header>
+
+      <RecruitmentApplicationCard />
 
       <DateRangeControls
         key={`${query.from}:${query.to}`}

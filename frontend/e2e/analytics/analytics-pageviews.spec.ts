@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 const evidenceDir = path.resolve(__dirname, '../../../pm/missions/381-admin-analytics-pageviews/evidence');
 const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-analytics-blog-views/evidence');
 const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-admin-analytics-project-views/evidence');
+const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384-admin-analytics-application-count/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -66,6 +67,19 @@ test.beforeEach(async ({ context, page }) => {
           { id: 31, title: '모두의 캠퍼스', cohort: 14, hidden: false, createdAt: '2026-07-29T10:00:00', views: 924 },
           { id: 19, title: '작년의 식권 지도', cohort: 13, hidden: true, createdAt: '2026-02-10T10:00:00', views: 374 },
         ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/recruitment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        roundId: 14,
+        state: 'CLOSED',
+        openedAt: '2026-07-01T09:00:00',
+        closedAt: '2026-07-14T18:00:00',
+        applicationCount: 128,
       }),
     });
   });
@@ -143,4 +157,22 @@ test('프로젝트별 조회와 선택 프로젝트 추이를 데스크톱·모�
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await projectPanel.screenshot({ path: path.join(projectEvidenceDir, 'mobile-project-selected.png') });
+});
+
+test('조회 기간과 분리된 최근 모집 지원 수를 데스크톱·모바일에서 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-27&to=2026-08-02&interval=day');
+  await expect(page.getByRole('heading', { name: '지원 수' })).toBeVisible();
+  await expect(page.getByText('최근 종료 모집')).toBeVisible();
+  await expect(page.getByLabel('접수된 지원서 128건')).toBeVisible();
+  await expect(page.getByText('2026년 7월에 시작한 모집')).toBeVisible();
+  await expect(page.getByText(/아래 조회 기간을 바꿔도/)).toBeVisible();
+
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const card = page.getByRole('region', { name: '지원 수' });
+  await card.screenshot({ path: path.join(recruitmentEvidenceDir, 'desktop-closed-recruitment.png') });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await card.screenshot({ path: path.join(recruitmentEvidenceDir, 'mobile-closed-recruitment.png') });
 });

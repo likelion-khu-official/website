@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 public class RecruitmentManagementService {
 
     private final RecruitmentStatusRepository statusRepository;
+    private final RecruitmentRoundLifecycle roundLifecycle;
     private final NotificationSubscriptionRepository subscriptionRepository;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
@@ -63,8 +64,8 @@ public class RecruitmentManagementService {
                 .toList();
     }
 
-    // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)
-    // 자체는 Spring Data 리포지토리 메서드가 짧은 트랜잭션을 하나 열고 닫으므로 이걸로 충분하고,
+    // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태와 모집기 두 행은
+    // RecruitmentRoundLifecycle의 짧은 트랜잭션에서 함께 바꾸고 바로 닫으며,
     // 발송은 아래 이벤트를 거쳐 요청 스레드 밖(별도 스레드)에서 돈다(왜 발송을 트랜잭션에 안
     // 묶는지는 원래 이유가 여전히 유효 — 구독자가 많으면 오래 걸리는데 SQLite 커넥션 풀이
     // 1개뿐이라 email-module.md 참고).
@@ -91,8 +92,7 @@ public class RecruitmentManagementService {
         // "닫힘→열림 전이일 때만" — 이미 열려있으면(open()을 두 번 눌러도) 이 if를 안 타서
         // 이벤트 자체가 발행되지 않는다. 완료기준의 "중복 발송 방지"는 이 한 줄이 전부다.
         if (!status.isOpen()) {
-            status.markOpened();
-            statusRepository.save(status);
+            status = roundLifecycle.open(status);
             // 발송은 여기서 동기로 하지 않는다(#126 리뷰, @ParkIlha) — 구독자가 수십~수백이면
             // 컨트롤러 스레드가 발송 루프가 끝날 때까지 응답을 못 줘서, OCI SMTP 건당 왕복
             // (타임아웃 5s)이 누적돼 요청이 게이트웨이/LB 타임아웃에 걸릴 수 있다. 위 save()가
@@ -110,8 +110,7 @@ public class RecruitmentManagementService {
     // 뒤에만 다음 상태 전이가 일어난다"는 걸 보장하려면 같은 모니터를 써야 한다.
     public synchronized RecruitmentStatusResponse close() {
         RecruitmentStatus status = findOrCreate();
-        status.markClosed();
-        statusRepository.save(status);
+        status = roundLifecycle.close(status);
         auditService.recordStateChange("모집 닫기", "RECRUITMENT", null, AuditOutcome.SUCCESS);
         return toResponse(status);
     }

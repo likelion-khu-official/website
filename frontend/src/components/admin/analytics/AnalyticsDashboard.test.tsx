@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics, getRecruitmentAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -16,6 +16,7 @@ vi.mock('@/lib/adminApi', () => ({
   getAnalyticsPageViews: vi.fn(),
   getBlogAnalytics: vi.fn(),
   getProjectAnalytics: vi.fn(),
+  getRecruitmentAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label }: { label: string }) => <div data-testid="chart">{label}</div>,
@@ -54,6 +55,14 @@ const projectResponse = {
   ],
 };
 
+const recruitmentResponse = {
+  roundId: 7,
+  state: 'CLOSED' as const,
+  openedAt: '2026-07-01T09:00:00',
+  closedAt: '2026-07-14T18:00:00',
+  applicationCount: 42,
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -61,9 +70,11 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getAnalyticsPageViews).mockReset();
     vi.mocked(getBlogAnalytics).mockReset();
     vi.mocked(getProjectAnalytics).mockReset();
+    vi.mocked(getRecruitmentAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
+    vi.mocked(getRecruitmentAnalytics).mockResolvedValue(recruitmentResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -78,6 +89,9 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);
+    expect(await screen.findByLabelText('접수된 지원서 42건')).toBeInTheDocument();
+    expect(screen.getByText('최근 종료 모집')).toBeInTheDocument();
+    expect(screen.getByText(/아래 조회 기간을 바꿔도/)).toBeInTheDocument();
   });
 
   it('프로젝트를 선택하면 불변 프로젝트 ID를 URL에 남긴다', async () => {

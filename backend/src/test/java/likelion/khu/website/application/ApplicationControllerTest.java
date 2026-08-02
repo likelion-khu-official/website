@@ -2,6 +2,8 @@ package likelion.khu.website.application;
 
 import likelion.khu.website.recruitment.RecruitmentStatus;
 import likelion.khu.website.recruitment.RecruitmentStatusRepository;
+import likelion.khu.website.recruitment.RecruitmentRound;
+import likelion.khu.website.recruitment.RecruitmentRoundRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,11 +28,13 @@ class ApplicationControllerTest {
     @Autowired ApplicationFormRepository formRepository;
     @Autowired ApplicationRepository applicationRepository;
     @Autowired RecruitmentStatusRepository recruitmentStatusRepository;
+    @Autowired RecruitmentRoundRepository recruitmentRoundRepository;
 
     // 이메일 부작용 없이 모집만 연다(RecruitmentManagementService.open()은 안내메일을 발송하므로 안 씀).
     private void openRecruitment() {
         RecruitmentStatus status = new RecruitmentStatus();
-        status.markOpened();
+        RecruitmentRound round = recruitmentRoundRepository.save(RecruitmentRound.openNow());
+        status.markOpened(round.getId(), round.getOpenedAt());
         recruitmentStatusRepository.save(status);
     }
 

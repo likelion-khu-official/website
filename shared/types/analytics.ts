@@ -66,3 +66,13 @@ export interface ProjectAnalyticsResponse {
   series: AnalyticsTimePoint[];
   projects: ProjectAnalyticsTotal[];
 }
+
+export type RecruitmentAnalyticsState = 'OPEN' | 'CLOSED' | 'NONE';
+
+export interface RecruitmentAnalyticsResponse {
+  roundId: number | null;
+  state: RecruitmentAnalyticsState;
+  openedAt: string | null;
+  closedAt: string | null;
+  applicationCount: number;
+}
