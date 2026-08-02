@@ -13,7 +13,7 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative flex w-full flex-col items-center justify-center overflow-x-clip px-5 py-24 sm:px-8 sm:py-32 lg:py-36"
+      className="introduce-bg relative flex w-full flex-col items-center justify-center overflow-x-clip px-5 py-20 sm:px-8 sm:py-32 lg:py-36"
     >
       {/* Likelion at KHU 워드마크 — 브랜드(Likelion)를 로고와 함께 위쪽 강조 라인에 둔다. */}
       <div className="scroll-reveal flex flex-col items-center gap-1.5" style={gremlin}>
@@ -93,13 +93,13 @@ export default function Introduce() {
         {stats.map((s, i) => (
           <div
             key={s.label}
-            className={`group flex min-w-0 flex-col items-center gap-2.5 px-3 text-center sm:px-5 ${
+            className={`group flex min-w-0 flex-col items-center gap-2 px-2 text-center sm:gap-2.5 sm:px-5 ${
               i % 2 === 1 ? 'border-l border-white/10' : ''
             } ${i > 0 ? 'lg:border-l lg:border-white/10' : ''}`}
           >
             <p
               className="break-keep font-medium text-[#c7c7c7]"
-              style={{ fontSize: 'clamp(13px, 1.5vw, 22px)', letterSpacing: '-0.5px' }}
+              style={{ fontSize: 'clamp(12px, 3.4vw, 22px)', letterSpacing: '-0.5px' }}
             >
               {s.label}
             </p>
@@ -107,7 +107,7 @@ export default function Introduce() {
               <span
                 className="text-accent"
                 style={{
-                  fontSize: 'clamp(34px, 4.4vw, 60px)',
+                  fontSize: 'clamp(26px, 8.5vw, 60px)',
                   letterSpacing: '-1.8px',
                   textShadow: '0 0 34px rgba(255, 80, 0, 0.28)',
                 }}
@@ -117,7 +117,7 @@ export default function Introduce() {
               <span
                 className={s.super ? 'ml-0.5 self-start text-[#bbbbbb]' : 'ml-1 text-accent'}
                 style={{
-                  fontSize: s.super ? 'clamp(20px, 2.4vw, 32px)' : 'clamp(34px, 4.4vw, 60px)',
+                  fontSize: s.super ? 'clamp(15px, 4vw, 32px)' : 'clamp(26px, 8.5vw, 60px)',
                   letterSpacing: '-1.8px',
                   textShadow: s.super ? undefined : '0 0 34px rgba(255, 80, 0, 0.28)',
                 }}
