@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import type { Member } from '@shared/types/member';
-import SiteHeader from '@/components/SiteHeader';
 import BackLink from '@/components/BackLink';
 import MemberCard from '@/components/members/MemberCard';
 import { getMembers, getStaff } from '@/lib/rosterApi';
@@ -27,9 +26,7 @@ export default async function MembersPage() {
   }
 
   return (
-    <>
-      <SiteHeader />
-      <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-background px-5 pb-24 pt-4 sm:px-10 lg:px-16">
+    <main className="relative min-h-[calc(100svh-64px)] overflow-hidden bg-background px-5 pb-24 pt-4 sm:px-10 lg:px-16">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_-10%,rgba(255,80,0,0.3),transparent_60%)]"
@@ -66,7 +63,6 @@ export default async function MembersPage() {
           </div>
         )}
       </div>
-      </main>
-    </>
+    </main>
   );
 }
