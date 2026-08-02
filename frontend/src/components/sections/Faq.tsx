@@ -37,65 +37,57 @@ export default function Faq() {
   return (
     <section
       id="faq"
-      className="faq-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:px-8 sm:py-24"
+      className="faq-bg relative w-full overflow-hidden px-5 py-24 sm:px-8 sm:py-28 lg:py-32"
     >
-      <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
-        <p className="landing-section-copy">
-          궁금한 점이 있나요
-        </p>
-        <h2 className="landing-section-title text-balance break-keep">
-          자주 묻는 질문
-        </h2>
-      </div>
+      <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(240px,0.72fr)_minmax(0,1.28fr)] lg:gap-20">
+        <header className="scroll-reveal lg:sticky lg:top-28 lg:self-start">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            FAQ
+          </p>
+          <h2 className="break-keep text-[clamp(34px,4vw,54px)] font-semibold leading-[1.1] tracking-[-0.05em] text-white">
+            궁금한 점부터
+            <br />
+            확인해보세요.
+          </h2>
+          <p className="mt-5 max-w-sm break-keep text-sm leading-6 text-white/48 sm:text-[15px]">
+            지원과 활동에 관해 자주 묻는 내용을 모았습니다.
+          </p>
+        </header>
 
-      <div className="scroll-reveal relative flex w-full max-w-[860px] flex-col gap-3">
-        {faqs.map((faq) => (
-          <details
-            key={faq.question}
-            className="group rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 open:bg-white/[0.07] sm:px-7 sm:py-5"
-          >
-            <summary className="flex cursor-pointer list-none items-start gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent sm:gap-4">
-              <span
-                aria-hidden
-                className="shrink-0 font-bold text-accent"
-                style={{ fontSize: 'clamp(15px, 1.3vw, 20px)', letterSpacing: '-0.4px' }}
-              >
-                Q.
-              </span>
-              <span
-                className="grow text-balance break-keep font-medium text-white"
-                style={{ fontSize: 'clamp(15px, 1.3vw, 20px)', letterSpacing: '-0.4px' }}
-              >
-                {faq.question}
-              </span>
-              <span
-                aria-hidden
-                className="flex h-6 w-6 shrink-0 items-center justify-center text-accent transition-transform duration-200 group-open:rotate-45"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-4 w-4">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </span>
-            </summary>
-            <div className="mt-3 border-t border-accent/30 pt-3">
-              <div className="flex items-start gap-3 sm:gap-4">
+        <div className="scroll-reveal w-full border-b border-white/12">
+          {faqs.map((faq, index) => (
+            <details key={faq.question} className="group border-t border-white/12">
+              <summary className="grid min-h-[76px] cursor-pointer list-none grid-cols-[28px_minmax(0,1fr)_44px] items-center gap-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:min-h-[88px] sm:grid-cols-[36px_minmax(0,1fr)_44px] sm:gap-4">
+                <span className="text-xs tabular-nums text-white/30">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="break-keep text-[15px] font-medium leading-6 text-white sm:text-lg">
+                  {faq.question}
+                </span>
                 <span
                   aria-hidden
-                  className="shrink-0 font-bold text-accent"
-                  style={{ fontSize: 'clamp(14px, 1.05vw, 18px)', letterSpacing: '-0.3px' }}
+                  className="flex size-11 items-center justify-center rounded-full border border-white/12 text-white/60 transition-[border-color,color,transform] duration-200 group-open:rotate-45 group-open:border-accent/60 group-open:text-accent"
                 >
-                  A.
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    className="size-4"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
                 </span>
-                <p
-                  className="grow text-balance break-keep text-[#c7c7c7]"
-                  style={{ fontSize: 'clamp(14px, 1.05vw, 18px)', letterSpacing: '-0.3px', lineHeight: 1.6 }}
-                >
+              </summary>
+              <div className="grid grid-cols-[28px_minmax(0,1fr)_44px] gap-3 pb-7 sm:grid-cols-[36px_minmax(0,1fr)_44px] sm:gap-4 sm:pb-8">
+                <p className="col-start-2 break-keep text-sm leading-7 text-white/52 sm:text-[15px]">
                   {faq.answer}
                 </p>
               </div>
-            </div>
-          </details>
-        ))}
+            </details>
+          ))}
+        </div>
       </div>
     </section>
   );
