@@ -12,7 +12,7 @@
 - **"머지 전 pass" 만료 처리.** 지금 머지하는 PR 번호가 `pm/qa/criteria/*.yaml`의 `status: pr-<이번 PR#>`에 있으면 `dev`로 바꾸고, verification에서 "PR #<이번 PR#> 코드 리뷰(머지 전)"을 근거로 pass된 항목은 `not-run`(재확인 필요)으로 되돌린다 — 머지 전 diff 리뷰는 머지 순간 근거 자격을 잃는다.
 
 ## IQ 게이트에 낼 것
-Done 항목별 참/근거 표 + Notes 경계 확인 + 스코프 크리프 없음. 사람이 승인하면 **채간 사람이 Step 4에서 마감**한다 — `close-mission.sh`로 보드 Done + 이슈 close. (미션은 연 사람이 닫는다 — `contract.md`.)
+Done 항목별 참/근거 표 + Notes 경계 확인 + 스코프 크리프 없음. 사람이 승인하면 **채간 사람이 Step 3에서 마감**한다 — `close-mission.sh`로 보드 Done + 이슈 close. (미션은 연 사람이 닫는다 — `contract.md`.)
 
 ## 함정
 - 자기 코드에 관대하기 → Done을 반증하려 해봐라(안 되는 케이스 먼저 쳐봐).

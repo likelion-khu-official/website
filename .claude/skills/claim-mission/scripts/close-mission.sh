@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claim-mission Step 4 — 미션 마감. 보드 카드 → Done + 이슈 close.
+# claim-mission Step 3 — 미션 마감. 보드 카드 → Done + 이슈 close.
 #
 # 왜: 미션은 연 사람이 닫는다. IQ 게이트를 통과하면(산출물·PR 마무리 후) 이 스크립트로
 #     보드 카드를 Done 으로 옮기고 이슈를 닫는다 — 한 미션의 생애를 여기서 끝낸다.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claim-mission Step 4 — 현재 브랜치를 push 하고 리뷰용 PR을 연다. (코드 미션 마감)
+# claim-mission Step 3 — 현재 브랜치를 push 하고 리뷰용 PR을 연다. (코드 미션 마감)
 #
 # 왜: 마감 시 PR 을 여는 게 코드 미션의 주 산출물이다. 그런데 gh·git push 자격은
 #     신원 파일의 PAT 에만 있다(Claude 셸엔 없다) — 그래서 push 와 pr create 를
