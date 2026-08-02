@@ -44,6 +44,7 @@ import type {
   StaffUpdateRequest,
 } from '@shared/types/staff';
 import type { AuditLogQuery, AuditLogResponse } from '@shared/types/audit';
+import type { AnalyticsPageViewQuery, AnalyticsPageViewResponse } from '@shared/types/analytics';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -58,6 +59,23 @@ export class AdminApiError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+// ── 이용 현황 ──────────────────────────────────────────────────────
+
+export function getAnalyticsPageViews(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.page) params.set('page', query.page);
+  return request<AnalyticsPageViewResponse>(
+    `/analytics/pageviews?${params.toString()}`,
+    {},
+    '이용 현황을 불러오지 못했어요.',
+    true
+  );
 }
 
 async function throwApiError(res: Response, fallbackMessage: string): Promise<never> {
