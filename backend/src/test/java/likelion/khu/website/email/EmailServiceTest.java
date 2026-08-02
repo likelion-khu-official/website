@@ -148,6 +148,22 @@ class EmailServiceTest {
         assertThat(log.getStatus()).isEqualTo(EmailStatus.SUCCESS);
     }
 
+    @Test
+    void sendRecruitmentOpenEmail_LinksToCanonicalApplicationForm() throws Exception {
+        String to = "subscriber@example.com";
+
+        emailService.sendRecruitmentOpenEmail(to, "https://likelion-khu.com");
+
+        ArgumentCaptor<MimeMessage> messageCaptor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(messageCaptor.capture());
+        String html = messageCaptor.getValue().getContent().toString();
+
+        assertThat(html)
+                .contains("href=\"https://likelion-khu.com/apply\"")
+                .contains("지원하러 가기")
+                .doesNotContain(">https://likelion-khu.com<");
+    }
+
     // #113 후속(장찬욱 요청) — SMTP 실패가 매 시도 반복되면 maxAttempts까지 전부 소진한 뒤에야
     // 포기한다. 중간 시도 실패는 email_log에 안 남고(save 1회) 최종 결과만 남는지도 함께 확인.
     @Test

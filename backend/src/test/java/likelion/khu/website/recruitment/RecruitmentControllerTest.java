@@ -24,7 +24,7 @@ class RecruitmentControllerTest {
     @MockitoBean
     likelion.khu.website.email.EmailService emailService;
 
-    // 공개 엔드포인트 — 비인증으로도 열려야 한다(#151, 랜딩·/recruit 페이지용).
+    // 공개 엔드포인트 — 비인증으로도 열려야 한다(#151, 랜딩 모집 섹션·지원폼용).
 
     @Test
     void status_Unauthenticated_ReturnsOpenFalseByDefault() throws Exception {

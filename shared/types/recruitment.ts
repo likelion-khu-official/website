@@ -17,7 +17,7 @@ export interface RecruitmentStatusUpdateRequest {
 }
 
 /**
- * GET /api/recruitment/status — 공개, 비인증. 랜딩·/recruit 페이지와 지원폼(/apply)이
+ * GET /api/recruitment/status — 공개, 비인증. 랜딩 모집 섹션과 지원폼(/apply)이
  * 평소(모집 알림)/모집중(지원폼)을 가르는 데 쓴다. 관리 정보(subscriberCount)는 없다(#151·#152).
  */
 export interface PublicRecruitmentStatusResponse {

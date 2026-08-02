@@ -55,7 +55,7 @@ public class SecurityConfig {
                 // (관리자용 폼 편집·지원자 열람 /api/admin/** 은 아래 anyRequest().authenticated() + @PreAuthorize)
                 .requestMatchers(HttpMethod.GET, "/api/application-form").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/applications").permitAll()
-                // 모집 상태(공개용, subscriberCount 없음) — 랜딩/recruit·지원폼이 평소·모집중을 가르는 데 씀(#151·#152)
+                // 모집 상태(공개용, subscriberCount 없음) — 랜딩 모집 섹션·지원폼이 평소/모집중을 가르는 데 씀(#151·#152)
                 .requestMatchers(HttpMethod.GET, "/api/recruitment/status").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
