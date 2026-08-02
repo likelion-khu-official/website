@@ -80,22 +80,6 @@ export default function FaqPage() {
             </section>
           ))}
         </div>
-
-        <div className="mt-14 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-8 text-center sm:px-10">
-          <p className="break-keep text-base font-medium text-white sm:text-lg">
-            더 궁금한 점이 있나요?
-          </p>
-          <p className="mt-2 break-keep text-sm leading-6 text-white/50">
-            모집 소식과 자세한 안내는 홈에서 확인하고, 알림을 신청해두면 다음 모집 때 안내를 받을 수 있어요.
-          </p>
-          <Link
-            href="/#recruit"
-            className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-background transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            모집 소식 보러 가기
-            <span aria-hidden>→</span>
-          </Link>
-        </div>
       </main>
     </div>
   );

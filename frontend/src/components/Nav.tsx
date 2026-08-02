@@ -30,6 +30,49 @@ export default function Nav() {
   const [activeHref, setActiveHref] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const snapRestoreRef = useRef(0);
+
+  // 앵커로 부드럽게 스크롤한다. proximity 스크롤 스냅이 켜져 있으면, 진행 중인 스무스 스크롤이
+  // 목표까지 가는 도중 중간 섹션의 스냅점에 붙잡혀 목표보다 덜 스크롤되는(아래로 덜 가는) 버그가
+  // 있다 — 아래쪽 섹션일수록 지나치는 스냅점이 많아 오차가 커진다. 그래서 스크롤 동안만 스냅을
+  // 끄고, 착지 후 되돌린다(자유 스크롤의 읽기 리듬은 유지).
+  function scrollToHashId(id: string, behavior: ScrollBehavior) {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    const html = document.documentElement;
+    const padding = parseInt(getComputedStyle(html).scrollPaddingTop, 10) || 0;
+    const top = el.getBoundingClientRect().top + window.scrollY - padding;
+
+    window.clearTimeout(snapRestoreRef.current);
+    html.style.setProperty('scroll-snap-type', 'none');
+    window.scrollTo({ top, behavior });
+    snapRestoreRef.current = window.setTimeout(
+      () => {
+        html.style.removeProperty('scroll-snap-type');
+      },
+      behavior === 'smooth' ? 700 : 60,
+    );
+    return true;
+  }
+
+  function handleAnchorClick(event: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    if (!href.startsWith('#')) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (scrollToHashId(href.slice(1), reduce ? 'auto' : 'smooth')) {
+      event.preventDefault();
+      window.history.pushState(null, '', href);
+    }
+    setOpen(false);
+  }
+
+  // 다른 페이지에서 해시(예: /#faq)로 진입할 때도 같은 스냅 언더슛이 나므로, 마운트 후 한 번 보정한다.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(() => scrollToHashId(id, reduce ? 'auto' : 'smooth'), 120);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -144,6 +187,7 @@ export default function Nav() {
               <li key={href}>
                 <a
                   href={href}
+                  onClick={(event) => handleAnchorClick(event, href)}
                   aria-current={active ? 'location' : undefined}
                   className={`group/nav relative inline-flex min-h-11 items-center rounded-md px-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
                     active ? 'text-accent' : 'text-accent/60 hover:text-accent'
@@ -205,7 +249,7 @@ export default function Nav() {
             <li key={href}>
               <a
                 href={href}
-                onClick={closeMenu}
+                onClick={(event) => handleAnchorClick(event, href)}
                 aria-current={activeHref === href ? 'location' : undefined}
                 className={`flex min-h-12 items-center justify-between rounded-xl px-3 text-base outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-accent ${
                   activeHref === href ? 'bg-white/[0.06] text-white' : 'text-white/65'
