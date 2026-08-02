@@ -7,6 +7,7 @@ import AnalyticsTimeSeriesChart from './AnalyticsTimeSeriesChart';
 import BlogAnalyticsPanel from './BlogAnalyticsPanel';
 import ProjectAnalyticsPanel from './ProjectAnalyticsPanel';
 import RecruitmentApplicationCard from './RecruitmentApplicationCard';
+import DeviceAnalyticsPanel from './DeviceAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -357,6 +358,8 @@ export default function AnalyticsDashboard() {
           조회수는 반복해서 연 횟수까지 모두 세고, 추정 순 방문자는 같은 브라우저의 반복 조회를 선택 기간에 한 명으로 셉니다. 다른 기기나 브라우저 저장공간을 지운 경우에는 별도로 잡힐 수 있어요.
         </p>
       </section>
+
+      <DeviceAnalyticsPanel key={`devices:${query.from}:${query.to}`} query={query} />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="top-pages-title">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">

@@ -48,7 +48,8 @@ public class AnalyticsPageViewService {
         }
         ContentIdentity content = resolveContent(path);
         repository.save(new AnalyticsPageView(
-                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id(), hashVisitorId(rawVisitorId)));
+                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id(), hashVisitorId(rawVisitorId),
+                classifyDevice(userAgent)));
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +147,19 @@ public class AnalyticsPageViewService {
         if (userAgent == null || userAgent.isBlank()) return true;
         String normalized = userAgent.toLowerCase(Locale.ROOT);
         return BOT_MARKERS.stream().anyMatch(normalized::contains);
+    }
+
+    private AnalyticsDeviceType classifyDevice(String userAgent) {
+        String normalized = userAgent.toLowerCase(Locale.ROOT);
+        if (List.of("mobile", "android", "iphone", "ipad", "ipod")
+                .stream().anyMatch(normalized::contains)) {
+            return AnalyticsDeviceType.MOBILE;
+        }
+        if (List.of("windows nt", "macintosh", "x11", "linux x86", "cros")
+                .stream().anyMatch(normalized::contains)) {
+            return AnalyticsDeviceType.DESKTOP;
+        }
+        return AnalyticsDeviceType.OTHER;
     }
 
     private ContentIdentity resolveContent(String path) {

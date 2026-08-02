@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -18,11 +18,15 @@ vi.mock('@/lib/adminApi', () => ({
   getProjectAnalytics: vi.fn(),
   getRecruitmentAnalytics: vi.fn(),
   getVisitorAnalytics: vi.fn(),
+  getDeviceAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
     <div data-testid="chart">{label}{comparison ? ` / ${comparison.label}` : ''}</div>
   ),
+}));
+vi.mock('./DeviceRatioChart', () => ({
+  default: () => <div data-testid="device-chart">기기 비율 그래프</div>,
 }));
 
 const response = {
@@ -75,6 +79,16 @@ const visitorResponse = {
   ],
 };
 
+const deviceResponse = {
+  range: response.range,
+  totalViews: 8,
+  devices: [
+    { device: 'MOBILE' as const, views: 5, percentage: 62.5 },
+    { device: 'DESKTOP' as const, views: 2, percentage: 25.0 },
+    { device: 'OTHER' as const, views: 1, percentage: 12.5 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -84,11 +98,13 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getProjectAnalytics).mockReset();
     vi.mocked(getRecruitmentAnalytics).mockReset();
     vi.mocked(getVisitorAnalytics).mockReset();
+    vi.mocked(getDeviceAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
     vi.mocked(getRecruitmentAnalytics).mockResolvedValue(recruitmentResponse);
     vi.mocked(getVisitorAnalytics).mockResolvedValue(visitorResponse);
+    vi.mocked(getDeviceAnalytics).mockResolvedValue(deviceResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -102,6 +118,9 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수 / 추정 순 방문자');
     expect(await screen.findByText('5')).toBeInTheDocument();
     expect(screen.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '기기 비율' })).toBeInTheDocument();
+    expect(screen.getByText('62.5%')).toBeInTheDocument();
+    expect(screen.getByText(/알 수 없는 기기도 버리지 않고/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);

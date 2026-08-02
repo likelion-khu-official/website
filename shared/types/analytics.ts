@@ -87,3 +87,17 @@ export interface VisitorAnalyticsResponse {
   uniqueVisitors: number;
   series: AnalyticsVisitorTimePoint[];
 }
+
+export type AnalyticsDeviceType = 'MOBILE' | 'DESKTOP' | 'OTHER';
+
+export interface DeviceAnalyticsTotal {
+  device: AnalyticsDeviceType;
+  views: number;
+  percentage: number;
+}
+
+export interface DeviceAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  devices: DeviceAnalyticsTotal[];
+}

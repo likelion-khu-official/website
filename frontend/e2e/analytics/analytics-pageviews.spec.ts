@@ -6,6 +6,7 @@ const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-
 const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-admin-analytics-project-views/evidence');
 const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384-admin-analytics-application-count/evidence');
 const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-admin-analytics-unique-visitors/evidence');
+const deviceEvidenceDir = path.resolve(__dirname, '../../../pm/missions/386-admin-analytics-device-ratio/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -96,6 +97,21 @@ test.beforeEach(async ({ context, page }) => {
           date: point.date,
           visitors: Math.max(1, Math.round(point.views * (selectedPage ? 0.17 : 0.58))),
         })),
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/devices**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'all', timezone: 'Asia/Seoul' },
+        totalViews: 1_474,
+        devices: [
+          { device: 'MOBILE', views: 892, percentage: 60.5 },
+          { device: 'DESKTOP', views: 521, percentage: 35.3 },
+          { device: 'OTHER', views: 61, percentage: 4.2 },
+        ],
       }),
     });
   });
@@ -216,4 +232,30 @@ test('조회수와 추정 순 방문자를 표준 hover 그래프로 비교한�
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await graphPanel.screenshot({ path: path.join(visitorEvidenceDir, 'mobile-visitors-chart.png') });
+});
+
+test('모바일·데스크톱·기타 비율을 도넛과 정확한 수치로 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '기기 비율' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('60.5%')).toBeVisible();
+  await expect(page.getByText('35.3%')).toBeVisible();
+  await expect(page.getByText('4.2%')).toBeVisible();
+  await expect(page.getByText(/알 수 없는 기기도 버리지 않고/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /기기별 페이지 조회 비율 도넛 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('기기 비율 도넛 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.52, chartBox.y + chartBox.height * 0.12);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('기기 비율 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(deviceEvidenceDir, 'desktop-device-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(deviceEvidenceDir, 'mobile-device-ratio.png') });
 });
