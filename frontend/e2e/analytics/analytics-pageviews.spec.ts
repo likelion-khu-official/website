@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 
 const evidenceDir = path.resolve(__dirname, '../../../pm/missions/381-admin-analytics-pageviews/evidence');
 const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-analytics-blog-views/evidence');
+const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-admin-analytics-project-views/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -48,6 +49,22 @@ test.beforeEach(async ({ context, page }) => {
         posts: [
           { id: 91, slug: 'lion-operation', title: '운영진이 기록한 한 학기', status: 'PUBLISHED', publishedAt: '2026-07-28T10:00:00', views: 782 },
           { id: 92, slug: 'last-recruit', title: '지난 모집 돌아보기', status: 'HIDDEN', publishedAt: '2026-07-15T10:00:00', views: 364 },
+        ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/projects**', async (route) => {
+    const projectId = new URL(route.request().url()).searchParams.get('projectId');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalViews: projectId ? 924 : 1_298,
+        series: series.map((point) => ({ ...point, views: Math.round(point.views * 0.63) })),
+        projects: [
+          { id: 31, title: '모두의 캠퍼스', cohort: 14, hidden: false, createdAt: '2026-07-29T10:00:00', views: 924 },
+          { id: 19, title: '작년의 식권 지도', cohort: 13, hidden: true, createdAt: '2026-02-10T10:00:00', views: 374 },
         ],
       }),
     });
@@ -106,4 +123,24 @@ test('블로그 글별 조회와 선택 글 추이를 데스크톱·모바일에
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await blogPanel.screenshot({ path: path.join(blogEvidenceDir, 'mobile-blog-selected.png') });
+});
+
+test('프로젝트별 조회와 선택 프로젝트 추이를 데스크톱·모바일에서 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  await expect(page.getByRole('heading', { name: '프로젝트별 조회수' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^모두의 캠퍼스/ })).toBeVisible();
+  await expect(page.getByText('924회')).toBeVisible();
+
+  await page.getByRole('button', { name: /^모두의 캠퍼스/ }).click();
+  await expect(page).toHaveURL(/project=31/);
+  await expect(page.getByRole('heading', { name: '모두의 캠퍼스 조회 추이' })).toBeVisible();
+  await expect(page.getByRole('img', { name: /모두의 캠퍼스 조회수 기간별 선 그래프/ })).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const projectPanel = page.getByRole('region', { name: '프로젝트별 조회수' });
+  await projectPanel.screenshot({ path: path.join(projectEvidenceDir, 'desktop-project-selected.png') });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await projectPanel.screenshot({ path: path.join(projectEvidenceDir, 'mobile-project-selected.png') });
 });

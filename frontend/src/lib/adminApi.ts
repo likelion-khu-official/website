@@ -48,6 +48,7 @@ import type {
   AnalyticsPageViewQuery,
   AnalyticsPageViewResponse,
   BlogAnalyticsResponse,
+  ProjectAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -93,6 +94,21 @@ export function getBlogAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/blog-posts?${params.toString()}`,
     {},
     '블로그 조회 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getProjectAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.projectId) params.set('projectId', String(query.projectId));
+  return request<ProjectAnalyticsResponse>(
+    `/analytics/projects?${params.toString()}`,
+    {},
+    '프로젝트 조회 현황을 불러오지 못했어요.',
     true
   );
 }

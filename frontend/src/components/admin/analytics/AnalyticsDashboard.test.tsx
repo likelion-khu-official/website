@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -12,7 +12,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/admin/analytics',
   useSearchParams: () => params,
 }));
-vi.mock('@/lib/adminApi', () => ({ getAnalyticsPageViews: vi.fn(), getBlogAnalytics: vi.fn() }));
+vi.mock('@/lib/adminApi', () => ({
+  getAnalyticsPageViews: vi.fn(),
+  getBlogAnalytics: vi.fn(),
+  getProjectAnalytics: vi.fn(),
+}));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label }: { label: string }) => <div data-testid="chart">{label}</div>,
 }));
@@ -40,14 +44,26 @@ const blogResponse = {
   ],
 };
 
+const projectResponse = {
+  range: response.range,
+  totalViews: 0,
+  series: response.series,
+  projects: [
+    { id: 31, title: '모두의 프로젝트', cohort: 14, hidden: false, createdAt: '2026-07-29T10:00:00', views: 8 },
+    { id: 32, title: '지난 기수 프로젝트', cohort: 13, hidden: true, createdAt: '2026-07-20T10:00:00', views: 2 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
     replace.mockReset();
     vi.mocked(getAnalyticsPageViews).mockReset();
     vi.mocked(getBlogAnalytics).mockReset();
+    vi.mocked(getProjectAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
+    vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -60,7 +76,20 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('블로그 글')).toBeInTheDocument();
     expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수');
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
-    expect(screen.getByText('숨김')).toBeInTheDocument();
+    expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
+    expect(screen.getAllByText('숨김')).toHaveLength(2);
+  });
+
+  it('프로젝트를 선택하면 불변 프로젝트 ID를 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.click(await screen.findByRole('button', { name: /^모두의 프로젝트/ }));
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&project=31',
+      { scroll: false }
+    );
   });
 
   it('블로그 글을 선택하면 불변 글 ID를 URL에 남긴다', async () => {

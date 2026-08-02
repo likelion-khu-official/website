@@ -2,6 +2,7 @@ package likelion.khu.website.analytics;
 
 import likelion.khu.website.analytics.dto.AnalyticsPageViewResponse;
 import likelion.khu.website.feed.post.PostRepository;
+import likelion.khu.website.project.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class AnalyticsPageViewService {
 
     private final AnalyticsPageViewRepository repository;
     private final PostRepository postRepository;
+    private final ProjectRepository projectRepository;
 
     @Value("${app.analytics.allowed-hosts:likelion-khu.com,www.likelion-khu.com}")
     private String allowedHostsConfig;
@@ -150,6 +152,16 @@ public class AnalyticsPageViewService {
                     .map(post -> new ContentIdentity(AnalyticsContentType.BLOG_POST, post.getId()))
                     .orElse(ContentIdentity.NONE);
         }
+        if (path.matches("^/projects/\\d+$")) {
+            try {
+                long projectId = Long.parseLong(path.substring("/projects/".length()));
+                if (projectRepository.existsById(projectId)) {
+                    return new ContentIdentity(AnalyticsContentType.PROJECT, projectId);
+                }
+            } catch (NumberFormatException ignored) {
+                // Long 범위를 벗어난 임의 경로도 일반 페이지 조회로만 남기고 수집 요청은 실패시키지 않는다.
+            }
+        }
         return ContentIdentity.NONE;
     }
 
@@ -157,4 +169,3 @@ public class AnalyticsPageViewService {
         private static final ContentIdentity NONE = new ContentIdentity(null, null);
     }
 }
-

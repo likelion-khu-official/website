@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAnalyticsPageViews } from '@/lib/adminApi';
 import AnalyticsTimeSeriesChart from './AnalyticsTimeSeriesChart';
 import BlogAnalyticsPanel from './BlogAnalyticsPanel';
+import ProjectAnalyticsPanel from './ProjectAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -43,6 +44,7 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
   const validRange = from <= to;
   const page = params.get('page') || undefined;
   const blogPostId = Number(params.get('blog'));
+  const projectId = Number(params.get('project'));
 
   return {
     from: validRange ? from : defaultFrom,
@@ -50,6 +52,7 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
     interval: interval === 'week' || interval === 'month' ? interval : 'day',
     ...(page ? { page } : {}),
     ...(Number.isInteger(blogPostId) && blogPostId > 0 ? { blogPostId } : {}),
+    ...(Number.isInteger(projectId) && projectId > 0 ? { projectId } : {}),
   };
 }
 
@@ -208,6 +211,7 @@ export default function AnalyticsDashboard() {
     const params = new URLSearchParams({ from: next.from, to: next.to, interval: next.interval });
     if (next.page) params.set('page', next.page);
     if (next.blogPostId) params.set('blog', String(next.blogPostId));
+    if (next.projectId) params.set('project', String(next.projectId));
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [pathname, router]);
 
@@ -353,7 +357,13 @@ export default function AnalyticsDashboard() {
       </section>
 
       <BlogAnalyticsPanel
-        key={`${query.from}:${query.to}:${query.interval}:${query.blogPostId ?? 'all'}`}
+        key={`blog:${query.from}:${query.to}:${query.interval}:${query.blogPostId ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
+
+      <ProjectAnalyticsPanel
+        key={`project:${query.from}:${query.to}:${query.interval}:${query.projectId ?? 'all'}`}
         query={query}
         onChange={replaceQuery}
       />

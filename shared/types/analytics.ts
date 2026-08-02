@@ -30,6 +30,7 @@ export interface AnalyticsPageViewQuery {
   interval: AnalyticsInterval;
   page?: string;
   blogPostId?: number;
+  projectId?: number;
 }
 
 export type AnalyticsPostStatus = 'PUBLISHED' | 'HIDDEN';
@@ -48,4 +49,20 @@ export interface BlogAnalyticsResponse {
   totalViews: number;
   series: AnalyticsTimePoint[];
   posts: BlogAnalyticsPostTotal[];
+}
+
+export interface ProjectAnalyticsTotal {
+  id: number;
+  title: string;
+  cohort: number;
+  hidden: boolean;
+  createdAt: string;
+  views: number;
+}
+
+export interface ProjectAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  series: AnalyticsTimePoint[];
+  projects: ProjectAnalyticsTotal[];
 }
