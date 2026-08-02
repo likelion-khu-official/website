@@ -1,5 +1,7 @@
 const PAGE_VIEW_ENDPOINT = '/api/analytics/pageviews';
+const EVENT_ENDPOINT = '/api/analytics/events';
 const VISITOR_STORAGE_KEY = 'likelion-khu.analytics.visitor';
+const VISIT_STORAGE_KEY = 'likelion-khu.analytics.visit';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function getAnonymousVisitorId() {
@@ -13,6 +15,39 @@ export function getAnonymousVisitorId() {
     // 저장공간 차단·구형 브라우저에서는 조회수만 보내고 순 방문자 집계에서는 제외한다.
     return undefined;
   }
+}
+
+export function getAnonymousVisitId() {
+  try {
+    const existing = window.sessionStorage.getItem(VISIT_STORAGE_KEY);
+    if (existing && UUID_PATTERN.test(existing)) return existing;
+    const visitId = window.crypto.randomUUID();
+    window.sessionStorage.setItem(VISIT_STORAGE_KEY, visitId);
+    return visitId;
+  } catch {
+    return undefined;
+  }
+}
+
+export type LandingSectionKey = 'PROJECT' | 'STAFF' | 'BLOG' | 'RECRUIT';
+
+export function trackSectionReach(key: LandingSectionKey) {
+  const visitId = getAnonymousVisitId();
+  if (!visitId) return;
+  const body = JSON.stringify({
+    event: 'SECTION_REACH',
+    key,
+    visitorId: getAnonymousVisitorId(),
+    visitId,
+  });
+  const blob = new Blob([body], { type: 'application/json' });
+  if (typeof navigator.sendBeacon === 'function' && navigator.sendBeacon(EVENT_ENDPOINT, blob)) return;
+  void fetch(EVENT_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
 }
 
 /**

@@ -7,6 +7,7 @@ const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-adm
 const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384-admin-analytics-application-count/evidence');
 const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-admin-analytics-unique-visitors/evidence');
 const deviceEvidenceDir = path.resolve(__dirname, '../../../pm/missions/386-admin-analytics-device-ratio/evidence');
+const sectionEvidenceDir = path.resolve(__dirname, '../../../pm/missions/387-admin-analytics-section-reach/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -111,6 +112,21 @@ test.beforeEach(async ({ context, page }) => {
           { device: 'MOBILE', views: 892, percentage: 60.5 },
           { device: 'DESKTOP', views: 521, percentage: 35.3 },
           { device: 'OTHER', views: 61, percentage: 4.2 },
+        ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/sections**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'all', timezone: 'Asia/Seoul' },
+        sections: [
+          { section: 'PROJECT', reaches: 932 },
+          { section: 'STAFF', reaches: 751 },
+          { section: 'BLOG', reaches: 486 },
+          { section: 'RECRUIT', reaches: 214 },
         ],
       }),
     });
@@ -258,4 +274,31 @@ test('모바일·데스크톱·기타 비율을 도넛과 정확한 수치로 �
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await panel.screenshot({ path: path.join(deviceEvidenceDir, 'mobile-device-ratio.png') });
+});
+
+test('랜딩 섹션별 실제 도달을 그래프와 정확한 수치로 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '랜딩 섹션 도달' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('932회')).toBeVisible();
+  await expect(page.getByText('751회')).toBeVisible();
+  await expect(page.getByText('486회')).toBeVisible();
+  await expect(page.getByText('214회')).toBeVisible();
+  await expect(page.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /랜딩 섹션별 도달 수 가로 막대그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('랜딩 섹션 도달 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.72, chartBox.y + chartBox.height * 0.18);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('랜딩 섹션 도달 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(sectionEvidenceDir, 'desktop-section-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(sectionEvidenceDir, 'mobile-section-reach.png') });
 });

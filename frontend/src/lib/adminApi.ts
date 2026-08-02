@@ -52,6 +52,7 @@ import type {
   RecruitmentAnalyticsResponse,
   VisitorAnalyticsResponse,
   DeviceAnalyticsResponse,
+  SectionReachAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -146,6 +147,16 @@ export function getDeviceAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/devices?${params.toString()}`,
     {},
     '기기 비율을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getSectionReachAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return request<SectionReachAnalyticsResponse>(
+    `/analytics/sections?${params.toString()}`,
+    {},
+    '랜딩 섹션 도달 수를 불러오지 못했어요.',
     true
   );
 }

@@ -101,3 +101,15 @@ export interface DeviceAnalyticsResponse {
   totalViews: number;
   devices: DeviceAnalyticsTotal[];
 }
+
+export type LandingSectionKey = 'PROJECT' | 'STAFF' | 'BLOG' | 'RECRUIT';
+
+export interface SectionReachTotal {
+  section: LandingSectionKey;
+  reaches: number;
+}
+
+export interface SectionReachAnalyticsResponse {
+  range: AnalyticsDateRange;
+  sections: SectionReachTotal[];
+}

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -19,6 +19,7 @@ vi.mock('@/lib/adminApi', () => ({
   getRecruitmentAnalytics: vi.fn(),
   getVisitorAnalytics: vi.fn(),
   getDeviceAnalytics: vi.fn(),
+  getSectionReachAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
@@ -27,6 +28,10 @@ vi.mock('./AnalyticsTimeSeriesChart', () => ({
 }));
 vi.mock('./DeviceRatioChart', () => ({
   default: () => <div data-testid="device-chart">기기 비율 그래프</div>,
+}));
+vi.mock('./SectionReachChart', () => ({
+  SECTION_LABELS: { PROJECT: '프로젝트', STAFF: '운영진', BLOG: '블로그', RECRUIT: '모집' },
+  default: () => <div data-testid="section-chart">랜딩 섹션 도달 그래프</div>,
 }));
 
 const response = {
@@ -89,6 +94,16 @@ const deviceResponse = {
   ],
 };
 
+const sectionReachResponse = {
+  range: response.range,
+  sections: [
+    { section: 'PROJECT' as const, reaches: 120 },
+    { section: 'STAFF' as const, reaches: 88 },
+    { section: 'BLOG' as const, reaches: 54 },
+    { section: 'RECRUIT' as const, reaches: 31 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -99,12 +114,14 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getRecruitmentAnalytics).mockReset();
     vi.mocked(getVisitorAnalytics).mockReset();
     vi.mocked(getDeviceAnalytics).mockReset();
+    vi.mocked(getSectionReachAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
     vi.mocked(getRecruitmentAnalytics).mockResolvedValue(recruitmentResponse);
     vi.mocked(getVisitorAnalytics).mockResolvedValue(visitorResponse);
     vi.mocked(getDeviceAnalytics).mockResolvedValue(deviceResponse);
+    vi.mocked(getSectionReachAnalytics).mockResolvedValue(sectionReachResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -121,6 +138,9 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByRole('heading', { name: '기기 비율' })).toBeInTheDocument();
     expect(screen.getByText('62.5%')).toBeInTheDocument();
     expect(screen.getByText(/알 수 없는 기기도 버리지 않고/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '랜딩 섹션 도달' })).toBeInTheDocument();
+    expect(screen.getByText('120회')).toBeInTheDocument();
+    expect(screen.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);
