@@ -77,7 +77,9 @@ export default async function Blog() {
             <div>
               <p className="landing-section-kicker">Blog</p>
               <h2 className="mt-4 max-w-[430px] break-keep text-[32px] font-semibold leading-[1.17] tracking-[-0.04em] text-white sm:text-[39px] lg:text-[44px]">
-                멤버들이 나누는 기술과 경험
+                멤버들이 나누는
+                <br />
+                기술과 경험
               </h2>
               <p className="mt-5 max-w-sm break-keep text-sm leading-6 text-white/42 sm:text-[15px] sm:leading-7">
                 프로젝트와 스터디에서 배운 기술과 경험을 나눕니다.
