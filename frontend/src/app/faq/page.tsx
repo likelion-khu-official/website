@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import SiteHeader from '@/components/SiteHeader';
+import BackLink from '@/components/BackLink';
 import FaqItem from '@/components/FaqItem';
 import { faqGroups } from '@/lib/faq';
 
@@ -36,27 +37,12 @@ export default function FaqPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between px-5 py-5 sm:px-10 sm:py-6 lg:px-16">
-        <Link
-          href="/"
-          aria-label="멋쟁이사자처럼 경희대 홈"
-          className="flex min-h-11 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="h-9 w-auto object-contain" />
-          <span className="hidden text-sm font-semibold tracking-[-0.02em] text-white/75 sm:block">
-            멋쟁이사자처럼 경희대
-          </span>
-        </Link>
-        <Link
-          href="/#faq"
-          className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/15 px-4 py-2 text-sm text-white/65 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          홈으로
-        </Link>
-      </header>
+      <SiteHeader />
 
-      <main className="mx-auto w-full max-w-3xl px-5 pb-28 pt-8 sm:px-8 sm:pt-12 lg:pt-16">
+      <main className="mx-auto w-full max-w-3xl px-5 pb-28 pt-4 sm:px-8 sm:pt-6">
+        <div className="mb-5 sm:mb-7">
+          <BackLink href="/#faq" />
+        </div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">FAQ</p>
         <h1 className="break-keep text-[clamp(30px,5vw,46px)] font-semibold leading-[1.12] tracking-[-0.04em] text-white">
           자주 묻는 질문

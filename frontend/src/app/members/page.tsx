@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import type { Member } from '@shared/types/member';
+import SiteHeader from '@/components/SiteHeader';
+import BackLink from '@/components/BackLink';
 import MemberCard from '@/components/members/MemberCard';
 import { getMembers, getStaff } from '@/lib/rosterApi';
 import { mergeRoster } from '@/lib/roster';
@@ -26,22 +27,18 @@ export default async function MembersPage() {
   }
 
   return (
-    <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-background px-5 pb-24 pt-8 sm:px-10 lg:px-16">
+    <>
+      <SiteHeader />
+      <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-background px-5 pb-24 pt-4 sm:px-10 lg:px-16">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_-10%,rgba(255,80,0,0.3),transparent_60%)]"
       />
 
       <div className="relative mx-auto max-w-[1320px]">
-        <Link
-          href="/"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-white/55 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <span aria-hidden>←</span>
-          홈으로
-        </Link>
+        <BackLink href="/#members" />
 
-        <header className="pb-12 pt-16 text-center sm:pb-16 sm:pt-24">
+        <header className="pb-12 pt-6 text-center sm:pb-16 sm:pt-10">
           <p className="text-sm font-semibold tracking-[0.18em] text-accent">OUR MEMBERS</p>
           <h1 className="mt-4 text-balance break-keep text-[clamp(36px,5vw,72px)] font-bold tracking-[-0.055em] text-white">
             함께 배우고 만드는 사람들
@@ -69,6 +66,7 @@ export default async function MembersPage() {
           </div>
         )}
       </div>
-    </main>
+      </main>
+    </>
   );
 }
