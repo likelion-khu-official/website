@@ -266,13 +266,13 @@ export default function WriteForm({ postId }: Props) {
 
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-          {editing ? 'Edit story' : 'New story'}
+          Blog
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
           {editing ? '글 수정' : '새 글 작성'}
         </h1>
         <p className="mt-4 text-sm leading-6 text-white/45">
-          {authorName} 님의 배움을 Markdown으로 기록해요.
+          {authorName}님의 블로그 글을 Markdown으로 작성해요.
         </p>
       </div>
 

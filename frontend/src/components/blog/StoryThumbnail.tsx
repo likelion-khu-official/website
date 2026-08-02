@@ -36,7 +36,7 @@ export default function StoryThumbnail({ post }: { post: PostSummary }) {
         />
       ) : (
         <div className="flex h-full items-end bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.26),transparent_38%),linear-gradient(145deg,#272727,#171717)] p-3 sm:p-4">
-          <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25 sm:text-xs">STORY</span>
+          <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25 sm:text-xs">BLOG</span>
         </div>
       )}
     </div>

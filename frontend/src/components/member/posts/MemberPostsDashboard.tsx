@@ -121,7 +121,7 @@ export default function MemberPostsDashboard() {
       <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-            Member stories
+            Blog
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
             내 글
@@ -166,7 +166,7 @@ export default function MemberPostsDashboard() {
       ) : posts.length === 0 ? (
         <div className="mt-10 flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 px-6 text-center">
           <p className="text-lg font-semibold">아직 작성한 글이 없어요.</p>
-          <p className="mt-2 text-sm text-white/40">첫 기록을 등록하면 방문자에게 즉시 공개돼요.</p>
+          <p className="mt-2 text-sm text-white/40">첫 글을 작성하면 방문자에게 바로 공개돼요.</p>
         </div>
       ) : (
         <>
