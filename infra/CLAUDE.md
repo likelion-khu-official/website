@@ -194,7 +194,7 @@ OCI IAM 구조(사용자·그룹·정책 매핑)는 `infra/docs/iam.md`(로컬 �
 4. `mkdir -p infra/data/` — SQLite DB 디렉터리 생성
 5. `docker login ghcr.io` — GHCR pull 권한
 6. `docker compose -f infra/docker-compose.yml up -d` — 전체 스택 초기 실행
-7. OCI Security List: 포트 8080, 8081 오픈 (헬스체크·디버깅용)
+7. ~~OCI Security List: 포트 8080, 8081 오픈 (헬스체크·디버깅용)~~ — **실제로는 안 열려 있음(2026-08-02 OCI CLI 실측 재확인)**: 현재 인바운드는 22(SSH)·80(HTTP)·443(HTTPS)뿐이다. nginx만 앞단에 노출되는 셈이라 오히려 이 계획보다 안전한 상태 — 헬스체크·디버깅은 서버 SSH 접속 후 `localhost:8080`/`localhost:8081`로 확인한다. 이 항목은 최초 계획 단계에서 적혔던 것으로 보이며, 실제 세팅 단계에서 빠졌거나 이후 닫힌 것으로 추정된다(원인 미조사).
 
 ## GitHub Secrets 목록
 
