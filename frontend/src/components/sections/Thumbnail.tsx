@@ -1,6 +1,6 @@
 export default function Thumbnail() {
   return (
-    <section id="thumbnail" className="hero-scroll-shell relative h-[150svh] w-full">
+    <section id="thumbnail" className="hero-scroll-shell relative h-[112svh] w-full md:h-[135svh]">
       <div className="hero-thumbnail-bg hero-stage sticky top-0 flex h-screen h-[100svh] w-full items-center justify-center overflow-hidden px-5 sm:px-8">
         <div className="hero-glow-layer hero-glow-layer--1" />
         <div className="hero-glow-layer hero-glow-layer--2">
@@ -23,7 +23,7 @@ export default function Thumbnail() {
             <h1 className="hero-intro-title max-w-full whitespace-nowrap text-[clamp(36px,12vw,144px)] leading-[0.86] tracking-[-0.04em] text-white">
               Possibility
             </h1>
-            <p className="hero-intro-sub text-[clamp(25px,6vw,72px)] leading-none tracking-[-0.035em] text-accent/50">
+            <p className="hero-intro-sub text-[clamp(25px,6vw,72px)] leading-none tracking-[-0.035em] text-[#ff8a4c] [text-shadow:0_2px_28px_rgba(0,0,0,0.72)]">
               to reality
             </p>
           </div>

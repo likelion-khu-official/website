@@ -69,43 +69,25 @@ body {
   letter-spacing: 0;
 }
 
-/* 섹션별 글로우는 배경 레이어(z=0)에만 두고 콘텐츠는 z=2로 올린다.
-   그 사이(z=1)에 긴 공통색 페이드를 놓으면 콘텐츠를 어둡게 하지 않으면서
-   글로우가 섹션 경계에서 네모나게 잘리는 현상을 막을 수 있다. */
+/* 콘텐츠 챕터는 같은 바탕색 위에서 이어지고, 낮은 대비의 선만 구조를 구분한다.
+   모든 경계에 페이드를 반복하면 페이지 전체에서 붉은 가로 띠가 생기기 때문이다. */
 .home-experience main > section:not(#thumbnail),
 .home-blog-chapter > section {
   isolation: isolate;
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
 }
 
 .home-experience main
   > section:not(#thumbnail)
-  > *:not([aria-hidden]):not(.members-glow-base):not(.members-glow-accent),
+  > *:not([aria-hidden]),
 .home-blog-chapter > section > *:not([aria-hidden]) {
   position: relative;
   z-index: 2;
 }
 
 .home-experience main > section:not(#thumbnail) > [aria-hidden],
-.home-experience main > section > .members-glow-base,
-.home-experience main > section > .members-glow-accent,
 .home-blog-chapter > section > [aria-hidden] {
   z-index: 0;
-}
-
-.home-experience main > section:not(#thumbnail)::after,
-.home-blog-chapter > section::after {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(
-    to bottom,
-    rgba(19, 19, 19, 0.9) 0,
-    rgba(19, 19, 19, 0) 64px,
-    rgba(19, 19, 19, 0) calc(100% - 64px),
-    rgba(19, 19, 19, 0.9) 100%
-  );
-  content: "";
-  pointer-events: none;
 }
 
 ::selection {
@@ -395,12 +377,26 @@ textarea {
   }
 }
 
-/* Introduce 섹션 배경 — Figma 115:27 그라디언트(좌하단 붉은 글로우, opacity 0.3) */
+/* 모바일은 데스크톱 비율의 SVG를 세로로 늘리지 않는다. 한 개의 넓은 CSS 글로우만
+   사용해 강한 첫 장면은 남기되, 짧은 히어로 구간에서 배경까지 계속 움직이지 않게 한다. */
+@media (max-width: 767px) {
+  .hero-glow-layer--1 {
+    background-color: #131313;
+    background-image:
+      radial-gradient(ellipse 125% 42% at 50% 94%, rgba(255, 105, 38, 0.78) 0%, rgba(176, 34, 12, 0.5) 30%, rgba(19, 19, 19, 0) 72%),
+      radial-gradient(ellipse 90% 30% at 8% 0%, rgba(112, 32, 13, 0.24) 0%, rgba(19, 19, 19, 0) 72%);
+    animation: none;
+  }
+
+  .hero-glow-layer--2,
+  .hero-glow-layer--3 {
+    display: none;
+  }
+}
+
+/* 중간 콘텐츠는 단색 바탕으로 쉬게 하고, 오렌지는 타이포와 데이터에만 쓴다. */
 .introduce-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1727 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.3'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-23.724 117.01 -173.69 -47.731 1010.1 117.54)'><stop stop-color='rgba(0,0,0,1)' offset='0'/><stop stop-color='rgba(0,0,0,1)' offset='0.48794'/><stop stop-color='rgba(11,2,1,1)' offset='0.50202'/><stop stop-color='rgba(22,4,2,1)' offset='0.5161'/><stop stop-color='rgba(44,9,3,1)' offset='0.54425'/><stop stop-color='rgba(88,17,6,1)' offset='0.60056'/><stop stop-color='rgba(132,26,9,1)' offset='0.65687'/><stop stop-color='rgba(176,34,12,1)' offset='0.71319'/><stop stop-color='rgba(186,59,35,1)' offset='0.74904'/><stop stop-color='rgba(196,84,58,1)' offset='0.78489'/><stop stop-color='rgba(206,109,81,1)' offset='0.82074'/><stop stop-color='rgba(216,133,105,1)' offset='0.85659'/><stop stop-color='rgba(235,183,151,1)' offset='0.9283'/><stop stop-color='rgba(255,233,197,1)' offset='1'/></radialGradient></defs></svg>");
 }
 
 /* 트랙 소개 — 1536×1024 디자인 좌표를 컨테이너 비율로 동일하게 축소한다. */
@@ -409,7 +405,7 @@ textarea {
   height: 100svh;
   align-items: flex-start;
   justify-content: center;
-  background-color: #111212;
+  background-color: #131313;
 }
 
 .session-intro-bg::before {
@@ -916,16 +912,9 @@ textarea {
   }
 }
 
-/* Plan(107:573) 섹션 배경 — 하단 중앙에서 피어오르는 강한 오렌지 글로우 */
+/* 본문 챕터는 단색으로 이어져 히어로와 모집 CTA의 강한 장면을 살린다. */
 .plan-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-image: radial-gradient(
-    72% 58% at 38% 118%,
-    rgba(255, 80, 0, 0.5) 0%,
-    rgba(176, 34, 12, 0.32) 32%,
-    rgba(19, 19, 19, 0) 66%
-  );
 }
 
 /* 전역 공개 푸터 — 본문과 구분되면서도 랜딩의 오렌지 글로우를 약하게 이어간다. */
@@ -940,13 +929,8 @@ textarea {
   background: #131313;
 }
 
-/* Blog(114:139) 섹션 배경 — 좌우 가장자리 은은한 다크레드 글로우 */
 .blog-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-image:
-    radial-gradient(40% 45% at 0% 55%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
-    radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
 }
 
 /* FAQ 섹션 배경 — 아직 Figma 시안이 없어, 글로우 없이 Project 섹션과 같은 단색 배경만 사용 */
@@ -954,33 +938,8 @@ textarea {
   background-color: #131313;
 }
 
-/* Members(115:60) 섹션 배경 — Figma 글로우 2겹(115:62 베이스 하단우측 + 115:61 하단좌측 액센트) */
 .members-bg {
   background-color: #131313;
-}
-/* 115:62 — 2011×1117, 프레임 대비 x=-284 (좌측으로 확장). left -16.44%, width 116.44% */
-.members-glow-base {
-  position: absolute;
-  top: 0;
-  left: -16.44%;
-  width: 116.44%;
-  height: 100%;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-139.8 -105.45 164.89 -218.86 2076 1034)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(137,30,14,1)' offset='0.36846'/><stop stop-color='rgba(98,27,16,1)' offset='0.42443'/><stop stop-color='rgba(58,23,17,1)' offset='0.48039'/><stop stop-color='rgba(39,21,18,1)' offset='0.50837'/><stop stop-color='rgba(19,19,19,1)' offset='0.53636'/><stop stop-color='rgba(19,19,19,1)' offset='1'/></radialGradient></defs></svg>");
-}
-/* 115:61 — 1440×800, 프레임 대비 (0,800). left 0, top 71.62%, width 83.38%, height 71.62% */
-.members-glow-accent {
-  position: absolute;
-  left: 0;
-  top: 71.62%;
-  width: 83.38%;
-  height: 71.62%;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
 }
 
 /* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다.
@@ -1067,26 +1026,6 @@ textarea {
 /* 최근 블로그 레이아웃을 건드리지 않고 랜딩 진입 리듬만 동일하게 맞춘다. */
 .home-blog-chapter {
   background: #131313;
-}
-
-/* 풀뷰포트 섹션 스크롤 스냅 — proximity라 스크롤을 '가두지' 않고(트랙패드/터치 자유),
-   섹션 근처에 오면 top이 네비 밑선(scroll-padding)에 살짝 맞춰진다. 히어로(#thumbnail)는
-   스티키 패럴럭스라 스냅 대상에서 제외. 모션 최소화 설정에선 끈다. */
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-snap-type: y proximity;
-  }
-
-  .home-experience main > section:not(#thumbnail),
-  .home-blog-chapter,
-  #site-footer {
-    scroll-snap-align: start;
-    scroll-snap-stop: normal;
-  }
-
-  #site-footer {
-    scroll-snap-align: end;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
