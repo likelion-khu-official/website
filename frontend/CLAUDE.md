@@ -4,6 +4,7 @@
 1. 루트 `CLAUDE.md`
 2. `pm/docs/`: `learnings.md` → `brief.md`
 3. `shared/` (FE↔BE API 타입)
+- **UI·스타일 작업이면 `DESIGN.md`도 읽는다** — 디자인 언어(토큰 규칙·비주얼 언어·스켈레톤·모션). *lazy load — 스타일 건드릴 때만.*
 
 ## 스택
 Next.js (App Router) · TypeScript · Tailwind CSS
