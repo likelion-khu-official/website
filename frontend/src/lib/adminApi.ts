@@ -44,7 +44,11 @@ import type {
   StaffUpdateRequest,
 } from '@shared/types/staff';
 import type { AuditLogQuery, AuditLogResponse } from '@shared/types/audit';
-import type { AnalyticsPageViewQuery, AnalyticsPageViewResponse } from '@shared/types/analytics';
+import type {
+  AnalyticsPageViewQuery,
+  AnalyticsPageViewResponse,
+  BlogAnalyticsResponse,
+} from '@shared/types/analytics';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -74,6 +78,21 @@ export function getAnalyticsPageViews(query: AnalyticsPageViewQuery) {
     `/analytics/pageviews?${params.toString()}`,
     {},
     '이용 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getBlogAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.blogPostId) params.set('postId', String(query.blogPostId));
+  return request<BlogAnalyticsResponse>(
+    `/analytics/blog-posts?${params.toString()}`,
+    {},
+    '블로그 조회 현황을 불러오지 못했어요.',
     true
   );
 }

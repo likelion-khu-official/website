@@ -1,6 +1,7 @@
 package likelion.khu.website.analytics;
 
 import likelion.khu.website.analytics.dto.AnalyticsPageViewResponse;
+import likelion.khu.website.feed.post.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class AnalyticsPageViewService {
     );
 
     private final AnalyticsPageViewRepository repository;
+    private final PostRepository postRepository;
 
     @Value("${app.analytics.allowed-hosts:likelion-khu.com,www.likelion-khu.com}")
     private String allowedHostsConfig;
@@ -39,7 +41,9 @@ public class AnalyticsPageViewService {
         if (!isAllowedHost(rawHost) || isExcludedPath(path) || isBot(userAgent)) {
             return;
         }
-        repository.save(new AnalyticsPageView(path, LocalDateTime.now(ANALYTICS_ZONE)));
+        ContentIdentity content = resolveContent(path);
+        repository.save(new AnalyticsPageView(
+                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id()));
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +141,20 @@ public class AnalyticsPageViewService {
         if (userAgent == null || userAgent.isBlank()) return true;
         String normalized = userAgent.toLowerCase(Locale.ROOT);
         return BOT_MARKERS.stream().anyMatch(normalized::contains);
+    }
+
+    private ContentIdentity resolveContent(String path) {
+        if (path.startsWith("/blog/") && path.indexOf('/', "/blog/".length()) < 0) {
+            String slug = path.substring("/blog/".length());
+            return postRepository.findBySlug(slug)
+                    .map(post -> new ContentIdentity(AnalyticsContentType.BLOG_POST, post.getId()))
+                    .orElse(ContentIdentity.NONE);
+        }
+        return ContentIdentity.NONE;
+    }
+
+    private record ContentIdentity(AnalyticsContentType type, Long id) {
+        private static final ContentIdentity NONE = new ContentIdentity(null, null);
     }
 }
 

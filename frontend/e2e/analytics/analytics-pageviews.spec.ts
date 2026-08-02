@@ -2,6 +2,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 const evidenceDir = path.resolve(__dirname, '../../../pm/missions/381-admin-analytics-pageviews/evidence');
+const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-analytics-blog-views/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -31,6 +32,22 @@ test.beforeEach(async ({ context, page }) => {
           { path: '/projects', views: 426 },
           { path: '/blog', views: 281 },
           { path: '/recruit', views: 184 },
+        ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/blog-posts**', async (route) => {
+    const postId = new URL(route.request().url()).searchParams.get('postId');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalViews: postId ? 782 : 1_146,
+        series: series.map((point) => ({ ...point, views: Math.round(point.views * 0.53) })),
+        posts: [
+          { id: 91, slug: 'lion-operation', title: '운영진이 기록한 한 학기', status: 'PUBLISHED', publishedAt: '2026-07-28T10:00:00', views: 782 },
+          { id: 92, slug: 'last-recruit', title: '지난 모집 돌아보기', status: 'HIDDEN', publishedAt: '2026-07-15T10:00:00', views: 364 },
         ],
       }),
     });
@@ -69,4 +86,24 @@ test('390px 모바일에서 기간·그래프·표가 화면 밖으로 밀리지
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await page.screenshot({ path: path.join(evidenceDir, 'mobile-overview.png'), fullPage: true });
+});
+
+test('블로그 글별 조회와 선택 글 추이를 데스크톱·모바일에서 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  await expect(page.getByRole('heading', { name: '블로그 글별 조회수' })).toBeVisible();
+  await expect(page.getByText('숨김')).toBeVisible();
+  await expect(page.getByText('782회')).toBeVisible();
+
+  await page.getByRole('button', { name: /^운영진이 기록한 한 학기/ }).click();
+  await expect(page).toHaveURL(/blog=91/);
+  await expect(page.getByRole('heading', { name: '운영진이 기록한 한 학기 조회 추이' })).toBeVisible();
+  await expect(page.getByRole('img', { name: /운영진이 기록한 한 학기 조회수 기간별 선 그래프/ })).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const blogPanel = page.getByRole('region', { name: '블로그 글별 조회수' });
+  await blogPanel.screenshot({ path: path.join(blogEvidenceDir, 'desktop-blog-selected.png') });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await blogPanel.screenshot({ path: path.join(blogEvidenceDir, 'mobile-blog-selected.png') });
 });

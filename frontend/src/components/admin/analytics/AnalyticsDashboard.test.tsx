@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/admin/analytics',
   useSearchParams: () => params,
 }));
-vi.mock('@/lib/adminApi', () => ({ getAnalyticsPageViews: vi.fn() }));
+vi.mock('@/lib/adminApi', () => ({ getAnalyticsPageViews: vi.fn(), getBlogAnalytics: vi.fn() }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label }: { label: string }) => <div data-testid="chart">{label}</div>,
 }));
@@ -30,12 +30,24 @@ const response = {
   ],
 };
 
+const blogResponse = {
+  range: response.range,
+  totalViews: 0,
+  series: response.series,
+  posts: [
+    { id: 11, slug: 'operation-review', title: '운영 회고', status: 'PUBLISHED' as const, publishedAt: '2026-07-30T10:00:00', views: 7 },
+    { id: 12, slug: 'old-story', title: '지난 이야기', status: 'HIDDEN' as const, publishedAt: '2026-07-20T10:00:00', views: 3 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
     replace.mockReset();
     vi.mocked(getAnalyticsPageViews).mockReset();
+    vi.mocked(getBlogAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
+    vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -47,6 +59,20 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('프로젝트 목록')).toBeInTheDocument();
     expect(screen.getByText('블로그 글')).toBeInTheDocument();
     expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수');
+    expect(await screen.findByText('운영 회고')).toBeInTheDocument();
+    expect(screen.getByText('숨김')).toBeInTheDocument();
+  });
+
+  it('블로그 글을 선택하면 불변 글 ID를 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.click(await screen.findByRole('button', { name: /^운영 회고/ }));
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&blog=11',
+      { scroll: false }
+    );
   });
 
   it('페이지를 선택하면 기간·간격과 함께 URL에 남긴다', async () => {

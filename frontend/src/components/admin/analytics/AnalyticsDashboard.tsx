@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAnalyticsPageViews } from '@/lib/adminApi';
 import AnalyticsTimeSeriesChart from './AnalyticsTimeSeriesChart';
+import BlogAnalyticsPanel from './BlogAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -41,12 +42,14 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
   const to = isDate(rawTo) ? rawTo : today;
   const validRange = from <= to;
   const page = params.get('page') || undefined;
+  const blogPostId = Number(params.get('blog'));
 
   return {
     from: validRange ? from : defaultFrom,
     to: validRange ? to : today,
     interval: interval === 'week' || interval === 'month' ? interval : 'day',
     ...(page ? { page } : {}),
+    ...(Number.isInteger(blogPostId) && blogPostId > 0 ? { blogPostId } : {}),
   };
 }
 
@@ -204,6 +207,7 @@ export default function AnalyticsDashboard() {
     setLoadError('');
     const params = new URLSearchParams({ from: next.from, to: next.to, interval: next.interval });
     if (next.page) params.set('page', next.page);
+    if (next.blogPostId) params.set('blog', String(next.blogPostId));
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [pathname, router]);
 
@@ -347,6 +351,12 @@ export default function AnalyticsDashboard() {
           </div>
         )}
       </section>
+
+      <BlogAnalyticsPanel
+        key={`${query.from}:${query.to}:${query.interval}:${query.blogPostId ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
 
       <aside className="mt-5 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs leading-5 text-muted">
         운영 사이트의 공개 페이지만 집계합니다. 관리자·부원 화면, 개발·스테이지, 알려진 봇은 제외하며 날짜 경계는 한국 시간(KST)입니다. 개인을 식별하는 정보와 URL의 검색 조건은 저장하지 않습니다.

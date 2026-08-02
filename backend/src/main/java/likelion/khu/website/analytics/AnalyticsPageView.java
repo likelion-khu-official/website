@@ -30,9 +30,20 @@ public class AnalyticsPageView {
     @Column(nullable = false)
     private LocalDateTime occurredAt;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(length = 32)
+    private AnalyticsContentType contentType;
+
+    private Long contentId;
+
     AnalyticsPageView(String path, LocalDateTime occurredAt) {
+        this(path, occurredAt, null, null);
+    }
+
+    AnalyticsPageView(String path, LocalDateTime occurredAt, AnalyticsContentType contentType, Long contentId) {
         this.path = path;
         this.occurredAt = occurredAt;
+        this.contentType = contentType;
+        this.contentId = contentId;
     }
 }
-
