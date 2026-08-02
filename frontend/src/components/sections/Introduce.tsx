@@ -121,7 +121,7 @@ export default function Introduce() {
             </p>
             <p
               className="flex items-baseline justify-center leading-none whitespace-nowrap font-semibold"
-              style={{ fontFamily: 'var(--font-latin)', fontVariantNumeric: 'tabular-nums' }}
+              style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
             >
               <span
                 className="text-accent"
