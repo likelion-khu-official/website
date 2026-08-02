@@ -18,11 +18,11 @@ Flyway + 환경별 설정이 이 셋을 동시에 만족한다.
 ```
 backend/src/main/resources/db/migration/
   V1__init.sql
-  V2__add_member_table.sql
-  V3__add_blog_table.sql   ← 다음 변경
+  V20260728205802__application_form_and_applications.sql
+  V20260730201735__widen_email_log_email_type_check.sql   ← 시간순 변경
 ```
 
-`V{숫자}__{설명}.sql` 파일 추가 → PR → 끝.
+baseline 이후의 새 파일은 `V{yyyyMMddHHmmss}__{설명}.sql` 형식으로 추가 → PR → 끝.
 Flyway가 앱 기동 시 미적용 파일만 순서대로 실행한다. 개발팀이 배포 방법을 따로 알 필요 없다.
 
 **규칙 하나:** 한 번 머지된 파일은 절대 수정하지 않는다. 체크섬으로 감지해서 에러 난다.
@@ -46,7 +46,7 @@ Flyway가 앱 기동 시 미적용 파일만 순서대로 실행한다. 개발�
 
 ### Stage — 코드로 처리 (`backend/.../config/FlywayConfig.java`)
 
-**(2026-07-24 변경) `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR` env var는 더 이상 안 씀 — Flyway 10에서 이 설정 자체가 제거돼 값을 넣기만 해도 앱이 기동 실패한다.** 같은 동작(체크섬 불일치 시 DB 전체 날리고 처음부터 재적용)을 `@Profile("stage")` 전용 `FlywayMigrationStrategy` 빈으로 코드에 재구현했다 — env var보다 안전한 이유는 아래 "진행 상황 (2026-07-24)" 참고.
+`SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR`는 Flyway 10에서 제거됐으며, 설정하기만 해도 앱이 기동 실패한다. stage에서 검증 오류가 나면 `@Profile("stage")` 전용 `FlywayMigrationStrategy`가 `repair()`로 이력을 정정한 뒤 `migrate()`한다. 데이터를 지우는 `clean()`은 사용하지 않으며, DB 전체 초기화는 `Reset Stage DB` 워크플로에서만 명시적으로 실행한다. 변경 경위와 실제 사고는 아래 "진행 상황 (2026-07-24)"와 2026-08-01 후속 기록 참고.
 
 ### Prod (`.env.prod`)
 
@@ -56,7 +56,7 @@ SPRING_FLYWAY_CLEAN_DISABLED=true
 
 `clean` 자체가 코드 레벨에서 불가. 체크섬 불일치 시 앱 기동 실패 → CD 헬스체크 실패 → 자동 롤백.
 
-**이 자동 롤백은 앱 이미지만 되돌리고 DB는 안 건드린다** — 행을 삭제하는 마이그레이션의 배포·복구 절차는 `infra/CLAUDE.md`("롤백" 절)·`infra/db-access.md`("백업 전략") 참고.
+**이 자동 롤백은 앱 이미지만 되돌리고 DB는 안 건드린다** — 행을 삭제하는 마이그레이션의 배포·복구 절차는 `infra/CLAUDE.md`("롤백" 절)·`infra/docs/db-access.md`("백업 전략") 참고.
 
 ---
 
@@ -95,7 +95,7 @@ Flyway는 이 SQL 그대로 실행해준다 — SQL만 제대로 쓰면 됨.
 
 ## 인프라가 할 일 (백엔드 Flyway 붙일 때)
 
-1. ~~`.env.stage` 에 `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR=true` 추가~~ → (2026-07-24) Flyway 10에서 제거돼 더 이상 안 씀, `FlywayConfig.java`로 대체
+1. ~~`.env.stage` 에 `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR=true` 추가~~ → (2026-07-24) Flyway 10에서 제거돼 더 이상 안 씀, `FlywayConfig.java`로 대체. (2026-08-01) 검증 오류 대응을 `clean()`에서 `repair()`로 바꿔 데이터 삭제 없이 이력만 정정.
 2. `.env.prod` 에 `SPRING_FLYWAY_CLEAN_DISABLED=true` 추가
 3. `application.yml` 에서 `ddl-auto: update` → ~~`none`~~ **`validate`로 변경**(백엔드 소관, 2026-07-23 실제 도입 시 `none`에서 상향) — 마이그레이션이 엔티티 매핑과 실제로 맞는지 기동 시점에 검증해서, 안 맞으면 기동 자체가 실패한다(→ CD 헬스체크 실패 → 자동 롤백). `none`은 검증을 아예 안 해서 마이그레이션이 잘못돼도 앱이 그냥 뜨고 실제 요청이 그 컬럼을 건드릴 때에야 터진다 — #133의 "DDL 실패가 조용히 묻힌다"는 문제를 그대로 남기는 셈이라 상향했다.
 

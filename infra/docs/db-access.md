@@ -138,7 +138,7 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 ## Flyway 기준 — 해도 되는 것 / 하면 안 되는 것
 
-**현재 상태: Flyway 적용됨(`ddl-auto: validate`, 2026-07-23 도입 완료).** 도입 배경·환경별 설정(`clean-on-validation-error`/`clean-disabled`)·마이그레이션 파일 규칙(`V{n}__설명.sql`, 머지된 파일 수정 금지)은 전부 [`db-migration.md`](./db-migration.md)가 단일 출처 — 여기서 다시 설명하지 않는다. 여기는 그 위에서 **sqlite3로 직접 SQL 실행할 때** 기준만 다룬다.
+**현재 상태: Flyway 적용됨(`ddl-auto: validate`, 2026-07-23 도입 완료).** 도입 배경·환경별 설정(stage `repair()`/prod `clean-disabled`)·마이그레이션 파일 규칙(`V{yyyyMMddHHmmss}__설명.sql`, 머지된 파일 수정 금지)은 전부 [`db-migration.md`](./db-migration.md)가 단일 출처 — 여기서 다시 설명하지 않는다. 여기는 그 위에서 **sqlite3로 직접 SQL 실행할 때** 기준만 다룬다.
 
 | 작업 | stage | prod |
 |---|---|---|
@@ -148,9 +148,9 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 **❌는 문서상 금지가 아니라 [`dbclient-sqlite-guard.sh`](../scripts/dbclient-sqlite-guard.sh)가 기술적으로 차단한다** — `ubuntu` 계정(인프라 오너)은 이 제약이 없으니 필요하면 직접 sqlite3로 가능하지만, `dbclient`로는 세미콜론으로 이어 붙여도(`SELECT 1; DROP TABLE x;`) 우회 안 됨(2026-07-04 검증 완료).
 
-**스키마 변경이 금지인 이유:** Flyway는 `db/migration/` 파일 이력만 보고 스키마를 추적한다. sqlite3로 직접 `ALTER TABLE` 등을 실행하면 Flyway 이력에는 안 잡히는 "숨은 변경"이 생긴다 — 다음에 진짜 마이그레이션 파일을 추가할 때 전제(현재 스키마)가 어긋나서 충돌하거나, stage가 리셋될 때(아래) 그 변경이 통째로 사라진다. 스키마 변경은 **반드시 새 `V{n}__설명.sql` 파일 + PR**로.
+**스키마 변경이 금지인 이유:** Flyway는 `db/migration/` 파일 이력만 보고 스키마를 추적한다. sqlite3로 직접 `ALTER TABLE` 등을 실행하면 Flyway 이력에는 안 잡히는 "숨은 변경"이 생긴다 — 다음에 진짜 마이그레이션 파일을 추가할 때 전제(현재 스키마)가 어긋나서 충돌하거나, stage가 리셋될 때(아래) 그 변경이 통째로 사라진다. 스키마 변경은 **반드시 새 `V{yyyyMMddHHmmss}__설명.sql` 파일 + PR**로.
 
-**stage에서 수동으로 넣은 건 영구적이지 않다:** `SPRING_FLYWAY_CLEAN_ON_VALIDATION_ERROR=true`라서, 머지된 마이그레이션 파일의 체크섬이 어긋나는 순간(그 파일을 누군가 사후 수정) Flyway가 stage DB를 통째로 지우고 처음부터 재적용한다. 이건 마이그레이션 파일 쪽 이벤트지 수동 SQL 실행 자체가 트리거는 아니지만, 결과적으로 "수동으로 넣어둔 데이터/스키마가 예고 없이 날아갈 수 있다"는 뜻 — stage에 뭘 심어두고 오래 의존하지 말 것.
+**stage에서 수동으로 넣은 데이터는 스키마 이력이 아니다:** 현재 검증 오류 대응은 `repair()`라 자동으로 DB를 지우지 않지만, 수동 SQL로 넣은 데이터·스키마는 Flyway 파일에 재현 방법이 남지 않는다. 따라서 명시적 `Reset Stage DB` 워크플로를 실행하거나 다른 DB로 재구성하면 사라진다. 오래 유지할 변경은 데이터 변경이라도 새 마이그레이션으로 남긴다.
 
 **prod은 반대로 위험:** `SPRING_FLYWAY_CLEAN_DISABLED=true`라 clean 자체가 안 된다. 즉 자동 복구 장치가 없다 — 실수해도 되돌릴 방법이 백업뿐. 그래서 prod에 손대기 전엔 **반드시 아래 백업 먼저.**
 
@@ -175,7 +175,7 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 ### 행을 삭제하는 마이그레이션 배포 전 — 수동 백업 필수 (2026-07-27, V6 사고 후속)
 
-위 정기 백업은 하루 1회(03:00 KST)뿐이라, 배포 시각에 따라 최대 24시간 전 스냅샷만 있을 수 있다. `db/migration/V{n}__...sql`이 행을 `DELETE`하거나(예: V6의 `where role not in ('PM','INFRA')`) 재생성 시 일부 행을 새 테이블로 안 옮기는 패턴이면, **삭제된 행의 원래 값은 되돌릴 SQL로도 복구가 안 된다** — Flyway 커뮤니티(무료) 버전엔 자동 undo가 없고, 유료(Teams) undo migration이 있어도 테이블 구조만 되돌리지 이미 지워진 데이터를 되살리진 못한다. 유일한 복구 경로는 삭제 이전 시점의 백업뿐이다.
+위 정기 백업은 하루 1회(03:00 KST)뿐이라, 배포 시각에 따라 최대 24시간 전 스냅샷만 있을 수 있다. `db/migration/V{yyyyMMddHHmmss}__...sql`이 행을 `DELETE`하거나(예: V6의 `where role not in ('PM','INFRA')`) 재생성 시 일부 행을 새 테이블로 안 옮기는 패턴이면, **삭제된 행의 원래 값은 되돌릴 SQL로도 복구가 안 된다** — Flyway 커뮤니티(무료) 버전엔 자동 undo가 없고, 유료(Teams) undo migration이 있어도 테이블 구조만 되돌리지 이미 지워진 데이터를 되살리진 못한다. 유일한 복구 경로는 삭제 이전 시점의 백업뿐이다.
 
 **절차:** 이런 마이그레이션을 stage/prod에 배포하기 직전, 서버에서 수동으로 한 번 더 백업을 돈다.
 ```bash
