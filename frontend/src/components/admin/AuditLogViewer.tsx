@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { SkeletonRows } from './AdminLoading';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { refreshSession, listAuditLogs, AdminApiError } from '@/lib/adminApi';
 import type {
@@ -456,7 +457,9 @@ export default function AuditLogViewer() {
           </div>
 
           {loading ? (
-            <div role="status" className="rounded-2xl border border-white/10 py-24 text-center text-sm text-muted">불러오고 있어요…</div>
+            <div className="rounded-2xl border border-white/10 p-4">
+              <SkeletonRows count={8} rowClassName="h-10 w-full rounded-lg" />
+            </div>
           ) : loadError ? (
             <div role="alert" className="rounded-2xl border border-red-400/20 py-20 text-center">
               <p className="text-sm text-red-200">{loadError}</p>

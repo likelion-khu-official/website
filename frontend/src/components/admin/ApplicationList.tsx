@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminLoading from './AdminLoading';
 import { useRouter } from 'next/navigation';
 import { refreshSession, listApplications, AdminApiError } from '@/lib/adminApi';
 import { formatDate } from '@/lib/formatDate';
@@ -95,7 +96,7 @@ export default function ApplicationList() {
   }
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;
+    return <AdminLoading className="mx-auto max-w-3xl" rows={6} />;
   }
 
   if (loadError) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminLoading from './AdminLoading';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -84,7 +85,7 @@ export default function BlogManager() {
   }
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;
+    return <AdminLoading className="mx-auto w-full max-w-3xl" rows={4} />;
   }
 
   if (loadError) {

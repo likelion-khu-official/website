@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Skeleton from '@/components/Skeleton';
 import {
   AdminApiError,
   createStaff,
@@ -316,7 +317,15 @@ export default function StaffManagement() {
   }
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">운영진 미리보기를 준비하고 있어요…</p>;
+    return (
+      <div className="mx-auto w-full max-w-7xl pb-6" role="status" aria-label="불러오는 중">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <Skeleton className="h-8 w-40" tone="strong" />
+          <Skeleton className="h-9 w-28 rounded-full" />
+        </div>
+        <Skeleton className="h-[440px] w-full rounded-[22px]" />
+      </div>
+    );
   }
 
   if (loadError) {

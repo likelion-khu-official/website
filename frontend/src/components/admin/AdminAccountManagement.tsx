@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SkeletonRows } from './AdminLoading';
 import { useRouter } from 'next/navigation';
 import {
   AdminApiError,
@@ -276,7 +277,7 @@ export default function AdminAccountManagement() {
           </div>
 
           {adminsLoading ? (
-            <p className="py-12 text-center text-sm text-muted">관리자를 불러오고 있어요…</p>
+            <SkeletonRows count={3} rowClassName="h-16 w-full rounded-xl" />
           ) : adminsError ? (
             <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4">
               <p className="text-sm text-red-300">{adminsError}</p>
@@ -416,7 +417,7 @@ export default function AdminAccountManagement() {
             </div>
 
             {invitationsLoading ? (
-              <p className="py-12 text-center text-sm text-muted">초대 내역을 불러오고 있어요…</p>
+              <SkeletonRows count={2} rowClassName="h-16 w-full rounded-xl" />
             ) : invitationsError ? (
               <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4">
                 <p className="text-sm text-red-300">{invitationsError}</p>
