@@ -36,6 +36,7 @@ export interface AnalyticsPageViewQuery {
   page?: string;
   blogPostId?: number;
   projectId?: number;
+  clickAction?: KeyClickAction;
 }
 
 export type AnalyticsPostStatus = 'PUBLISHED' | 'HIDDEN';
@@ -112,4 +113,31 @@ export interface SectionReachTotal {
 export interface SectionReachAnalyticsResponse {
   range: AnalyticsDateRange;
   sections: SectionReachTotal[];
+}
+
+export type KeyClickAction = 'APPLY' | 'NOTIFICATION' | 'BLOG_MORE' | 'PROJECT_MORE' | 'PROJECT_GITHUB';
+export type KeyClickLocation =
+  | 'LANDING_RECRUIT'
+  | 'APPLICATION_FORM'
+  | 'APPLICATION_CLOSED'
+  | 'LANDING_BLOG'
+  | 'LANDING_PROJECT'
+  | 'PROJECT_DETAIL';
+
+export interface KeyClickTimePoint {
+  date: string;
+  clicks: number;
+}
+
+export interface KeyClickTotal {
+  action: KeyClickAction;
+  location: KeyClickLocation;
+  clicks: number;
+}
+
+export interface KeyClickAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalClicks: number;
+  series: KeyClickTimePoint[];
+  clicks: KeyClickTotal[];
 }

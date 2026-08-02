@@ -8,6 +8,7 @@ const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384
 const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-admin-analytics-unique-visitors/evidence');
 const deviceEvidenceDir = path.resolve(__dirname, '../../../pm/missions/386-admin-analytics-device-ratio/evidence');
 const sectionEvidenceDir = path.resolve(__dirname, '../../../pm/missions/387-admin-analytics-section-reach/evidence');
+const clickEvidenceDir = path.resolve(__dirname, '../../../pm/missions/388-admin-analytics-key-clicks/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -128,6 +129,33 @@ test.beforeEach(async ({ context, page }) => {
           { section: 'BLOG', reaches: 486 },
           { section: 'RECRUIT', reaches: 214 },
         ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/clicks**', async (route) => {
+    const action = new URL(route.request().url()).searchParams.get('action');
+    const allClicks = [
+      { action: 'APPLY', location: 'LANDING_RECRUIT', clicks: 238 },
+      { action: 'APPLY', location: 'APPLICATION_FORM', clicks: 130 },
+      { action: 'NOTIFICATION', location: 'LANDING_RECRUIT', clicks: 94 },
+      { action: 'NOTIFICATION', location: 'APPLICATION_CLOSED', clicks: 47 },
+      { action: 'BLOG_MORE', location: 'LANDING_BLOG', clicks: 214 },
+      { action: 'PROJECT_MORE', location: 'LANDING_PROJECT', clicks: 183 },
+      { action: 'PROJECT_GITHUB', location: 'PROJECT_DETAIL', clicks: 110 },
+    ];
+    const clicks = action ? allClicks.filter((item) => item.action === action) : allClicks;
+    const totalClicks = clicks.reduce((sum, item) => sum + item.clicks, 0);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalClicks,
+        series: series.map((point, index) => ({
+          date: point.date,
+          clicks: Math.max(0, Math.round(point.views * totalClicks / 1_474) + (index % 3)),
+        })),
+        clicks,
       }),
     });
   });
@@ -301,4 +329,36 @@ test('랜딩 섹션별 실제 도달을 그래프와 정확한 수치로 확인�
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await panel.screenshot({ path: path.join(sectionEvidenceDir, 'mobile-section-reach.png') });
+});
+
+test('주요 행동별·위치별 클릭과 표준 hover 추이를 함께 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '주요 클릭' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('1,016')).toBeVisible();
+  await expect(page.getByText('랜딩 모집 영역').first()).toBeVisible();
+  await expect(page.getByText('지원서 화면')).toBeVisible();
+  await expect(page.getByText('238회')).toBeVisible();
+  await expect(page.getByText(/지원 접수·알림 신청 성공 건수와는 다를 수 있어요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /전체 주요 행동 클릭 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('주요 클릭 추이 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.75, chartBox.y + chartBox.height * 0.36);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('주요 클릭 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(clickEvidenceDir, 'desktop-clicks-hover.png'), clip: panelBox });
+
+  await page.getByLabel('확인할 행동').selectOption('APPLY');
+  await expect(page).toHaveURL(/click=APPLY/);
+  await expect(page.getByText('368')).toBeVisible();
+  await expect(page.getByText('프로젝트 상세')).not.toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(clickEvidenceDir, 'mobile-apply-clicks.png') });
 });

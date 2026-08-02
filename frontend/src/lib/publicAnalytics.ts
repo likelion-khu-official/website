@@ -30,12 +30,20 @@ export function getAnonymousVisitId() {
 }
 
 export type LandingSectionKey = 'PROJECT' | 'STAFF' | 'BLOG' | 'RECRUIT';
+export type KeyClickKey =
+  | 'APPLY_LANDING_RECRUIT'
+  | 'APPLY_APPLICATION_FORM'
+  | 'NOTIFICATION_LANDING_RECRUIT'
+  | 'NOTIFICATION_APPLICATION_CLOSED'
+  | 'BLOG_MORE_LANDING_BLOG'
+  | 'PROJECT_MORE_LANDING_PROJECT'
+  | 'PROJECT_GITHUB_PROJECT_DETAIL';
 
-export function trackSectionReach(key: LandingSectionKey) {
+function trackEvent(event: 'SECTION_REACH' | 'KEY_CLICK', key: LandingSectionKey | KeyClickKey) {
   const visitId = getAnonymousVisitId();
   if (!visitId) return;
   const body = JSON.stringify({
-    event: 'SECTION_REACH',
+    event,
     key,
     visitorId: getAnonymousVisitorId(),
     visitId,
@@ -48,6 +56,14 @@ export function trackSectionReach(key: LandingSectionKey) {
     body,
     keepalive: true,
   }).catch(() => {});
+}
+
+export function trackSectionReach(key: LandingSectionKey) {
+  trackEvent('SECTION_REACH', key);
+}
+
+export function trackKeyClick(key: KeyClickKey) {
+  trackEvent('KEY_CLICK', key);
 }
 
 /**

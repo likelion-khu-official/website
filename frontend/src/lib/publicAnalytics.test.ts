@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { trackPageView, trackSectionReach } from './publicAnalytics';
+import { trackKeyClick, trackPageView, trackSectionReach } from './publicAnalytics';
 
 describe('trackPageView', () => {
   const fetchMock = vi.fn();
@@ -48,5 +48,16 @@ describe('trackPageView', () => {
 
     expect(sendBeaconMock).toHaveBeenCalledWith('/api/analytics/events', expect.any(Blob));
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('같은 주요 행동을 반복해서 눌러도 클릭마다 이벤트를 보낸다', () => {
+    sendBeaconMock.mockReturnValue(true);
+
+    trackKeyClick('APPLY_LANDING_RECRUIT');
+    trackKeyClick('APPLY_LANDING_RECRUIT');
+
+    expect(sendBeaconMock).toHaveBeenCalledTimes(2);
+    expect(sendBeaconMock).toHaveBeenNthCalledWith(1, '/api/analytics/events', expect.any(Blob));
+    expect(sendBeaconMock).toHaveBeenNthCalledWith(2, '/api/analytics/events', expect.any(Blob));
   });
 });

@@ -53,6 +53,7 @@ import type {
   VisitorAnalyticsResponse,
   DeviceAnalyticsResponse,
   SectionReachAnalyticsResponse,
+  KeyClickAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -157,6 +158,21 @@ export function getSectionReachAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/sections?${params.toString()}`,
     {},
     '랜딩 섹션 도달 수를 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getKeyClickAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.clickAction) params.set('action', query.clickAction);
+  return request<KeyClickAnalyticsResponse>(
+    `/analytics/clicks?${params.toString()}`,
+    {},
+    '주요 클릭 현황을 불러오지 못했어요.',
     true
   );
 }

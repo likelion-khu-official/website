@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -20,6 +20,7 @@ vi.mock('@/lib/adminApi', () => ({
   getVisitorAnalytics: vi.fn(),
   getDeviceAnalytics: vi.fn(),
   getSectionReachAnalytics: vi.fn(),
+  getKeyClickAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
@@ -104,6 +105,21 @@ const sectionReachResponse = {
   ],
 };
 
+const keyClickResponse = {
+  range: response.range,
+  totalClicks: 29,
+  series: [
+    { date: '2026-08-01', clicks: 12 },
+    { date: '2026-08-02', clicks: 17 },
+  ],
+  clicks: [
+    { action: 'APPLY' as const, location: 'LANDING_RECRUIT' as const, clicks: 11 },
+    { action: 'APPLY' as const, location: 'APPLICATION_FORM' as const, clicks: 7 },
+    { action: 'BLOG_MORE' as const, location: 'LANDING_BLOG' as const, clicks: 6 },
+    { action: 'PROJECT_GITHUB' as const, location: 'PROJECT_DETAIL' as const, clicks: 5 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -115,6 +131,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getVisitorAnalytics).mockReset();
     vi.mocked(getDeviceAnalytics).mockReset();
     vi.mocked(getSectionReachAnalytics).mockReset();
+    vi.mocked(getKeyClickAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
@@ -122,6 +139,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getVisitorAnalytics).mockResolvedValue(visitorResponse);
     vi.mocked(getDeviceAnalytics).mockResolvedValue(deviceResponse);
     vi.mocked(getSectionReachAnalytics).mockResolvedValue(sectionReachResponse);
+    vi.mocked(getKeyClickAnalytics).mockResolvedValue(keyClickResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -132,7 +150,7 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.getByText('프로젝트 목록')).toBeInTheDocument();
     expect(screen.getByText('블로그 글')).toBeInTheDocument();
-    expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수 / 추정 순 방문자');
+    expect(screen.getAllByTestId('chart')[0]).toHaveTextContent('전체 페이지 조회수 / 추정 순 방문자');
     expect(await screen.findByText('5')).toBeInTheDocument();
     expect(screen.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: '기기 비율' })).toBeInTheDocument();
@@ -141,6 +159,10 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByRole('heading', { name: '랜딩 섹션 도달' })).toBeInTheDocument();
     expect(screen.getByText('120회')).toBeInTheDocument();
     expect(screen.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '주요 클릭' })).toBeInTheDocument();
+    expect(screen.getByText('29')).toBeInTheDocument();
+    expect(screen.getByText('지원서 화면')).toBeInTheDocument();
+    expect(screen.getByText(/지원 접수·알림 신청 성공 건수와는 다를 수 있어요/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);
@@ -169,6 +191,18 @@ describe('AnalyticsDashboard', () => {
 
     expect(replace).toHaveBeenCalledWith(
       '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&blog=11',
+      { scroll: false }
+    );
+  });
+
+  it('클릭 종류를 선택하면 기간·간격과 함께 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.selectOptions(await screen.findByLabelText('확인할 행동'), 'APPLY');
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&click=APPLY',
       { scroll: false }
     );
   });
