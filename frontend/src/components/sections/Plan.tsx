@@ -101,7 +101,7 @@ export default function Plan() {
       {/* 헤더 */}
       <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
         <p className="landing-section-copy">
-          멋쟁이 사자처럼
+          멋쟁이사자처럼
         </p>
         <h2 className="landing-section-title text-balance break-keep">
           연간 활동 계획
