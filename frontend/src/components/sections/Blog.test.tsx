@@ -50,6 +50,10 @@ describe('landing Blog', () => {
     expect(screen.getByRole('heading', { name: '기록 3' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '기록 4' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '블로그 전체 보기' })).toBeInTheDocument();
+    // 각 글에 에디토리얼 인덱스 번호(01~03)를 붙여 스캔 리듬을 준다.
+    expect(screen.getByText('01')).toBeInTheDocument();
+    expect(screen.getByText('02')).toBeInTheDocument();
+    expect(screen.getByText('03')).toBeInTheDocument();
   });
 
   it('블로그 전체 링크는 카드가 아닌 헤더 내비게이션으로 제공한다', async () => {
@@ -61,6 +65,5 @@ describe('landing Blog', () => {
       'rounded-full',
       'border',
     );
-    expect(screen.queryByText('01')).not.toBeInTheDocument();
   });
 });
