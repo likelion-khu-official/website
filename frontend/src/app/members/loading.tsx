@@ -4,7 +4,7 @@ import Skeleton from '@/components/Skeleton';
 // 헤더(가운데 정렬) + 멤버 카드 그리드(MemberCard: 156/189 비율)를 따른다.
 export default function MembersLoading() {
   return (
-    <main className="relative min-h-screen min-h-[100svh] overflow-hidden bg-background px-5 pb-24 pt-4 sm:px-10 lg:px-16">
+    <main className="relative min-h-[calc(100svh-64px)] overflow-hidden bg-background px-5 pb-24 pt-4 sm:px-10 lg:px-16">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_-10%,rgba(255,80,0,0.3),transparent_60%)]"
