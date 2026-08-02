@@ -10,11 +10,11 @@ export default function Faq() {
     >
       <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(240px,0.72fr)_minmax(0,1.28fr)] lg:gap-20">
         <header className="scroll-reveal lg:sticky lg:top-28 lg:self-start">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">FAQ</p>
-          <h2 className="break-keep text-[clamp(34px,4vw,54px)] font-semibold leading-[1.1] tracking-[-0.05em] text-white">
+          <p className="landing-section-kicker mb-3">FAQ</p>
+          <h2 className="landing-section-title break-keep" style={{ lineHeight: 1.28 }}>
             궁금한 점부터
             <br />
-            확인해보세요.
+            확인해보세요
           </h2>
           <p className="mt-5 max-w-sm break-keep text-sm leading-6 text-white/48 sm:text-[15px]">
             지원과 활동에서 가장 많이 묻는 것들을 모았습니다.
