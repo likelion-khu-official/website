@@ -36,14 +36,24 @@ public class AnalyticsPageView {
 
     private Long contentId;
 
+    // 브라우저가 만든 무작위 UUID의 SHA-256. 원본 UUID나 개인 식별정보와 연결하지 않는다.
+    @Column(length = 64)
+    private String visitorKey;
+
     AnalyticsPageView(String path, LocalDateTime occurredAt) {
         this(path, occurredAt, null, null);
     }
 
     AnalyticsPageView(String path, LocalDateTime occurredAt, AnalyticsContentType contentType, Long contentId) {
+        this(path, occurredAt, contentType, contentId, null);
+    }
+
+    AnalyticsPageView(String path, LocalDateTime occurredAt, AnalyticsContentType contentType, Long contentId,
+                      String visitorKey) {
         this.path = path;
         this.occurredAt = occurredAt;
         this.contentType = contentType;
         this.contentId = contentId;
+        this.visitorKey = visitorKey;
     }
 }

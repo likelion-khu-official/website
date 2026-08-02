@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics, getRecruitmentAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -17,9 +17,12 @@ vi.mock('@/lib/adminApi', () => ({
   getBlogAnalytics: vi.fn(),
   getProjectAnalytics: vi.fn(),
   getRecruitmentAnalytics: vi.fn(),
+  getVisitorAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
-  default: ({ label }: { label: string }) => <div data-testid="chart">{label}</div>,
+  default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
+    <div data-testid="chart">{label}{comparison ? ` / ${comparison.label}` : ''}</div>
+  ),
 }));
 
 const response = {
@@ -63,6 +66,15 @@ const recruitmentResponse = {
   applicationCount: 42,
 };
 
+const visitorResponse = {
+  range: response.range,
+  uniqueVisitors: 5,
+  series: [
+    { date: '2026-08-01', visitors: 2 },
+    { date: '2026-08-02', visitors: 3 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -71,10 +83,12 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getBlogAnalytics).mockReset();
     vi.mocked(getProjectAnalytics).mockReset();
     vi.mocked(getRecruitmentAnalytics).mockReset();
+    vi.mocked(getVisitorAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
     vi.mocked(getRecruitmentAnalytics).mockResolvedValue(recruitmentResponse);
+    vi.mocked(getVisitorAnalytics).mockResolvedValue(visitorResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -85,7 +99,9 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.getByText('프로젝트 목록')).toBeInTheDocument();
     expect(screen.getByText('블로그 글')).toBeInTheDocument();
-    expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수');
+    expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수 / 추정 순 방문자');
+    expect(await screen.findByText('5')).toBeInTheDocument();
+    expect(screen.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);

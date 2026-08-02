@@ -50,6 +50,7 @@ import type {
   BlogAnalyticsResponse,
   ProjectAnalyticsResponse,
   RecruitmentAnalyticsResponse,
+  VisitorAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -119,6 +120,21 @@ export function getRecruitmentAnalytics() {
     '/analytics/recruitment',
     {},
     '지원 수를 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getVisitorAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.page) params.set('page', query.page);
+  return request<VisitorAnalyticsResponse>(
+    `/analytics/visitors?${params.toString()}`,
+    {},
+    '순 방문자 현황을 불러오지 못했어요.',
     true
   );
 }

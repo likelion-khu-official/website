@@ -5,6 +5,7 @@ const evidenceDir = path.resolve(__dirname, '../../../pm/missions/381-admin-anal
 const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-analytics-blog-views/evidence');
 const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-admin-analytics-project-views/evidence');
 const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384-admin-analytics-application-count/evidence');
+const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-admin-analytics-unique-visitors/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -80,6 +81,21 @@ test.beforeEach(async ({ context, page }) => {
         openedAt: '2026-07-01T09:00:00',
         closedAt: '2026-07-14T18:00:00',
         applicationCount: 128,
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/visitors**', async (route) => {
+    const selectedPage = new URL(route.request().url()).searchParams.get('page');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        uniqueVisitors: selectedPage ? 241 : 864,
+        series: series.map((point) => ({
+          date: point.date,
+          visitors: Math.max(1, Math.round(point.views * (selectedPage ? 0.17 : 0.58))),
+        })),
       }),
     });
   });
@@ -175,4 +191,29 @@ test('조회 기간과 분리된 최근 모집 지원 수를 데스크톱·모�
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await card.screenshot({ path: path.join(recruitmentEvidenceDir, 'mobile-closed-recruitment.png') });
+});
+
+test('조회수와 추정 순 방문자를 표준 hover 그래프로 비교한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  await expect(page.getByText('추정 순 방문자', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('864')).toBeVisible();
+  await expect(page.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeVisible();
+
+  const graphPanel = page.getByRole('region', { name: '전체 페이지 조회수 추이' });
+  await graphPanel.scrollIntoViewIfNeeded();
+  const chart = page.getByRole('img', { name: /전체 페이지 조회수와 추정 순 방문자 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const box = await chart.boundingBox();
+  if (!box) throw new Error('순 방문자 비교 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(box.x + box.width * 0.82, box.y + box.height * 0.42);
+  await page.waitForTimeout(150);
+  const panelBox = await graphPanel.boundingBox();
+  if (!panelBox) throw new Error('순 방문자 비교 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(visitorEvidenceDir, 'desktop-visitors-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await graphPanel.screenshot({ path: path.join(visitorEvidenceDir, 'mobile-visitors-chart.png') });
 });

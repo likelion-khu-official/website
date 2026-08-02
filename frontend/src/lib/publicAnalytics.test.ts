@@ -9,13 +9,15 @@ describe('trackPageView', () => {
     fetchMock.mockReset();
     sendBeaconMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    window.localStorage.clear();
+    window.localStorage.setItem('likelion-khu.analytics.visitor', '018f47a3-7b2d-4c11-8b69-0a3b7f9c2d10');
     Object.defineProperty(navigator, 'sendBeacon', {
       configurable: true,
       value: sendBeaconMock,
     });
   });
 
-  it('페이지 경로만 JSON beacon으로 전송한다', () => {
+  it('페이지 경로와 개인과 연결되지 않은 익명 번호를 JSON beacon으로 전송한다', () => {
     sendBeaconMock.mockReturnValue(true);
 
     trackPageView('/projects/12');
@@ -32,9 +34,8 @@ describe('trackPageView', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/analytics/pageviews', expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ path: '/blog' }),
+      body: JSON.stringify({ path: '/blog', visitorId: '018f47a3-7b2d-4c11-8b69-0a3b7f9c2d10' }),
       keepalive: true,
     }));
   });
 });
-

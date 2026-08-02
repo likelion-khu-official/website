@@ -30,7 +30,7 @@ public class AnalyticsPageViewController {
         String host = forwardedHost == null || forwardedHost.isBlank()
                 ? request.getHeader("Host")
                 : forwardedHost;
-        service.record(body.path(), host, request.getHeader("User-Agent"));
+        service.record(body.path(), body.visitorId(), host, request.getHeader("User-Agent"));
         // 제외된 요청도 같은 응답을 줘 수집 정책을 외부에서 탐색하는 표면을 만들지 않는다.
         return ResponseEntity.noContent().build();
     }
@@ -45,4 +45,3 @@ public class AnalyticsPageViewController {
         return service.summarize(from, to, AnalyticsInterval.parse(interval), page);
     }
 }
-

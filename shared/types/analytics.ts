@@ -12,6 +12,11 @@ export interface AnalyticsTimePoint {
   views: number;
 }
 
+export interface AnalyticsVisitorTimePoint {
+  date: string;
+  visitors: number;
+}
+
 export interface AnalyticsPageTotal {
   path: string;
   views: number;
@@ -75,4 +80,10 @@ export interface RecruitmentAnalyticsResponse {
   openedAt: string | null;
   closedAt: string | null;
   applicationCount: number;
+}
+
+export interface VisitorAnalyticsResponse {
+  range: AnalyticsDateRange;
+  uniqueVisitors: number;
+  series: AnalyticsVisitorTimePoint[];
 }
