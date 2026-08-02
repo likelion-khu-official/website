@@ -3,15 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const creators = [
-  '김영웅',
-  '김현정',
-  '신선우',
-  '안시현',
-  '유한솔',
-  '장찬욱',
-];
-
 function InstagramIcon() {
   return (
     <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -86,15 +77,7 @@ export default function Footer() {
             <span className="block">서울캠퍼스 · 서울특별시 동대문구 경희대로 26</span>
             <span className="block">국제캠퍼스 · 경기도 용인시 기흥구 덕영대로 1732</span>
           </address>
-          <div className="lg:text-right">
-            <p className="text-white/35">함께 만든 사람들</p>
-            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 lg:justify-end">
-              {creators.map((creator) => (
-                <li key={creator}>{creator}</li>
-              ))}
-            </ul>
-            <p className="mt-3 sm:mt-2">© 2026 멋쟁이사자처럼 경희대학교. All rights reserved.</p>
-          </div>
+          <p className="lg:text-right">© 2026 멋쟁이사자처럼 경희대학교. All rights reserved.</p>
         </div>
       </div>
     </footer>
