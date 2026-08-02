@@ -4,7 +4,10 @@ import Skeleton from '@/components/Skeleton';
 // 헤더(제목 + 작성자) → 대표 이미지 → 본문 순서를 실제 글 화면에 맞춘다.
 export default function PostLoading() {
   return (
-    <article className="mx-auto w-full max-w-[848px] px-5 sm:px-10">
+    <article className="mx-auto w-full max-w-[848px] px-5 pt-4 sm:px-10">
+      <div className="mb-6 flex min-h-11 items-center">
+        <Skeleton className="h-4 w-14 rounded-full" tone="faint" />
+      </div>
       <header className="mb-8 flex flex-col gap-3">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-8 w-full sm:h-10" tone="strong" />

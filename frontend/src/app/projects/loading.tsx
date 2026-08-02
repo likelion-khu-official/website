@@ -4,7 +4,10 @@ import Skeleton from '@/components/Skeleton';
 // 실제 화면의 헤더 + 카드 그리드(ProjectsGallery/ProjectCard) 구조를 그대로 따른다.
 export default function ProjectsLoading() {
   return (
-    <main className="mx-auto min-h-[calc(100svh-88px)] w-full max-w-6xl px-4 pb-24 pt-8 sm:px-8 sm:pt-11 lg:px-10">
+    <main className="mx-auto min-h-[calc(100svh-88px)] w-full max-w-6xl px-4 pb-24 pt-4 sm:px-8 sm:pt-6 lg:px-10">
+      <div className="mb-5 flex min-h-11 items-center sm:mb-7">
+        <Skeleton className="h-4 w-16 rounded-full" tone="faint" />
+      </div>
       <header className="mb-7 flex items-end justify-between gap-6 border-b border-white/15 pb-6 sm:mb-9 sm:pb-8">
         <div className="min-w-0">
           <Skeleton className="h-3 w-28 rounded-full" />

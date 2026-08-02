@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { ProjectSummary } from '@shared/types/project';
 import ProjectImageGallery from '@/components/projects/ProjectImageGallery';
 import ProjectMakerCard from '@/components/projects/ProjectMakerCard';
+import BackLink from '@/components/BackLink';
 import { getProjectById, getProjects } from '@/lib/projectApi';
 import { getMembers } from '@/lib/rosterApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
@@ -115,12 +116,7 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-6 sm:px-8 sm:pt-10 lg:px-10">
-      <Link
-        href="/projects"
-        className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-white/55 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
-      >
-        <span aria-hidden>←</span> 프로젝트 목록
-      </Link>
+      <BackLink href="/projects">프로젝트 목록</BackLink>
 
       <div className="mt-4 grid gap-8 sm:mt-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(340px,0.7fr)] lg:items-start lg:gap-12 xl:gap-16">
         <section className="min-w-0 lg:sticky lg:top-24" aria-labelledby="project-images">

@@ -5,7 +5,10 @@ import Skeleton from '@/components/Skeleton';
 // 카드 그리드). 실제 화면은 헤더 + PostCard 행 리스트라 그 구조에 맞춘다.
 export default function BlogLoading() {
   return (
-    <main className="mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pb-28 sm:pt-14 lg:px-10 lg:pt-16">
+    <main className="mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">
+      <div className="mb-5 flex min-h-11 items-center sm:mb-7">
+        <Skeleton className="h-4 w-16 rounded-full" tone="faint" />
+      </div>
       <header className="flex min-w-0 items-end justify-between gap-8 border-b border-white/12 pb-8 sm:pb-10">
         <div className="min-w-0">
           <Skeleton className="mb-3 h-3 w-12 rounded-full" />

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPostBySlug } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import BackLink from '@/components/BackLink';
 import CommentSection from '@/components/blog/CommentSection';
 import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
 import PostAuthor from '@/components/blog/PostAuthor';
@@ -47,7 +48,10 @@ export default async function PostPage({ params }: Props) {
   if (!post) notFound();
 
   return (
-    <article className="mx-auto w-full max-w-[848px] px-5 sm:px-10">
+    <article className="mx-auto w-full max-w-[848px] px-5 pt-4 sm:px-10">
+      <div className="mb-6">
+        <BackLink href="/blog">블로그</BackLink>
+      </div>
       <header className="mb-8 flex flex-col gap-3">
         <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
           {post.title}

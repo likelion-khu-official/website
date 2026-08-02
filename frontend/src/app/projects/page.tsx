@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import ProjectsGallery from '@/components/projects/ProjectsGallery';
+import BackLink from '@/components/BackLink';
 import { getProjects } from '@/lib/projectApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
@@ -19,7 +20,10 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <main className="mx-auto min-h-[calc(100svh-88px)] w-full max-w-6xl px-4 pb-24 pt-8 sm:px-8 sm:pt-11 lg:px-10">
+    <main className="mx-auto min-h-[calc(100svh-88px)] w-full max-w-6xl px-4 pb-24 pt-4 sm:px-8 sm:pt-6 lg:px-10">
+      <div className="mb-5 sm:mb-7">
+        <BackLink href="/#project" />
+      </div>
       <header className="mb-7 flex items-end justify-between gap-6 border-b border-white/15 pb-6 sm:mb-9 sm:pb-8">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">

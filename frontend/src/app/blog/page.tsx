@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getPosts } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import BackLink from '@/components/BackLink';
 import PostCard from '@/components/blog/PostCard';
 import Pagination from '@/components/blog/Pagination';
 
@@ -25,7 +26,10 @@ export default async function BlogPage({
   );
 
   return (
-    <main className="mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pb-28 sm:pt-14 lg:px-10 lg:pt-16">
+    <main className="mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">
+      <div className="mb-5 sm:mb-7">
+        <BackLink href="/#blog" />
+      </div>
       <header className="flex min-w-0 items-end justify-between gap-8 border-b border-white/12 pb-8 sm:pb-10">
         <div className="min-w-0">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
