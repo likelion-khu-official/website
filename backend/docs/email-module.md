@@ -1,12 +1,12 @@
 # 이메일 발송 모듈 (`likelion.khu.website.email`)
 
-#75(OCI Email Delivery 발송 기반) 위에서, 실제 메일을 만들고·보내고·기록하는 백엔드 모듈. `#74` 어드민 초대·비밀번호 재설정이 이 모듈을 호출해서 쓴다 (현재는 컨트롤러가 아직 없어 `EmailService`를 직접 호출하는 진입점만 존재).
+#75(OCI Email Delivery 발송 기반) 위에서, 실제 메일을 만들고·보내고·기록하는 백엔드 모듈. 관리자 초대·비밀번호 재설정과 모집 시작 알림이 이 모듈을 호출한다.
 
 ## 구성 요소
 
 | 파일 | 역할 |
 |---|---|
-| `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`)마다 템플릿 이름 + 고정 제목 매핑 |
+| `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`, `RECRUITMENT_OPEN`)마다 템플릿 이름 + 고정 제목 매핑 |
 | `EmailStatus.java` | `SUCCESS` / `FAILURE` |
 | `FailureCause.java` | 발송 실패 예외를 7가지로 분류하는 enum(`RECIPIENT_ADDRESS_INVALID`/`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`/`INVALID_INPUT`/`TEMPLATE_RENDERING_FAILED`/`SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`/`UNKNOWN_FAILURE`), 값마다 재시도 대상 여부·`#113` 알람 대상 여부가 다름 — 아래 "실패 원인 분류" 절 참고. FAILURE 행에만 값이 있고 SUCCESS는 `null` |
 | `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·failureCause·messageId·sentAt (본문·토큰은 저장 안 함) |
@@ -17,6 +17,7 @@
 | `exception/EmailSendException.java` | 발송 실패 시 던지는 unchecked 예외 |
 | `templates/email/invite.html` | 초대 메일 템플릿 (`inviteUrl`, `expiresAt`) |
 | `templates/email/password-reset.html` | 재설정 메일 템플릿 (`resetUrl`, `expiresAt`) |
+| `templates/email/recruitment-open.html` | 모집 시작 알림 템플릿 (`siteUrl`) |
 
 ## 구현 항목별 입출력 예시 × 검증 테스트
 
@@ -26,6 +27,7 @@
 |---|---|---|---|---|
 | 1 | 초대 메일 발송 | `sendInviteEmail("new-admin@khu.ac.kr", "https://admin.likelion-khu.com/invite?token=abc123", 2026-07-08T15:30)` | 제목 `[멋쟁이사자처럼 경희대] 운영진 초대`, 본문에 초대 링크와 `2026.07.08 15:30` 포함, 발신자 `noreply@likelion-khu.com` | `EmailServiceTest#sendInviteEmail_Success_SendsMailWithInviteValuesAndLogsSuccess` (목 SMTP, 로직 단위) |
 | 2 | 재설정 메일 발송 | `sendPasswordResetEmail("admin@khu.ac.kr", "https://admin.likelion-khu.com/reset-password?token=xyz789", 2026-07-09T09:00)` | 제목 `[멋쟁이사자처럼 경희대] 비밀번호 재설정`, 본문에 재설정 링크와 `2026.07.09 09:00` 포함 | `EmailServiceTest#sendPasswordResetEmail_Success_...` |
+| 2-1 | 모집 시작 알림 발송 | 관리자가 모집 상태를 `open=true`로 전환 | 구독자별 `RECRUITMENT_OPEN` 메일 발송, 공개 사이트 링크 포함, 각 결과를 `email_log`에 기록 | `RecruitmentOpenEmailHttpEndToEndIntegrationTest#open_ThreeRealSubscribers_AllThreeActuallyReceiveMailAndAreLogged` (실제 Mailpit·HTTP·DB 종단) |
 | 3 | 발송 성공 시 `email_log` 기록 | 1·2번과 동일 호출 | `email_log`에 `status=SUCCESS`, `errorMessage=null`, `subject`=실제 보낸 제목과 동일 | 단위: `EmailServiceTest` 1·2번 테스트(목 리포지토리) / 통합: `EmailServiceIntegrationTest` 두 테스트(진짜 SQLite, 아래 7번과 동일 지점) |
 | 4 | 발송 실패 시 처리(SMTP 연결·전송 단계) | SMTP 서버 연결 실패, `max-attempts`(기본 3)회 모두 실패 | `EmailSendException` 던짐, `email_log`엔 시도별이 아니라 **최종 결과 한 줄**만 `status=FAILURE`, `errorMessage`에 원인 포함, **`messageId=null`**(연결 자체가 안 돼서 `saveChanges()`까지 못 감 — 실측 확인) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`(목이 매 시도 `MailSendException` 던짐, `mailSender.send()` 3회 호출 확인) / 통합: `EmailServiceFailureIntegrationTest#sendInviteEmail_SmtpServerUnreachable_...`(Mailpit 컨테이너를 실제로 내려서 진짜 연결 실패 유발, 테스트에선 `mail-sender.max-attempts=1`로 오버라이드해 속도 유지) |
 | 4-2 | 발송 실패 후 재시도로 결국 성공 | 처음 두 번은 SMTP 예외, 세 번째는 성공 | 재시도 끝에 성공 — `email_log`엔 중간 실패 없이 **SUCCESS 한 줄만** 남음(유저 원인이 아닌 실패는 결국 성공으로 수렴해야 한다는 요구, #113 후속) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsThenSucceeds_...` |
@@ -57,7 +59,7 @@
 
 ## 트랜잭션 경계 — email_log가 호출자 트랜잭션 롤백에 휩쓸리지 않아야 한다
 
-**#85 PR 리뷰(신선우)에서 발견**: `EmailService.send()`는 자체적으로 트랜잭션을 열지 않아서, 이 메서드가 어떤 트랜잭션 안에서 실행되는지는 전적으로 호출자에게 달려 있다. 지금은 호출자가 없어(`#74` 컨트롤러 미구현) 드러나지 않지만, `#74`가 아래처럼 짜일 가능성이 높다:
+**#85 PR 리뷰(신선우)에서 발견**: `EmailService.send()`는 자체적으로 트랜잭션을 열지 않아서, 이 메서드가 어떤 트랜잭션 안에서 실행되는지는 전적으로 호출자에게 달려 있다. 당시 호출자가 연결되기 전이었지만, 이후 관리자 초대처럼 아래 형태의 트랜잭션 호출이 들어올 것을 예상했다:
 
 ```java
 @Transactional
@@ -103,13 +105,13 @@ void onEmailLogEvent(EmailLogEvent event) {
 }
 ```
 
-`EmailService`는 활성 트랜잭션 여부로 저장 경로를 나눈다 — **트랜잭션이 없으면(지금까지의 모든 호출 경로) 예전처럼 그 자리에서 즉시 저장**해서 기존 동작·테스트를 그대로 유지하고, **트랜잭션이 있을 때만** `EmailLogEvent`를 발행해 위 경로를 탄다. `AFTER_COMPLETION`이라 바깥 트랜잭션이 커밋되든 롤백되든 상관없이 항상 실행된다.
+`EmailService`는 활성 트랜잭션 여부로 저장 경로를 나눈다 — **트랜잭션이 없으면 예전처럼 그 자리에서 즉시 저장**하고, **트랜잭션이 있을 때만** `EmailLogEvent`를 발행해 위 경로를 탄다. 현재 관리자 초대·비밀번호 재설정은 트랜잭션 경로, 모집 시작 알림은 별도 비동기 스레드의 비트랜잭션 경로다. `AFTER_COMPLETION`이라 바깥 트랜잭션이 커밋되든 롤백되든 상관없이 항상 실행된다.
 
 앱에 `@EnableAsync`를 추가해야 했다(`WebsiteBackendApplication`).
 
 **실측 검증**: 로컬에 Docker가 떠서 진짜로 Testcontainers + 실제 `@Transactional` 프록시로 돌려봤다 — 실패 로그·성공 로그 둘 다 바깥 트랜잭션이 롤백된 뒤에도 (비동기로) `email_log`에 결국 남는 걸 확인했다(표 11-1·11-2). 이번엔 CI를 기다릴 필요 없이 로컬에서 이미 실증된 상태.
 
-**트레이드오프**: 트랜잭션 안에서 호출되는 경로에 한해 로그 저장이 **최종적 일관성(eventually consistent)**이 된다 — `send()`가 반환된 직후엔 아직 `email_log`에 안 보일 수 있고(별도 스레드가 처리 중), 그래서 재현 테스트(11-1·11-2)는 즉시 assert하지 않고 짧게 폴링한다. 트랜잭션 밖 호출(현재 모든 실제 사용처)은 영향 없음 — 예전처럼 동기 즉시 저장.
+**트레이드오프**: 트랜잭션 안에서 호출되는 경로에 한해 로그 저장이 **최종적 일관성(eventually consistent)**이 된다 — `send()`가 반환된 직후엔 아직 `email_log`에 안 보일 수 있고(별도 스레드가 처리 중), 그래서 재현 테스트(11-1·11-2)는 즉시 assert하지 않고 짧게 폴링한다. 트랜잭션 밖 호출은 예전처럼 동기 즉시 저장한다.
 
 **4-1번 관련 — 테스트 작성 중 발견한 실제 버그**: 처음엔 `"not-an-email-address"`로 4-1번 테스트를 짰는데, `MimeMessageHelper.setTo(String)`이 내부적으로 느슨한 파싱만 해서 이 값을 그냥 통과시켜버렸다(예외 없음). 테스트를 통과시키려고 값을 다른 걸로 바꾸는 대신, "그럼 애초에 이 값이 걸러져야 하는 게 맞나?"를 확인했고 — 맞았다(`InternetAddress.validate()`로 검사하면 `Missing final '@domain'`으로 정확히 거부됨). `EmailService`가 발송 전 주소를 `.validate()`하지 않고 있던 게 진짜 결함이었고, 이번에 그 검증을 추가했다. 그래서 4-1번은 서로 다른 두 형식 오류(`@` 없음 / 꺾쇠 안 닫힘) 둘 다 테스트로 남겨뒀다.
 
@@ -184,20 +186,20 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 | ~~초대·재설정 **HTTP 엔드포인트** 단위 end-to-end~~ | → 완료(#113). `AdminInvitationControllerTest`/`AdminPasswordControllerTest`는 `EmailService`를 목으로 대체해서 "보내려고 시도했나"만 확인했고, `EmailServiceIntegrationTest`는 서비스 레이어만 실증했다 — 실제 `POST /api/admin/invitations`·`POST /api/admin/password/forgot` HTTP 호출이 목 없이 `email_log`까지 실제로 남기는 전체 경로는 검증한 적이 없었다. `email/AuthEmailHttpEndToEndIntegrationTest`(Testcontainers Mailpit, `EmailService` 실빈)로 메움. 처음 버전은 "메일 도착"까지만 봤는데, 리뷰에서 "그 메일에 적힌 링크(토큰)가 실제로 작동하는지도 봐야 하지 않냐"는 지적을 받아 — Mailpit이 받은 메일 HTML에서 링크를 정규식으로 뽑아 그 토큰으로 verify→accept/reset→login까지 실제 HTTP로 완주하도록 확장(#123 QA 라운드). `cd.yml` 스모크 테스트는 여전히 없음 — 필요성 낮음(이미 CI에서 실제 SMTP 왕복까지 매 빌드 검증됨). |
 | `management.health.mail.enabled=false` 동작 확인 | 설정 자체는 있으나 `/actuator/health`에서 실제로 mail 상태가 빠지는지 검증하는 테스트는 없음 (낮은 리스크) |
 | Naver 등 Gmail 외 실제 수신함 스팸 판정 | 이번엔 Gmail만 확인 (요청 범위) |
-| PROD 자격증명으로 **실제 발송**(AUTH 아님) | 실사용자 오발송 방지를 위해 의도적으로 미수행 — `#74` 배포 후 첫 실제 초대 때 `email_log` 확인으로 대체 예정 |
+| PROD 자격증명으로 **자동 실발송 검증**(AUTH 아님) | 실사용자 오발송을 막기 위해 CI에서는 의도적으로 수행하지 않는다. 실제 운영 발송의 결과는 `email_log`와 OCI 관측으로 확인한다. |
 | ~~`EmailSendException` 원인별 세분화~~ | → 부분 완료(#113 후속). 예외 타입 자체(`EmailSendException`)는 여전히 하나지만, `email_log.failure_cause`가 7가지로 원인을 구분해 남긴다(`FailureCause.java`) — HTTP 응답 상태를 원인별로 나눌 소비자가 아직 없다는 원래 이유는 유효해서 예외 타입 자체를 쪼개진 않았지만, "원인을 구분해서 남긴다"는 요구 자체는 이 컬럼으로 충족됨. |
 | ~~SMTP 타임아웃 반복 실패 알림~~ | → 완료(#113, 이후 #113 후속으로 정교화). `push-email-failure-metric.py`가 `email_log`의 실패 건수를 5분마다 OCI Monitoring custom metric으로 보내고, 임계치(`> 2`/5분) 초과 시 알람이 인프라·PM에게 이메일로 간다(`infra/docs/observability.md`·`RUNBOOK.md` 1-6 참고). 이번 PR에서 이 알람이 유저 원인(주소 형식 오류)까지 세던 것도 바로잡았고, 발송 성공 시계열(`push-email-success-metric.py`)도 추가함. |
-| 메일 발송 비동기 큐 처리 | 지금은 `send()`가 요청 스레드에서 동기 실행 — 타임아웃 상한(5초×3)을 둬도 동시 실패가 몰리면 스레드 풀이 일시적으로 압박받을 수 있음. 근본 해결은 발송을 큐(`@Async`, 메시지 큐 등)로 빼서 요청 스레드가 SMTP 왕복을 아예 기다리지 않게 하는 것 — `#74` 컨트롤러 연결 시점에 트래픽 규모를 보고 필요성 재판단 |
+| 관리자 메일 발송 비동기 큐 처리 | 관리자 초대·재설정은 아직 요청 스레드에서 SMTP 왕복을 기다린다. 타임아웃 상한(5초×3) 안에서도 동시 실패가 몰리면 요청 스레드가 압박받을 수 있다. 모집 시작 일괄 발송은 이미 `@Async` 이벤트 리스너로 분리돼 있다. 관리자 메일까지 큐로 뺄지는 실제 트래픽·지연이 문제가 될 때 판단한다. |
 | ~~발송 실패 시 자동 재시도~~ | → 완료(#113 후속, 장찬욱 요청). "실패 원인이 유저 쪽(주소 형식 오류)이 아니면 email_log가 결국 SUCCESS로 수렴해야 한다"는 요구로 `EmailService.send()`에 재시도(기본 최대 3회, 시도 간 2초, `mail-sender.max-attempts`/`mail-sender.retry-delay-ms`로 조정 가능)를 추가했다. `AddressException`(주소 형식 오류)만 즉시 포기하고 그 외는 전부 재시도 대상. **이 표에 남아 있던 "순서 중요" 경고(멱등성 먼저)는 의도적으로 완화해서 진행**했다 — 아래 "재시도와 멱등성" 절 참고 |
 
-## 코드 리뷰 진행 상황 (직접 리뷰 중)
+## 코드 리뷰 기록 (초기 구현 당시)
 
-읽는 순서와 진행 상태. 다음 세션(다른 기기 포함)은 여기서부터 이어가면 됨.
+초기 구현을 학습하며 남긴 읽기 순서다. 체크 상태는 당시 리뷰 범위이며 현재 기능 구현 상태를 뜻하지 않는다.
 
 - [x] 1. `EmailLog.java` — `success()`/`failure()`가 생성자가 아니라 정적 팩토리 메서드라는 것, `private` 생성자로 밖에서 임의 생성 못 막은 것, `sentAt` 자동 채움, static vs 동적 바인딩까지 논의 완료. 필드명 `type`→`emailType` 리네임 반영(테스트 5곳 `getType()`→`getEmailType()` 수정, DB 컬럼명도 `type`→`email_type`로 바뀜 — 아직 배포 전이라 안전)
 - [x] 2. `EmailLogRepository.java` — 커스텀 쿼리 메서드 없는 순수 `JpaRepository` 상속, 아직 파생 쿼리 불필요한 이유 논의 완료
 - [x] 3. `templates/email/invite.html`, `password-reset.html` — `xmlns:th` 자연 템플릿, `th:href`/`th:text`가 각각 링크·표시텍스트를 Context 변수로 치환, 인라인 style을 쓰는 이유(메일 클라이언트가 `<style>` 블록 무시) 논의 완료
-- [x] 4. `EmailService.java` 전체(검증·messageId·stage접두어가 `send()` 안에서 어떻게 이어지는지) — 생성자 주입/필드 주입 차이, `final`/`private`, Thymeleaf `Context` 역할, `inviteUrl`/`resetUrl`/`expiresAt`은 호출자가 넘겨야 하는 값이고 아직 그 호출자(#74)가 없다는 것까지 논의 완료. `STAGE_SUBJECT_PREFIX`를 `[STAGE 테스트] `→`[stage] `로 변경(테스트 5곳 + 문서 2곳 + infra 문서 예시 동반 수정)
+- [x] 4. `EmailService.java` 전체(검증·messageId·stage접두어가 `send()` 안에서 어떻게 이어지는지) — 생성자 주입/필드 주입 차이, `final`/`private`, Thymeleaf `Context` 역할, `inviteUrl`/`resetUrl`/`expiresAt`은 호출자가 넘기는 값이라는 점까지 논의 완료. 당시에는 호출자가 연결되기 전이었고, 이후 관리자 초대·재설정·모집 알림이 연결됐다. `STAGE_SUBJECT_PREFIX`를 `[STAGE 테스트] `→`[stage] `로 변경(테스트 5곳 + 문서 2곳 + infra 문서 예시 동반 수정)
 - [x] 5. `exception/EmailSendException.java` — unchecked 예외로 만든 이유, `(type, recipient, cause)` 생성자가 메시지·원인 체인을 어떻게 감싸는지 논의 완료. 원인별 예외 세분화(주소오류 vs SMTP실패)는 컨트롤러 붙기 전이라 시기상조 판단, 후속 PR 대상으로 위 "아직 못 메꾼 빈틈"에 기록
 - [x] 6. `EmailServiceTest.java` 전체(7개 테스트, `createService(String... activeProfiles)` 헬퍼) — templateEngine만 실제 협력자로 남기고 mailSender/emailLogRepository만 목 처리한 이유, `mailSender.createMimeMessage()`가 진짜 MimeMessage를 반환해야 하는 이유, `ReflectionTestUtils.setField`가 왜 필요한지(필드 주입이라 생성자로 못 넣음) 논의 완료. `sendPasswordResetEmail_Success`가 `sendInviteEmail_Success`보다 검증 범위 좁은 것(getFrom 등 누락)은 확인해볼 만한 지점으로 남김
 - [x] 7. 통합테스트 3개 — `@DynamicPropertySource`가 왜 필요한지(컨테이너 랜덤 포트), `@DirtiesContext`가 `EmailServiceIntegrationTest`(테스트 2개, 인메모리 SQLite 공유 문제)에만 있고 나머지엔 없는 이유, `awaitMessageTo` 폴링, messageId 꺾쇠 스트립 비교, `EmailServiceFailureIntegrationTest`의 `mailpit.stop()`+짧은 타임아웃으로 진짜 연결 실패 재현 논의 완료

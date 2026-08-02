@@ -90,6 +90,6 @@ Done에 "첫 로그인 때 비밀번호를 꼭 바꾸게 돼요"가 명시돼 �
 
 ## 아직 못 메꾼 것 (다음 미션 후보)
 
-- 관리자가 멤버 계정을 대량 등록/발급하는 전용 화면·API(Notes에서 명시적으로 이번 범위 제외)
 - 어드민 모듈과 동일하게 IP 기반 요청 제한(429)·refresh 토큰 로테이션 없음 — `admin-auth-module.md`에 이미 기록된 동일한 트레이드오프를 멤버 쪽도 그대로 상속
-- `CommentController`의 `/admin/{commentId}/hide`는 여전히 `permitAll()`(인증 자체가 없음) — #117 이전부터 있던 별도 TODO, 이번엔 손대지 않음
+
+멤버 일괄 등록은 이후 `POST /api/admin/members/bulk`와 관리자 화면으로 구현됐다. 댓글 검수도 `/api/admin/comments/{commentId}/visibility`로 옮겨졌고 `ADMIN` 권한으로 보호된다.

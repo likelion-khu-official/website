@@ -19,7 +19,7 @@
 | `password/*` | 본인 이메일 기반 비밀번호 재설정 |
 | `management/*` | 관리자 목록·삭제와 마지막 관리자 보호 |
 | `seed/AdminSeedRunner.java` | 최초 관리자 시드. 없는 계정만 생성하는 멱등 러너 |
-| `seed/E2eAdminSeedRunner.java` | `e2e` 프로필에서만 고정 비밀번호 관리자 2명 시드 |
+| `seed/E2eAdminSeedRunner.java` | `e2e` 프로필에서만 고정 비밀번호 관리자 1명 시드 |
 
 ## 인증 흐름
 

@@ -57,8 +57,7 @@ public class EmailService {
     @Value("${mail-sender.retry-delay-ms:2000}")
     private long retryDelayMs;
 
-    // inviteUrl·expiresAt은 이 메서드가 만드는 게 아니라 호출자가 넘겨야 하는 값 — 아직 그 호출자(#74 초대 기능)가 없어
-    // 지금은 EmailService 스스로 "무엇을 보낼지"는 모르고 "어떻게 보낼지"만 담당하는 상태.
+    // inviteUrl·expiresAt은 이 메서드가 만드는 게 아니라 관리자 초대 호출자가 넘기는 값.
     // Context는 Thymeleaf 템플릿에 넘길 변수 바구니 — 여기 담은 값이 템플릿의 ${inviteUrl} 등으로 치환됨.
     public void sendInviteEmail(String to, String inviteUrl, LocalDateTime expiresAt) {
         Context context = new Context();
@@ -74,8 +73,8 @@ public class EmailService {
         send(to, EmailType.PASSWORD_RESET, context);
     }
 
-    // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 지원폼(#125)이
-    // 아직 없어 랜딩(모집 섹션이 있는 자리)으로 보낸다 — 지원폼이 생기면 그쪽 경로로 바뀔 값.
+    // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 모집 섹션과
+    // 지원 진입점이 있는 공개 사이트 주소다.
     public void sendRecruitmentOpenEmail(String to, String siteUrl) {
         Context context = new Context();
         context.setVariable("siteUrl", siteUrl);

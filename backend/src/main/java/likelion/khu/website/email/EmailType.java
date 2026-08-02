@@ -1,7 +1,7 @@
 package likelion.khu.website.email;
 
 // EmailService 등 다른 패키지에서 메일 종류를 지정해야 해서 public.
-// 상수 뒤 괄호는 함수 호출이 아니라 생성자 호출 — INVITE/PASSWORD_RESET은 각각 이 값으로 만들어진 EmailType 인스턴스.
+// 상수 뒤 괄호는 함수 호출이 아니라 생성자 호출 — 각 상수는 이 값으로 만들어진 EmailType 인스턴스.
 // 새 메일 종류가 생기면 이 목록에 한 줄 추가하는 식으로 확장.
 public enum EmailType {
 

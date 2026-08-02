@@ -4,7 +4,6 @@
 
 ## Target / 정본 스펙
 
-- 기능 트리: [`프로젝트 쇼케이스`](../../pm/features/프로젝트-쇼케이스.md) 및 하위 [목록](../../pm/features/프로젝트-목록.md)·[상세](../../pm/features/프로젝트-상세.md), 멤버 영역의 [내 프로젝트](../../pm/features/내프로젝트.md)
 - 정식 스펙: [서비스 위키 — 기능 명세](https://github.com/likelion-khu-official/website/wiki/기능-명세)
 - 미션 발주 원문: [이슈 #119](https://github.com/likelion-khu-official/website/issues/119)
 
@@ -14,7 +13,7 @@
 |---|---|
 | `Project.java` | 제목·한줄소개·기수(불변)·기술스택(태그)·GitHub링크·개발기간(`startDate`/`endDate`, 종료일 없으면 진행중)·`hidden`. 상세 설명·발표자료는 스펙상 "처음엔 생략 가능"이라 필드 자체를 안 만들었다 |
 | `ProjectImage.java` | `@ManyToOne` 자식 엔티티(`Comment`와 같은 FK 패턴). `url`은 새로 업로드 코드를 만들지 않고 **기존 `/api/feed/images`(OCI, #75)로 먼저 올려 받은 URL을 그대로 저장**한다 — `Post.thumbnailUrl`·`Member.photoUrl`과 동일한 재사용 방식. `representative`(대표 이미지)는 정확히 1장이어야 한다 |
-| `ProjectParticipant.java` | `@ManyToOne` 자식 엔티티, `Member` FK + `part`(`MemberRole` 재사용 — PM/FE/BE/DESIGN/AI/INFRA). `Member.roles`(조직 전체 역할)와는 별개로, "이 프로젝트에서 맡은 역할"을 담는다 |
+| `ProjectParticipant.java` | `@ManyToOne` 자식 엔티티, `Member` FK + `part`(`MemberRole` 재사용 — 회장단·세션장·기획/홍보·BE/FE/DESIGN/AI). `Member.roles`(조직 전체 역할)와는 별개로, "이 프로젝트에서 맡은 역할"을 담는다. 허용값은 `MemberRole` enum이 정본이다 |
 | `ProjectRepository`/`ProjectImageRepository`/`ProjectParticipantRepository` | 목록·상세 조회, 참여 여부 확인(`existsByProjectIdAndMemberId`) |
 | `dto/ProjectSummaryResponse`·`ProjectDetailResponse`(+ `ProjectImageResponse`·`ProjectParticipantResponse`) | `Post`의 목록/상세 이원 DTO 패턴을 그대로 따랐다. `representativeImageUrl`은 자식 테이블에서 오는 값이라 서비스가 조립해 넘긴다 |
 | `dto/ProjectCreateRequest`·`ProjectUpdateRequest`(+ `ProjectImageRequest`·`ProjectParticipantRequest`) | 생성은 전체 필드, 수정은 `Member`/`Post`와 같은 부분 수정 관례(null=안 바뀜). `cohort`는 `Member.cohort`처럼 불변이라 수정 DTO에 없음 |
@@ -28,7 +27,7 @@
 ## 설계 결정과 이유
 
 **1. 엔드포인트 경로 — `/projects`가 아니라 `/api/projects`**
-이슈 본문의 "`/projects`"는 프론트 화면 URL 설명이다(실제로 `pm/features/프로젝트-목록.md`도 "`/projects` 목록 **화면**"이라고 씀). 기존 API는 전부 `/api/` 접두사(`/api/posts`, `/api/members`)라 그 컨벤션을 따랐다. 경로 결정은 이슈 Notes에서 명시적으로 제 재량.
+이슈 본문의 "`/projects`"는 프론트 화면 URL이고, 서버 API는 기존 `/api/posts`·`/api/members`와 같은 `/api/` 접두사 관례를 따라 `/api/projects`로 뒀다. 경로 결정은 이슈 Notes에서 구현 재량으로 열려 있었다.
 
 **2. 목록에 페이지네이션을 안 쓴 이유**
 `Post`(블로그 글, 계속 쌓임)는 `Page<PostSummaryResponse>`를 쓰지만, 프로젝트는 동아리 규모상 `Member`처럼 소규모 컬렉션이라 `GET /api/members`와 같은 단순 `List` 응답을 택했다. 나중에 프로젝트 수가 실제로 많아지면 그때 페이지네이션을 얹으면 된다(YAGNI).
