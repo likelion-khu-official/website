@@ -935,17 +935,9 @@ textarea {
     #111212;
 }
 
-/* Recruit(116:532) 섹션 배경 — 상단에서 강하게 번지는 레드 글로우 (위→아래로 소멸) */
+/* Recruit 섹션 — 어두운 바탕 위 브랜드 단어와 CTA만 오렌지로 강조한다. */
 .recruit-bg {
-  background-color: #131313;
-  background-repeat: no-repeat;
-  background-image: radial-gradient(
-    130% 95% at 50% -12%,
-    rgba(255, 80, 0, 0.9) 0%,
-    rgba(176, 34, 12, 0.78) 16%,
-    rgba(90, 18, 7, 0.5) 36%,
-    rgba(19, 19, 19, 0) 62%
-  );
+  background: #131313;
 }
 
 /* Blog(114:139) 섹션 배경 — 좌우 가장자리 은은한 다크레드 글로우 */
