@@ -7,7 +7,7 @@ export default function BlogError({ reset }: { error: Error & { digest?: string 
         <span className="text-3xl text-accent/70" aria-hidden>
           ◌
         </span>
-        <h1 className="mt-5 text-2xl font-semibold text-white">기록을 불러오지 못했어요.</h1>
+        <h1 className="mt-5 text-2xl font-semibold text-white">블로그 글을 불러오지 못했어요.</h1>
         <p className="mt-3 text-sm text-white/45">잠시 후 다시 시도해 주세요.</p>
         <button
           type="button"
