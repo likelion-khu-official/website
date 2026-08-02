@@ -58,8 +58,14 @@ export default function Introduce() {
           <span aria-hidden className="absolute left-0 top-0 h-px w-14 bg-accent" />
           <p className="landing-section-kicker">Learn together</p>
           <p
-            className="mt-5 text-balance break-keep font-semibold text-white"
-            style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+            className="mt-5 text-balance break-keep text-white"
+            style={{
+              fontFamily: 'var(--font-korean)',
+              fontSize: 'clamp(20px, 2.3vw, 34px)',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.42,
+            }}
           >
             <span className="text-accent">코딩이 처음이더라도</span>
             <br />
@@ -72,8 +78,14 @@ export default function Introduce() {
           <span aria-hidden className="absolute left-0 top-0 h-px w-14 bg-accent" />
           <p className="landing-section-kicker">Build for real</p>
           <p
-            className="mt-5 text-balance break-keep font-semibold text-white"
-            style={{ fontSize: 'clamp(20px, 2.3vw, 34px)', letterSpacing: '-0.9px', lineHeight: 1.45 }}
+            className="mt-5 text-balance break-keep text-white"
+            style={{
+              fontFamily: 'var(--font-korean)',
+              fontSize: 'clamp(20px, 2.3vw, 34px)',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.42,
+            }}
           >
             머릿속의 <span className="text-accent">아이디어</span>를
             <br />
@@ -99,16 +111,23 @@ export default function Introduce() {
           >
             <p
               className="break-keep font-medium text-[#c7c7c7]"
-              style={{ fontSize: 'clamp(12px, 3.4vw, 22px)', letterSpacing: '-0.5px' }}
+              style={{
+                fontFamily: 'var(--font-korean)',
+                fontSize: 'clamp(12px, 3.4vw, 22px)',
+                letterSpacing: '-0.01em',
+              }}
             >
               {s.label}
             </p>
-            <p className="flex items-baseline justify-center leading-none whitespace-nowrap font-semibold">
+            <p
+              className="flex items-baseline justify-center leading-none whitespace-nowrap font-semibold"
+              style={{ fontFamily: 'var(--font-latin)', fontVariantNumeric: 'tabular-nums' }}
+            >
               <span
                 className="text-accent"
                 style={{
                   fontSize: 'clamp(26px, 8.5vw, 60px)',
-                  letterSpacing: '-1.8px',
+                  letterSpacing: '-0.03em',
                   textShadow: '0 0 34px rgba(255, 80, 0, 0.28)',
                 }}
               >
@@ -118,7 +137,7 @@ export default function Introduce() {
                 className={s.super ? 'ml-0.5 self-start text-[#bbbbbb]' : 'ml-1 text-accent'}
                 style={{
                   fontSize: s.super ? 'clamp(15px, 4vw, 32px)' : 'clamp(26px, 8.5vw, 60px)',
-                  letterSpacing: '-1.8px',
+                  letterSpacing: '-0.03em',
                   textShadow: s.super ? undefined : '0 0 34px rgba(255, 80, 0, 0.28)',
                 }}
               >
