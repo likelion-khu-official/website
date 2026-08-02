@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getNotificationSignupAnalytics, getPopularTimeAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getContentImpactAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getNotificationSignupAnalytics, getPopularTimeAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -23,6 +23,7 @@ vi.mock('@/lib/adminApi', () => ({
   getKeyClickAnalytics: vi.fn(),
   getNotificationSignupAnalytics: vi.fn(),
   getPopularTimeAnalytics: vi.fn(),
+  getContentImpactAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
@@ -38,6 +39,9 @@ vi.mock('./SectionReachChart', () => ({
 }));
 vi.mock('./DistributionBarChart', () => ({
   default: ({ label }: { label: string }) => <div data-testid="distribution-chart">{label} 분포 그래프</div>,
+}));
+vi.mock('./ContentImpactChart', () => ({
+  default: ({ contentTitle }: { contentTitle: string }) => <div data-testid="content-impact-chart">{contentTitle} 공개 전후 그래프</div>,
 }));
 
 const response = {
@@ -146,6 +150,26 @@ const popularTimeResponse = {
   ],
 };
 
+const contentImpactResponse = {
+  range: response.range,
+  contents: [
+    { type: 'BLOG_POST' as const, id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+    { type: 'PROJECT' as const, id: 31, title: '모두의 캠퍼스', publishedAt: '2026-07-29T10:00:00' },
+  ],
+  comparison: {
+    content: { type: 'BLOG_POST' as const, id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+    comparisonDays: 7,
+    complete: true,
+    before: { from: '2026-07-13', to: '2026-07-19', siteViews: 210 },
+    after: { from: '2026-07-20', to: '2026-07-26', siteViews: 294 },
+    contentViewsAfter: 87,
+    series: [
+      { date: '2026-07-19', siteViews: 30, contentViews: 0 },
+      { date: '2026-07-20', siteViews: 42, contentViews: 12 },
+    ],
+  },
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -160,6 +184,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getKeyClickAnalytics).mockReset();
     vi.mocked(getNotificationSignupAnalytics).mockReset();
     vi.mocked(getPopularTimeAnalytics).mockReset();
+    vi.mocked(getContentImpactAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
@@ -170,6 +195,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getKeyClickAnalytics).mockResolvedValue(keyClickResponse);
     vi.mocked(getNotificationSignupAnalytics).mockResolvedValue(notificationSignupResponse);
     vi.mocked(getPopularTimeAnalytics).mockResolvedValue(popularTimeResponse);
+    vi.mocked(getContentImpactAnalytics).mockResolvedValue(contentImpactResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -200,6 +226,10 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('오후 8–9시 · 5회')).toBeInTheDocument();
     expect(screen.getByText('화요일 · 5회')).toBeInTheDocument();
     expect(screen.getByText(/두 그래프는 모두 0회부터 시작/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '콘텐츠 공개 전후' })).toBeInTheDocument();
+    expect(screen.getByText('7일 비교 완료')).toBeInTheDocument();
+    expect(screen.getByText('+84회 (+40.0%)')).toBeInTheDocument();
+    expect(screen.getByText(/콘텐츠 하나의 효과라고 단정할 수는 없어요/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);
@@ -240,6 +270,18 @@ describe('AnalyticsDashboard', () => {
 
     expect(replace).toHaveBeenCalledWith(
       '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&click=APPLY',
+      { scroll: false }
+    );
+  });
+
+  it('비교 콘텐츠를 선택하면 불변 종류와 ID를 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.selectOptions(await screen.findByLabelText('비교할 콘텐츠'), 'PROJECT:31');
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&impactType=PROJECT&impact=31',
       { scroll: false }
     );
   });

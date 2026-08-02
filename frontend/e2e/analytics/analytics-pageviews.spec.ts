@@ -11,6 +11,7 @@ const sectionEvidenceDir = path.resolve(__dirname, '../../../pm/missions/387-adm
 const clickEvidenceDir = path.resolve(__dirname, '../../../pm/missions/388-admin-analytics-key-clicks/evidence');
 const notificationEvidenceDir = path.resolve(__dirname, '../../../pm/missions/389-admin-analytics-notification-signups/evidence');
 const popularTimeEvidenceDir = path.resolve(__dirname, '../../../pm/missions/390-admin-analytics-popular-times/evidence');
+const contentImpactEvidenceDir = path.resolve(__dirname, '../../../pm/missions/391-admin-analytics-content-impact/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -202,6 +203,47 @@ test.beforeEach(async ({ context, page }) => {
       }),
     });
   });
+  await page.route('**/api/admin/analytics/content-impact**', async (route) => {
+    const url = new URL(route.request().url());
+    const projectSelected = url.searchParams.get('type') === 'PROJECT';
+    const contents = [
+      { type: 'BLOG_POST', id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+      { type: 'PROJECT', id: 31, title: '모두의 캠퍼스', publishedAt: '2026-07-31T11:00:00' },
+    ];
+    const comparison = projectSelected ? {
+      content: contents[1], comparisonDays: 3, complete: false,
+      before: { from: '2026-07-28', to: '2026-07-30', siteViews: 241 },
+      after: { from: '2026-07-31', to: '2026-08-02', siteViews: 338 },
+      contentViewsAfter: 126,
+      series: [
+        { date: '2026-07-28', siteViews: 75, contentViews: 0 },
+        { date: '2026-07-29', siteViews: 81, contentViews: 0 },
+        { date: '2026-07-30', siteViews: 85, contentViews: 0 },
+        { date: '2026-07-31', siteViews: 101, contentViews: 31 },
+        { date: '2026-08-01', siteViews: 112, contentViews: 43 },
+        { date: '2026-08-02', siteViews: 125, contentViews: 52 },
+      ],
+    } : {
+      content: contents[0], comparisonDays: 7, complete: true,
+      before: { from: '2026-07-13', to: '2026-07-19', siteViews: 344 },
+      after: { from: '2026-07-20', to: '2026-07-26', siteViews: 529 },
+      contentViewsAfter: 214,
+      series: [38, 42, 47, 44, 51, 58, 64, 66, 71, 75, 69, 82, 79, 87].map((siteViews, index) => {
+        const date = new Date(Date.UTC(2026, 6, 13 + index)).toISOString().slice(0, 10);
+        const contentViews = index < 7 ? 0 : [9, 19, 27, 31, 38, 42, 48][index - 7];
+        return { date, siteViews, contentViews };
+      }),
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        contents,
+        comparison,
+      }),
+    });
+  });
   await page.route('**/api/analytics/pageviews', async (route) => {
     await route.fulfill({ status: 204, body: '' });
   });
@@ -211,13 +253,13 @@ test('비개발자용 데스크톱 화면과 표준 hover tooltip을 확인한�
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
 
   await expect(page.getByRole('heading', { name: '사이트 이용 현황' })).toBeVisible();
-  await expect(page.getByText('1,474')).toBeVisible();
-  await expect(page.getByRole('img', { name: /전체 페이지 조회수 기간별 선 그래프/ })).toBeVisible();
+  await expect(page.getByText('1,474회', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: /전체 페이지 조회수.*기간별 선 그래프/ })).toBeVisible();
   await expect(page.getByText('프로젝트 목록')).toBeVisible();
 
   await page.screenshot({ path: path.join(evidenceDir, 'desktop-overview.png'), fullPage: true });
 
-  const chart = page.getByRole('img', { name: /전체 페이지 조회수 기간별 선 그래프/ });
+  const chart = page.getByRole('img', { name: /전체 페이지 조회수.*기간별 선 그래프/ });
   const box = await chart.boundingBox();
   if (!box) throw new Error('그래프 위치를 확인할 수 없어요.');
   await page.mouse.move(box.x + box.width * 0.82, box.y + box.height * 0.42);
@@ -231,7 +273,7 @@ test('비개발자용 데스크톱 화면과 표준 hover tooltip을 확인한�
 test('390px 모바일에서 기간·그래프·표가 화면 밖으로 밀리지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
-  await expect(page.getByText('1,474')).toBeVisible();
+  await expect(page.getByText('1,474회', { exact: true })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
@@ -241,7 +283,7 @@ test('390px 모바일에서 기간·그래프·표가 화면 밖으로 밀리지
 test('블로그 글별 조회와 선택 글 추이를 데스크톱·모바일에서 확인한다', async ({ page }) => {
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
   await expect(page.getByRole('heading', { name: '블로그 글별 조회수' })).toBeVisible();
-  await expect(page.getByText('숨김')).toBeVisible();
+  await expect(page.getByRole('region', { name: '블로그 글별 조회수' }).getByText('숨김')).toBeVisible();
   await expect(page.getByText('782회')).toBeVisible();
 
   await page.getByRole('button', { name: /^운영진이 기록한 한 학기/ }).click();
@@ -351,10 +393,10 @@ test('랜딩 섹션별 실제 도달을 그래프와 정확한 수치로 확인�
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
   const panel = page.getByRole('region', { name: '랜딩 섹션 도달' });
   await panel.scrollIntoViewIfNeeded();
-  await expect(page.getByText('932회')).toBeVisible();
-  await expect(page.getByText('751회')).toBeVisible();
-  await expect(page.getByText('486회')).toBeVisible();
-  await expect(page.getByText('214회')).toBeVisible();
+  await expect(panel.getByText('932회')).toBeVisible();
+  await expect(panel.getByText('751회')).toBeVisible();
+  await expect(panel.getByText('486회')).toBeVisible();
+  await expect(panel.getByText('214회')).toBeVisible();
   await expect(page.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeVisible();
 
   const chart = page.getByRole('img', { name: /랜딩 섹션별 도달 수 가로 막대그래프/ });
@@ -461,4 +503,41 @@ test('한국시간 기준 방문이 몰린 시간대와 요일을 실제 건수�
   await page.getByText(/두 그래프는 모두 0회부터 시작/).click();
   await page.locator('a[href="#admin-main"]').evaluate((element) => element.remove());
   await panel.screenshot({ path: path.join(popularTimeEvidenceDir, 'mobile-popular-times.png') });
+});
+
+test('콘텐츠 공개일과 같은 길이의 전후 조회를 완료·진행 중 상태로 확인한다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '콘텐츠 공개 전후' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('7일 비교 완료')).toBeVisible();
+  await expect(page.getByText('344회')).toBeVisible();
+  await expect(page.getByText('529회')).toBeVisible();
+  await expect(page.getByText('+185회 (+53.8%)')).toBeVisible();
+  await expect(page.getByText(/해당 콘텐츠 자체 조회/)).toContainText('214회');
+  await expect(page.getByText(/콘텐츠 하나의 효과라고 단정할 수는 없어요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /운영진이 기록한 한 학기 공개 전후 조회 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await expect(chart.getByText('콘텐츠 공개')).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('콘텐츠 공개 전후 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.73, chartBox.y + chartBox.height * 0.4);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('콘텐츠 공개 전후 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(contentImpactEvidenceDir, 'desktop-content-impact-hover.png'), clip: panelBox });
+
+  await page.getByLabel('비교할 콘텐츠').selectOption('PROJECT:31');
+  await expect(page).toHaveURL(/impactType=PROJECT&impact=31/);
+  await expect(page.getByText('비교 진행 중 · 현재 3일씩')).toBeVisible();
+  await expect(page.getByText('공개 전 3일')).toBeVisible();
+  await expect(page.getByText('공개 후 3일')).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await page.locator('a[href="#admin-main"]').evaluate((element) => element.remove());
+  await panel.screenshot({ path: path.join(contentImpactEvidenceDir, 'mobile-content-impact-progress.png') });
 });
