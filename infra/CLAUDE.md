@@ -123,7 +123,7 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 
 ---
 
-## nginx 설정 — 실제 값 (2026-07-26 서버 실측)
+## nginx 설정 — 실제 값 (2026-08-02 서버 실측, 레이트리미팅 추가 반영)
 
 `infra/nginx.conf`는 gitignore라 레포엔 없다 — 여기가 실제 구조를 확인할 수 있는 유일한 곳이니 nginx를 바꾸면 이 절도 같이 갱신할 것.
 
@@ -131,21 +131,43 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 http {
   client_max_body_size 6m;   # 백엔드 멀티파트 한도(5MB)보다 살짝 크게 — 백엔드가 자기 한도 초과 시
                              # 친절한 JSON 에러를 낼 기회를 주기 위함(nginx가 먼저 뚝 끊지 않도록)
+  server_tokens off;         # 응답 헤더에서 nginx 버전 숨김 — 취약점 스캐닝 표면 축소
+
+  # 악의적 트래픽 대응 (2026-08-02 추가) — 존은 http 블록에서 한 번만 선언, prod/stage가 공유하되
+  # 키가 $binary_remote_addr(클라이언트 IP)라 IP별로 독립 집계된다.
+  limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;    # 일반 트래픽(GET 등)
+  limit_req_zone $binary_remote_addr zone=sensitive:10m rate=1r/s;   # 지원서·댓글·구독·비번찾기(스팸/비용 직결)
+  limit_req_zone $binary_remote_addr zone=upload:10m rate=2r/s;      # 로그인 필요한 이미지 업로드
+  limit_conn_zone $binary_remote_addr zone=conn_limit:10m;           # IP당 동시 연결수
+  limit_req_status 429; limit_conn_status 429;
+
+  # slowloris류(연결을 일부러 느리게 끌어 워커를 계속 묶어두는 공격) 대응
+  client_body_timeout 10s; client_header_timeout 10s; send_timeout 10s;
+  large_client_header_buffers 4 8k;
 
   server { listen 80; server_name api.prod.likelion-khu.com api.stage.likelion-khu.com;
            return 301 https://$host$request_uri; }   # 80은 리다이렉트만, 실제 라우팅 없음
 
-  server { listen 443 ssl; server_name api.prod.likelion-khu.com;
+  server { listen 443 ssl; server_name api.prod.likelion-khu.com;   # stage 블록도 구조 동일(backend-stage로만 교체)
            ssl_certificate/key: likelion-khu.com-0001 lineage
-           location / { proxy_pass http://backend-prod:8080; ... X-Forwarded-* 헤더 } }
+           limit_conn conn_limit 20;                                 # IP당 동시연결 20으로 제한
 
-  server { listen 443 ssl; server_name api.stage.likelion-khu.com;
-           ssl_certificate/key: likelion-khu.com-0001 lineage (위와 동일 인증서, SAN에 둘 다 포함)
-           location / { proxy_pass http://backend-stage:8080; ... X-Forwarded-* 헤더 } }
+           location = /api/applications { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
+           location ~ ^/api/posts/[^/]+/comments$ { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
+           location = /api/notifications/subscribe { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
+           location = /api/admin/password/forgot { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
+           location ~ ^/api/(feed/images|admin/staff/images)$ { limit_req zone=upload burst=10 nodelay; proxy_pass ...; }
+           location / { limit_req zone=general burst=20 nodelay; proxy_pass http://backend-prod:8080; ... X-Forwarded-* 헤더 } }
 }
 ```
 
 **인증서는 `likelion-khu.com-0001` lineage 하나만 있다** (`Domains: likelion-khu.com api.prod.likelion-khu.com api.stage.likelion-khu.com`). 한때 `likelion-khu.com`이라는 이름의 두 번째 lineage가 더 있었는데(프론트 스테이징 서브도메인 포함, 용도 불분명), 이 nginx.conf 어디서도 참조되지 않는 걸 확인하고 2026-07-26 `sudo certbot delete --cert-name likelion-khu.com`로 정리했다 — 삭제 후 prod·stage 헬스체크 정상 확인.
+
+**레이트리미팅을 왜 이렇게 나눴나** — 조사해보니 nginx엔 rate limit이 전혀 없었고(악의적 트래픽 대응 질문 계기), 백엔드에도 bucket4j 등 앱 레벨 스로틀링이 없었다(`pm/docs/feed-write-policy.md`에 "봇 가드 — 추후"로 이미 스코프 밖 명시돼 있던 부분). 3단계로 나눈 이유:
+- **general(10r/s)**: 정상적인 페이지 탐색이 걸릴 일 없게 넉넉히 — 조회 위주라 남용돼도 피해가 제한적.
+- **sensitive(1r/s, burst 3)**: `/api/applications`(지원서)·`/api/posts/*/comments`(댓글)·`/api/notifications/subscribe`(구독)·`/api/admin/password/forgot`(비번재설정 메일) — 전부 `permitAll()`이라 인증 없이 누구나 반복 호출 가능했던 곳. 사람이면 초당 1번씩 반복할 이유가 없는 액션들이고, 특히 `password/forgot`는 남용되면 OCI Email Delivery 월 3,000통 한도까지 위협해서 반드시 넣었다.
+- **upload(2r/s, burst 10)**: `/api/feed/images`·`/api/admin/staff/images` — 로그인은 필요하지만(MEMBER/ADMIN) 요청 횟수 제한이 전혀 없었음. 정상 사용자가 한 세션에 여러 장 올리는 걸 허용하려고 sensitive보다는 여유를 뒀다.
+- **2026-08-02 실측 검증**: `/api/applications`에 연속 요청을 쏴서 burst 초과분이 `429`로 즉시 막히는 것, 동시에 일반 조회(`/api/posts` 등)는 영향 없이 계속 `200`인 것까지 확인 후 반영. 배포 전 `nginx -t`로 문법 검증 → reload(무중단) → 헬스체크로 순서 진행(DB 복원 절차와 동일 패턴).
 
 ---
 
