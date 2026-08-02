@@ -380,9 +380,6 @@ export default function StaffManagement() {
             previewMode === 'mobile' ? 'w-[390px] max-w-full' : 'w-full min-w-0 px-5 lg:px-8'
           }`}
         >
-          <div className="members-glow-base" />
-          <div className="members-glow-accent" />
-
           <div className="relative z-[1] mx-auto w-full max-w-[1390px]">
             {landingStaff.length === 0 ? (
               <button

@@ -37,7 +37,7 @@ export default function Faq() {
   return (
     <section
       id="faq"
-      className="faq-bg relative w-full overflow-hidden px-5 py-24 sm:px-8 sm:py-28 lg:py-32"
+      className="faq-bg relative w-full overflow-x-clip px-5 py-24 sm:px-8 sm:py-28 lg:py-32"
     >
       <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(240px,0.72fr)_minmax(0,1.28fr)] lg:gap-20">
         <header className="scroll-reveal lg:sticky lg:top-28 lg:self-start">

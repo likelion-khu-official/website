@@ -35,7 +35,7 @@ export default async function Blog() {
   return (
     <section
       id="blog"
-      className="blog-bg relative flex min-h-screen min-h-[100svh] flex-col justify-center overflow-hidden px-5 py-24 sm:px-10 sm:py-28 lg:px-16"
+      className="blog-bg relative flex flex-col justify-center overflow-hidden px-5 py-24 sm:px-10 sm:py-28 lg:px-16 lg:py-32"
     >
       <div className="scroll-reveal relative mx-auto w-full max-w-[1440px]">
         <div className="grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.18fr)] lg:gap-12">

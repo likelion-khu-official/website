@@ -13,7 +13,7 @@ export default function Introduce() {
   return (
     <section
       id="introduce"
-      className="introduce-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-5 py-20 sm:px-8 sm:py-24 lg:py-24"
+      className="introduce-bg relative flex w-full flex-col items-center justify-center overflow-x-clip px-5 py-24 sm:px-8 sm:py-32 lg:py-36"
     >
       {/* Likelion at KHU 워드마크 — 브랜드(Likelion)를 로고와 함께 위쪽 강조 라인에 둔다. */}
       <div className="scroll-reveal flex flex-col items-center gap-1.5" style={gremlin}>

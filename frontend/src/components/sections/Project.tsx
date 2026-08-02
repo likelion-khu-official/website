@@ -15,13 +15,8 @@ export default async function Project() {
   return (
     <section
       id="project"
-      className="project-section relative flex h-[100svh] flex-col justify-center overflow-hidden bg-[#131313] px-5 sm:px-10 lg:px-16"
+      className="project-section relative flex min-h-[760px] flex-col justify-center overflow-hidden bg-[#131313] px-5 sm:px-10 lg:min-h-[820px] lg:px-16"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[-460px] h-[900px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(176,34,12,0.36),rgba(19,19,19,0)_68%)] blur-2xl"
-      />
-
       <div className="project-section-inner relative mx-auto w-full max-w-[1440px]">
         <div className="project-section-header scroll-reveal grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>

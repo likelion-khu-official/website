@@ -19,11 +19,8 @@ export default async function Members() {
   return (
     <section
       id="members"
-      className="members-bg relative flex min-h-screen min-h-[100svh] w-full flex-col justify-center overflow-x-clip px-5 pb-12 pt-24 sm:px-10 sm:pb-14 sm:pt-28 lg:px-16 lg:pb-8 lg:pt-20"
+      className="members-bg relative flex w-full flex-col justify-center overflow-x-clip px-5 py-24 sm:px-10 sm:py-32 lg:px-16 lg:py-36"
     >
-      <div className="members-glow-base" />
-      <div className="members-glow-accent" />
-
       <div className="relative z-[1] mx-auto w-full max-w-[1440px]">
         <header className="scroll-reveal grid gap-6 pb-7 text-left lg:grid-cols-[1fr_auto] lg:items-end">
           <div>

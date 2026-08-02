@@ -96,7 +96,7 @@ export default function Plan() {
   return (
     <section
       id="plan"
-      className="plan-bg relative flex min-h-screen min-h-[100svh] w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-20 sm:px-8 sm:py-24 md:gap-16"
+      className="plan-bg relative flex w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-24 sm:px-8 sm:py-32 md:gap-16 lg:py-36"
     >
       {/* 헤더 */}
       <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
