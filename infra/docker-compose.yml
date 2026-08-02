@@ -21,7 +21,12 @@ services:
     image: ghcr.io/likelion-khu-official/website/backend:${STAGE_TAG:-stage-latest}
     mem_limit: 4g
     ports:
-      - "8081:8080"
+      # 127.0.0.1 바인딩(2026-08-03, 보안 감사 계기) — 예전엔 0.0.0.0:8081이라 OCI Security
+      # List가 유일한 방어선이었다(호스트 자체는 외부 접속을 순순히 받았음, ss -tlnp로 실측
+      # 확인). 헬스체크·디버깅은 SSH 접속 후 localhost로 하므로 127.0.0.1 바인딩으로도
+      # 똑같이 되고, nginx는 이 호스트 포트가 아니라 도커 내부 네트워크(backend-stage:8080)로
+      # 붙으므로 영향 없다.
+      - "127.0.0.1:8081:8080"
     env_file:
       - .env.stage
     environment:
@@ -39,7 +44,8 @@ services:
     image: ghcr.io/likelion-khu-official/website/backend:${PROD_TAG:-prod-latest}
     mem_limit: 6g
     ports:
-      - "8080:8080"
+      # 127.0.0.1 바인딩(2026-08-03, 보안 감사 계기) — backend-stage와 동일 이유.
+      - "127.0.0.1:8080:8080"
     env_file:
       - .env.prod
     environment:
