@@ -190,7 +190,7 @@ class RecruitmentOpenEmailHttpEndToEndIntegrationTest {
             JsonNode detail = getJson("/api/v1/message/" + summary.get("ID").asText());
             assertThat(detail.get("HTML").asText())
                     .as("%s에게 간 메일의 링크", to)
-                    .contains("href=\"https://dev.likelion-khu.com\"");
+                    .contains("href=\"https://dev.likelion-khu.com/apply\"");
         }
         assertThat(countMessagesAmong(subscribers))
                 .as("구독자당 정확히 1통 — 락이 없었다면 여기서 15보다 컸을 것")
