@@ -16,7 +16,7 @@
 
 ### 실제 일하는 방식
 
-`infra/RUNBOOK.md`와 관련 문서들은 한 번에 완성되지 않았다. 아래 순서를 반복하면서 만들어졌고, 앞으로도 이 순서를 그대로 가져가면 된다:
+`infra/docs/RUNBOOK.md`와 관련 문서들은 한 번에 완성되지 않았다. 아래 순서를 반복하면서 만들어졌고, 앞으로도 이 순서를 그대로 가져가면 된다:
 
 1. **알람을 기다리지 않고 스스로 이상한 걸 찾는다.** 문서 작업을 하다가도 "이 설명이 지금 실제 서버 상태랑 맞나?"를 계속 의심해본다. 실제로 이 과정에서 `infra/CLAUDE.md`의 "미결 사항"에 이미 끝난 일이 안 지워진 채 남아있는 것, nginx에 안 쓰는 인증서가 남아있는 것, 스테이징 도메인 설명이 실제 nginx.conf와 어긋나는 것, 서버의 `dev` 브랜치가 GitHub과 갈라져 있는 것을 전부 이런 방식으로 찾아냈다.
 2. **스스로 판단할 수 있는 것(기술적으로 어떻게 할지의 문제고, 위험이 작고 되돌리기도 쉬운 것)은 조사해서 바로 고친다.** 문서가 실제와 어긋난 부분을 바로잡거나, 위험한 명령을 안전한 걸로 바꾸거나, 로그 정리를 자동화하는 것 같은 일들 — 이런 건 매번 허락받지 않는다. 대신 **왜 고쳤는지는 커밋 메시지나 문서에 반드시 남긴다.**
@@ -57,7 +57,7 @@
 | docker compose 스택 상태 파악 | `docker compose -f ~/website/infra/docker-compose.yml ps`, `... logs --tail=100 <service>` (`-f` 경로 빠뜨리면 기본 디렉터리에서 compose 파일을 못 찾음 — 2026-07-26 PM 리뷰로 발견) |
 | 수동 배포·롤백 | [`RUNBOOK.md`](./RUNBOOK.md)의 "자주 쓰는 명령" — **태그를 반드시 명시**해야 한다(미지정 시 위험, learnings 참고) |
 | DB 접근 계정 발급 | `infra/.claude/skills/db-access/` 스킬 또는 `db-access.md` "온보딩" 절 — 공개키 등록은 서버에서 사람이 직접(자동화 안 함, 의도적) |
-| `db-man` 스킬 유지보수 | [`../backend/.claude/skills/db-man/SKILL.md`](../backend/.claude/skills/db-man/SKILL.md) — 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 **장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 지금도 관리하는 스킬**이다. 백엔드가 엔티티(`@Entity`/`@Column`/`@JoinColumn`/`@GeneratedValue` 등)를 바꿀 때 마이그레이션 파일(`db/migration/V{n}__*.sql`)을 빠뜨리지 않게 잡아주고, SQLite `ALTER` 제약·PK/FK 타입 짝·CD 롤백이 스키마까지는 안 되돌린다는 함정을 스킬 안에 담아둔 것 — `db-access.md`(접속·권한)와는 역할이 다르다(이건 스키마 변경 시점의 안전장치). **`db-access` 스킬과 같이 인수인계해야 한다** — 위치가 backend/라고 백엔드 팀 소관으로 착각하지 말 것. |
+| `db-man` 스킬 유지보수 | [`backend/.claude/skills/db-man/SKILL.md`](../../backend/.claude/skills/db-man/SKILL.md) — 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 **장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 지금도 관리하는 스킬**이다. 백엔드가 엔티티(`@Entity`/`@Column`/`@JoinColumn`/`@GeneratedValue` 등)를 바꿀 때 마이그레이션 파일(`db/migration/V{yyyyMMddHHmmss}__*.sql`)을 빠뜨리지 않게 잡아주고, SQLite `ALTER` 제약·PK/FK 타입 짝·CD 롤백이 스키마까지는 안 되돌린다는 함정을 스킬 안에 담아둔 것 — `db-access.md`(접속·권한)와는 역할이 다르다(이건 스키마 변경 시점의 안전장치). **`db-access` 스킬과 같이 인수인계해야 한다** — 위치가 backend/라고 백엔드 팀 소관으로 착각하지 말 것. |
 | OCI 콘솔·CLI 조작 | 콘솔: `Observability & Management → Monitoring`(컴파트먼트 루트, 리전 `ap-tokyo-1`). CLI: `~/.oci/config` 자격증명, JSON 인자 있는 명령은 **Bash로**(PowerShell 인코딩 문제) |
 | 비용 한도 점검 | `infra/CLAUDE.md`의 Always Free 표와 실사용량 대조 — 알림이 없는 항목이라 사람이 주기적으로 봐야 함(아래 "평소 루틴" 참고) |
 | SSL 인증서 상태 확인 | `sudo certbot certificates` 또는 `/etc/letsencrypt/live/likelion-khu.com-0001/` 만료일 확인 (certbot이 자동 갱신하지만 실패 시 알림이 없음) |
@@ -73,7 +73,7 @@
 
   OCI 콘솔 → **Dashboards**(좌측 메뉴, `Management Dashboards`가 아니라 이거) → 대시보드 그룹 안에 2026-07-27에 만든 대시보드 하나가 있음 — 이름으로 찾아 열면 된다(URL 자체엔 OCID가 포함돼 있어서 공개 레포인 이 문서엔 안 남긴다).
 
-  구성: 디스크%·메모리%·CPU%·git드리프트 개수 한 그래프(전부 mean, git드리프트만 max — RUNBOOK 알람 쿼리와 같은 통계) + 백업 성공(prod/stage) 신호 별도. **위젯 저장 시 "No data to display"가 뜨면 interval을 위젯 자체가 아니라 대시보드 상단 Filters(전역 time range)에서 맞춰야 한다** — 위젯 개별 설정은 편집 중 미리보기에만 반영되고 저장 후엔 대시보드 전역 필터를 따라가는 것으로 보인다(2026-07-27 실측, 정확한 매커니즘은 미확인). **백업 신호가 끊김 없이 쭉 이어져 보여도 자동화가 안 끊겼다는 뜻은 아니다** — 수동 복구도 같은 신호를 남기므로 "데이터가 보호되고 있었나"만 알 수 있다(`infra/observability.md` 참고). **x축 날짜 눈금이 이상하게(같은 월/일에 연도만 다르게, 예: `7/27/26`과 `7/27/25`가 같이) 보일 수 있는데, 7일 같은 짧은 range에서 이런 조합은 실제로 나올 수 없는 값이라 데이터 문제가 아니라 콘솔 차트 라이브러리의 날짜축 표시 버그/로케일 이슈로 추정된다(2026-07-27 관찰, 원인 미확인) — 그래프의 실제 값이 최근 추이와 맞으면 무시해도 된다.**
+  구성: 디스크%·메모리%·CPU%·git드리프트 개수 한 그래프(전부 mean, git드리프트만 max — RUNBOOK 알람 쿼리와 같은 통계) + 백업 성공(prod/stage) 신호 별도. **위젯 저장 시 "No data to display"가 뜨면 interval을 위젯 자체가 아니라 대시보드 상단 Filters(전역 time range)에서 맞춰야 한다** — 위젯 개별 설정은 편집 중 미리보기에만 반영되고 저장 후엔 대시보드 전역 필터를 따라가는 것으로 보인다(2026-07-27 실측, 정확한 매커니즘은 미확인). **백업 신호가 끊김 없이 쭉 이어져 보여도 자동화가 안 끊겼다는 뜻은 아니다** — 수동 복구도 같은 신호를 남기므로 "데이터가 보호되고 있었나"만 알 수 있다(`infra/docs/observability.md` 참고). **x축 날짜 눈금이 이상하게(같은 월/일에 연도만 다르게, 예: `7/27/26`과 `7/27/25`가 같이) 보일 수 있는데, 7일 같은 짧은 range에서 이런 조합은 실제로 나올 수 없는 값이라 데이터 문제가 아니라 콘솔 차트 라이브러리의 날짜축 표시 버그/로케일 이슈로 추정된다(2026-07-27 관찰, 원인 미확인) — 그래프의 실제 값이 최근 추이와 맞으면 무시해도 된다.**
 
   Metrics Explorer로 직접 쿼리를 만들고 싶으면(`Observability & Management → Monitoring → Metrics Explorer`, 컴파트먼트 루트, 리전 `ap-tokyo-1`) 네임스페이스가 `custom_likelion`(디스크%·백업 신호·git드리프트)과 `oci_computeagent`(메모리·CPU, 네이티브)로 나뉘어 있으니 둘 다 쿼리에 추가해야 하고, 리소스는 인스턴스 하나뿐이라 `resourceId = <인스턴스 OCID>`로 필터링하면 된다(OCID는 OCI 콘솔 인스턴스 상세 페이지 또는 `oci compute instance list`로 확인 — 공개 레포라 여기 값 자체는 안 남긴다).
 - **가끔(분기에 한 번 정도), 관련 문서들이 서버의 실제 상태와 맞는지 직접 확인한다** — "문서에 이렇게 적혀 있으니 맞겠지"라고 그냥 믿지 말고, SSH로 들어가 크론·인증서·DNS·docker compose 상태를 직접 까본다. 실제로 이런 식으로 점검하다가, 오래전에 끝났는데 안 지워진 "미결 사항", 더는 안 쓰는 인증서, 문서끼리 서로 어긋나는 부분을 여러 건 찾아낸 전례가 있다 — 이건 우연이 아니라, **문서는 시간이 지나면 실제 상태와 어긋나기 마련**이라는 전제 위에서 정기적으로 점검해야 하는 이유다.
@@ -124,7 +124,7 @@
 
 - **OCI 계정** — Administrators 그룹 소속이 장찬욱 개인 계정. 서버 SSH(`ubuntu`, sudo 권한)도 장찬욱 로컬 키 하나뿐.
 - **알림 수신자** — OCI Monitoring 알람(디스크·메모리·백업 부재·git 드리프트)은 ONS 토픽 `likelion-ops-alerts`에 **의도적으로 개인 메일 기반**(장찬욱·김우진)으로 구독돼 있음. 동아리 공용 Outlook 계정으로 통합을 시도했으나 구독 확인 메일만 오고 실제 알람 메일은 안 오는 걸 실측으로 확인해(2026-07-27, `pm/docs/learnings.md` 참고) 포기하고 개인 메일 기반을 유지 중 — 그래서 **인수인계 때마다 다음 담당자 개인 메일을 구독자로 추가하고, 반드시 알람을 한 번 실제로 발동시켜 수신까지 검증한 뒤에야 이전 담당자 메일을 뺀다**(아래 "계정 인벤토리" 참고). UptimeRobot(외부 가동 감시)은 동아리 메일 + Discord 웹훅.
-- **DB 접근 계정(`dbclient`/`dbtunnel`) 등록** — 새 팀원이 DB에 접근하려면 장찬욱이 서버에 SSH로 들어가 공개키를 수동 등록해야 한다. 셀프서비스가 아니다. (자동화 안 한 이유: 공유 서버에 새 SSH 접근 수단을 만드는 일이라 의도적으로 사람이 직접 하게 해둠 — `infra/db-access.md`)
+- **DB 접근 계정(`dbclient`/`dbtunnel`) 등록** — 새 팀원이 DB에 접근하려면 장찬욱이 서버에 SSH로 들어가 공개키를 수동 등록해야 한다. 셀프서비스가 아니다. (자동화 안 한 이유: 공유 서버에 새 SSH 접근 수단을 만드는 일이라 의도적으로 사람이 직접 하게 해둠 — `infra/docs/db-access.md`)
 - **OCI 무료 티어 한도** — 넘으면 카드 과금(`infra/CLAUDE.md`에 표로 정리돼 있으나, "지금 얼마나 여유가 있는지" 자체를 주기적으로 확인하는 사람이 필요함 — 자동 알림 없음).
 
 ### 알림 — 김우진 질문에 대한 답
@@ -172,7 +172,7 @@
 | `backup-svc@likelion-khu.com` (백업 버킷 전용 IAM) | 서버 `infra/.env.backup`(레포엔 없음) | `likelion-backups` 버킷 업로드 자격증명(Customer Secret Key) | 사람 계정이 아니라 서비스 계정 — `ubuntu` SSH만 승계되면 서버 파일 그대로 자동 승계된다. 유출 의심될 때만 OCI 콘솔(Administrators 권한)에서 회전. |
 | `smtp-mailer` (이메일 발송 전용 IAM) | 서버 `.env.stage`/`.env.prod`(레포엔 없음) | 발송 SMTP 인증(prod/stage 자격증명 분리) | 위와 동일 — `ubuntu` 승계로 자동 커버. 로테이션은 Administrators 권한 필요(유저당 자격증명 최대 2개라 이미 꽉 참, 지우고 재발급). |
 | `dbclient`/`dbtunnel` 공개키 등록 권한 | 별도 계정이 아니라 `ubuntu`(서버 sudo)로 직접 등록하는 작업 | 팀원 DB 조회·조작 접근(`db-access.md`) | 별도로 넘길 게 없음 — `ubuntu` SSH가 넘어가면 이 등록 권한도 함께 넘어간다. |
-| 팀 Discord 서버 멤버십 | 서버 자체(계정 아님) | UptimeRobot DOWN/UP 알림이 이 서버 채널에 웹훅으로 옴(`infra/uptime-monitoring.md`) — 체크 자체는 이메일과 똑같이 5분 간격(UptimeRobot 무료 플랜 고정값)이지만, **감지된 이후 전달 속도**는 Discord가 더 빠르다(웹훅 초 단위 vs 이메일은 SMTP 처리로 몇 분 늦을 수 있음, 실측: `uptime-monitoring.md`) — "Discord라서 더 자주 체크한다"는 뜻이 아니니 혼동 금지 | 후임자를 서버에 초대. 웹훅이 이미 채널에 연결돼 있어 참여만 하면 바로 알림을 받는다 — 별도 설정 불필요. |
+| 팀 Discord 서버 멤버십 | 서버 자체(계정 아님) | UptimeRobot DOWN/UP 알림이 이 서버 채널에 웹훅으로 옴(`infra/docs/uptime-monitoring.md`) — 체크 자체는 이메일과 똑같이 5분 간격(UptimeRobot 무료 플랜 고정값)이지만, **감지된 이후 전달 속도**는 Discord가 더 빠르다(웹훅 초 단위 vs 이메일은 SMTP 처리로 몇 분 늦을 수 있음, 실측: `uptime-monitoring.md`) — "Discord라서 더 자주 체크한다"는 뜻이 아니니 혼동 금지 | 후임자를 서버에 초대. 웹훅이 이미 채널에 연결돼 있어 참여만 하면 바로 알림을 받는다 — 별도 설정 불필요. |
 
 **새 인프라 담당자용 IAM 사용자 만들기 (실제 절차)**:
 

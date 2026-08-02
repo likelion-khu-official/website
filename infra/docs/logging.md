@@ -64,7 +64,7 @@
 | `backend/src/main/resources/application.yml` | `logging.file.name`/`logging.logback.rollingpolicy` — 파일 로깅 + 롤링 정책 |
 | `infra/docker-compose.yml` | `backend-stage`/`backend-prod`에 `LOG_FILE_PATH` 환경변수 + `./logs/{stage,prod}:/app/logs` 볼륨 |
 | `infra/logs/{stage,prod}/` | 실제 로그 파일 저장 위치 (서버에만 존재, gitignore) — 파일명 = 배포 태그(`stage-<sha>.log`) |
-| `infra/scripts/cleanup-old-logs.sh` | 30일 넘은 로그 파일 자동 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — cron `0 19 * * *` |
+| `infra/scripts/cleanup-old-logs.sh` | 30일 넘은 로그 파일 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — 목표 cron `0 19 * * *` |
 
 ## 실측 검증 (2026-07-22)
 
@@ -74,5 +74,5 @@
 
 ## 미결 사항
 
-- ~~배포가 잦아지면 `infra/logs/{stage,prod}/` 아래 버전별 파일이 무한정 쌓인다~~ → 완료(2026-07-26). `infra/cleanup-old-logs.sh`가 30일 넘은 로그 파일을 매일 자동 삭제(cron `0 19 * * *`, 백업 cron 직후) — 사람이 수동으로 정리하던 걸 없앴다. 30일은 `backup-db.sh`의 원격 보관 기간과 맞춘 값, 필요하면 스크립트 상단 `RETENTION_DAYS`만 바꾸면 됨.
+- `infra/scripts/cleanup-old-logs.sh` 구현은 완료됐지만, 2026-07-27 `infra/` 루트에서 `infra/scripts/`로 옮긴 뒤 서버 crontab 경로 갱신은 확인이 필요하다. 확인 전에는 "매일 자동 삭제 중"으로 간주하지 않는다. 목표는 cron `0 19 * * *`(백업 cron 직후)로 30일 넘은 로그를 지우는 것 — 30일은 `infra/scripts/backup-db.sh`의 원격 보관 기간과 맞춘 값이며, 필요하면 스크립트 상단 `RETENTION_DAYS`만 바꾸면 된다. 실제 등록 명령은 `infra/CLAUDE.md`의 미결 사항 참고.
 - 중복 접두사로 남은 `stage-stage-....log` 잔존 파일 — 위 cron이 30일 지나면 이것도 같이 정리하므로 별도 조치 불필요.

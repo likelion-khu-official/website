@@ -24,7 +24,7 @@ OCI Monitoring
   └── 전부 같은 ONS Topic으로 발행
 
 OCI Notifications (ONS)
-  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/handoff.md` "계정 인벤토리" 참고)
+  └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/docs/handoff.md` "계정 인벤토리" 참고)
 ```
 
 ## IAM — instance principal
@@ -54,7 +54,7 @@ OCI Notifications (ONS)
 
 **디스크 사용률이 custom metric인 이유**: OCI의 Compute Instance Monitoring 플러그인은 CPU/메모리/디스크 I/O(바이트·IOPS)는 기본 제공하지만 "디스크가 몇 % 찼는가"는 제공하지 않음(공식 문서로 확인 — 하이퍼바이저/블록스토리지 레벨에선 파일시스템 내부를 모름, OS 안에서만 알 수 있는 정보). 그래서 서버 위 스크립트가 직접 `df` 값을 계산해서 채워 넣음.
 
-**git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복 — 당시엔 `git pull`이 이런 충돌에 조용히 실패하는 방식이었음, 2026-07-30부터는 `git reset --hard`라 이 특정 실패 양상 자체는 덜 나지만 "낯선 파일이 있다"는 신호로서의 가치는 여전함). `infra/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
+**git 드리프트 감지 이유**: 배포 서버의 git 워킹트리가 SSH로 직접 수정되거나 gitignore 안 된 낯선 파일이 생기면(사람이 직접 고쳤든, 미머지 브랜치 검증을 서버에서 먼저 했든) 다음 배포부터 계속 깨진다(실제 사고: 서버가 몇 주째 옛날 커밋에 고정된 채 배포마다 롤백만 반복 — 당시엔 `git pull`이 이런 충돌에 조용히 실패하는 방식이었음, 2026-07-30부터는 `git reset --hard`라 이 특정 실패 양상 자체는 덜 나지만 "낯선 파일이 있다"는 신호로서의 가치는 여전함). `infra/scripts/push-git-drift-metric.py`가 `git status --porcelain` 라인 수를 그대로 메트릭 값으로 씀 — gitignore된 파일(`.env.*`, `infra/nginx.conf`, `infra/data/`, `infra/.prev_backend_tag_*`)은 애초에 `git status`에 안 잡히므로 "서버 전용 정상 파일"과 "git이 몰라야 하는데 존재하는 파일"이 자동으로 구분됨.
 
 **알려진 사각지대였던 것 — 해소됨(2026-07-26 발견 → 2026-07-30 정리)**: 이 알람은 `git status --porcelain`(작업트리의 미커밋 변경)만 본다 — **서버 로컬 브랜치가 이미 커밋된 채로 `origin`과 갈라져 있는 것(diverged)은 이 알람으로는 못 잡는다.** 실제로 서버의 `dev`가 `origin/dev`와 최대 54커밋(로컬 전용)까지 분기됐던 적이 있는데, 워킹트리는 clean이라 이 알람은 계속 OK였다. 원인은 서버 배포 키가 read-only인데 `git pull`(=fetch+merge)을 써서, 그 pull이 만드는 병합 커밋을 다시 push 못 해 배포할 때마다 쌓인 것 — `git reset --hard origin/<브랜치>`로 정리했고, `cd.yml`도 이제 pull 대신 reset을 써서 이 어긋남 자체가 구조적으로 다시 안 쌓인다(`infra/CLAUDE.md` "서버 dev 동기화" 절 참고). 대응은 [`RUNBOOK.md`](./RUNBOOK.md#cheat-sheet) "자주 쓰는 명령" 절 참고.
 
