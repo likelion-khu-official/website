@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SkeletonRows } from './AdminLoading';
 import Link from 'next/link';
 import type { AdminComment } from '@shared/types/feed';
 import {
@@ -176,7 +177,7 @@ export default function CommentModeration() {
       {rowError && <p role="alert" className="mt-4 text-sm text-red-400">{rowError}</p>}
 
       {loading ? (
-        <p className="py-20 text-center text-sm text-muted">댓글을 불러오고 있어요…</p>
+        <SkeletonRows count={4} rowClassName="h-28 w-full rounded-2xl" />
       ) : loadError ? (
         <div className="flex flex-col items-center gap-4 py-20 text-center">
           <p className="text-sm text-muted">{loadError}</p>
