@@ -11,6 +11,7 @@ import DeviceAnalyticsPanel from './DeviceAnalyticsPanel';
 import SectionReachAnalyticsPanel from './SectionReachAnalyticsPanel';
 import KeyClickAnalyticsPanel from './KeyClickAnalyticsPanel';
 import NotificationSignupAnalyticsPanel from './NotificationSignupAnalyticsPanel';
+import PopularTimeAnalyticsPanel from './PopularTimeAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -380,6 +381,8 @@ export default function AnalyticsDashboard() {
         key={`notification-signups:${query.from}:${query.to}:${query.interval}`}
         query={query}
       />
+
+      <PopularTimeAnalyticsPanel key={`popular-times:${query.from}:${query.to}`} query={query} />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="top-pages-title">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">

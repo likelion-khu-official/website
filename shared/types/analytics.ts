@@ -152,3 +152,22 @@ export interface NotificationSignupAnalyticsResponse {
   totalSignups: number;
   series: NotificationSignupTimePoint[];
 }
+
+export type AnalyticsWeekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface PopularHourTotal {
+  hour: number;
+  views: number;
+}
+
+export interface PopularWeekdayTotal {
+  day: AnalyticsWeekday;
+  views: number;
+}
+
+export interface PopularTimeAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  hours: PopularHourTotal[];
+  weekdays: PopularWeekdayTotal[];
+}
