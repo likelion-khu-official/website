@@ -121,7 +121,7 @@ export default function RecruitmentManagement() {
             {submitting ? '처리 중…' : status.open ? '모집 종료' : '모집 시작'}
           </button>
           <a
-            href="/recruit?preview=1"
+            href="/apply?preview=1"
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-full border border-white/20 px-5 py-2.5 text-sm text-white transition-colors hover:bg-white/10"
@@ -134,7 +134,7 @@ export default function RecruitmentManagement() {
       </div>
 
       <p className="mt-6 text-xs text-muted">
-        지원폼이 아직 준비되지 않아, 모집중일 때 방문자에게는 임시 안내 문구가 보여요(지원폼 완성 후 교체 예정 — #152).
+        미리보기는 모집 상태를 바꾸지 않고 현재 저장된 지원폼을 보여줘요.
       </p>
     </div>
   );

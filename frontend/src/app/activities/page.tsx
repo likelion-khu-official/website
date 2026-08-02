@@ -1,7 +1,6 @@
+import { redirect } from 'next/navigation';
+
+// 연간 활동 계획의 정본 화면은 랜딩 섹션이다. 옛 URL은 해당 섹션으로 연결한다.
 export default function ActivitiesPage() {
-  return (
-    <main className="flex min-h-screen min-h-[100svh] items-center justify-center px-5 text-center">
-      <p className="text-sm text-gray-400">활동 — 준비 중이에요.</p>
-    </main>
-  );
+  redirect('/#plan');
 }

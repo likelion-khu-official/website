@@ -26,7 +26,7 @@ type Phase = 'loading' | 'closed' | 'open' | 'done' | 'error';
 const inputClass =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-muted outline-none focus:border-white/30 disabled:opacity-40';
 
-export default function ApplyForm() {
+export default function ApplyForm({ preview = false }: { preview?: boolean }) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [schema, setSchema] = useState<ApplicationFormSchema | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -38,11 +38,13 @@ export default function ApplyForm() {
     let cancelled = false;
     (async () => {
       try {
-        const status = await getRecruitmentStatus();
-        if (cancelled) return;
-        if (!status.open) {
-          setPhase('closed');
-          return;
+        if (!preview) {
+          const status = await getRecruitmentStatus();
+          if (cancelled) return;
+          if (!status.open) {
+            setPhase('closed');
+            return;
+          }
         }
         const form = await getApplicationForm();
         if (cancelled) return;
@@ -55,7 +57,7 @@ export default function ApplyForm() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preview]);
 
   // 세션별 조건부 질문은 "첫 번째 track 질문"(=1지망)의 답에 따라 노출된다(#152 계약).
   const primaryTrackId = useMemo(
