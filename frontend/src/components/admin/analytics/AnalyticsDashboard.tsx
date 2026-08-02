@@ -10,6 +10,7 @@ import RecruitmentApplicationCard from './RecruitmentApplicationCard';
 import DeviceAnalyticsPanel from './DeviceAnalyticsPanel';
 import SectionReachAnalyticsPanel from './SectionReachAnalyticsPanel';
 import KeyClickAnalyticsPanel from './KeyClickAnalyticsPanel';
+import NotificationSignupAnalyticsPanel from './NotificationSignupAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -373,6 +374,11 @@ export default function AnalyticsDashboard() {
         key={`clicks:${query.from}:${query.to}:${query.interval}:${query.clickAction ?? 'all'}`}
         query={query}
         onChange={replaceQuery}
+      />
+
+      <NotificationSignupAnalyticsPanel
+        key={`notification-signups:${query.from}:${query.to}:${query.interval}`}
+        query={query}
       />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="top-pages-title">

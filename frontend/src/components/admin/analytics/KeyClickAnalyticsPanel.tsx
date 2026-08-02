@@ -96,6 +96,7 @@ export default function KeyClickAnalyticsPanel({
             <AnalyticsTimeSeriesChart
               points={data.series.map((point) => ({ date: point.date, views: point.clicks }))}
               label={`${selectedLabel} 클릭`}
+              valueLabel="클릭 수"
             />
           </div>
           <div className="overflow-x-auto">

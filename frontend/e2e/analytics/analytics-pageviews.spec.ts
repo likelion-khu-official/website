@@ -9,6 +9,7 @@ const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-adm
 const deviceEvidenceDir = path.resolve(__dirname, '../../../pm/missions/386-admin-analytics-device-ratio/evidence');
 const sectionEvidenceDir = path.resolve(__dirname, '../../../pm/missions/387-admin-analytics-section-reach/evidence');
 const clickEvidenceDir = path.resolve(__dirname, '../../../pm/missions/388-admin-analytics-key-clicks/evidence');
+const notificationEvidenceDir = path.resolve(__dirname, '../../../pm/missions/389-admin-analytics-notification-signups/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
@@ -156,6 +157,20 @@ test.beforeEach(async ({ context, page }) => {
           clicks: Math.max(0, Math.round(point.views * totalClicks / 1_474) + (index % 3)),
         })),
         clicks,
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/notification-signups**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalSignups: 137,
+        series: series.map((point, index) => ({
+          date: point.date,
+          signups: Math.max(0, Math.round(point.views * 0.08) + (index % 4 === 0 ? 1 : 0) + (index < 13 ? 1 : 0)),
+        })),
       }),
     });
   });
@@ -361,4 +376,29 @@ test('주요 행동별·위치별 클릭과 표준 hover 추이를 함께 확인
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await panel.screenshot({ path: path.join(clickEvidenceDir, 'mobile-apply-clicks.png') });
+});
+
+test('DB에 실제로 생긴 모집 알림 신청과 날짜별 추이를 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '모집 알림 신청' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByLabel('새 모집 알림 신청 137건')).toBeVisible();
+  await expect(page.getByText(/버튼 클릭이 아니라 DB에 새로 저장된 유효 신청만 셉니다/)).toBeVisible();
+  await expect(page.getByText(/이메일 주소는 이 화면에 보내지 않아요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /새 모집 알림 신청 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('모집 알림 신청 추이 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.76, chartBox.y + chartBox.height * 0.4);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('모집 알림 신청 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(notificationEvidenceDir, 'desktop-signups-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(notificationEvidenceDir, 'mobile-signups.png') });
 });

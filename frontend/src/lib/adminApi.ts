@@ -54,6 +54,7 @@ import type {
   DeviceAnalyticsResponse,
   SectionReachAnalyticsResponse,
   KeyClickAnalyticsResponse,
+  NotificationSignupAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -173,6 +174,20 @@ export function getKeyClickAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/clicks?${params.toString()}`,
     {},
     '주요 클릭 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getNotificationSignupAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  return request<NotificationSignupAnalyticsResponse>(
+    `/analytics/notification-signups?${params.toString()}`,
+    {},
+    '모집 알림 신청 현황을 불러오지 못했어요.',
     true
   );
 }

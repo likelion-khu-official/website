@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getNotificationSignupAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -21,6 +21,7 @@ vi.mock('@/lib/adminApi', () => ({
   getDeviceAnalytics: vi.fn(),
   getSectionReachAnalytics: vi.fn(),
   getKeyClickAnalytics: vi.fn(),
+  getNotificationSignupAnalytics: vi.fn(),
 }));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
   default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
@@ -120,6 +121,15 @@ const keyClickResponse = {
   ],
 };
 
+const notificationSignupResponse = {
+  range: response.range,
+  totalSignups: 37,
+  series: [
+    { date: '2026-08-01', signups: 15 },
+    { date: '2026-08-02', signups: 22 },
+  ],
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -132,6 +142,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getDeviceAnalytics).mockReset();
     vi.mocked(getSectionReachAnalytics).mockReset();
     vi.mocked(getKeyClickAnalytics).mockReset();
+    vi.mocked(getNotificationSignupAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
     vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
@@ -140,6 +151,7 @@ describe('AnalyticsDashboard', () => {
     vi.mocked(getDeviceAnalytics).mockResolvedValue(deviceResponse);
     vi.mocked(getSectionReachAnalytics).mockResolvedValue(sectionReachResponse);
     vi.mocked(getKeyClickAnalytics).mockResolvedValue(keyClickResponse);
+    vi.mocked(getNotificationSignupAnalytics).mockResolvedValue(notificationSignupResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -163,6 +175,9 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('29')).toBeInTheDocument();
     expect(screen.getByText('지원서 화면')).toBeInTheDocument();
     expect(screen.getByText(/지원 접수·알림 신청 성공 건수와는 다를 수 있어요/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '모집 알림 신청' })).toBeInTheDocument();
+    expect(screen.getByLabelText('새 모집 알림 신청 37건')).toBeInTheDocument();
+    expect(screen.getByText(/같은 이메일의 반복 요청과 봇 요청은 늘어나지 않으며/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
     expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
     expect(screen.getAllByText('숨김')).toHaveLength(2);

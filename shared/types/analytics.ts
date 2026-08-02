@@ -141,3 +141,14 @@ export interface KeyClickAnalyticsResponse {
   series: KeyClickTimePoint[];
   clicks: KeyClickTotal[];
 }
+
+export interface NotificationSignupTimePoint {
+  date: string;
+  signups: number;
+}
+
+export interface NotificationSignupAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalSignups: number;
+  series: NotificationSignupTimePoint[];
+}
