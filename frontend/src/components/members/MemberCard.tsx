@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
-import { ROLE_LABELS } from '@/lib/roster';
+import { ROLE_LABELS, cardColor } from '@/lib/roster';
 
 const ROLE_ORDER: MemberRole[] = [
   'PRESIDENT', 'VICE_PRESIDENT',
@@ -11,44 +11,6 @@ const ROLE_ORDER: MemberRole[] = [
   'PR_HEAD', 'PR_MEMBER',
   'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
 ];
-
-const CARD_COLORS = [
-  ['#f47f83', '#111111'],
-  ['#4b268d', '#ffffff'],
-  ['#58f34f', '#111111'],
-  ['#ff2424', '#111111'],
-  ['#050505', '#ffffff'],
-  ['#f7f7f3', '#111111'],
-  ['#fff431', '#111111'],
-  ['#c9ff8a', '#111111'],
-  ['#ff0064', '#ffffff'],
-  ['#ffdeaf', '#111111'],
-  ['#1d3e7c', '#ffffff'],
-  ['#8d35cb', '#ffffff'],
-  ['#ffaa51', '#111111'],
-  ['#555555', '#ffffff'],
-  ['#ffb400', '#111111'],
-  ['#ca2f36', '#ffffff'],
-  ['#00b89c', '#111111'],
-  ['#3978e9', '#ffffff'],
-  ['#c9b6ff', '#111111'],
-  ['#ff8c6b', '#111111'],
-  ['#237a3b', '#ffffff'],
-  ['#47dde8', '#111111'],
-  ['#731c45', '#ffffff'],
-  ['#f05587', '#111111'],
-  ['#3e3acb', '#ffffff'],
-  ['#8dd6ff', '#111111'],
-  ['#b7ef43', '#111111'],
-  ['#ff9c96', '#111111'],
-  ['#7d451d', '#ffffff'],
-  ['#63e8c6', '#111111'],
-  ['#743a77', '#ffffff'],
-  ['#e2ba36', '#111111'],
-  ['#e83d63', '#ffffff'],
-  ['#536b91', '#ffffff'],
-  ['#e9cfa7', '#111111'],
-] as const;
 
 function TrackMark({ role }: { role: MemberRole }) {
   const props = {
@@ -115,14 +77,14 @@ function TrackMark({ role }: { role: MemberRole }) {
 export default function MemberCard({
   member,
   colorIndex,
+  onSelect,
 }: {
   member: Member;
   colorIndex: number;
+  onSelect: (member: Member) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [lastPhotoUrl, setLastPhotoUrl] = useState(member.photoUrl);
-  const pointerStarted = useRef(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   if (member.photoUrl !== lastPhotoUrl) {
@@ -144,87 +106,44 @@ export default function MemberCard({
     (left, right) => ROLE_ORDER.indexOf(left) - ROLE_ORDER.indexOf(right),
   );
   const primaryRole = roles[0] ?? 'BACKEND';
-  const [backgroundColor, color] = CARD_COLORS[colorIndex % CARD_COLORS.length];
+  const [backgroundColor, color] = cardColor(colorIndex);
 
   return (
     <button
       type="button"
-      aria-expanded={open}
-      aria-label={`${member.name}님의 참여 이유 ${open ? '닫기' : '보기'}`}
+      aria-haspopup="dialog"
+      aria-label={`${member.name}님 소개와 참여 프로젝트 보기`}
       data-track={primaryRole}
-      onPointerDown={() => {
-        pointerStarted.current = true;
-      }}
-      onClick={() => {
-        setOpen((current) => (pointerStarted.current ? !current : true));
-        pointerStarted.current = false;
-      }}
-      onFocus={() => {
-        if (!pointerStarted.current) setOpen(true);
-      }}
-      onBlur={() => {
-        pointerStarted.current = false;
-        setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          setOpen(false);
-          event.currentTarget.blur();
-        }
-      }}
-      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+      onClick={() => onSelect(member)}
+      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] cursor-pointer justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
       style={{ backgroundColor, color }}
     >
       <span className="sr-only">{ROLE_LABELS[primaryRole]} 트랙</span>
 
-      <span
-        className={`absolute inset-0 transition-opacity duration-200 ${open ? 'opacity-0' : 'opacity-100'}`}
-        aria-hidden={open}
-      >
-        <span className="absolute right-[9%] top-[7.4%]">
-          <TrackMark role={primaryRole} />
-        </span>
-
-        <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-          {member.photoUrl && !imgError ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              ref={imgRef}
-              src={member.photoUrl}
-              alt=""
-              className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
-              {member.emoji}
-            </span>
-          )}
-        </span>
-
-        <span className="absolute inset-x-3 bottom-[11.6%] truncate text-center text-[clamp(24px,8vw,29px)] font-bold leading-[1.16] tracking-[-0.075em]">
-          {member.name}
-        </span>
+      {/* 세션 구분 표시 — 위치·표현 그대로 유지(#309 범위 밖: 변경 금지) */}
+      <span className="absolute right-[9%] top-[7.4%]">
+        <TrackMark role={primaryRole} />
       </span>
 
-      <span
-        className={`absolute inset-0 flex flex-col p-3 transition-opacity duration-200 sm:p-[15px] ${
-          open ? 'opacity-100' : 'pointer-events-none opacity-0'
-        }`}
-        aria-hidden={!open}
-      >
-        <span className="flex items-start justify-between gap-2">
-          <span className="text-[10px] font-bold">{ROLE_LABELS[primaryRole]}</span>
-          <TrackMark role={primaryRole} />
-        </span>
-        <span className="flex flex-1 items-center">
-          <span className="line-clamp-7 break-keep text-[clamp(10px,3vw,11px)] font-semibold leading-[1.5] tracking-[-0.025em]">
-            {member.joinReason || '함께 배우고 만들며 성장하고 있어요.'}
+      <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        {member.photoUrl && !imgError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            ref={imgRef}
+            src={member.photoUrl}
+            alt=""
+            className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
+            {member.emoji}
           </span>
-        </span>
-        <span className="truncate text-[clamp(18px,5.5vw,20px)] font-bold leading-[1.16] tracking-[-0.06em]">
-          {member.name}
-        </span>
+        )}
+      </span>
+
+      <span className="absolute inset-x-3 bottom-[11.6%] truncate text-center text-[clamp(24px,8vw,29px)] font-bold leading-[1.16] tracking-[-0.075em]">
+        {member.name}
       </span>
     </button>
   );
