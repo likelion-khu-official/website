@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import NotificationForm from '@/components/NotificationForm';
+import NotificationPanel from '@/components/NotificationPanel';
 import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
+import { useRecruitAlertSubscription } from '@/lib/recruitAlertSubscription';
 import { trackKeyClick } from '@/lib/publicAnalytics';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
+  // 이 브라우저에서 이미 알림을 신청했는지 — 신청 후엔 CTA를 "신청 완료"로 다르게 보여준다.
+  // 신청이 성공하면 markRecruitAlertSubscribed가 이벤트를 쏘고 이 값이 자동으로 갱신된다.
+  const subscribed = useRecruitAlertSubscription();
   // 모집이 열려 있으면 이 자리는 알림 신청 대신 지원폼(/apply)으로 안내한다(#152 · 모집.md).
   const { recruiting } = useRecruitmentStatus();
 
@@ -52,13 +56,38 @@ export default function Recruit() {
                 />
               </svg>
             </Link>
-          ) : open ? (
-            <NotificationForm onClose={() => setOpen(false)} analyticsLocation="LANDING_RECRUIT" />
+          ) : subscribed ? (
+            // 이미 신청한 브라우저 — 채워진 CTA 대신 "신청 완료" 상태로 보여주되, 눌러 다시 신청할 수 있다.
+            <div className="flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label="모집 시작 알림 신청 완료 — 다시 신청하려면 누르기"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/[0.06] px-7 text-[15px] font-semibold text-white/85 outline-none transition-colors hover:border-white/35 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
+              >
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="size-4 text-accent"
+                >
+                  <path d="M4 12.5l5 5L20 6.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                모집 시작 알림 신청 완료
+              </button>
+              <p className="text-[13px] text-white/40">모집이 열리면 이메일로 알려드릴게요.</p>
+            </div>
           ) : (
             <button
               type="button"
               onClick={() => setOpen(true)}
               aria-label="모집 시작 알림 받기"
+              aria-haspopup="dialog"
+              aria-expanded={open}
               className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-7 text-[15px] font-semibold text-white outline-none transition-[background-color,transform] hover:-translate-y-0.5 hover:bg-[#ff6a35] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
             >
               모집 시작 알림 받기
@@ -80,6 +109,9 @@ export default function Recruit() {
           )}
         </div>
       </div>
+
+      {/* 모집 안 열렸을 때만 알림 신청 오버레이(사이드 패널/바텀시트)를 띄운다. */}
+      {!recruiting ? <NotificationPanel open={open} onClose={() => setOpen(false)} /> : null}
     </section>
   );
 }
