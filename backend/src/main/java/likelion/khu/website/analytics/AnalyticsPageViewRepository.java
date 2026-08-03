@@ -15,6 +15,12 @@ public interface AnalyticsPageViewRepository extends JpaRepository<AnalyticsPage
     List<AnalyticsPageView> findAllByOccurredAtGreaterThanEqualAndOccurredAtLessThanAndPathOrderByOccurredAtAsc(
             LocalDateTime from, LocalDateTime toExclusive, String path);
 
+    List<AnalyticsPageView> findAllByOccurredAtGreaterThanEqualAndOccurredAtLessThanAndContentTypeOrderByOccurredAtAsc(
+            LocalDateTime from, LocalDateTime toExclusive, AnalyticsContentType contentType);
+
+    List<AnalyticsPageView> findAllByOccurredAtGreaterThanEqualAndOccurredAtLessThanAndContentTypeAndContentIdOrderByOccurredAtAsc(
+            LocalDateTime from, LocalDateTime toExclusive, AnalyticsContentType contentType, Long contentId);
+
     @Query("""
             select v.path as path, count(v) as views
             from AnalyticsPageView v
@@ -29,5 +35,20 @@ public interface AnalyticsPageViewRepository extends JpaRepository<AnalyticsPage
         String getPath();
         long getViews();
     }
-}
 
+    @Query("""
+            select v.contentId as contentId, count(v) as views
+            from AnalyticsPageView v
+            where v.occurredAt >= :from and v.occurredAt < :toExclusive
+              and v.contentType = :contentType
+            group by v.contentId
+            """)
+    List<ContentViewCount> countByContent(@Param("from") LocalDateTime from,
+                                          @Param("toExclusive") LocalDateTime toExclusive,
+                                          @Param("contentType") AnalyticsContentType contentType);
+
+    interface ContentViewCount {
+        Long getContentId();
+        long getViews();
+    }
+}

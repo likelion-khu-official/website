@@ -73,7 +73,8 @@ class ApplicationAdminControllerTest {
     void list_ByAdmin_ReturnsSchemaAndAnswers() throws Exception {
         applicationRepository.save(new Application(
                 "{\"title\":\"14기 모집\",\"questions\":[{\"id\":\"name\",\"label\":\"이름\",\"type\":\"short_text\",\"required\":true}]}",
-                "{\"name\":\"홍길동\"}"));
+                "{\"name\":\"홍길동\"}",
+                1L));
 
         mockMvc.perform(get("/api/admin/applications"))
                 .andExpect(status().isOk())

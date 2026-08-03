@@ -30,6 +30,9 @@ class RecruitmentManagementServiceTest {
     private RecruitmentStatusRepository statusRepository;
 
     @Mock
+    private RecruitmentRoundLifecycle roundLifecycle;
+
+    @Mock
     private NotificationSubscriptionRepository subscriptionRepository;
 
     @Mock
@@ -46,7 +49,8 @@ class RecruitmentManagementServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new RecruitmentManagementService(statusRepository, subscriptionRepository, emailService, eventPublisher, auditService);
+        service = new RecruitmentManagementService(
+                statusRepository, roundLifecycle, subscriptionRepository, emailService, eventPublisher, auditService);
         ReflectionTestUtils.setField(service, "publicSiteUrl", "https://likelion-khu.com");
     }
 

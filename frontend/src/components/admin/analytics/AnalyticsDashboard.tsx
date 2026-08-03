@@ -2,13 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { getAnalyticsPageViews } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getVisitorAnalytics } from '@/lib/adminApi';
 import AnalyticsTimeSeriesChart from './AnalyticsTimeSeriesChart';
+import BlogAnalyticsPanel from './BlogAnalyticsPanel';
+import ProjectAnalyticsPanel from './ProjectAnalyticsPanel';
+import RecruitmentApplicationCard from './RecruitmentApplicationCard';
+import DeviceAnalyticsPanel from './DeviceAnalyticsPanel';
+import SectionReachAnalyticsPanel from './SectionReachAnalyticsPanel';
+import KeyClickAnalyticsPanel from './KeyClickAnalyticsPanel';
+import NotificationSignupAnalyticsPanel from './NotificationSignupAnalyticsPanel';
+import PopularTimeAnalyticsPanel from './PopularTimeAnalyticsPanel';
+import ContentImpactAnalyticsPanel from './ContentImpactAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
   AnalyticsPageViewQuery,
   AnalyticsPageViewResponse,
+  VisitorAnalyticsResponse,
 } from '@shared/types/analytics';
 
 const QUICK_RANGES = [7, 30, 90] as const;
@@ -41,12 +51,23 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
   const to = isDate(rawTo) ? rawTo : today;
   const validRange = from <= to;
   const page = params.get('page') || undefined;
+  const blogPostId = Number(params.get('blog'));
+  const projectId = Number(params.get('project'));
+  const clickAction = params.get('click');
+  const validClickActions = ['APPLY', 'NOTIFICATION', 'BLOG_MORE', 'PROJECT_MORE', 'PROJECT_GITHUB'];
+  const impactType = params.get('impactType');
+  const impactId = Number(params.get('impact'));
 
   return {
     from: validRange ? from : defaultFrom,
     to: validRange ? to : today,
     interval: interval === 'week' || interval === 'month' ? interval : 'day',
     ...(page ? { page } : {}),
+    ...(Number.isInteger(blogPostId) && blogPostId > 0 ? { blogPostId } : {}),
+    ...(Number.isInteger(projectId) && projectId > 0 ? { projectId } : {}),
+    ...(clickAction && validClickActions.includes(clickAction) ? { clickAction: clickAction as AnalyticsPageViewQuery['clickAction'] } : {}),
+    ...((impactType === 'BLOG_POST' || impactType === 'PROJECT') && Number.isInteger(impactId) && impactId > 0
+      ? { impactType, impactId } : {}),
   };
 }
 
@@ -172,6 +193,9 @@ export default function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [retryIndex, setRetryIndex] = useState(0);
+  const [visitorData, setVisitorData] = useState<VisitorAnalyticsResponse | null>(null);
+  const [visitorLoading, setVisitorLoading] = useState(true);
+  const [visitorError, setVisitorError] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('views');
   const [sortAscending, setSortAscending] = useState(false);
 
@@ -199,11 +223,40 @@ export default function AnalyticsDashboard() {
     };
   }, [query, retryIndex]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getVisitorAnalytics(query)
+      .then((response) => {
+        if (!cancelled) {
+          setVisitorData(response);
+          setVisitorError('');
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setVisitorError(error instanceof Error ? error.message : '순 방문자 현황을 불러오지 못했어요.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVisitorLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [query, retryIndex]);
+
   const replaceQuery = useCallback((next: AnalyticsPageViewQuery) => {
     setLoading(true);
     setLoadError('');
+    setVisitorLoading(true);
+    setVisitorError('');
     const params = new URLSearchParams({ from: next.from, to: next.to, interval: next.interval });
     if (next.page) params.set('page', next.page);
+    if (next.blogPostId) params.set('blog', String(next.blogPostId));
+    if (next.projectId) params.set('project', String(next.projectId));
+    if (next.clickAction) params.set('click', next.clickAction);
+    if (next.impactType && next.impactId) {
+      params.set('impactType', next.impactType);
+      params.set('impact', String(next.impactId));
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [pathname, router]);
 
@@ -241,6 +294,8 @@ export default function AnalyticsDashboard() {
         </p>
       </header>
 
+      <RecruitmentApplicationCard />
+
       <DateRangeControls
         key={`${query.from}:${query.to}`}
         query={query}
@@ -255,12 +310,19 @@ export default function AnalyticsDashboard() {
             <h2 id="views-chart-title" className="mt-2 text-lg font-semibold text-white">{graphLabel} 추이</h2>
             <p className="mt-1 text-sm text-muted">{formatDateRange(query.from, query.to)}</p>
           </div>
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end gap-5">
             <div>
-              <p className="text-xs text-muted">이 기간 합계</p>
+              <p className="flex items-center gap-2 text-xs text-muted"><span className="h-2 w-2 rounded-full bg-accent" aria-hidden="true" />조회수</p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-white">
                 {loading && !data ? '—' : (data?.totalViews ?? 0).toLocaleString('ko-KR')}
                 <span className="ml-1 text-sm font-medium text-muted">회</span>
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-2 text-xs text-muted"><span className="h-2 w-2 rounded-full bg-blue-400" aria-hidden="true" />추정 순 방문자</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-white">
+                {visitorLoading && !visitorData ? '—' : (visitorData?.uniqueVisitors ?? 0).toLocaleString('ko-KR')}
+                <span className="ml-1 text-sm font-medium text-muted">명</span>
               </p>
             </div>
             <label className="text-xs font-medium text-muted">
@@ -291,11 +353,51 @@ export default function AnalyticsDashboard() {
               <p className="mt-2 text-sm text-muted">기간을 넓히거나 다른 페이지를 선택해보세요.</p>
             </div>
           ) : data ? (
-            <AnalyticsTimeSeriesChart points={data.series} label={graphLabel} />
+            <AnalyticsTimeSeriesChart
+              points={data.series}
+              label={graphLabel}
+              comparison={visitorData ? {
+                points: visitorData.series.map((point) => ({ date: point.date, views: point.visitors })),
+                label: query.page ? `${friendlyPageName(query.page)} 추정 순 방문자` : '추정 순 방문자',
+                unit: '명',
+              } : undefined}
+            />
           ) : null}
           {loading && data ? <p className="px-2 text-xs text-muted" role="status">새 조건으로 업데이트하고 있어요…</p> : null}
+          {visitorError ? (
+            <div className="mx-2 mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted" role="alert">
+              <span>조회수는 보이지만 순 방문자는 불러오지 못했어요. {visitorError}</span>
+              <button type="button" onClick={() => { setVisitorLoading(true); setVisitorError(''); setRetryIndex((value) => value + 1); }} className="rounded text-white underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-accent">다시 시도</button>
+            </div>
+          ) : null}
         </div>
+        <p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-muted">
+          조회수는 반복해서 연 횟수까지 모두 세고, 추정 순 방문자는 같은 브라우저의 반복 조회를 선택 기간에 한 명으로 셉니다. 다른 기기나 브라우저 저장공간을 지운 경우에는 별도로 잡힐 수 있어요.
+        </p>
       </section>
+
+      <DeviceAnalyticsPanel key={`devices:${query.from}:${query.to}`} query={query} />
+
+      <SectionReachAnalyticsPanel key={`sections:${query.from}:${query.to}`} query={query} />
+
+      <KeyClickAnalyticsPanel
+        key={`clicks:${query.from}:${query.to}:${query.interval}:${query.clickAction ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
+
+      <NotificationSignupAnalyticsPanel
+        key={`notification-signups:${query.from}:${query.to}:${query.interval}`}
+        query={query}
+      />
+
+      <PopularTimeAnalyticsPanel key={`popular-times:${query.from}:${query.to}`} query={query} />
+
+      <ContentImpactAnalyticsPanel
+        key={`content-impact:${query.from}:${query.to}:${query.impactType ?? 'latest'}:${query.impactId ?? ''}`}
+        query={query}
+        onChange={replaceQuery}
+      />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="top-pages-title">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
@@ -347,6 +449,18 @@ export default function AnalyticsDashboard() {
           </div>
         )}
       </section>
+
+      <BlogAnalyticsPanel
+        key={`blog:${query.from}:${query.to}:${query.interval}:${query.blogPostId ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
+
+      <ProjectAnalyticsPanel
+        key={`project:${query.from}:${query.to}:${query.interval}:${query.projectId ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
 
       <aside className="mt-5 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs leading-5 text-muted">
         운영 사이트의 공개 페이지만 집계합니다. 관리자·부원 화면, 개발·스테이지, 알려진 봇은 제외하며 날짜 경계는 한국 시간(KST)입니다. 개인을 식별하는 정보와 URL의 검색 조건은 저장하지 않습니다.
