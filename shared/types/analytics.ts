@@ -36,6 +36,9 @@ export interface AnalyticsPageViewQuery {
   page?: string;
   blogPostId?: number;
   projectId?: number;
+  clickAction?: KeyClickAction;
+  impactType?: AnalyticsContentType;
+  impactId?: number;
 }
 
 export type AnalyticsPostStatus = 'PUBLISHED' | 'HIDDEN';
@@ -112,4 +115,92 @@ export interface SectionReachTotal {
 export interface SectionReachAnalyticsResponse {
   range: AnalyticsDateRange;
   sections: SectionReachTotal[];
+}
+
+export type KeyClickAction = 'APPLY' | 'NOTIFICATION' | 'BLOG_MORE' | 'PROJECT_MORE' | 'PROJECT_GITHUB';
+export type KeyClickLocation =
+  | 'LANDING_RECRUIT'
+  | 'APPLICATION_FORM'
+  | 'APPLICATION_CLOSED'
+  | 'LANDING_BLOG'
+  | 'LANDING_PROJECT'
+  | 'PROJECT_DETAIL';
+
+export interface KeyClickTimePoint {
+  date: string;
+  clicks: number;
+}
+
+export interface KeyClickTotal {
+  action: KeyClickAction;
+  location: KeyClickLocation;
+  clicks: number;
+}
+
+export interface KeyClickAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalClicks: number;
+  series: KeyClickTimePoint[];
+  clicks: KeyClickTotal[];
+}
+
+export interface NotificationSignupTimePoint {
+  date: string;
+  signups: number;
+}
+
+export interface NotificationSignupAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalSignups: number;
+  series: NotificationSignupTimePoint[];
+}
+
+export type AnalyticsWeekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface PopularHourTotal {
+  hour: number;
+  views: number;
+}
+
+export interface PopularWeekdayTotal {
+  day: AnalyticsWeekday;
+  views: number;
+}
+
+export interface PopularTimeAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  hours: PopularHourTotal[];
+  weekdays: PopularWeekdayTotal[];
+}
+
+export type AnalyticsContentType = 'BLOG_POST' | 'PROJECT';
+
+export interface ContentImpactSummary {
+  type: AnalyticsContentType;
+  id: number;
+  title: string;
+  publishedAt: string;
+}
+
+export interface ContentImpactTimePoint {
+  date: string;
+  siteViews: number;
+  contentViews: number;
+}
+
+export interface ContentImpactComparison {
+  content: ContentImpactSummary;
+  comparisonDays: number;
+  complete: boolean;
+  before: { from: string; to: string; siteViews: number };
+  after: { from: string; to: string; siteViews: number };
+  contentViewsAfter: number;
+  series: ContentImpactTimePoint[];
+}
+
+export interface ContentImpactAnalyticsResponse {
+  range: AnalyticsDateRange;
+  contents: ContentImpactSummary[];
+  comparison: ContentImpactComparison | null;
 }

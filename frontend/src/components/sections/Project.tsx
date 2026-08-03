@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import ProjectCarousel from '@/components/projects/ProjectCarousel';
 import { getProjects } from '@/lib/projectApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import TrackedAnalyticsLink from '@/components/analytics/TrackedAnalyticsLink';
 
 export default async function Project() {
   let projects = null;
@@ -31,15 +31,16 @@ export default async function Project() {
               멤버들이 함께 만든 프로젝트를 소개합니다.
             </p>
           </div>
-          <Link
+          <TrackedAnalyticsLink
             href="/projects"
+            analyticsKey="PROJECT_MORE_LANDING_PROJECT"
             className="group inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-[12px] font-semibold text-white/70 outline-none transition-colors hover:border-accent/50 hover:text-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             모든 프로젝트
             <span aria-hidden className="text-base leading-none text-accent transition-transform group-hover:translate-x-1">
               →
             </span>
-          </Link>
+          </TrackedAnalyticsLink>
         </div>
 
         {projects === null ? (

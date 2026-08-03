@@ -28,13 +28,18 @@ public class AnalyticsEventService {
 
     @Transactional
     public void record(AnalyticsEventTrackRequest request, String rawHost, String userAgent) {
-        if (!isAllowedHost(rawHost) || isBot(userAgent) || request.event() != AnalyticsEventType.SECTION_REACH) {
+        if (!isAllowedHost(rawHost) || isBot(userAgent)) {
             return;
+        }
+        if (request.key().getEventType() != request.event()) {
+            throw new IllegalStateException("이벤트 종류와 대상이 맞지 않아요.");
         }
         String visitKey = anonymousKeyHasher.hash(request.visitId());
         String eventKey = request.key().name();
-        String deduplicationKey = anonymousKeyHasher.hash(request.event() + ":" + eventKey + ":" + request.visitId());
-        if (repository.existsByDeduplicationKey(deduplicationKey)) {
+        String deduplicationKey = request.event() == AnalyticsEventType.SECTION_REACH
+                ? anonymousKeyHasher.hash(request.event() + ":" + eventKey + ":" + request.visitId())
+                : null;
+        if (deduplicationKey != null && repository.existsByDeduplicationKey(deduplicationKey)) {
             return;
         }
         repository.save(new AnalyticsEvent(

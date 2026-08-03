@@ -5,6 +5,7 @@ import type { ProjectSummary } from '@shared/types/project';
 import ProjectImageGallery from '@/components/projects/ProjectImageGallery';
 import ProjectMakerCard from '@/components/projects/ProjectMakerCard';
 import BackLink from '@/components/BackLink';
+import TrackedAnalyticsLink from '@/components/analytics/TrackedAnalyticsLink';
 import { getProjectById, getProjects } from '@/lib/projectApi';
 import { getMembers } from '@/lib/rosterApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
@@ -182,14 +183,15 @@ export default async function ProjectDetailPage({ params }: Props) {
                 </div>
               ) : null}
               {project.githubUrl ? (
-                <a
+                <TrackedAnalyticsLink
                   href={project.githubUrl}
+                  analyticsKey="PROJECT_GITHUB_PROJECT_DETAIL"
                   target="_blank"
                   rel="noreferrer"
                   className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/20 px-4 text-sm font-medium text-white outline-none transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
                 >
                   GitHub에서 보기 <span aria-hidden>↗</span>
-                </a>
+                </TrackedAnalyticsLink>
               ) : null}
             </section>
           ) : null}
