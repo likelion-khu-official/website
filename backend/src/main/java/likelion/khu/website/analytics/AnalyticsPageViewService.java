@@ -33,19 +33,21 @@ public class AnalyticsPageViewService {
     private final AnalyticsPageViewRepository repository;
     private final PostRepository postRepository;
     private final ProjectRepository projectRepository;
+    private final AnalyticsAnonymousKeyHasher anonymousKeyHasher;
 
     @Value("${app.analytics.allowed-hosts:likelion-khu.com,www.likelion-khu.com}")
     private String allowedHostsConfig;
 
     @Transactional
-    public void record(String rawPath, String rawHost, String userAgent) {
+    public void record(String rawPath, String rawVisitorId, String rawHost, String userAgent) {
         String path = normalizePath(rawPath);
         if (!isAllowedHost(rawHost) || isExcludedPath(path) || isBot(userAgent)) {
             return;
         }
         ContentIdentity content = resolveContent(path);
         repository.save(new AnalyticsPageView(
-                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id()));
+                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id(), anonymousKeyHasher.hash(rawVisitorId),
+                classifyDevice(userAgent)));
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +145,19 @@ public class AnalyticsPageViewService {
         if (userAgent == null || userAgent.isBlank()) return true;
         String normalized = userAgent.toLowerCase(Locale.ROOT);
         return BOT_MARKERS.stream().anyMatch(normalized::contains);
+    }
+
+    private AnalyticsDeviceType classifyDevice(String userAgent) {
+        String normalized = userAgent.toLowerCase(Locale.ROOT);
+        if (List.of("mobile", "android", "iphone", "ipad", "ipod")
+                .stream().anyMatch(normalized::contains)) {
+            return AnalyticsDeviceType.MOBILE;
+        }
+        if (List.of("windows nt", "macintosh", "x11", "linux x86", "cros")
+                .stream().anyMatch(normalized::contains)) {
+            return AnalyticsDeviceType.DESKTOP;
+        }
+        return AnalyticsDeviceType.OTHER;
     }
 
     private ContentIdentity resolveContent(String path) {

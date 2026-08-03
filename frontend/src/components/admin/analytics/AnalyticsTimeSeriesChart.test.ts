@@ -25,5 +25,15 @@ describe('buildTimeSeriesOption', () => {
     expect(option.dataZoom).toHaveLength(2);
     expect(option.animation).toBe(false);
   });
-});
 
+  it('조회수와 순 방문자를 표준 축 툴팁의 두 선으로 비교한다', () => {
+    const points = [{ date: '2026-08-01', views: 5 }];
+    const option = buildTimeSeriesOption(points, '조회수', false, {
+      points: [{ date: '2026-08-01', views: 2 }],
+      label: '추정 순 방문자',
+      unit: '명',
+    }) as { series: Array<{ name: string }> };
+
+    expect(option.series.map((series) => series.name)).toEqual(['조회수', '추정 순 방문자']);
+  });
+});

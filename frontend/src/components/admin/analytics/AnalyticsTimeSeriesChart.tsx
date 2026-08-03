@@ -23,17 +23,18 @@ function shortDate(value: string) {
 export function buildTimeSeriesOption(
   points: AnalyticsTimePoint[],
   label: string,
-  reduceMotion: boolean
+  reduceMotion: boolean,
+  comparison?: { points: AnalyticsTimePoint[]; label: string; unit: string }
 ): EChartsCoreOption {
   const showZoomSlider = points.length > 60;
 
   return {
     animation: !reduceMotion,
     animationDuration: reduceMotion ? 0 : 320,
-    color: ['#ff6b2c'],
+    color: ['#ff6b2c', '#60a5fa'],
     aria: {
       enabled: true,
-      description: `${label} 기간별 선 그래프. 날짜별 정확한 수치는 그래프 다음 표에서 확인할 수 있습니다.`,
+      description: `${label}${comparison ? `와 ${comparison.label}` : ''} 기간별 선 그래프. 날짜별 정확한 수치는 그래프 다음 표에서 확인할 수 있습니다.`,
       decal: { show: false },
     },
     grid: {
@@ -55,7 +56,6 @@ export function buildTimeSeriesOption(
         type: 'line',
         lineStyle: { color: 'rgba(255,255,255,0.45)', width: 1, type: 'dashed' },
       },
-      valueFormatter: (value: unknown) => `${Number(value).toLocaleString('ko-KR')}회`,
     },
     xAxis: {
       type: 'category',
@@ -123,7 +123,25 @@ export function buildTimeSeriesOption(
         itemStyle: { borderColor: '#171717', borderWidth: 2 },
         areaStyle: { color: 'rgba(255,107,44,0.12)' },
         emphasis: { focus: 'series' },
+        tooltip: {
+          valueFormatter: (value: unknown) => `${Number(value).toLocaleString('ko-KR')}회`,
+        },
       },
+      ...(comparison ? [{
+        name: comparison.label,
+        type: 'line' as const,
+        data: comparison.points.map((point) => point.views),
+        smooth: false,
+        showSymbol: comparison.points.length <= 14,
+        symbol: 'circle',
+        symbolSize: 7,
+        lineStyle: { width: 2.5 },
+        itemStyle: { borderColor: '#171717', borderWidth: 2 },
+        emphasis: { focus: 'series' as const },
+        tooltip: {
+          valueFormatter: (value: unknown) => `${Number(value).toLocaleString('ko-KR')}${comparison.unit}`,
+        },
+      }] : []),
     ],
   };
 }
@@ -131,9 +149,11 @@ export function buildTimeSeriesOption(
 interface AnalyticsTimeSeriesChartProps {
   points: AnalyticsTimePoint[];
   label: string;
+  valueLabel?: string;
+  comparison?: { points: AnalyticsTimePoint[]; label: string; unit: string };
 }
 
-export default function AnalyticsTimeSeriesChart({ points, label }: AnalyticsTimeSeriesChartProps) {
+export default function AnalyticsTimeSeriesChart({ points, label, valueLabel = '조회수', comparison }: AnalyticsTimeSeriesChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
@@ -145,7 +165,7 @@ export default function AnalyticsTimeSeriesChart({ points, label }: AnalyticsTim
     if (!container) return;
 
     const chart = echarts.init(container, null, { renderer: 'svg' });
-    chart.setOption(buildTimeSeriesOption(points, label, reduceMotion));
+    chart.setOption(buildTimeSeriesOption(points, label, reduceMotion, comparison));
 
     const handleResize = () => chart.resize();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
@@ -157,7 +177,7 @@ export default function AnalyticsTimeSeriesChart({ points, label }: AnalyticsTim
       window.removeEventListener('resize', handleResize);
       chart.dispose();
     };
-  }, [label, points, reduceMotion]);
+  }, [comparison, label, points, reduceMotion]);
 
   return (
     <>
@@ -166,13 +186,17 @@ export default function AnalyticsTimeSeriesChart({ points, label }: AnalyticsTim
         className="h-72 w-full sm:h-80 lg:h-96"
       />
       <table className="sr-only">
-        <caption>{label} 날짜별 수치</caption>
+        <caption>{label}{comparison ? `와 ${comparison.label}` : ''} 날짜별 수치</caption>
         <thead>
-          <tr><th>날짜</th><th>조회수</th></tr>
+          <tr><th>날짜</th><th>{valueLabel}</th>{comparison ? <th>{comparison.label}</th> : null}</tr>
         </thead>
         <tbody>
           {points.map((point) => (
-            <tr key={point.date}><td>{point.date}</td><td>{point.views}</td></tr>
+            <tr key={point.date}>
+              <td>{point.date}</td>
+              <td>{point.views}</td>
+              {comparison ? <td>{comparison.points.find((item) => item.date === point.date)?.views ?? 0}</td> : null}
+            </tr>
           ))}
         </tbody>
       </table>

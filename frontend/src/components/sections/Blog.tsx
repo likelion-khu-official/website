@@ -4,6 +4,7 @@ import PostAuthor from '@/components/blog/PostAuthor';
 import StoryThumbnail from '@/components/blog/StoryThumbnail';
 import { getPosts } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import TrackedAnalyticsLink from '@/components/analytics/TrackedAnalyticsLink';
 
 function StoryRow({ post, index }: { post: PostSummary; index: number }) {
   return (
@@ -85,8 +86,9 @@ export default async function Blog() {
                 프로젝트와 스터디에서 배운 기술과 경험을 나눕니다.
               </p>
             </div>
-            <Link
+            <TrackedAnalyticsLink
               href="/blog"
+              analyticsKey="BLOG_MORE_LANDING_BLOG"
               aria-label="블로그 전체 보기"
               className="group mt-10 inline-flex min-h-11 w-fit items-center gap-3 rounded-full border border-accent/55 bg-accent/[0.1] px-5 py-2.5 text-[13px] font-semibold text-white/88 outline-none transition-colors hover:border-accent hover:bg-accent hover:text-black focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:mt-0"
             >
@@ -94,7 +96,7 @@ export default async function Blog() {
               <span aria-hidden className="text-accent transition-transform group-hover:translate-x-1">
                 →
               </span>
-            </Link>
+            </TrackedAnalyticsLink>
           </header>
 
           {posts === null ? (

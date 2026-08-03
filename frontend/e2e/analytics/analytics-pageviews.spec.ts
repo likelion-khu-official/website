@@ -4,11 +4,31 @@ import { expect, test } from '@playwright/test';
 const evidenceDir = path.resolve(__dirname, '../../../pm/missions/381-admin-analytics-pageviews/evidence');
 const blogEvidenceDir = path.resolve(__dirname, '../../../pm/missions/382-admin-analytics-blog-views/evidence');
 const projectEvidenceDir = path.resolve(__dirname, '../../../pm/missions/383-admin-analytics-project-views/evidence');
+const recruitmentEvidenceDir = path.resolve(__dirname, '../../../pm/missions/384-admin-analytics-application-count/evidence');
+const visitorEvidenceDir = path.resolve(__dirname, '../../../pm/missions/385-admin-analytics-unique-visitors/evidence');
+const deviceEvidenceDir = path.resolve(__dirname, '../../../pm/missions/386-admin-analytics-device-ratio/evidence');
+const sectionEvidenceDir = path.resolve(__dirname, '../../../pm/missions/387-admin-analytics-section-reach/evidence');
+const clickEvidenceDir = path.resolve(__dirname, '../../../pm/missions/388-admin-analytics-key-clicks/evidence');
+const notificationEvidenceDir = path.resolve(__dirname, '../../../pm/missions/389-admin-analytics-notification-signups/evidence');
+const popularTimeEvidenceDir = path.resolve(__dirname, '../../../pm/missions/390-admin-analytics-popular-times/evidence');
+const contentImpactEvidenceDir = path.resolve(__dirname, '../../../pm/missions/391-admin-analytics-content-impact/evidence');
 
 const series = Array.from({ length: 30 }, (_, index) => ({
   date: `2026-07-${String(index + 4).padStart(2, '0')}`.replace('2026-07-32', '2026-08-01').replace('2026-07-33', '2026-08-02'),
   views: [12, 15, 11, 18, 24, 20, 19, 26, 31, 28, 35, 34, 41, 38, 45, 52, 49, 57, 53, 60, 68, 63, 72, 77, 70, 81, 86, 79, 92, 104][index],
 }));
+
+function distribute(weights: number[], total: number) {
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+  const exact = weights.map((value) => value * total / weightTotal);
+  const values = exact.map(Math.floor);
+  let remaining = total - values.reduce((sum, value) => sum + value, 0);
+  exact.map((value, index) => ({ index, remainder: value - values[index] }))
+    .sort((a, b) => b.remainder - a.remainder)
+    .slice(0, remaining)
+    .forEach(({ index }) => { values[index] += 1; remaining -= 1; });
+  return values;
+}
 
 test.beforeEach(async ({ context, page }) => {
   await context.addCookies([{ name: 'access_token', value: 'visual-qa-token', domain: 'localhost', path: '/' }]);
@@ -69,6 +89,161 @@ test.beforeEach(async ({ context, page }) => {
       }),
     });
   });
+  await page.route('**/api/admin/analytics/recruitment', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        roundId: 14,
+        state: 'CLOSED',
+        openedAt: '2026-07-01T09:00:00',
+        closedAt: '2026-07-14T18:00:00',
+        applicationCount: 128,
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/visitors**', async (route) => {
+    const selectedPage = new URL(route.request().url()).searchParams.get('page');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        uniqueVisitors: selectedPage ? 241 : 864,
+        series: series.map((point) => ({
+          date: point.date,
+          visitors: Math.max(1, Math.round(point.views * (selectedPage ? 0.17 : 0.58))),
+        })),
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/devices**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'all', timezone: 'Asia/Seoul' },
+        totalViews: 1_474,
+        devices: [
+          { device: 'MOBILE', views: 892, percentage: 60.5 },
+          { device: 'DESKTOP', views: 521, percentage: 35.3 },
+          { device: 'OTHER', views: 61, percentage: 4.2 },
+        ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/sections**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'all', timezone: 'Asia/Seoul' },
+        sections: [
+          { section: 'PROJECT', reaches: 932 },
+          { section: 'STAFF', reaches: 751 },
+          { section: 'BLOG', reaches: 486 },
+          { section: 'RECRUIT', reaches: 214 },
+        ],
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/clicks**', async (route) => {
+    const action = new URL(route.request().url()).searchParams.get('action');
+    const allClicks = [
+      { action: 'APPLY', location: 'LANDING_RECRUIT', clicks: 238 },
+      { action: 'APPLY', location: 'APPLICATION_FORM', clicks: 130 },
+      { action: 'NOTIFICATION', location: 'LANDING_RECRUIT', clicks: 94 },
+      { action: 'NOTIFICATION', location: 'APPLICATION_CLOSED', clicks: 47 },
+      { action: 'BLOG_MORE', location: 'LANDING_BLOG', clicks: 214 },
+      { action: 'PROJECT_MORE', location: 'LANDING_PROJECT', clicks: 183 },
+      { action: 'PROJECT_GITHUB', location: 'PROJECT_DETAIL', clicks: 110 },
+    ];
+    const clicks = action ? allClicks.filter((item) => item.action === action) : allClicks;
+    const totalClicks = clicks.reduce((sum, item) => sum + item.clicks, 0);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalClicks,
+        series: series.map((point, index) => ({
+          date: point.date,
+          clicks: Math.max(0, Math.round(point.views * totalClicks / 1_474) + (index % 3)),
+        })),
+        clicks,
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/notification-signups**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        totalSignups: 137,
+        series: series.map((point, index) => ({
+          date: point.date,
+          signups: Math.max(0, Math.round(point.views * 0.08) + (index % 4 === 0 ? 1 : 0) + (index < 13 ? 1 : 0)),
+        })),
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/popular-times**', async (route) => {
+    const hourValues = distribute([12, 8, 6, 5, 5, 8, 18, 32, 48, 62, 70, 74, 68, 64, 66, 72, 85, 98, 112, 126, 158, 142, 96, 58], 1_474);
+    const weekdayValues = distribute([175, 228, 215, 206, 241, 229, 180], 1_474);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'all', timezone: 'Asia/Seoul' },
+        totalViews: 1_474,
+        hours: hourValues.map((views, hour) => ({ hour, views })),
+        weekdays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+          .map((day, index) => ({ day, views: weekdayValues[index] })),
+      }),
+    });
+  });
+  await page.route('**/api/admin/analytics/content-impact**', async (route) => {
+    const url = new URL(route.request().url());
+    const projectSelected = url.searchParams.get('type') === 'PROJECT';
+    const contents = [
+      { type: 'BLOG_POST', id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+      { type: 'PROJECT', id: 31, title: '모두의 캠퍼스', publishedAt: '2026-07-31T11:00:00' },
+    ];
+    const comparison = projectSelected ? {
+      content: contents[1], comparisonDays: 3, complete: false,
+      before: { from: '2026-07-28', to: '2026-07-30', siteViews: 241 },
+      after: { from: '2026-07-31', to: '2026-08-02', siteViews: 338 },
+      contentViewsAfter: 126,
+      series: [
+        { date: '2026-07-28', siteViews: 75, contentViews: 0 },
+        { date: '2026-07-29', siteViews: 81, contentViews: 0 },
+        { date: '2026-07-30', siteViews: 85, contentViews: 0 },
+        { date: '2026-07-31', siteViews: 101, contentViews: 31 },
+        { date: '2026-08-01', siteViews: 112, contentViews: 43 },
+        { date: '2026-08-02', siteViews: 125, contentViews: 52 },
+      ],
+    } : {
+      content: contents[0], comparisonDays: 7, complete: true,
+      before: { from: '2026-07-13', to: '2026-07-19', siteViews: 344 },
+      after: { from: '2026-07-20', to: '2026-07-26', siteViews: 529 },
+      contentViewsAfter: 214,
+      series: [38, 42, 47, 44, 51, 58, 64, 66, 71, 75, 69, 82, 79, 87].map((siteViews, index) => {
+        const date = new Date(Date.UTC(2026, 6, 13 + index)).toISOString().slice(0, 10);
+        const contentViews = index < 7 ? 0 : [9, 19, 27, 31, 38, 42, 48][index - 7];
+        return { date, siteViews, contentViews };
+      }),
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        range: { from: '2026-07-04', to: '2026-08-02', interval: 'day', timezone: 'Asia/Seoul' },
+        contents,
+        comparison,
+      }),
+    });
+  });
   await page.route('**/api/analytics/pageviews', async (route) => {
     await route.fulfill({ status: 204, body: '' });
   });
@@ -78,13 +253,13 @@ test('비개발자용 데스크톱 화면과 표준 hover tooltip을 확인한�
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
 
   await expect(page.getByRole('heading', { name: '사이트 이용 현황' })).toBeVisible();
-  await expect(page.getByText('1,474')).toBeVisible();
-  await expect(page.getByRole('img', { name: /전체 페이지 조회수 기간별 선 그래프/ })).toBeVisible();
+  await expect(page.getByText('1,474회', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: /전체 페이지 조회수.*기간별 선 그래프/ })).toBeVisible();
   await expect(page.getByText('프로젝트 목록')).toBeVisible();
 
   await page.screenshot({ path: path.join(evidenceDir, 'desktop-overview.png'), fullPage: true });
 
-  const chart = page.getByRole('img', { name: /전체 페이지 조회수 기간별 선 그래프/ });
+  const chart = page.getByRole('img', { name: /전체 페이지 조회수.*기간별 선 그래프/ });
   const box = await chart.boundingBox();
   if (!box) throw new Error('그래프 위치를 확인할 수 없어요.');
   await page.mouse.move(box.x + box.width * 0.82, box.y + box.height * 0.42);
@@ -98,7 +273,7 @@ test('비개발자용 데스크톱 화면과 표준 hover tooltip을 확인한�
 test('390px 모바일에서 기간·그래프·표가 화면 밖으로 밀리지 않는다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
-  await expect(page.getByText('1,474')).toBeVisible();
+  await expect(page.getByText('1,474회', { exact: true })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
@@ -108,7 +283,7 @@ test('390px 모바일에서 기간·그래프·표가 화면 밖으로 밀리지
 test('블로그 글별 조회와 선택 글 추이를 데스크톱·모바일에서 확인한다', async ({ page }) => {
   await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
   await expect(page.getByRole('heading', { name: '블로그 글별 조회수' })).toBeVisible();
-  await expect(page.getByText('숨김')).toBeVisible();
+  await expect(page.getByRole('region', { name: '블로그 글별 조회수' }).getByText('숨김')).toBeVisible();
   await expect(page.getByText('782회')).toBeVisible();
 
   await page.getByRole('button', { name: /^운영진이 기록한 한 학기/ }).click();
@@ -143,4 +318,226 @@ test('프로젝트별 조회와 선택 프로젝트 추이를 데스크톱·모�
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await projectPanel.screenshot({ path: path.join(projectEvidenceDir, 'mobile-project-selected.png') });
+});
+
+test('조회 기간과 분리된 최근 모집 지원 수를 데스크톱·모바일에서 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-27&to=2026-08-02&interval=day');
+  await expect(page.getByRole('heading', { name: '지원 수' })).toBeVisible();
+  await expect(page.getByText('최근 종료 모집')).toBeVisible();
+  await expect(page.getByLabel('접수된 지원서 128건')).toBeVisible();
+  await expect(page.getByText('2026년 7월에 시작한 모집')).toBeVisible();
+  await expect(page.getByText(/아래 조회 기간을 바꿔도/)).toBeVisible();
+
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const card = page.getByRole('region', { name: '지원 수' });
+  await card.screenshot({ path: path.join(recruitmentEvidenceDir, 'desktop-closed-recruitment.png') });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await card.screenshot({ path: path.join(recruitmentEvidenceDir, 'mobile-closed-recruitment.png') });
+});
+
+test('조회수와 추정 순 방문자를 표준 hover 그래프로 비교한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  await expect(page.getByText('추정 순 방문자', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('864')).toBeVisible();
+  await expect(page.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeVisible();
+
+  const graphPanel = page.getByRole('region', { name: '전체 페이지 조회수 추이' });
+  await graphPanel.scrollIntoViewIfNeeded();
+  const chart = page.getByRole('img', { name: /전체 페이지 조회수와 추정 순 방문자 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const box = await chart.boundingBox();
+  if (!box) throw new Error('순 방문자 비교 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(box.x + box.width * 0.82, box.y + box.height * 0.42);
+  await page.waitForTimeout(150);
+  const panelBox = await graphPanel.boundingBox();
+  if (!panelBox) throw new Error('순 방문자 비교 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(visitorEvidenceDir, 'desktop-visitors-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await graphPanel.screenshot({ path: path.join(visitorEvidenceDir, 'mobile-visitors-chart.png') });
+});
+
+test('모바일·데스크톱·기타 비율을 도넛과 정확한 수치로 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '기기 비율' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('60.5%')).toBeVisible();
+  await expect(page.getByText('35.3%')).toBeVisible();
+  await expect(page.getByText('4.2%')).toBeVisible();
+  await expect(page.getByText(/알 수 없는 기기도 버리지 않고/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /기기별 페이지 조회 비율 도넛 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('기기 비율 도넛 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.52, chartBox.y + chartBox.height * 0.12);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('기기 비율 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(deviceEvidenceDir, 'desktop-device-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(deviceEvidenceDir, 'mobile-device-ratio.png') });
+});
+
+test('랜딩 섹션별 실제 도달을 그래프와 정확한 수치로 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '랜딩 섹션 도달' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(panel.getByText('932회')).toBeVisible();
+  await expect(panel.getByText('751회')).toBeVisible();
+  await expect(panel.getByText('486회')).toBeVisible();
+  await expect(panel.getByText('214회')).toBeVisible();
+  await expect(page.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /랜딩 섹션별 도달 수 가로 막대그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('랜딩 섹션 도달 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.72, chartBox.y + chartBox.height * 0.18);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('랜딩 섹션 도달 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(sectionEvidenceDir, 'desktop-section-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(sectionEvidenceDir, 'mobile-section-reach.png') });
+});
+
+test('주요 행동별·위치별 클릭과 표준 hover 추이를 함께 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '주요 클릭' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('1,016')).toBeVisible();
+  await expect(page.getByText('랜딩 모집 영역').first()).toBeVisible();
+  await expect(page.getByText('지원서 화면')).toBeVisible();
+  await expect(page.getByText('238회')).toBeVisible();
+  await expect(page.getByText(/지원 접수·알림 신청 성공 건수와는 다를 수 있어요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /전체 주요 행동 클릭 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('주요 클릭 추이 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.75, chartBox.y + chartBox.height * 0.36);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('주요 클릭 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(clickEvidenceDir, 'desktop-clicks-hover.png'), clip: panelBox });
+
+  await page.getByLabel('확인할 행동').selectOption('APPLY');
+  await expect(page).toHaveURL(/click=APPLY/);
+  await expect(page.getByText('368')).toBeVisible();
+  await expect(page.getByText('프로젝트 상세')).not.toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(clickEvidenceDir, 'mobile-apply-clicks.png') });
+});
+
+test('DB에 실제로 생긴 모집 알림 신청과 날짜별 추이를 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '모집 알림 신청' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByLabel('새 모집 알림 신청 137건')).toBeVisible();
+  await expect(page.getByText(/버튼 클릭이 아니라 DB에 새로 저장된 유효 신청만 셉니다/)).toBeVisible();
+  await expect(page.getByText(/이메일 주소는 이 화면에 보내지 않아요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /새 모집 알림 신청 기간별 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('모집 알림 신청 추이 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.76, chartBox.y + chartBox.height * 0.4);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('모집 알림 신청 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(notificationEvidenceDir, 'desktop-signups-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await panel.screenshot({ path: path.join(notificationEvidenceDir, 'mobile-signups.png') });
+});
+
+test('한국시간 기준 방문이 몰린 시간대와 요일을 실제 건수로 확인한다', async ({ page }) => {
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '방문이 몰린 때' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText(/한국시간 기준으로 보여줘요/)).toBeVisible();
+  await expect(page.getByText(/가장 많은 시간대/)).toBeVisible();
+  await expect(page.getByText(/오후 8–9시/)).toBeVisible();
+  await expect(page.getByText(/금요일/)).toBeVisible();
+  await expect(page.getByText(/두 그래프는 모두 0회부터 시작/)).toBeVisible();
+
+  const hourChart = page.getByRole('img', { name: /시간대별 조회 분포 막대그래프/ });
+  const weekdayChart = page.getByRole('img', { name: /요일별 조회 분포 막대그래프/ });
+  await expect(hourChart).toBeVisible();
+  await expect(weekdayChart).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await hourChart.boundingBox();
+  if (!chartBox) throw new Error('시간대별 조회 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.85, chartBox.y + chartBox.height * 0.45);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('인기 시간대 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(popularTimeEvidenceDir, 'desktop-popular-times-hover.png'), clip: panelBox });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await page.getByText(/두 그래프는 모두 0회부터 시작/).click();
+  await page.locator('a[href="#admin-main"]').evaluate((element) => element.remove());
+  await panel.screenshot({ path: path.join(popularTimeEvidenceDir, 'mobile-popular-times.png') });
+});
+
+test('콘텐츠 공개일과 같은 길이의 전후 조회를 완료·진행 중 상태로 확인한다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto('/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day');
+  const panel = page.getByRole('region', { name: '콘텐츠 공개 전후' });
+  await panel.scrollIntoViewIfNeeded();
+  await expect(page.getByText('7일 비교 완료')).toBeVisible();
+  await expect(page.getByText('344회')).toBeVisible();
+  await expect(page.getByText('529회')).toBeVisible();
+  await expect(page.getByText('+185회 (+53.8%)')).toBeVisible();
+  await expect(page.getByText(/해당 콘텐츠 자체 조회/)).toContainText('214회');
+  await expect(page.getByText(/콘텐츠 하나의 효과라고 단정할 수는 없어요/)).toBeVisible();
+
+  const chart = page.getByRole('img', { name: /운영진이 기록한 한 학기 공개 전후 조회 선 그래프/ });
+  await expect(chart).toBeVisible();
+  await expect(chart.getByText('콘텐츠 공개')).toBeVisible();
+  await page.locator('nextjs-portal').evaluateAll((elements) => elements.forEach((element) => element.remove()));
+  const chartBox = await chart.boundingBox();
+  if (!chartBox) throw new Error('콘텐츠 공개 전후 그래프 위치를 확인할 수 없어요.');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.73, chartBox.y + chartBox.height * 0.4);
+  await page.waitForTimeout(150);
+  const panelBox = await panel.boundingBox();
+  if (!panelBox) throw new Error('콘텐츠 공개 전후 패널 위치를 확인할 수 없어요.');
+  await page.screenshot({ path: path.join(contentImpactEvidenceDir, 'desktop-content-impact-hover.png'), clip: panelBox });
+
+  await page.getByLabel('비교할 콘텐츠').selectOption('PROJECT:31');
+  await expect(page).toHaveURL(/impactType=PROJECT&impact=31/);
+  await expect(page.getByText('비교 진행 중 · 현재 3일씩')).toBeVisible();
+  await expect(page.getByText('공개 전 3일')).toBeVisible();
+  await expect(page.getByText('공개 후 3일')).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await page.locator('a[href="#admin-main"]').evaluate((element) => element.remove());
+  await panel.screenshot({ path: path.join(contentImpactEvidenceDir, 'mobile-content-impact-progress.png') });
 });
