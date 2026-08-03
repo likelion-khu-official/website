@@ -19,6 +19,7 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -45,8 +46,11 @@ public class AdminPasswordResetService {
     // 그래서 EmailSendException은 여기서 삼키고 항상 같은 메시지로 응답한다.
     @Transactional
     public String forgot(String email) {
-        Optional<Admin> admin = adminRepository.findByEmail(email);
-        admin.ifPresent(this::issueAndSendResetTokenSwallowingEmailFailure);
+        String normalized = email.trim().toLowerCase();
+        adminRepository.findByEmail(normalized)
+                .filter(admin -> !tokenRepository.existsByAdminIdAndUsedFalseAndExpiresAtAfter(
+                        admin.getId(), LocalDateTime.now()))
+                .ifPresent(this::issueAndSendResetTokenSwallowingEmailFailure);
         return FORGOT_MESSAGE;
     }
 
@@ -62,7 +66,7 @@ public class AdminPasswordResetService {
         }
     }
 
-    // 시드 러너에서도 재사용 — "가입 + 비밀번호 설정 메일"로 SUPER_ADMIN을 시딩하기 위함.
+    // 시드 러너에서도 재사용 — "가입 + 비밀번호 설정 메일"로 관리자를 시딩하기 위함.
     @Transactional
     public void issueAndSendResetToken(Admin admin) {
         String token = generateToken();

@@ -7,11 +7,13 @@ import likelion.khu.website.admin.dto.AdminSessionResponse;
 import likelion.khu.website.admin.exception.AccountLockedException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
-import likelion.khu.website.common.LogMasker;
+import likelion.khu.website.audit.ActorType;
+import likelion.khu.website.audit.AuditAction;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,7 +26,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminAuthService {
@@ -33,6 +34,7 @@ public class AdminAuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final AuditService auditService;
 
     @Value("${admin.lockout.max-attempts:5}")
     private int maxAttempts;
@@ -53,29 +55,37 @@ public class AdminAuthService {
     // 예외에서 전체 롤백이라 이 카운터 증가 자체가 롤백돼 무차별 대입 방어가 무력화된다.
     @Transactional(noRollbackFor = {InvalidCredentialsException.class, AccountLockedException.class})
     public LoginResult login(String email, String rawPassword) {
-        Admin admin = adminRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    log.warn("관리자 로그인 실패(존재하지 않는 계정) - {}", LogMasker.maskEmail(email));
-                    return new InvalidCredentialsException();
-                });
+        Admin admin = adminRepository.findByEmail(email).orElse(null);
+        if (admin == null) {
+            auditLoginFailure(null, email);
+            throw new InvalidCredentialsException();
+        }
 
         if (admin.isLocked()) {
-            log.warn("관리자 로그인 실패(계정 잠김) - {}", LogMasker.maskEmail(email));
+            auditLoginFailure(admin.getId(), email);
             throw new AccountLockedException();
         }
 
         if (!passwordEncoder.matches(rawPassword, admin.getPasswordHash())) {
             admin.recordFailedLogin(maxAttempts, Duration.ofMinutes(lockoutDurationMinutes));
+            auditLoginFailure(admin.getId(), email);
             if (admin.isLocked()) {
-                log.warn("관리자 로그인 실패(비밀번호 오류 누적으로 계정 잠김) - {}", LogMasker.maskEmail(email));
                 throw new AccountLockedException();
             }
-            log.warn("관리자 로그인 실패(비밀번호 불일치) - {}", LogMasker.maskEmail(email));
             throw new InvalidCredentialsException();
         }
 
         admin.recordSuccessfulLogin();
+        auditService.record(ActorType.ADMIN, admin.getId(), admin.getEmail(), AuditAction.LOGIN_SUCCESS,
+                null, null, AuditOutcome.SUCCESS, null, null);
         return issueTokenPair(admin);
+    }
+
+    // 로그인 실패(계정 미존재·잠금·비번 불일치)를 남긴다 — 계정 탈취 시도(로그인 실패 급증)의 거의 유일한 흔적이다.
+    // login의 noRollbackFor 덕에 이 기록은 실패 예외가 던져져도 롤백되지 않는다.
+    private void auditLoginFailure(Long adminId, String email) {
+        auditService.record(ActorType.ADMIN, adminId, email, AuditAction.LOGIN_FAILURE,
+                null, null, AuditOutcome.FAILURE, null, null);
     }
 
     @Transactional
@@ -83,7 +93,11 @@ public class AdminAuthService {
         if (refreshToken == null) {
             return;
         }
-        refreshTokenRepository.findByTokenHash(hash(refreshToken)).ifPresent(RefreshToken::revoke);
+        refreshTokenRepository.findByTokenHash(hash(refreshToken)).ifPresent(token -> {
+            token.revoke();
+            auditService.record(ActorType.ADMIN, token.getAdminId(), null, AuditAction.LOGOUT,
+                    null, null, AuditOutcome.SUCCESS, null, null);
+        });
     }
 
     // access 토큰만 새로 발급 — refresh 토큰 자체는 로테이션하지 않고 만료까지 재사용한다(계획에 명시된 트레이드오프).

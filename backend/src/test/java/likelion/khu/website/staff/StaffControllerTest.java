@@ -1,23 +1,26 @@
 package likelion.khu.website.staff;
 
 import likelion.khu.website.admin.WithMockAdminUser;
+import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffCreateRequest;
-import likelion.khu.website.staff.dto.StaffResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Transactional
 class StaffControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -35,7 +38,9 @@ class StaffControllerTest {
         req.setAdmissionYear(22);
         req.setPhotoUrl("https://example.com/photo.jpg");
         req.setSortOrder(1);
-        StaffResponse res = staffService.create(req, "admin@likelion.org");
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
+        StaffAdminResponse res = staffService.create(req, "admin@likelion.org");
         return res.getId();
     }
 
@@ -54,36 +59,75 @@ class StaffControllerTest {
     }
 
     @Test
+    void listStaff_Public_IncludesActivities() throws Exception {
+        StaffCreateRequest req = new StaffCreateRequest();
+        req.setName("시현");
+        req.setPosition("회장");
+        req.setDepartment("컴퓨터공학과");
+        req.setAdmissionYear(22);
+        req.setPhotoUrl("https://example.com/photo.jpg");
+        req.setSortOrder(1);
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
+        req.setActivities(List.of("13기 백엔드 스터디 운영", "교내 연합 해커톤 대상"));
+        staffService.create(req, "admin@likelion.org");
+
+        mockMvc.perform(get("/api/staff"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].activities.length()").value(2))
+                .andExpect(jsonPath("$[0].activities[0]").value("13기 백엔드 스터디 운영"))
+                .andExpect(jsonPath("$[0].activities[1]").value("교내 연합 해커톤 대상"));
+    }
+
+    @Test
     void listStaff_DoesNotExposeCreatedBy() throws Exception {
         createStaff();
 
         mockMvc.perform(get("/api/staff"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].createdBy").doesNotExist())
-                .andExpect(jsonPath("$[0].updatedBy").doesNotExist());
+                .andExpect(jsonPath("$[0].updatedBy").doesNotExist())
+                .andExpect(jsonPath("$[0].studentId").doesNotExist())
+                .andExpect(jsonPath("$[0].phone").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsent").doesNotExist())
+                .andExpect(jsonPath("$[0].publicationConsentedAt").doesNotExist());
     }
 
     // ── POST /api/admin/staff ────────────────────────────────────────
 
     @WithMockAdminUser
     @Test
-    void createStaff_SuperAdmin_Returns201() throws Exception {
+    void createStaff_Admin_Returns201() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("시현"))
                 .andExpect(jsonPath("$.sortOrder").value(1))
+                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
     }
 
-    @WithMockUser(roles = "ADMIN")
+    @WithMockAdminUser
     @Test
-    void createStaff_NotSuperAdmin_Returns403() throws Exception {
+    void createStaff_ConsentWithoutTimestamp_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(CREATE_BODY))
-                .andExpect(status().isForbidden());
+                        .content("{\"name\":\"시현\",\"position\":\"회장\",\"department\":\"컴퓨터공학과\"," +
+                                "\"admissionYear\":22,\"photoUrl\":\"https://example.com/photo.jpg\"," +
+                                "\"sortOrder\":1,\"publicationConsent\":true}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @WithMockAdminUser
+    @Test
+    void listStaff_Admin_ReturnsPrivateMetadataButNotPhone() throws Exception {
+        createStaff();
+
+        mockMvc.perform(get("/api/admin/staff"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].publicationConsent").value(true))
+                .andExpect(jsonPath("$[0].phone").doesNotExist());
     }
 
     @Test
@@ -94,7 +138,7 @@ class StaffControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createStaff_MissingPhotoUrl_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
@@ -104,7 +148,7 @@ class StaffControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @WithMockUser(roles = "SUPER_ADMIN")
+    @WithMockUser(roles = "ADMIN")
     @Test
     void createStaff_MissingName_Returns400() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
@@ -118,7 +162,7 @@ class StaffControllerTest {
 
     @WithMockAdminUser
     @Test
-    void updateStaff_SuperAdmin_Returns200() throws Exception {
+    void updateStaff_Admin_Returns200() throws Exception {
         Long id = createStaff();
 
         mockMvc.perform(patch("/api/admin/staff/{id}", id)
@@ -130,17 +174,6 @@ class StaffControllerTest {
     }
 
     @WithMockUser(roles = "ADMIN")
-    @Test
-    void updateStaff_NotSuperAdmin_Returns403() throws Exception {
-        Long id = createStaff();
-
-        mockMvc.perform(patch("/api/admin/staff/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"position\":\"부회장\"}"))
-                .andExpect(status().isForbidden());
-    }
-
-    @WithMockUser(roles = "SUPER_ADMIN")
     @Test
     void updateStaff_EmptyPhotoUrl_Returns400() throws Exception {
         Long id = createStaff();
@@ -164,7 +197,7 @@ class StaffControllerTest {
 
     @WithMockAdminUser
     @Test
-    void deleteStaff_SuperAdmin_Returns204() throws Exception {
+    void deleteStaff_Admin_Returns204() throws Exception {
         Long id = createStaff();
 
         mockMvc.perform(delete("/api/admin/staff/{id}", id))
@@ -172,15 +205,6 @@ class StaffControllerTest {
 
         mockMvc.perform(get("/api/staff"))
                 .andExpect(jsonPath("$.length()").value(0));
-    }
-
-    @WithMockUser(roles = "ADMIN")
-    @Test
-    void deleteStaff_NotSuperAdmin_Returns403() throws Exception {
-        Long id = createStaff();
-
-        mockMvc.perform(delete("/api/admin/staff/{id}", id))
-                .andExpect(status().isForbidden());
     }
 
     @WithMockAdminUser

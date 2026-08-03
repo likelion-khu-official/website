@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AdminLoading from './AdminLoading';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -84,7 +85,7 @@ export default function BlogManager() {
   }
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">불러오고 있어요…</p>;
+    return <AdminLoading className="mx-auto w-full max-w-3xl" rows={4} />;
   }
 
   if (loadError) {
@@ -94,7 +95,7 @@ export default function BlogManager() {
         <button
           type="button"
           onClick={() => setReloadIndex((v) => v + 1)}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          className="min-h-11 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent"
         >
           다시 시도
         </button>
@@ -103,9 +104,12 @@ export default function BlogManager() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto w-full max-w-3xl">
       <div className="mb-8">
-        <Link href="/admin" className="text-sm text-muted transition-colors hover:text-white">
+        <Link
+          href="/admin"
+          className="inline-flex min-h-11 items-center rounded-lg text-sm text-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+        >
           ← 대시보드
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-white">블로그 관리</h1>
@@ -134,20 +138,20 @@ export default function BlogManager() {
                     >
                       {STATUS_LABEL[post.status]}
                     </span>
-                    <p className="truncate text-sm font-medium text-white">{post.title}</p>
+                    <p className="min-w-0 break-words text-sm font-medium text-white">{post.title}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted">
                     {post.authorName} · {formatDate(post.createdAt)}
                   </p>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   {post.status === 'PUBLISHED' && (
                     <Link
                       href={`/blog/${post.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/10"
+                      className="inline-flex min-h-11 items-center rounded-full border border-white/20 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       공개 글 보기 ↗
                     </Link>
@@ -163,7 +167,7 @@ export default function BlogManager() {
                           `"${post.title}" 글을 숨길까요? 공개 목록에서 사라져요.`
                         )
                       }
-                      className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+                      className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                     >
                       {busy ? '처리 중…' : '숨김'}
                     </button>
@@ -178,7 +182,7 @@ export default function BlogManager() {
                           `"${post.title}" 글을 게시할까요? 공개 목록에 올라와요.`
                         )
                       }
-                      className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20 disabled:opacity-40"
+                      className="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
                     >
                       {busy ? '처리 중…' : post.status === 'DRAFT' ? '게시' : '다시 게시'}
                     </button>

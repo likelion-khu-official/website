@@ -2,7 +2,6 @@ package likelion.khu.website.admin.seed;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.password.AdminPasswordResetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,16 +23,16 @@ public class AdminSeedRunner implements ApplicationRunner {
 
     // 포맷: "email:name,email2:name2" — 실제 이메일은 이 값을 담는 어떤 소스 파일에도 커밋하지 않고
     // 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입한다(레포 pre-commit gitleaks 훅 대상).
-    @Value("${admin.seed.super-admins:}")
-    private String superAdminsRaw;
+    @Value("${admin.seed.admins:}")
+    private String adminsRaw;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (superAdminsRaw == null || superAdminsRaw.isBlank()) {
+        if (adminsRaw == null || adminsRaw.isBlank()) {
             return;
         }
-        for (String entry : superAdminsRaw.split(",")) {
+        for (String entry : adminsRaw.split(",")) {
             seedOne(entry.trim());
         }
     }
@@ -54,10 +53,10 @@ public class AdminSeedRunner implements ApplicationRunner {
         }
 
         // 폐기용 무작위 비밀번호로 생성 — 아무도 이 값을 알지 못한 채, 곧바로 비밀번호 재설정 메일로
-        // 실제 비밀번호를 직접 설정하게 한다(초대받은 ADMIN과 동일한 온보딩 경험, 초기 비번 전달 경로 자체를 없앰).
+        // 실제 비밀번호를 직접 설정하게 한다(초대받은 관리자와 동일한 온보딩 경험, 초기 비번 전달 경로 자체를 없앰).
         String discardedPassword = UUID.randomUUID() + UUID.randomUUID().toString();
         Admin admin = adminRepository.save(
-                Admin.register(email, name, passwordEncoder.encode(discardedPassword), AdminRole.SUPER_ADMIN));
+                Admin.register(email, name, passwordEncoder.encode(discardedPassword)));
         passwordResetService.issueAndSendResetToken(admin);
     }
 }

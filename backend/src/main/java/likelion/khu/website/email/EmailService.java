@@ -1,24 +1,31 @@
 package likelion.khu.website.email;
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.SendFailedException;
+import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import likelion.khu.website.email.exception.EmailSendException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -40,8 +47,17 @@ public class EmailService {
     @Value("${mail-sender.from}")
     private String from;
 
-    // inviteUrl·expiresAt은 이 메서드가 만드는 게 아니라 호출자가 넘겨야 하는 값 — 아직 그 호출자(#74 초대 기능)가 없어
-    // 지금은 EmailService 스스로 "무엇을 보낼지"는 모르고 "어떻게 보낼지"만 담당하는 상태.
+    // 발송 실패 원인이 유저 쪽(주소 형식 오류 등)이 아니라 OCI 릴레이 순간 장애·우리 쪽 자격증명
+    // 문제처럼 "결국은 풀릴 수 있는" 것이면, email_log에 영구 FAILURE로 박제하지 않고 몇 번 더
+    // 시도해서 최종적으로 SUCCESS로 수렴시킨다(장찬욱 요청, #113 후속). 값을 필드로 뺀 이유는
+    // 테스트에서 지연 없이 빠르게 검증하기 위함(ReflectionTestUtils로 오버라이드, EmailServiceTest 참고).
+    @Value("${mail-sender.max-attempts:3}")
+    private int maxAttempts;
+
+    @Value("${mail-sender.retry-delay-ms:2000}")
+    private long retryDelayMs;
+
+    // inviteUrl·expiresAt은 이 메서드가 만드는 게 아니라 관리자 초대 호출자가 넘기는 값.
     // Context는 Thymeleaf 템플릿에 넘길 변수 바구니 — 여기 담은 값이 템플릿의 ${inviteUrl} 등으로 치환됨.
     public void sendInviteEmail(String to, String inviteUrl, LocalDateTime expiresAt) {
         Context context = new Context();
@@ -57,42 +73,105 @@ public class EmailService {
         send(to, EmailType.PASSWORD_RESET, context);
     }
 
-    // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 지원폼(#125)이
-    // 아직 없어 랜딩(모집 섹션이 있는 자리)으로 보낸다 — 지원폼이 생기면 그쪽 경로로 바뀔 값.
+    // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 모집 섹션과
+    // 지원 진입점이 있는 공개 사이트 주소다.
     public void sendRecruitmentOpenEmail(String to, String siteUrl) {
         Context context = new Context();
         context.setVariable("siteUrl", siteUrl);
         send(to, EmailType.RECRUITMENT_OPEN, context);
     }
 
-    // 제목 결정만 try 밖 — 실패해도 로그에 subject가 필요해서 미리 확보(subjectFor 자체는 예외 던질 일 없음).
+    // 제목 결정만 루프 밖 — 실패해도 로그에 subject가 필요해서 미리 확보(subjectFor 자체는 예외 던질 일 없음).
     // 그 외(템플릿 렌더링·메일 객체 생성·주소검증·전송·로그저장)는 전부 try 안 — "무슨 예외가 나든 반드시
     // email_log에 한 줄 남기고 EmailSendException으로 통일해서 던진다"는 불변식을 구조로 강제하기 위함.
-    // catch (Exception e)로 넓게 잡는 이유: MessagingException/MailException뿐 아니라 Thymeleaf 렌더링 예외,
-    // to가 null일 때 InternetAddress가 던질 수 있는 NullPointerException까지 전부 이 불변식 아래 두기 위한 의도적 선택.
+    //
+    // 재시도 여부는 classify()가 돌려주는 FailureCause.isRetryable()로 판단한다(단순히 "주소 형식
+    // 오류냐 아니냐" 이분법이 아니라 원인별로 다름 — FailureCause 참고). email_log엔 매 시도마다가
+    // 아니라 "최종 결과 한 줄"만 남긴다 — 재시도 중간의 일시적 실패까지 FAILURE로 쌓으면, #113 실패
+    // 임계치 알람(5분에 3건↑)이 재시도로 결국 성공한 건까지 세어 오탐을 낼 수 있어서(관측 소음과
+    // "결국 성공했다"는 결과가 서로 다른 신호이므로 섞으면 안 됨).
     private void send(String to, EmailType type, Context context) {
         String subject = subjectFor(type);
         MimeMessage message = null;
+        Exception lastFailure = null;
+        FailureCause lastCause = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                message = mailSender.createMimeMessage();
+                String html = templateEngine.process(type.getTemplateName(), context);
+
+                // MimeMessageHelper.setTo(String)만으로는 느슨한 파싱만 돼서 "not-an-email-address" 같은
+                // 형식 오류를 그냥 통과시킴 — validate()로 RFC 문법을 실제로 검사해야 여기서 걸러짐
+                InternetAddress toAddress = new InternetAddress(to);
+                toAddress.validate();
+
+                MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+                helper.setTo(toAddress);
+                helper.setFrom(from);
+                helper.setSubject(subject);
+                helper.setText(html, true);
+
+                mailSender.send(message);
+                recordSuccess(to, type, subject, messageIdOf(message));
+                return;
+            } catch (Exception e) {
+                lastFailure = e;
+                lastCause = classify(e);
+                log.warn("이메일 발송 실패 (시도 {}/{}) - to={}, type={}, cause={}, exception={}",
+                        attempt, maxAttempts, to, type, lastCause, e.toString());
+                if (!lastCause.isRetryable() || attempt == maxAttempts) {
+                    break;
+                }
+                sleepBeforeRetry();
+            }
+        }
+
+        recordFailureSafely(to, type, subject, message, lastFailure, lastCause);
+        throw new EmailSendException(type, to, lastFailure);
+    }
+
+    // 예외 타입으로 FailureCause를 판정한다 — 순서가 중요하다. AddressException·SendFailedException
+    // (또는 그걸 감싼 MailSendException)이 가장 먼저 걸러져야, 뒤의 넓은 MailAuthenticationException/
+    // MailException 체크가 이 둘을 삼키지 않는다(MailAuthenticationException도 MailException의
+    // 하위 타입이라 이것도 넓은 체크보다 먼저 와야 함). 표(backend/docs/email-module.md 참고)에
+    // 없는 예외는 UNKNOWN_FAILURE로 안전하게(재시도·알람 둘 다 대상) 떨어진다.
+    private FailureCause classify(Exception e) {
+        if (e instanceof AddressException) {
+            return FailureCause.RECIPIENT_ADDRESS_INVALID;
+        }
+        if (isRecipientRejection(e)) {
+            return FailureCause.RECIPIENT_ADDRESS_REJECTED_BY_SERVER;
+        }
+        if (e instanceof MailAuthenticationException) {
+            return FailureCause.SMTP_AUTHENTICATION_FAILED;
+        }
+        if (e instanceof MailException) {
+            return FailureCause.SMTP_CONNECTION_FAILED;
+        }
+        if (e instanceof TemplateProcessingException) {
+            return FailureCause.TEMPLATE_RENDERING_FAILED;
+        }
+        if (e instanceof NullPointerException) {
+            return FailureCause.INVALID_INPUT;
+        }
+        return FailureCause.UNKNOWN_FAILURE;
+    }
+
+    // SendFailedException(jakarta.mail)은 SMTP가 특정 수신자를 RCPT 단계에서 실제로 거부했을 때
+    // 던져진다 — OCI 문서(553 "Invalid email address") 기준으로는 "메일함이 없음/가득참"이 아니라
+    // OCI 자체의 RFC-822 형식 재검증에 걸린 경우다(우리 클라이언트 검증이 놓친 걸 OCI가 잡아준
+    // 것). Spring의 JavaMailSenderImpl은 이 체크 예외를 잡아 언체크 MailSendException으로 감싸
+    // 올리므로 getCause()까지 확인해야 실제로 잡힌다.
+    private boolean isRecipientRejection(Exception e) {
+        return e instanceof SendFailedException || e.getCause() instanceof SendFailedException;
+    }
+
+    private void sleepBeforeRetry() {
         try {
-            message = mailSender.createMimeMessage();
-            String html = templateEngine.process(type.getTemplateName(), context);
-
-            // MimeMessageHelper.setTo(String)만으로는 느슨한 파싱만 돼서 "not-an-email-address" 같은
-            // 형식 오류를 그냥 통과시킴 — validate()로 RFC 문법을 실제로 검사해야 여기서 걸러짐
-            InternetAddress toAddress = new InternetAddress(to);
-            toAddress.validate();
-
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setTo(toAddress);
-            helper.setFrom(from);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-
-            mailSender.send(message);
-            recordSuccess(to, type, subject, messageIdOf(message));
-        } catch (Exception e) {
-            recordFailureSafely(to, type, subject, message, e);
-            throw new EmailSendException(type, to, e);
+            Thread.sleep(retryDelayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -130,13 +209,16 @@ public class EmailService {
     // 실패 로그 저장 자체가 또 실패하는 경우(예: DB 커넥션 자체가 죽음)를 대비 — 여기서 예외를 삼켜서
     // send()의 catch가 원래 원인(cause)을 담은 EmailSendException을 반드시 던지도록 보장.
     // (이 로그 저장을 못 하면 email_log엔 안 남지만, 호출자에게 실패를 알리는 것 자체는 절대 놓치지 않음)
-    private void recordFailureSafely(String to, EmailType type, String subject, MimeMessage message, Exception cause) {
+    private void recordFailureSafely(String to, EmailType type, String subject, MimeMessage message,
+                                      Exception cause, FailureCause failureCause) {
         try {
             String messageId = messageIdOf(message);
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
-                eventPublisher.publishEvent(EmailLogEvent.failure(to, type, subject, cause.getMessage(), messageId));
+                eventPublisher.publishEvent(
+                        EmailLogEvent.failure(to, type, subject, cause.getMessage(), failureCause, messageId));
             } else {
-                emailLogRepository.save(EmailLog.failure(to, type, subject, cause.getMessage(), messageId));
+                emailLogRepository.save(
+                        EmailLog.failure(to, type, subject, cause.getMessage(), failureCause, messageId));
             }
         } catch (Exception loggingFailure) {
             // 의도적으로 무시 — 로깅 실패로 원래 예외 전파(EmailSendException)가 막히면 안 됨

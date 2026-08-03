@@ -2,7 +2,6 @@ package likelion.khu.website.admin.password;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.auth.RefreshToken;
 import likelion.khu.website.admin.auth.RefreshTokenRepository;
 import likelion.khu.website.email.EmailService;
@@ -12,7 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Transactional
 class AdminPasswordControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -46,7 +45,7 @@ class AdminPasswordControllerTest {
     @Test
     void forgot_ExistingEmail_SendsResetEmail() throws Exception {
         adminRepository.save(
-                Admin.register("exists@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("exists@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
 
         mockMvc.perform(post("/api/admin/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,7 +70,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_ValidToken_ChangesPasswordAndRevokesExistingRefreshTokens() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("reset@khu.ac.kr", "이름", passwordEncoder.encode("oldpassword1"), AdminRole.ADMIN));
+                Admin.register("reset@khu.ac.kr", "이름", passwordEncoder.encode("oldpassword1")));
         refreshTokenRepository.save(RefreshToken.issue(admin.getId(), "some-hash", LocalDateTime.now().plusDays(7)));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "reset-token", Duration.ofMinutes(30)));
@@ -92,9 +91,43 @@ class AdminPasswordControllerTest {
     }
 
     @Test
+    void forgot_DuplicateRequestWithin30Min_SendsEmailOnlyOnce() throws Exception {
+        adminRepository.save(
+                Admin.register("ratelimit@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ratelimit@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ratelimit@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        verify(emailService, times(1)).sendPasswordResetEmail(anyString(), anyString(), any(LocalDateTime.class));
+    }
+
+    @Test
+    void forgot_UpperCaseEmail_NormalizesToLowercaseAndFindsAdmin() throws Exception {
+        adminRepository.save(
+                Admin.register("normalize@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
+
+        mockMvc.perform(post("/api/admin/password/forgot")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"NORMALIZE@khu.ac.kr\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("메일이 발송되었어요."));
+
+        verify(emailService, times(1)).sendPasswordResetEmail(anyString(), anyString(), any(LocalDateTime.class));
+    }
+
+    @Test
     void reset_ExpiredToken_Returns410() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "expired-token", Duration.ofMillis(-1)));
 
@@ -108,7 +141,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_WeakPassword_Returns400() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("weak@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("weak@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "weak-token", Duration.ofMinutes(30)));
 
@@ -122,7 +155,7 @@ class AdminPasswordControllerTest {
     @Test
     void reset_AlreadyUsedToken_Returns400() throws Exception {
         Admin admin = adminRepository.save(
-                Admin.register("used@khu.ac.kr", "이름", passwordEncoder.encode("password1"), AdminRole.ADMIN));
+                Admin.register("used@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
         PasswordResetToken token = tokenRepository.save(
                 PasswordResetToken.issue(admin.getId(), "used-token", Duration.ofMinutes(30)));
         mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())

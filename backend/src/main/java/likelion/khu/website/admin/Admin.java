@@ -2,8 +2,6 @@ package likelion.khu.website.admin;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,6 +20,7 @@ public class Admin {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -32,10 +31,6 @@ public class Admin {
 
     @Column(nullable = false)
     private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AdminRole role;
 
     @Column(nullable = false)
     private int failedLoginAttempts;
@@ -48,12 +43,11 @@ public class Admin {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public static Admin register(String email, String name, String passwordHash, AdminRole role) {
+    public static Admin register(String email, String name, String passwordHash) {
         Admin admin = new Admin();
         admin.email = email;
         admin.name = name;
         admin.passwordHash = passwordHash;
-        admin.role = role;
         admin.failedLoginAttempts = 0;
         LocalDateTime now = LocalDateTime.now();
         admin.createdAt = now;
@@ -81,11 +75,6 @@ public class Admin {
 
     public void changePassword(String newPasswordHash) {
         this.passwordHash = newPasswordHash;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void changeRole(AdminRole newRole) {
-        this.role = newRole;
         this.updatedAt = LocalDateTime.now();
     }
 }

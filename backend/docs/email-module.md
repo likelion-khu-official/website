@@ -1,21 +1,23 @@
 # 이메일 발송 모듈 (`likelion.khu.website.email`)
 
-#75(OCI Email Delivery 발송 기반) 위에서, 실제 메일을 만들고·보내고·기록하는 백엔드 모듈. `#74` 어드민 초대·비밀번호 재설정이 이 모듈을 호출해서 쓴다 (현재는 컨트롤러가 아직 없어 `EmailService`를 직접 호출하는 진입점만 존재).
+#75(OCI Email Delivery 발송 기반) 위에서, 실제 메일을 만들고·보내고·기록하는 백엔드 모듈. 관리자 초대·비밀번호 재설정과 모집 시작 알림이 이 모듈을 호출한다.
 
 ## 구성 요소
 
 | 파일 | 역할 |
 |---|---|
-| `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`)마다 템플릿 이름 + 고정 제목 매핑 |
+| `EmailType.java` | 메일 종류(`INVITE`, `PASSWORD_RESET`, `RECRUITMENT_OPEN`)마다 템플릿 이름 + 고정 제목 매핑 |
 | `EmailStatus.java` | `SUCCESS` / `FAILURE` |
-| `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·messageId·sentAt (본문·토큰은 저장 안 함) |
+| `FailureCause.java` | 발송 실패 예외를 7가지로 분류하는 enum(`RECIPIENT_ADDRESS_INVALID`/`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`/`INVALID_INPUT`/`TEMPLATE_RENDERING_FAILED`/`SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`/`UNKNOWN_FAILURE`), 값마다 재시도 대상 여부·`#113` 알람 대상 여부가 다름 — 아래 "실패 원인 분류" 절 참고. FAILURE 행에만 값이 있고 SUCCESS는 `null` |
+| `EmailLog.java` | `email_log` 테이블 엔티티 — recipient·emailType·subject·status·errorMessage·failureCause·messageId·sentAt (본문·토큰은 저장 안 함) |
 | `EmailLogRepository.java` | JPA 리포지토리 |
 | `EmailLogEvent.java` | `email_log` 저장에 필요한 값만 담는 이벤트 페이로드(record) — 활성 트랜잭션 안에서 호출됐을 때만 씀, 아래 "트랜잭션 경계" 절 참고 |
 | `EmailLogEventListener.java` | `EmailLogEvent`를 받아 `@Async` + `@TransactionalEventListener(AFTER_COMPLETION)`로 별도 스레드·트랜잭션 완료 후에 `email_log` 저장 |
-| `EmailService.java` | 수신자 주소 검증(`InternetAddress.validate()`) → Thymeleaf 렌더링 → `JavaMailSender` 발송 → 성공/실패 기록. 활성 트랜잭션이 없으면 그 자리에서 즉시 저장(기존과 동일), 있으면 `EmailLogEvent`를 발행해 트랜잭션 완료 후 별도 스레드에서 저장(아래 "트랜잭션 경계" 절 참고). stage 프로파일이면 제목에 `[stage] ` 접두어 |
+| `EmailService.java` | 수신자 주소 검증(`InternetAddress.validate()`) → Thymeleaf 렌더링 → `JavaMailSender` 발송 → 성공/실패 기록. 주소 형식 오류가 아닌 실패는 `mail-sender.max-attempts`(기본 3)까지 재시도(아래 "재시도와 멱등성" 절 참고), `email_log`엔 최종 결과 한 줄만 남음. 활성 트랜잭션이 없으면 그 자리에서 즉시 저장(기존과 동일), 있으면 `EmailLogEvent`를 발행해 트랜잭션 완료 후 별도 스레드에서 저장(아래 "트랜잭션 경계" 절 참고). stage 프로파일이면 제목에 `[stage] ` 접두어 |
 | `exception/EmailSendException.java` | 발송 실패 시 던지는 unchecked 예외 |
 | `templates/email/invite.html` | 초대 메일 템플릿 (`inviteUrl`, `expiresAt`) |
 | `templates/email/password-reset.html` | 재설정 메일 템플릿 (`resetUrl`, `expiresAt`) |
+| `templates/email/recruitment-open.html` | 모집 시작 알림 템플릿 (`siteUrl`) |
 
 ## 구현 항목별 입출력 예시 × 검증 테스트
 
@@ -25,8 +27,17 @@
 |---|---|---|---|---|
 | 1 | 초대 메일 발송 | `sendInviteEmail("new-admin@khu.ac.kr", "https://admin.likelion-khu.com/invite?token=abc123", 2026-07-08T15:30)` | 제목 `[멋쟁이사자처럼 경희대] 운영진 초대`, 본문에 초대 링크와 `2026.07.08 15:30` 포함, 발신자 `noreply@likelion-khu.com` | `EmailServiceTest#sendInviteEmail_Success_SendsMailWithInviteValuesAndLogsSuccess` (목 SMTP, 로직 단위) |
 | 2 | 재설정 메일 발송 | `sendPasswordResetEmail("admin@khu.ac.kr", "https://admin.likelion-khu.com/reset-password?token=xyz789", 2026-07-09T09:00)` | 제목 `[멋쟁이사자처럼 경희대] 비밀번호 재설정`, 본문에 재설정 링크와 `2026.07.09 09:00` 포함 | `EmailServiceTest#sendPasswordResetEmail_Success_...` |
+| 2-1 | 모집 시작 알림 발송 | 관리자가 모집 상태를 `open=true`로 전환 | 구독자별 `RECRUITMENT_OPEN` 메일 발송, 공개 사이트 링크 포함, 각 결과를 `email_log`에 기록 | `RecruitmentOpenEmailHttpEndToEndIntegrationTest#open_ThreeRealSubscribers_AllThreeActuallyReceiveMailAndAreLogged` (실제 Mailpit·HTTP·DB 종단) |
 | 3 | 발송 성공 시 `email_log` 기록 | 1·2번과 동일 호출 | `email_log`에 `status=SUCCESS`, `errorMessage=null`, `subject`=실제 보낸 제목과 동일 | 단위: `EmailServiceTest` 1·2번 테스트(목 리포지토리) / 통합: `EmailServiceIntegrationTest` 두 테스트(진짜 SQLite, 아래 7번과 동일 지점) |
-| 4 | 발송 실패 시 처리(SMTP 연결·전송 단계) | SMTP 서버 연결 실패 | `EmailSendException` 던짐, `email_log`에 `status=FAILURE`, `errorMessage`에 원인 포함, **`messageId=null`**(연결 자체가 안 돼서 `saveChanges()`까지 못 감 — 실측 확인) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejects_...`(목이 `MailSendException` 던짐) / 통합: `EmailServiceFailureIntegrationTest#sendInviteEmail_SmtpServerUnreachable_...`(Mailpit 컨테이너를 실제로 내려서 진짜 연결 실패 유발) |
+| 4 | 발송 실패 시 처리(SMTP 연결·전송 단계) | SMTP 서버 연결 실패, `max-attempts`(기본 3)회 모두 실패 | `EmailSendException` 던짐, `email_log`엔 시도별이 아니라 **최종 결과 한 줄**만 `status=FAILURE`, `errorMessage`에 원인 포함, **`messageId=null`**(연결 자체가 안 돼서 `saveChanges()`까지 못 감 — 실측 확인) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...`(목이 매 시도 `MailSendException` 던짐, `mailSender.send()` 3회 호출 확인) / 통합: `EmailServiceFailureIntegrationTest#sendInviteEmail_SmtpServerUnreachable_...`(Mailpit 컨테이너를 실제로 내려서 진짜 연결 실패 유발, 테스트에선 `mail-sender.max-attempts=1`로 오버라이드해 속도 유지) |
+| 4-2 | 발송 실패 후 재시도로 결국 성공 | 처음 두 번은 SMTP 예외, 세 번째는 성공 | 재시도 끝에 성공 — `email_log`엔 중간 실패 없이 **SUCCESS 한 줄만** 남음(유저 원인이 아닌 실패는 결국 성공으로 수렴해야 한다는 요구, #113 후속) | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsThenSucceeds_...` |
+| 4-3 | 주소 형식 오류는 재시도 안 함 + `RECIPIENT_ADDRESS_INVALID`로 분류 | 4-1과 동일(형식이 깨진 주소) | `mailSender.send()` 자체를 한 번도 안 부름(`verify(never())`) — 재시도해도 결과가 똑같은 수신자 쪽 원인이라 즉시 포기, `email_log.failure_cause=RECIPIENT_ADDRESS_INVALID` | 단위: `EmailServiceTest#sendInviteEmail_MalformedAddress_DoesNotRetry`, `#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` |
+| 4-4 | SMTP 연결 실패는 재시도 소진 후 `SMTP_CONNECTION_FAILED`로 분류 | 4번과 동일(매 시도 `MailSendException`) | `email_log.failure_cause=SMTP_CONNECTION_FAILED` — `#113` 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_MailServerRejectsEveryAttempt_...` |
+| 4-5 | SMTP 인증 실패는 재시도 안 함 + `SMTP_AUTHENTICATION_FAILED`로 분류 | `MailAuthenticationException`(단위) / 실제 SMTP 535 거부(통합) | 1번만 시도 — OCI 문서의 `421` 인증실패 스로틀을 스스로 유발하지 않기 위함(아래 "실패 원인 분류" 절 참고). `email_log.failure_cause=SMTP_AUTHENTICATION_FAILED` — 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_AuthenticationFails_...` / 통합: `EmailServiceAuthenticationFailureIntegrationTest#sendInviteEmail_WrongSmtpCredentials_...`(Mailpit `--smtp-auth-file`로 진짜 자격증명을 요구하게 하고 일부러 틀린 비밀번호로 접속 — 실제 SMTP `535 Authentication credentials invalid` 응답에서 나온 진짜 예외로 검증, OCI 공식 문서의 문구와 일치 확인) |
+| 4-6 | OCI가 주소를 자체 재검증 후 거부하면 재시도 안 함 + `RECIPIENT_ADDRESS_REJECTED_BY_SERVER`로 분류 | `SendFailedException`(OCI 문서 553 Invalid email address) | 1번만 시도 — 결국 주소 형식 문제라 재시도 무의미. 알람 대상 아님 | 단위: `EmailServiceTest#sendInviteEmail_ServerRejectsRecipientAddress_...` — **알려진 한계**: Mailpit은 들어오는 메일을 전부 캡처하는 도구라 RCPT TO를 실제로 거부하는 기능 자체가 없음. 그래서 이 원인만 진짜 SMTP 서버로 재현 불가 — `classify()`가 `SendFailedException` 타입을 올바르게 인식하는지만 검증 |
+| 4-7 | 호출자 입력 오류(수신자 null)는 재시도 안 함 + `INVALID_INPUT`로 분류 | `to=null` → `NullPointerException`(실제 트리거) | 1번만 시도, `email_log.failure_cause=INVALID_INPUT` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_NullRecipient_...` |
+| 4-8 | 템플릿 렌더링 실패는 재시도 안 함 + `TEMPLATE_RENDERING_FAILED`로 분류 | 존재하지 않는 템플릿 디렉터리를 가리키는 실제 `SpringTemplateEngine`(실제 트리거) | 1번만 시도, `email_log.failure_cause=TEMPLATE_RENDERING_FAILED` — 우리 코드 버그라 알람 대상 | 단위: `EmailServiceTest#sendInviteEmail_TemplateRenderingFails_...` |
+| 4-9 | 미분류 예외는 재시도 후 `UNKNOWN_FAILURE`로 분류(fallback) | 매 시도 `IllegalStateException`(classify()의 6가지 구체 분기 어디에도 안 걸림) | 재시도(`maxAttempts`까지) 후 `email_log.failure_cause=UNKNOWN_FAILURE` — "안전하게" 재시도·알람 둘 다 대상 | 단위: `EmailServiceTest#sendInviteEmail_UnclassifiedExceptionEveryAttempt_...` |
 | 4-1 | 발송 실패 시 처리(주소 형식 검증 단계) | 형식이 깨진 수신자 주소 — `not-an-email-address`(`@` 없음), `broken<address@@khu.ac.kr`(꺾쇠 안 닫힘) | `mailSender.send()`를 시도조차 안 함(`verify(never())`), `EmailSendException` 던짐, `email_log`에 `status=FAILURE`, **`messageId=null`** | 단위: `EmailServiceTest#sendInviteEmail_AddressWithNoAtSign_...`, `#sendInviteEmail_AddressWithUnbalancedAngleBracket_...` — 로컬 주소 파싱 문제라 실제 SMTP·환경과 무관하게 항상 같은 결과, 통합테스트는 중복이라 안 둠 |
 | 5 | stage 제목 접두어 | active profile = `stage`로 초대 발송 | 제목이 `[stage] [멋쟁이사자처럼 경희대] 운영진 초대`, `email_log.subject`도 접두어 포함 그대로 | 단위: `EmailServiceTest#sendInviteEmail_StageProfile_...` / 통합: `EmailServiceStageProfileIntegrationTest#sendInviteEmail_StageProfileRealSmtp_...`(`@ActiveProfiles("stage")` + 실제 Mailpit 수신함에서 확인) |
 | 6 | prod(비-stage) 접두어 없음 | active profile = `prod`로 동일 발송 | 접두어 없이 원래 제목 그대로 | 단위: `EmailServiceTest#sendInviteEmail_ProdProfile_...` / 통합: `EmailServiceIntegrationTest`(`@ActiveProfiles("prod")` 클래스 레벨로 명시, 두 테스트 모두 접두어 없는 제목 확인) |
@@ -48,7 +59,7 @@
 
 ## 트랜잭션 경계 — email_log가 호출자 트랜잭션 롤백에 휩쓸리지 않아야 한다
 
-**#85 PR 리뷰(신선우)에서 발견**: `EmailService.send()`는 자체적으로 트랜잭션을 열지 않아서, 이 메서드가 어떤 트랜잭션 안에서 실행되는지는 전적으로 호출자에게 달려 있다. 지금은 호출자가 없어(`#74` 컨트롤러 미구현) 드러나지 않지만, `#74`가 아래처럼 짜일 가능성이 높다:
+**#85 PR 리뷰(신선우)에서 발견**: `EmailService.send()`는 자체적으로 트랜잭션을 열지 않아서, 이 메서드가 어떤 트랜잭션 안에서 실행되는지는 전적으로 호출자에게 달려 있다. 당시 호출자가 연결되기 전이었지만, 이후 관리자 초대처럼 아래 형태의 트랜잭션 호출이 들어올 것을 예상했다:
 
 ```java
 @Transactional
@@ -94,13 +105,13 @@ void onEmailLogEvent(EmailLogEvent event) {
 }
 ```
 
-`EmailService`는 활성 트랜잭션 여부로 저장 경로를 나눈다 — **트랜잭션이 없으면(지금까지의 모든 호출 경로) 예전처럼 그 자리에서 즉시 저장**해서 기존 동작·테스트를 그대로 유지하고, **트랜잭션이 있을 때만** `EmailLogEvent`를 발행해 위 경로를 탄다. `AFTER_COMPLETION`이라 바깥 트랜잭션이 커밋되든 롤백되든 상관없이 항상 실행된다.
+`EmailService`는 활성 트랜잭션 여부로 저장 경로를 나눈다 — **트랜잭션이 없으면 예전처럼 그 자리에서 즉시 저장**하고, **트랜잭션이 있을 때만** `EmailLogEvent`를 발행해 위 경로를 탄다. 현재 관리자 초대·비밀번호 재설정은 트랜잭션 경로, 모집 시작 알림은 별도 비동기 스레드의 비트랜잭션 경로다. `AFTER_COMPLETION`이라 바깥 트랜잭션이 커밋되든 롤백되든 상관없이 항상 실행된다.
 
 앱에 `@EnableAsync`를 추가해야 했다(`WebsiteBackendApplication`).
 
 **실측 검증**: 로컬에 Docker가 떠서 진짜로 Testcontainers + 실제 `@Transactional` 프록시로 돌려봤다 — 실패 로그·성공 로그 둘 다 바깥 트랜잭션이 롤백된 뒤에도 (비동기로) `email_log`에 결국 남는 걸 확인했다(표 11-1·11-2). 이번엔 CI를 기다릴 필요 없이 로컬에서 이미 실증된 상태.
 
-**트레이드오프**: 트랜잭션 안에서 호출되는 경로에 한해 로그 저장이 **최종적 일관성(eventually consistent)**이 된다 — `send()`가 반환된 직후엔 아직 `email_log`에 안 보일 수 있고(별도 스레드가 처리 중), 그래서 재현 테스트(11-1·11-2)는 즉시 assert하지 않고 짧게 폴링한다. 트랜잭션 밖 호출(현재 모든 실제 사용처)은 영향 없음 — 예전처럼 동기 즉시 저장.
+**트레이드오프**: 트랜잭션 안에서 호출되는 경로에 한해 로그 저장이 **최종적 일관성(eventually consistent)**이 된다 — `send()`가 반환된 직후엔 아직 `email_log`에 안 보일 수 있고(별도 스레드가 처리 중), 그래서 재현 테스트(11-1·11-2)는 즉시 assert하지 않고 짧게 폴링한다. 트랜잭션 밖 호출은 예전처럼 동기 즉시 저장한다.
 
 **4-1번 관련 — 테스트 작성 중 발견한 실제 버그**: 처음엔 `"not-an-email-address"`로 4-1번 테스트를 짰는데, `MimeMessageHelper.setTo(String)`이 내부적으로 느슨한 파싱만 해서 이 값을 그냥 통과시켜버렸다(예외 없음). 테스트를 통과시키려고 값을 다른 걸로 바꾸는 대신, "그럼 애초에 이 값이 걸러져야 하는 게 맞나?"를 확인했고 — 맞았다(`InternetAddress.validate()`로 검사하면 `Missing final '@domain'`으로 정확히 거부됨). `EmailService`가 발송 전 주소를 `.validate()`하지 않고 있던 게 진짜 결함이었고, 이번에 그 검증을 추가했다. 그래서 4-1번은 서로 다른 두 형식 오류(`@` 없음 / 꺾쇠 안 닫힘) 둘 다 테스트로 남겨뒀다.
 
@@ -130,6 +141,44 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 
 뒤의 두 개는 이 프로젝트에서 로컬 테스트로 영원히 못 잡고, 실제 OCI를 때린 1회성 수동 검증(위 9·10번, 그리고 인프라가 별도로 한 SPF/DKIM/DMARC 확인)이 유일한 증거다.
 
+## 재시도와 멱등성 — 왜 "멱등성 먼저" 순서를 완화했나
+
+이전 버전의 이 문서(위 표 참고)는 "재시도를 멱등성 보장 없이 먼저 넣으면 위험 — `mailSender.send(message)`가 SMTP 서버엔 이미 전달됐는데 응답 확인 전 연결이 끊긴 경우, 재시도가 중복 발송으로 이어질 수 있다"고 재시도 도입 순서를 못 박아 뒀다. 실제로 `EmailService.send()`는 예외가 어느 단계(연결 자체 실패 vs 연결 후 응답 유실)에서 났는지 구분하지 않고 재시도하므로, 이 잔여 리스크는 그대로 남아 있다.
+
+**그런데도 진행한 이유(장찬욱 확인, #113 후속)**:
+- **관측 근거상 이 앱의 실패는 전부 "연결 자체가 안 됨" 케이스였다** — `EmailServiceFailureIntegrationTest`·`EmailServiceFailureTransactionBoundaryIntegrationTest`·`AuthEmailHttpFailureIntegrationTest` 전부 `mailpit.stop()`(연결 거부)로 재현하고, 실제 운영에서도 이 유형(SMTP 인증 실패·연결 타임아웃)이 유력한 원인이지 "응답만 유실"은 관측된 적이 없다.
+- **중복 발송의 실제 피해가 낮다** — 재시도는 `send()` 호출 안에서 처음 넘어온 `context`(같은 토큰·같은 링크)를 그대로 재사용한다(새 토큰을 다시 발급하지 않음). 그래서 최악의 경우도 "같은 메일 2통"이지 "서로 다른 유효 토큰이 동시에 살아있음" 같은 보안 문제로 번지지 않는다. 모집 안내 메일은 중복이 스팸처럼 느껴지는 정도, 초대·재설정 메일도 마찬가지.
+- **완전한 멱등성 보장은 이번 스코프 밖** — 하려면 OCI 쪽 message-id 기반 dedup 조회 또는 "발송 전 이미 성공 기록이 있는지 먼저 확인" 같은 별도 인프라가 필요한데, 지금 필요성(클럽 사이트, 저트래픽) 대비 과함.
+
+**후속으로 리스크를 더 좁히고 싶다면**: JavaMail의 `Transport.connect()` 단계 예외(연결 자체가 안 됨 — 100% 안전)와 `Transport.sendMessage()` 이후 예외(응답 유실 가능성 있음 — 재시도 시 중복 위험)를 분리해서, 후자는 재시도하지 않고 즉시 포기하는 방향으로 좁힐 수 있다. 지금은 `JavaMailSender.send()`가 이 둘을 구분해서 던지지 않아(둘 다 `MailException` 계열로 뭉뚱그려짐) 바로 적용하긴 어렵고, 필요성이 실제로 확인되면(예: 중복 발송 신고가 들어오면) 그때 이 구분을 추가하는 걸 검토.
+
+## 실패 원인 분류(`FailureCause`) — 알람이 손볼 수 없는 원인까지 세지 않게
+
+`#113` 실패 임계치 알람(`EmailFailureCountProd[5m] > 2`)은 원래 `email_log`의 FAILURE를 원인 구분 없이 다 셌다. 처음엔 "유저(주소 형식 오류) vs 시스템"으로 딱 두 갈래만 나눴는데, 리뷰 중 "이게 정말 유저/시스템을 나누는 기준이 맞냐"는 지적이 나왔다 — 실제로는 `AddressException`이냐 아니냐만 봤을 뿐이라, 그 뒤 단계에서 나는 예외는 인프라 문제(SMTP 인증 실패)든 우리 코드 버그(템플릿 렌더링 실패)든 심지어 또 다른 수신자 쪽 원인(SMTP가 존재하지 않는 메일함을 거부)이든 전부 "시스템"으로 뭉뚱그려졌다. 그래서 `EmailService.send()`가 실제로 만날 수 있는 예외를 표로 펼쳐서 원인별로 나누고, **재시도 여부**와 **`#113` 알람 대상 여부**를 각각 독립된 축으로 재정의했다(둘이 항상 같이 가지 않는다 — 아래 표 참고).
+
+| `FailureCause` | 실제 예외 | 재시도 | 알람 대상 | 의미 |
+|---|---|---|---|---|
+| `RECIPIENT_ADDRESS_INVALID` | `AddressException`(`InternetAddress.validate()`) | ❌ | ❌ | 우리 클라이언트 검증에서 걸린 주소 형식 오류 — 수신자 쪽 원인 |
+| `RECIPIENT_ADDRESS_REJECTED_BY_SERVER` | `SendFailedException`(OCI가 RCPT 단계에서 자체 형식 재검증 후 거부, `MailSendException`이 감싸서 옴) | ❌ | ❌ | 결국 `RECIPIENT_ADDRESS_INVALID`와 같은 "주소 형식" 문제를 OCI가 대신 잡아준 경우 — 수신자 쪽 원인 |
+| `INVALID_INPUT` | `NullPointerException`(수신자 `null` 등) | ❌ | ✅ | 호출자가 잘못된 값을 줌 — 우리 코드/호출자 버그 |
+| `TEMPLATE_RENDERING_FAILED` | `TemplateProcessingException` | ❌ | ✅ | 템플릿 자체가 깨짐 — 우리 코드 버그 |
+| `SMTP_AUTHENTICATION_FAILED` | `MailAuthenticationException` | ❌ | ✅ | 자격증명 실패 — 우리 쪽(인프라) 원인. 재시도는 안 함(아래 참고) |
+| `SMTP_CONNECTION_FAILED` | `MailSendException`(연결·타임아웃 등) | ✅ | ✅ | 그 외 SMTP 전송 실패 — 우리 쪽(인프라) 원인, 순간 장애일 수 있음 |
+| `UNKNOWN_FAILURE` | 위 어디에도 안 걸리는 예외 | ✅ | ✅ | 분류 불가 — "놓치는 것보다 오탐이 낫다" 원칙으로 안전하게 포함 |
+
+앞의 두 값(`RECIPIENT_ADDRESS_INVALID`·`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`)과 `SMTP_AUTHENTICATION_FAILED`는 재시도 대상이 아니다(이유는 각각 다름 — 앞 둘은 "재시도해도 결과가 똑같아서", 인증 실패는 아래 참고). 나머지도 재시도 여부는 갈리지만(코드 버그는 재시도해도 안 풀림) `RECIPIENT_*` 두 값을 뺀 다섯 전부 알람 대상이다. 분류 로직은 `EmailService.classify(Exception)` — 판정 순서가 중요하다(`AddressException`·`SendFailedException`이 넓은 `MailException` 체크보다 먼저 와야 함, 코드 주석 참고).
+
+**`SMTP_AUTHENTICATION_FAILED`는 왜 재시도하지 않는가 — OCI 공식 문서 근거.** 처음엔 이것도 재시도 대상이었는데, [OCI Email Delivery 트러블슈팅 문서](https://docs.oracle.com/en-us/iaas/Content/Email/Concepts/troubleshooting.htm)를 찾아보니 `421 Too many auth failures, try again later`라는 응답이 별도로 명시돼 있었다 — 반복된 인증 실패에 대한 **IP 단위 스로틀**이다. 자격증명이 실제로 깨졌을 때 우리가 자동으로 여러 번 재시도하면 이 스로틀을 스스로 유발할 수 있고, 스로틀이 걸리면 같은 IP(=우리 서버)에서 나가는 **다른 정상 발송까지** 함께 막힌다 — 한 통을 재시도해서 얻는 이득보다 전체 발신 경로가 막힐 위험이 훨씬 커서 1번만 시도하고 즉시 포기하도록 바꿨다.
+
+**`RECIPIENT_ADDRESS_REJECTED_BY_SERVER`의 의미도 OCI 문서를 보고 정정했다.** 처음엔 "메일함이 없음/가득참"(수신 메일서버가 실제로 거부)이라고 생각해서 이름을 `RECIPIENT_REJECTED_BY_SERVER`로 지었는데, OCI 문서엔 그런 응답이 없다 — 있는 건 `553 <address> Invalid email address`(RFC-822 형식 재검증)뿐이다. `infra/docs/email-delivery.md`에 이미 정리된 계층 구분(①우리→OCI 접수, ②OCI→수신 메일서버)을 다시 보면, "메일함이 진짜 존재하는지"는 ②단계의 결과라 OCI Logging을 별도 조회해야 나오는 값이지 `mailSender.send()`가 던지는 예외로는 알 수 없다. 그래서 이름을 `RECIPIENT_ADDRESS_REJECTED_BY_SERVER`로 바꾸고 "결국 주소 형식 문제의 연장"이라는 의미로 정정했다.
+
+**증명된 것과 안 된 것을 구분해야 한다** — 이 표의 신뢰도는 값마다 다르다:
+- Mailpit(테스트 도구)으로 **실제 재현·검증됨**: `RECIPIENT_ADDRESS_INVALID`(진짜 InternetAddress 검증), `INVALID_INPUT`(진짜 NPE), `TEMPLATE_RENDERING_FAILED`(진짜 Thymeleaf 예외), `SMTP_CONNECTION_FAILED`(진짜 연결 거부), `SMTP_AUTHENTICATION_FAILED`(Mailpit `--smtp-auth-file`로 진짜 SMTP `535` 거부 — 문구가 OCI 문서와 정확히 일치해 신뢰도 높음).
+- **재현 자체가 불가능해서 mock으로만 타입 분기를 검증함**: `RECIPIENT_ADDRESS_REJECTED_BY_SERVER` — Mailpit은 "들어오는 메일을 전부 캡처"하는 도구라 RCPT TO를 실제로 거부하는 기능이 없다.
+- **문서로만 확인, 실제 OCI 자격증명으로 재현 안 함**: `SMTP_AUTHENTICATION_FAILED`의 `421` 스로틀 자체(반복 재현이 실제 운영 IP에 리스크가 있어 시도 안 함), OCI 문서에 별도로 있는 `535 Authorization failed: address not authorized`(Approved Sender 정책 위반 — 자격증명 오류와 같은 코드 535라 JavaMail이 이것도 `MailAuthenticationException`으로 묶을 가능성이 높지만 확인 안 됨, 원인은 전혀 다름 — 비밀번호 문제가 아니라 발신 주소 설정 문제).
+
+`push-email-failure-metric.py`는 `failure_cause NOT IN ('RECIPIENT_ADDRESS_INVALID', 'RECIPIENT_ADDRESS_REJECTED_BY_SERVER')`인 행만 센다(Python 쪽 `EXCLUDED_FAILURE_CAUSES`가 이 두 값과 반드시 일치해야 함 — 새 `FailureCause`를 추가하면 `isAlarmWorthy()`부터 정하고 그 값에 맞춰 스크립트를 갱신할 것). 이 컬럼 도입 이전의 과거 FAILURE 행·분류 실패 케이스는 `NULL`인데, "수신자 쪽 원인이 아니라고 확인된 적 없다"는 뜻이라 알람 쪽에서 안전하게 포함시킨다(놓치는 것보다 오탐이 낫다는 원칙, `infra/docs/observability.md` 참고). 마이그레이션은 `V20260730133717__add_failure_cause_to_email_log.sql`(nullable 컬럼 추가, 기존 행은 전부 `null`).
+
 ## 아직 못 메꾼 빈틈
 
 | 항목 | 이유 |
@@ -137,20 +186,20 @@ Mailpit이 `--smtp-require-starttls`, `--smtp-auth-accept-any` 옵션을 지원�
 | ~~초대·재설정 **HTTP 엔드포인트** 단위 end-to-end~~ | → 완료(#113). `AdminInvitationControllerTest`/`AdminPasswordControllerTest`는 `EmailService`를 목으로 대체해서 "보내려고 시도했나"만 확인했고, `EmailServiceIntegrationTest`는 서비스 레이어만 실증했다 — 실제 `POST /api/admin/invitations`·`POST /api/admin/password/forgot` HTTP 호출이 목 없이 `email_log`까지 실제로 남기는 전체 경로는 검증한 적이 없었다. `email/AuthEmailHttpEndToEndIntegrationTest`(Testcontainers Mailpit, `EmailService` 실빈)로 메움. 처음 버전은 "메일 도착"까지만 봤는데, 리뷰에서 "그 메일에 적힌 링크(토큰)가 실제로 작동하는지도 봐야 하지 않냐"는 지적을 받아 — Mailpit이 받은 메일 HTML에서 링크를 정규식으로 뽑아 그 토큰으로 verify→accept/reset→login까지 실제 HTTP로 완주하도록 확장(#123 QA 라운드). `cd.yml` 스모크 테스트는 여전히 없음 — 필요성 낮음(이미 CI에서 실제 SMTP 왕복까지 매 빌드 검증됨). |
 | `management.health.mail.enabled=false` 동작 확인 | 설정 자체는 있으나 `/actuator/health`에서 실제로 mail 상태가 빠지는지 검증하는 테스트는 없음 (낮은 리스크) |
 | Naver 등 Gmail 외 실제 수신함 스팸 판정 | 이번엔 Gmail만 확인 (요청 범위) |
-| PROD 자격증명으로 **실제 발송**(AUTH 아님) | 실사용자 오발송 방지를 위해 의도적으로 미수행 — `#74` 배포 후 첫 실제 초대 때 `email_log` 확인으로 대체 예정 |
-| `EmailSendException` 원인별 세분화 | 지금은 주소 형식 오류(클라이언트 문제)와 SMTP 연결·인증 실패(인프라 문제)가 예외 타입 하나로 뭉뚱그려짐. 컨트롤러가 아직 없어 원인별로 다른 HTTP 상태(400 vs 503)를 응답할 소비자가 없으므로 지금 쪼개는 건 시기상조 — `#74` 컨트롤러가 붙고 실제 구분 요구가 생기면 후속 PR에서 `InvalidRecipientAddressException`/`MailDeliveryException` 등으로 분리 검토 |
-| SMTP 타임아웃 반복 실패 알림 | `connectiontimeout`/`timeout`/`writetimeout`을 5초로 명시해 요청 스레드가 무한정 잡히는 것만 막아둔 상태(2026-07-08). 타임아웃이 반복적으로 발생하면(=OCI SMTP 장애 가능성) 인프라 쪽에 알림이 가도록 하는 건 아직 없음 — 별도 이슈로 인프라와 협의 필요 |
-| 메일 발송 비동기 큐 처리 | 지금은 `send()`가 요청 스레드에서 동기 실행 — 타임아웃 상한(5초×3)을 둬도 동시 실패가 몰리면 스레드 풀이 일시적으로 압박받을 수 있음. 근본 해결은 발송을 큐(`@Async`, 메시지 큐 등)로 빼서 요청 스레드가 SMTP 왕복을 아예 기다리지 않게 하는 것 — `#74` 컨트롤러 연결 시점에 트래픽 규모를 보고 필요성 재판단 |
-| 발송 실패 시 자동 재시도 | 지금은 재시도 로직 전혀 없음(한 번 실패하면 그대로 `EmailSendException`). **순서 중요**: 재시도를 멱등성 보장 없이 먼저 넣으면 위험 — `mailSender.send(message)`가 SMTP 서버엔 이미 전달됐는데 응답 확인 전 연결이 끊긴 경우, 재시도가 중복 발송으로 이어질 수 있음. 그래서 **동일 토큰 기준 멱등성 보장(예: 같은 초대/재설정 토큰으로는 한 번만 발송되도록)을 먼저 구현한 뒤에** 재시도 로직을 추가하는 순서로 진행 |
+| PROD 자격증명으로 **자동 실발송 검증**(AUTH 아님) | 실사용자 오발송을 막기 위해 CI에서는 의도적으로 수행하지 않는다. 실제 운영 발송의 결과는 `email_log`와 OCI 관측으로 확인한다. |
+| ~~`EmailSendException` 원인별 세분화~~ | → 부분 완료(#113 후속). 예외 타입 자체(`EmailSendException`)는 여전히 하나지만, `email_log.failure_cause`가 7가지로 원인을 구분해 남긴다(`FailureCause.java`) — HTTP 응답 상태를 원인별로 나눌 소비자가 아직 없다는 원래 이유는 유효해서 예외 타입 자체를 쪼개진 않았지만, "원인을 구분해서 남긴다"는 요구 자체는 이 컬럼으로 충족됨. |
+| ~~SMTP 타임아웃 반복 실패 알림~~ | → 완료(#113, 이후 #113 후속으로 정교화). `push-email-failure-metric.py`가 `email_log`의 실패 건수를 5분마다 OCI Monitoring custom metric으로 보내고, 임계치(`> 2`/5분) 초과 시 알람이 인프라·PM에게 이메일로 간다(`infra/docs/observability.md`·`RUNBOOK.md` 1-6 참고). 이번 PR에서 이 알람이 유저 원인(주소 형식 오류)까지 세던 것도 바로잡았고, 발송 성공 시계열(`push-email-success-metric.py`)도 추가함. |
+| 관리자 메일 발송 비동기 큐 처리 | 관리자 초대·재설정은 아직 요청 스레드에서 SMTP 왕복을 기다린다. 타임아웃 상한(5초×3) 안에서도 동시 실패가 몰리면 요청 스레드가 압박받을 수 있다. 모집 시작 일괄 발송은 이미 `@Async` 이벤트 리스너로 분리돼 있다. 관리자 메일까지 큐로 뺄지는 실제 트래픽·지연이 문제가 될 때 판단한다. |
+| ~~발송 실패 시 자동 재시도~~ | → 완료(#113 후속, 장찬욱 요청). "실패 원인이 유저 쪽(주소 형식 오류)이 아니면 email_log가 결국 SUCCESS로 수렴해야 한다"는 요구로 `EmailService.send()`에 재시도(기본 최대 3회, 시도 간 2초, `mail-sender.max-attempts`/`mail-sender.retry-delay-ms`로 조정 가능)를 추가했다. `AddressException`(주소 형식 오류)만 즉시 포기하고 그 외는 전부 재시도 대상. **이 표에 남아 있던 "순서 중요" 경고(멱등성 먼저)는 의도적으로 완화해서 진행**했다 — 아래 "재시도와 멱등성" 절 참고 |
 
-## 코드 리뷰 진행 상황 (직접 리뷰 중)
+## 코드 리뷰 기록 (초기 구현 당시)
 
-읽는 순서와 진행 상태. 다음 세션(다른 기기 포함)은 여기서부터 이어가면 됨.
+초기 구현을 학습하며 남긴 읽기 순서다. 체크 상태는 당시 리뷰 범위이며 현재 기능 구현 상태를 뜻하지 않는다.
 
 - [x] 1. `EmailLog.java` — `success()`/`failure()`가 생성자가 아니라 정적 팩토리 메서드라는 것, `private` 생성자로 밖에서 임의 생성 못 막은 것, `sentAt` 자동 채움, static vs 동적 바인딩까지 논의 완료. 필드명 `type`→`emailType` 리네임 반영(테스트 5곳 `getType()`→`getEmailType()` 수정, DB 컬럼명도 `type`→`email_type`로 바뀜 — 아직 배포 전이라 안전)
 - [x] 2. `EmailLogRepository.java` — 커스텀 쿼리 메서드 없는 순수 `JpaRepository` 상속, 아직 파생 쿼리 불필요한 이유 논의 완료
 - [x] 3. `templates/email/invite.html`, `password-reset.html` — `xmlns:th` 자연 템플릿, `th:href`/`th:text`가 각각 링크·표시텍스트를 Context 변수로 치환, 인라인 style을 쓰는 이유(메일 클라이언트가 `<style>` 블록 무시) 논의 완료
-- [x] 4. `EmailService.java` 전체(검증·messageId·stage접두어가 `send()` 안에서 어떻게 이어지는지) — 생성자 주입/필드 주입 차이, `final`/`private`, Thymeleaf `Context` 역할, `inviteUrl`/`resetUrl`/`expiresAt`은 호출자가 넘겨야 하는 값이고 아직 그 호출자(#74)가 없다는 것까지 논의 완료. `STAGE_SUBJECT_PREFIX`를 `[STAGE 테스트] `→`[stage] `로 변경(테스트 5곳 + 문서 2곳 + infra 문서 예시 동반 수정)
+- [x] 4. `EmailService.java` 전체(검증·messageId·stage접두어가 `send()` 안에서 어떻게 이어지는지) — 생성자 주입/필드 주입 차이, `final`/`private`, Thymeleaf `Context` 역할, `inviteUrl`/`resetUrl`/`expiresAt`은 호출자가 넘기는 값이라는 점까지 논의 완료. 당시에는 호출자가 연결되기 전이었고, 이후 관리자 초대·재설정·모집 알림이 연결됐다. `STAGE_SUBJECT_PREFIX`를 `[STAGE 테스트] `→`[stage] `로 변경(테스트 5곳 + 문서 2곳 + infra 문서 예시 동반 수정)
 - [x] 5. `exception/EmailSendException.java` — unchecked 예외로 만든 이유, `(type, recipient, cause)` 생성자가 메시지·원인 체인을 어떻게 감싸는지 논의 완료. 원인별 예외 세분화(주소오류 vs SMTP실패)는 컨트롤러 붙기 전이라 시기상조 판단, 후속 PR 대상으로 위 "아직 못 메꾼 빈틈"에 기록
 - [x] 6. `EmailServiceTest.java` 전체(7개 테스트, `createService(String... activeProfiles)` 헬퍼) — templateEngine만 실제 협력자로 남기고 mailSender/emailLogRepository만 목 처리한 이유, `mailSender.createMimeMessage()`가 진짜 MimeMessage를 반환해야 하는 이유, `ReflectionTestUtils.setField`가 왜 필요한지(필드 주입이라 생성자로 못 넣음) 논의 완료. `sendPasswordResetEmail_Success`가 `sendInviteEmail_Success`보다 검증 범위 좁은 것(getFrom 등 누락)은 확인해볼 만한 지점으로 남김
 - [x] 7. 통합테스트 3개 — `@DynamicPropertySource`가 왜 필요한지(컨테이너 랜덤 포트), `@DirtiesContext`가 `EmailServiceIntegrationTest`(테스트 2개, 인메모리 SQLite 공유 문제)에만 있고 나머지엔 없는 이유, `awaitMessageTo` 폴링, messageId 꺾쇠 스트립 비교, `EmailServiceFailureIntegrationTest`의 `mailpit.stop()`+짧은 타임아웃으로 진짜 연결 실패 재현 논의 완료

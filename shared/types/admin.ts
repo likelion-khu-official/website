@@ -2,7 +2,6 @@
 // 변경 시 양 팀 합의 필요 (shared/ 규칙)
 // 참고: access_token/refresh_token은 Set-Cookie(HttpOnly)로만 전달되며 JSON 바디엔 노출되지 않는다.
 
-export type AdminRole = 'SUPER_ADMIN' | 'ADMIN';
 export type AdminStatus = 'ACTIVE' | 'LOCKED';
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED';
 
@@ -18,7 +17,7 @@ export type AdminErrorCode =
   | 'INVALID_TOKEN'
   | 'EXPIRED_TOKEN'
   | 'WEAK_PASSWORD'
-  | 'LAST_SUPER_ADMIN';
+  | 'LAST_ADMIN';
 
 /** 모든 에러 응답 공통 형태 */
 export interface AdminErrorResponse {
@@ -31,7 +30,6 @@ export interface AdminAccount {
   id: number;
   email: string;
   name: string;
-  role: AdminRole;
 }
 
 // ── 인증 ──────────────────────────────────────────────────────────
@@ -67,7 +65,7 @@ export interface AdminInvitationSummary {
   id: number;
   email: string;
   status: InvitationStatus;
-  invitedBy: string; // 초대한 SUPER_ADMIN의 이메일 (초대 시점 스냅샷)
+  invitedBy: string; // 초대한 관리자의 이메일 (초대 시점 스냅샷)
   expiresAt: string; // ISO-8601
 }
 
@@ -84,7 +82,6 @@ export interface AdminInvitationAcceptRequest {
 export interface AdminInvitationAcceptResponse {
   id: number;
   email: string;
-  role: 'ADMIN';
 }
 
 // ── 비밀번호 재설정 ────────────────────────────────────────────────
@@ -117,20 +114,10 @@ export interface AdminSummary {
   id: number;
   email: string;
   name: string;
-  role: AdminRole;
   status: AdminStatus; // ACTIVE | LOCKED — 파생값, 저장값 아님
 }
 
 /** DELETE /api/admin/admins/:id */
 export interface AdminDeleteResponse {
   success: true;
-}
-
-/** PATCH /api/admin/admins/:id/role */
-export interface AdminRoleUpdateRequest {
-  role: AdminRole;
-}
-export interface AdminRoleUpdateResponse {
-  id: number;
-  role: AdminRole;
 }

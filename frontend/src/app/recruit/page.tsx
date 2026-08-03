@@ -1,7 +1,11 @@
-export default function RecruitPage() {
-  return (
-    <main className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-400 text-sm">모집 안내 — 준비 중이에요.</p>
-    </main>
-  );
+import { redirect } from 'next/navigation';
+
+// 예전 모집 안내 URL을 북마크한 사용자를 현재 지원폼으로 보낸다.
+export default async function RecruitPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  redirect(params.preview === '1' ? '/apply?preview=1' : '/apply');
 }

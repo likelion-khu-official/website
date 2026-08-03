@@ -15,3 +15,17 @@ export interface RecruitmentStatusResponse {
 export interface RecruitmentStatusUpdateRequest {
   open: boolean;
 }
+
+/**
+ * GET /api/recruitment/status — 공개, 비인증. 랜딩 모집 섹션과 지원폼(/apply)이
+ * 평소(모집 알림)/모집중(지원폼)을 가르는 데 쓴다. 관리 정보(subscriberCount)는 없다(#151·#152).
+ */
+export interface PublicRecruitmentStatusResponse {
+  open: boolean;
+}
+
+/** GET /api/admin/recruitment/subscribers 항목 — 관리자(ADMIN 이상) */
+export interface SubscriberSummary {
+  email: string;
+  subscribedAt: string; // ISO 8601
+}

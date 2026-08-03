@@ -1,21 +1,23 @@
 package likelion.khu.website.staff;
 
 import likelion.khu.website.staff.dto.StaffCreateRequest;
+import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffResponse;
 import likelion.khu.website.staff.dto.StaffUpdateRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Transactional
 class StaffServiceTest {
 
     @Autowired StaffService staffService;
@@ -29,6 +31,8 @@ class StaffServiceTest {
         req.setAdmissionYear(22);
         req.setPhotoUrl("https://example.com/photo.jpg");
         req.setSortOrder(1);
+        req.setPublicationConsent(true);
+        req.setPublicationConsentedAt(LocalDateTime.of(2026, 7, 1, 12, 0));
         return req;
     }
 
@@ -39,6 +43,50 @@ class StaffServiceTest {
         Staff saved = staffRepository.findAll().get(0);
         assertThat(saved.getCreatedBy()).isEqualTo("admin@likelion.org");
         assertThat(saved.getUpdatedBy()).isEqualTo("admin@likelion.org");
+    }
+
+    @Test
+    void create_StoresActivitiesInOrder() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("활동 A", "활동 B"));
+
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        assertThat(created.getActivities()).containsExactly("활동 A", "활동 B");
+        assertThat(staffService.getAll().get(0).getActivities()).containsExactly("활동 A", "활동 B");
+    }
+
+    @Test
+    void create_NoActivities_DefaultsToEmptyList() {
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+
+        assertThat(created.getActivities()).isEmpty();
+    }
+
+    @Test
+    void update_Activities_ReplacesWholeList() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("옛 활동"));
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        StaffUpdateRequest update = new StaffUpdateRequest();
+        update.setActivities(List.of("새 활동 1", "새 활동 2"));
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+
+        assertThat(updated.getActivities()).containsExactly("새 활동 1", "새 활동 2");
+    }
+
+    @Test
+    void update_NullActivities_KeepsExisting() {
+        StaffCreateRequest req = sampleRequest();
+        req.setActivities(List.of("유지될 활동"));
+        StaffAdminResponse created = staffService.create(req, "admin@likelion.org");
+
+        StaffUpdateRequest update = new StaffUpdateRequest();
+        update.setPosition("부회장");
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+
+        assertThat(updated.getActivities()).containsExactly("유지될 활동");
     }
 
     @Test
@@ -79,11 +127,11 @@ class StaffServiceTest {
 
     @Test
     void update_PartialUpdate_OnlyChangesProvidedFields() {
-        StaffResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
 
         StaffUpdateRequest update = new StaffUpdateRequest();
         update.setIntroduction("안녕하세요, 회장입니다.");
-        StaffResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getIntroduction()).isEqualTo("안녕하세요, 회장입니다.");
         assertThat(updated.getPosition()).isEqualTo("회장");
@@ -93,11 +141,11 @@ class StaffServiceTest {
 
     @Test
     void update_NameDepartmentAdmissionYear_AreImmutable_NotInUpdateDto() {
-        StaffResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
 
         StaffUpdateRequest update = new StaffUpdateRequest();
         update.setPosition("부회장");
-        StaffResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
 
         assertThat(updated.getName()).isEqualTo("시현");
         assertThat(updated.getDepartment()).isEqualTo("컴퓨터공학과");
@@ -106,7 +154,7 @@ class StaffServiceTest {
 
     @Test
     void update_UpdatesUpdatedBy() {
-        StaffResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
 
         StaffUpdateRequest update = new StaffUpdateRequest();
         update.setPosition("부회장");
@@ -128,7 +176,7 @@ class StaffServiceTest {
 
     @Test
     void delete_RemovesStaff() {
-        StaffResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
 
         staffService.delete(created.getId());
 
@@ -139,5 +187,38 @@ class StaffServiceTest {
     void delete_NonExistentId_ThrowsNotFound() {
         assertThatThrownBy(() -> staffService.delete(9999L))
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void getAll_OnlyReturnsConsentedStaff() {
+        staffService.create(sampleRequest(), "admin@likelion.org");
+
+        StaffCreateRequest privateStaff = sampleRequest();
+        privateStaff.setName("비공개");
+        privateStaff.setPublicationConsent(false);
+        privateStaff.setPublicationConsentedAt(null);
+        staffService.create(privateStaff, "admin@likelion.org");
+
+        assertThat(staffService.getAll()).extracting(StaffResponse::getName)
+                .containsExactly("시현");
+        assertThat(staffService.getAllForAdmin()).hasSize(2);
+    }
+
+    @Test
+    void update_StoresPrivateProfileWithoutReturningPhone() {
+        StaffAdminResponse created = staffService.create(sampleRequest(), "admin@likelion.org");
+        LocalDateTime consentedAt = LocalDateTime.of(2026, 7, 2, 13, 30);
+
+        StaffUpdateRequest update = new StaffUpdateRequest();
+        update.setStudentId("2026000001");
+        update.setPhone("01000000001");
+        update.setPublicationConsent(true);
+        update.setPublicationConsentedAt(consentedAt);
+        StaffAdminResponse updated = staffService.update(created.getId(), update, "admin@likelion.org");
+
+        Staff saved = staffRepository.findById(created.getId()).orElseThrow();
+        assertThat(saved.getPhone()).isEqualTo("01000000001");
+        assertThat(updated.getStudentId()).isEqualTo("2026000001");
+        assertThat(updated.getPublicationConsentedAt()).isEqualTo(consentedAt);
     }
 }

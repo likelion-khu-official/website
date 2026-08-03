@@ -5,6 +5,18 @@
   --foreground: #ffffff;
   --muted: #9aa5b0;
   --accent: #ff5000;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* 고정 네비 실제 높이(min-h-16 = 64px + 1px 보더). */
+  --nav-h: 65px;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* 각 섹션이 이미 py-20~24(80~96px) 상단 패딩으로 네비를 비켜주므로, 앵커 정지선은
+     작게 둬야 제목이 네비 바로 밑에 붙는다. 크게 주면 그 패딩과 겹쳐 제목이 화면
+     한참 아래에 떠(= "너무 높이 멈춤 / 더 내려야 함") 보인다. */
+  scroll-padding-top: 8px;
+  overflow-x: clip;
 }
 
 @theme inline {
@@ -12,7 +24,10 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --font-sans: "Pretendard Variable", var(--font-geist-sans), sans-serif;
+  /* 라틴은 Inter, 한글은 Inter에 글리프가 없으므로 Pretendard로 자연스럽게 폴백한다. */
+  --font-sans: var(--font-inter), "Pretendard Variable", sans-serif;
+  --font-latin: var(--font-inter), sans-serif;
+  --font-korean: "Pretendard Variable", sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -20,6 +35,107 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 랜딩 섹션 공통 타이포그래피 — 트랙 시안의 위계를 전 섹션 헤더에 재사용한다. */
+.landing-section-kicker {
+  font-family: var(--font-latin);
+  color: var(--accent);
+  font-size: clamp(13px, 0.9765625vw, 15px);
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.landing-section-title {
+  font-family: var(--font-korean);
+  color: #f7f7f7;
+  font-size: clamp(36px, 3.125vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: clamp(0px, 0.0651042vw, 1px);
+}
+
+.landing-section-copy {
+  font-family: var(--font-korean);
+  color: #8d8d8d;
+  font-size: clamp(15px, 1.1067708vw, 17px);
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: 0;
+}
+
+/* 콘텐츠 챕터는 같은 바탕색 위에서 이어지고, 낮은 대비의 선만 구조를 구분한다.
+   모든 경계에 페이드를 반복하면 페이지 전체에서 붉은 가로 띠가 생기기 때문이다. */
+.home-experience main > section:not(#thumbnail),
+.home-blog-chapter > section {
+  isolation: isolate;
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.home-experience main
+  > section:not(#thumbnail)
+  > *:not([aria-hidden]),
+.home-blog-chapter > section > *:not([aria-hidden]) {
+  position: relative;
+  z-index: 2;
+}
+
+.home-experience main > section:not(#thumbnail) > [aria-hidden],
+.home-blog-chapter > section > [aria-hidden] {
+  z-index: 0;
+}
+
+::selection {
+  background: rgba(255, 80, 0, 0.9);
+  color: #ffffff;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.site-scroll-progress {
+  transform: scaleX(0);
+}
+
+@keyframes site-scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .site-scroll-progress {
+    animation: site-scroll-progress 1ms linear both;
+    animation-timeline: scroll(root block);
+  }
 }
 
 .hero-glow {
@@ -36,8 +152,140 @@ body {
    State1(106:82): 위 살짝 + 아래 크게 / State2(Frame25=86:11): 검정 + 왼쪽아래
    State3(Frame26=93:76): 왼쪽위(93:80, 수직 flip) + 하단 밴드(93:79) */
 .hero-thumbnail-bg {
-  position: relative;
   background-color: #131313;
+}
+
+.hero-scroll-shell {
+  background: #131313;
+}
+
+.hero-stage::after {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: min(20vh, 180px);
+  background: linear-gradient(to bottom, transparent, rgba(19, 19, 19, 0.76) 72%, #131313);
+  content: "";
+  pointer-events: none;
+}
+
+.hero-stage {
+  position: sticky;
+}
+
+.hero-brand-mark {
+  position: absolute;
+  top: 13%;
+  right: -12%;
+  width: clamp(340px, 52vw, 900px);
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 80, 0, 0.1));
+  opacity: 0.16;
+  pointer-events: none;
+  mask-image: url("/logo.png");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: url("/logo.png");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.hero-copy,
+.hero-scroll-cue {
+  z-index: 2;
+}
+
+.hero-scroll-cue {
+  opacity: 0.8;
+}
+
+.hero-scroll-arrow {
+  animation: hero-scroll-arrow 1.6s var(--motion-ease-out) infinite;
+}
+
+@keyframes hero-scroll-arrow {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+/* 히어로 최초 등장 — 카피가 blur→선명 + 아래에서 순차로 떠오른다. 스크롤 패럴럭스는
+   .hero-copy(부모)에 걸리므로, 자식 문구에 애니메이션을 둬 서로 간섭하지 않는다.
+   animation-fill-mode:both → 각자 delay 동안 시작 상태(투명)로 숨어 있다 순차 등장. */
+.hero-intro-eyebrow,
+.hero-intro-title,
+.hero-intro-sub {
+  animation-fill-mode: both;
+  animation-timing-function: var(--motion-ease-out);
+  will-change: transform, opacity, filter;
+}
+
+.hero-intro-eyebrow {
+  animation-name: hero-copy-rise;
+  animation-duration: 0.85s;
+  animation-delay: 0.15s;
+}
+
+.hero-intro-title {
+  animation-name: hero-title-in;
+  animation-duration: 1.15s;
+  animation-delay: 0.32s;
+}
+
+.hero-intro-sub {
+  animation-name: hero-copy-rise;
+  animation-duration: 0.95s;
+  animation-delay: 0.66s;
+}
+
+@keyframes hero-copy-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes hero-title-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 42px, 0) scale(1.045);
+    filter: blur(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-intro-eyebrow,
+  .hero-intro-title,
+  .hero-intro-sub {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .hero-brand-mark {
+    top: 16%;
+    right: -44%;
+    width: 118vw;
+    opacity: 0.1;
+  }
 }
 
 .hero-glow-layer {
@@ -129,65 +377,291 @@ body {
   }
 }
 
-/* Introduce 섹션 배경 — Figma 115:27 그라디언트(좌하단 붉은 글로우, opacity 0.3) */
+/* 모바일은 데스크톱 비율의 SVG를 세로로 늘리지 않는다. 한 개의 넓은 CSS 글로우만
+   사용해 강한 첫 장면은 남기되, 짧은 히어로 구간에서 배경까지 계속 움직이지 않게 한다. */
+@media (max-width: 767px) {
+  .hero-glow-layer--1 {
+    background-color: #131313;
+    background-image:
+      radial-gradient(ellipse 125% 42% at 50% 94%, rgba(255, 105, 38, 0.78) 0%, rgba(176, 34, 12, 0.5) 30%, rgba(19, 19, 19, 0) 72%),
+      radial-gradient(ellipse 90% 30% at 8% 0%, rgba(112, 32, 13, 0.24) 0%, rgba(19, 19, 19, 0) 72%);
+    animation: none;
+  }
+
+  .hero-glow-layer--2,
+  .hero-glow-layer--3 {
+    display: none;
+  }
+}
+
+/* 중간 콘텐츠는 단색 바탕으로 쉬게 하고, 오렌지는 타이포와 데이터에만 쓴다. */
 .introduce-bg {
   background-color: #131313;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1727 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23g)' opacity='0.3'/><defs><radialGradient id='g' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-23.724 117.01 -173.69 -47.731 1010.1 117.54)'><stop stop-color='rgba(0,0,0,1)' offset='0'/><stop stop-color='rgba(0,0,0,1)' offset='0.48794'/><stop stop-color='rgba(11,2,1,1)' offset='0.50202'/><stop stop-color='rgba(22,4,2,1)' offset='0.5161'/><stop stop-color='rgba(44,9,3,1)' offset='0.54425'/><stop stop-color='rgba(88,17,6,1)' offset='0.60056'/><stop stop-color='rgba(132,26,9,1)' offset='0.65687'/><stop stop-color='rgba(176,34,12,1)' offset='0.71319'/><stop stop-color='rgba(186,59,35,1)' offset='0.74904'/><stop stop-color='rgba(196,84,58,1)' offset='0.78489'/><stop stop-color='rgba(206,109,81,1)' offset='0.82074'/><stop stop-color='rgba(216,133,105,1)' offset='0.85659'/><stop stop-color='rgba(235,183,151,1)' offset='0.9283'/><stop stop-color='rgba(255,233,197,1)' offset='1'/></radialGradient></defs></svg>");
 }
 
-/* 세션소개(107:359) 섹션 배경 — Figma 글로우 2겹(107:567·107:568)을 회전 트릭 그대로,
-   단 고정 px → %/aspect-ratio 로 바꿔 뷰포트에 스케일되게 함 */
+/* 트랙 소개 — 1536×1024 디자인 좌표를 컨테이너 비율로 동일하게 축소한다. */
 .session-intro-bg {
+  display: flex;
+  height: 100svh;
+  align-items: flex-start;
+  justify-content: center;
   background-color: #131313;
 }
 
-/* 상단 글로우 (107:567) — 935×1730 세로 박스를 rotate(90deg)해 1730×935 밴드로.
-   wrap: 폭 100% + aspect 1730/935, inner: 935/1730=54.046% × 1730/935=185.027% */
-.session-glow-top-wrap {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  aspect-ratio: 1730 / 935;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  pointer-events: none;
-}
-.session-glow-top {
-  flex-shrink: 0;
-  width: 54.046%;
-  height: 185.027%;
-  transform: rotate(90deg);
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 935 1730' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(151.4 -298.9 72.429 598.47 -204.5 2881.5)'><stop stop-color='rgba(255,246,232,1)' offset='0.23771'/><stop stop-color='rgba(235,193,177,1)' offset='0.25641'/><stop stop-color='rgba(216,140,122,1)' offset='0.2751'/><stop stop-color='rgba(206,114,95,1)' offset='0.28445'/><stop stop-color='rgba(196,87,67,1)' offset='0.2938'/><stop stop-color='rgba(186,61,40,1)' offset='0.30315'/><stop stop-color='rgba(181,47,26,1)' offset='0.30782'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+.session-intro-bg::before {
+  display: none !important;
+  content: none !important;
 }
 
-/* 하단 글로우 (107:568) — 935×1727 세로 박스를 rotate(-90deg)해 1727×935 밴드로, 섹션 하단 앵커 */
-.session-glow-bottom-wrap {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  aspect-ratio: 1727 / 935;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  pointer-events: none;
+.session-intro-bg::after {
+  display: none !important;
 }
-.session-glow-bottom {
-  flex-shrink: 0;
-  width: 54.14%;
-  height: 184.71%;
-  transform: rotate(-90deg);
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 935 1727' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.33'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(168.15 -294.29 43.275 608.03 -372 2835.6)'><stop stop-color='rgba(255,246,232,1)' offset='0.23771'/><stop stop-color='rgba(235,193,177,1)' offset='0.25641'/><stop stop-color='rgba(216,140,122,1)' offset='0.2751'/><stop stop-color='rgba(206,114,95,1)' offset='0.28445'/><stop stop-color='rgba(196,87,67,1)' offset='0.2938'/><stop stop-color='rgba(186,61,40,1)' offset='0.30315'/><stop stop-color='rgba(181,47,26,1)' offset='0.30782'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+
+.session-intro-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100svh - var(--nav-h) - 28px);
+  margin-top: calc(var(--nav-h) + 14px);
+  flex: none;
+  container-type: size;
+  font-family: var(--font-sans);
+}
+
+.session-intro-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.session-intro-header {
+  position: absolute;
+  top: 1.1470282cqh;
+  right: 4.8177083cqw;
+  left: 4.8177083cqw;
+}
+
+.session-track-label {
+  font-family: var(--font-latin);
+  color: #ff5000;
+  font-size: min(0.9114583cqw, 1.459854cqh);
+  font-weight: 600;
+  line-height: min(1.3020833cqw, 2.085506cqh);
+  letter-spacing: 0;
+}
+
+.session-intro-title {
+  margin-top: 1.668405cqh;
+  white-space: nowrap;
+}
+
+.session-intro-summary {
+  position: absolute;
+  top: 3.336809cqh;
+  left: 59.765625cqw;
+  width: 30.5989583cqw;
+}
+
+.session-intro-summary span,
+.session-track-description span {
+  display: block;
+  white-space: nowrap;
+}
+
+.session-grid-line {
+  position: absolute;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.session-grid-line--vertical {
+  top: 16.579771cqh;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.session-grid-line--horizontal {
+  top: 54.953076cqh;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.session-track-grid {
+  position: absolute;
+  inset: 16.579771cqh 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 38.373306cqh 45.046924cqh;
+}
+
+.session-track-card {
+  position: relative;
+  min-width: 0;
+  padding-top: 6.256517cqh;
+  padding-left: 4.8177083cqw;
+}
+
+.session-track-card:nth-child(even) {
+  padding-left: 3.515625cqw;
+}
+
+.session-track-title {
+  margin-top: 2.711157cqh;
+  font-family: var(--font-latin);
+  color: #f5f5f5;
+  font-size: min(2.4739583cqw, 3.962461cqh);
+  font-weight: 700;
+  line-height: min(2.9947917cqw, 4.796663cqh);
+  letter-spacing: 0;
+}
+
+.session-track-headline {
+  margin-top: 1.564129cqh;
+  font-family: var(--font-korean);
+  color: #f0f0f0;
+  font-size: min(1.3671875cqw, 2.189781cqh);
+  font-weight: 700;
+  line-height: min(1.8880208cqw, 3.023983cqh);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.session-track-description {
+  margin-top: 1.877cqh;
+  font-family: var(--font-korean);
+  color: #8d8d8d;
+  font-size: min(1.1067708cqw, 1.77268cqh);
+  font-weight: 400;
+  line-height: min(1.8880208cqw, 3.023983cqh);
+  letter-spacing: 0;
+}
+
+.session-track-motif {
+  position: absolute;
+  top: 7.507821cqh;
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+
+.session-track-motif--01 {
+  right: 2.6692708cqw;
+  width: min(13.0859375cqw, 20.959333cqh);
+}
+
+.session-track-motif--02 {
+  right: 3.3203125cqw;
+  width: min(13.0859375cqw, 20.959333cqh);
+}
+
+.session-track-motif--03 {
+  right: 2.6692708cqw;
+  width: min(11.8489583cqw, 18.978102cqh);
+}
+
+.session-track-motif--04 {
+  right: 2.9296875cqw;
+  width: min(13.4765625cqw, 21.585005cqh);
+}
+
+@media (max-width: 1023px) {
+  .session-intro-bg {
+    display: block;
+    height: auto;
+  }
+
+  .session-intro-canvas {
+    width: 100%;
+    height: auto;
+    margin-top: 0;
+    aspect-ratio: auto;
+    min-height: 100svh;
+    padding: 80px 20px;
+    container-type: normal;
+  }
+
+  .session-intro-header,
+  .session-intro-summary,
+  .session-track-grid {
+    position: relative;
+    inset: auto;
+  }
+
+  .session-intro-header {
+    right: auto;
+    left: auto;
+  }
+
+  .session-track-label {
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .session-intro-title {
+    margin-top: 12px;
+    white-space: normal;
+  }
+
+  .session-intro-summary {
+    width: auto;
+    margin-top: 24px;
+  }
+
+  .session-intro-summary span,
+  .session-track-description span {
+    display: inline;
+    white-space: normal;
+  }
+
+  .session-intro-summary span + span::before,
+  .session-track-description span + span::before {
+    content: " ";
+  }
+
+  .session-grid-line {
+    display: none;
+  }
+
+  .session-track-grid {
+    display: block;
+    margin-top: 48px;
+  }
+
+  .session-track-card,
+  .session-track-card:nth-child(even) {
+    min-height: 300px;
+    padding: 40px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+  }
+
+  .session-track-title {
+    margin-top: 24px;
+    font-size: 32px;
+    line-height: 40px;
+  }
+
+  .session-track-headline {
+    max-width: calc(100% - 128px);
+    margin-top: 12px;
+    font-size: 17px;
+    line-height: 26px;
+    white-space: normal;
+  }
+
+  .session-track-description {
+    max-width: 34rem;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 24px;
+  }
+
+  .session-track-motif {
+    top: 40px;
+    right: 0;
+    width: 112px;
+  }
 }
 
 /* Project(101:10) 섹션 배경 — 상단 warm 글로우는 컴포넌트 내 GLOW_SVG 요소로 렌더(107:609 원본) */
@@ -195,122 +669,385 @@ body {
   background-color: #131313;
 }
 
-/* Plan(107:573) 섹션 배경 — 하단 중앙에서 피어오르는 강한 오렌지 글로우 */
-.plan-bg {
-  background-color: #131313;
-  background-repeat: no-repeat;
-  background-image: radial-gradient(
-    72% 58% at 38% 118%,
-    rgba(255, 80, 0, 0.5) 0%,
-    rgba(176, 34, 12, 0.32) 32%,
-    rgba(19, 19, 19, 0) 66%
-  );
+.project-carousel {
+  position: relative;
+  min-width: 0;
 }
 
-/* Footer(116:557) 배경 — 따뜻한 톤의 어두운 배경 */
-.footer-bg {
-  background-color: #171310;
+.project-section {
+  --project-section-padding: 3svh;
+  --project-header-height: 18svh;
+  --project-carousel-offset: 1.5svh;
+  --project-stage-height: 44svh;
+  --project-stage-gutter: 2svh;
+  --project-card-height: 30svh;
+  --project-meta-height: 9svh;
+  --project-pagination-offset: 1.5svh;
+  padding-block: var(--project-section-padding);
 }
 
-/* Recruit(116:532) 섹션 배경 — 상단에서 강하게 번지는 레드 글로우 (위→아래로 소멸) */
-.recruit-bg {
-  background-color: #131313;
-  background-repeat: no-repeat;
-  background-image: radial-gradient(
-    130% 95% at 50% -12%,
-    rgba(255, 80, 0, 0.9) 0%,
-    rgba(176, 34, 12, 0.78) 16%,
-    rgba(90, 18, 7, 0.5) 36%,
-    rgba(19, 19, 19, 0) 62%
-  );
+/* 다른 섹션처럼 내용을 뷰포트 가운데에 두기 위해, inner를 화면에 꽉 채우지 않고
+   내용 높이(≈80svh)만큼만 잡는다. 섹션의 justify-center가 이 블록을 가운데로 보내
+   제목 위·아래에 여백이 생긴다(= 형제 섹션과 동일한 착지 리듬). */
+.project-section-inner {
+  height: auto;
 }
 
-/* Blog(114:139) 섹션 배경 — 좌우 가장자리 은은한 다크레드 글로우 */
-.blog-bg {
-  background-color: #131313;
-  background-repeat: no-repeat;
-  background-image:
-    radial-gradient(40% 45% at 0% 55%, rgba(176, 34, 12, 0.28) 0%, rgba(19, 19, 19, 0) 60%),
-    radial-gradient(40% 45% at 100% 45%, rgba(176, 34, 12, 0.26) 0%, rgba(19, 19, 19, 0) 60%);
+.project-section-header {
+  min-height: var(--project-header-height);
+  padding-bottom: 1svh;
 }
 
-/* Blog 카드 세로 무한 슬라이드 — 사본 2벌을 -50%↔0 으로 이동해 이음매 없이 반복(아래로 흐름) */
-.blog-track {
-  animation-name: blog-marquee;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
+.project-section-title {
+  padding-top: 1.4svh;
 }
-.blog-viewport:hover .blog-track {
+
+.project-section-copy {
+  padding-top: 1.6svh;
+}
+
+.project-carousel-shell {
+  margin-top: var(--project-carousel-offset);
+}
+
+.project-coverflow-stage {
+  position: relative;
+  height: var(--project-stage-height);
+  margin-block: var(--project-stage-gutter);
+  perspective: 1600px;
+  transform-style: preserve-3d;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.project-coverflow-stage:active {
+  cursor: grabbing;
+}
+
+.project-coverflow-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: min(var(--project-card-height), 29vw);
+  aspect-ratio: 1.9 / 1;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  background: #0b0b0b;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.52);
+  transform: translate(-50%, -50%) translateX(var(--card-x)) rotateY(var(--card-rotate))
+    scale(var(--card-scale));
+  transform-style: preserve-3d;
+  transition:
+    transform 820ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 520ms linear,
+    border-color 320ms ease,
+    filter 520ms ease;
+  filter: saturate(0.55) brightness(0.58);
+  will-change: transform, opacity;
+}
+
+.project-carousel-meta {
+  min-height: var(--project-meta-height);
+}
+
+.project-carousel-pagination {
+  height: 2svh;
+  margin-top: var(--project-pagination-offset);
+}
+
+.project-coverflow-card.is-active {
+  border-color: rgba(255, 255, 255, 0.28);
+  filter: saturate(1) brightness(1);
+  box-shadow:
+    0 32px 86px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.project-coverflow-card:focus-visible {
+  outline: 2px solid #ff5000;
+  outline-offset: 5px;
+}
+
+.project-coverflow-open {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  opacity: 0;
+  transform: translateY(8px);
+  backdrop-filter: blur(12px);
+  transition:
+    opacity 260ms ease,
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 260ms ease;
+}
+
+.project-coverflow-card.is-active:hover .project-coverflow-open,
+.project-coverflow-card.is-active:focus-visible .project-coverflow-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.project-coverflow-card.is-active:hover .project-coverflow-open {
+  background: #ff5000;
+}
+
+.project-carousel-control {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease,
+    transform 220ms ease;
+}
+
+.project-carousel-control:hover {
+  border-color: #ff5000;
+  background: #ff5000;
+  color: white;
+  transform: scale(1.05);
+}
+
+.project-carousel-control:focus-visible {
+  outline: 2px solid #ff5000;
+  outline-offset: 3px;
+}
+
+.project-carousel-progress {
+  width: 100%;
+  transform-origin: left;
+  animation: project-carousel-progress 5.2s linear forwards;
+}
+
+.project-carousel-progress.is-paused {
   animation-play-state: paused;
 }
-@keyframes blog-marquee {
+
+@keyframes project-carousel-progress {
   from {
-    transform: translateY(-50%);
+    transform: scaleX(0);
   }
   to {
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .blog-track {
-    animation: none;
+    transform: scaleX(1);
   }
 }
 
-/* Members(115:60) 섹션 배경 — Figma 글로우 2겹(115:62 베이스 하단우측 + 115:61 하단좌측 액센트) */
+@media (max-width: 639px) {
+  .project-section {
+    --project-section-padding: 2.5svh;
+    --project-header-height: 26svh;
+    --project-carousel-offset: 1svh;
+    --project-stage-height: 29svh;
+    --project-stage-gutter: 1.5svh;
+    --project-card-height: 21svh;
+    --project-meta-height: 13svh;
+    --project-pagination-offset: 1svh;
+  }
+
+  .project-coverflow-stage {
+    perspective: 1000px;
+  }
+
+  .project-coverflow-card {
+    top: 50%;
+    height: min(var(--project-card-height), 43vw);
+    border-radius: 18px;
+  }
+
+  .project-coverflow-open {
+    right: 12px;
+    bottom: 12px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .project-carousel-control {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .project-section {
+    --project-section-padding: 3svh;
+    --project-header-height: 22svh;
+    --project-stage-height: 38svh;
+    --project-card-height: 30svh;
+    --project-meta-height: 11svh;
+  }
+
+  .project-coverflow-card {
+    height: min(var(--project-card-height), 35vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-coverflow-card {
+    transition:
+      opacity 160ms linear,
+      filter 160ms linear;
+  }
+
+  .project-carousel-progress {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+/* 본문 챕터는 단색으로 이어져 히어로와 모집 CTA의 강한 장면을 살린다. */
+.plan-bg {
+  background-color: #131313;
+}
+
+/* 전역 공개 푸터 — 본문과 구분되면서도 랜딩의 오렌지 글로우를 약하게 이어간다. */
+.footer-bg {
+  background:
+    radial-gradient(48% 120% at 0% 100%, rgba(112, 32, 13, 0.18), transparent 70%),
+    #111212;
+}
+
+/* Recruit 섹션 — 어두운 바탕 위 브랜드 단어와 CTA만 오렌지로 강조한다. */
+.recruit-bg {
+  background: #131313;
+}
+
+.blog-bg {
+  background-color: #131313;
+}
+
+/* FAQ 섹션 배경 — 아직 Figma 시안이 없어, 글로우 없이 Project 섹션과 같은 단색 배경만 사용 */
+.faq-bg {
+  background-color: #131313;
+}
+
 .members-bg {
   background-color: #131313;
 }
-/* 115:62 — 2011×1117, 프레임 대비 x=-284 (좌측으로 확장). left -16.44%, width 116.44% */
-.members-glow-base {
-  position: absolute;
-  top: 0;
-  left: -16.44%;
-  width: 116.44%;
-  height: 100%;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 2011 1117' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-139.8 -105.45 164.89 -218.86 2076 1034)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(137,30,14,1)' offset='0.36846'/><stop stop-color='rgba(98,27,16,1)' offset='0.42443'/><stop stop-color='rgba(58,23,17,1)' offset='0.48039'/><stop stop-color='rgba(39,21,18,1)' offset='0.50837'/><stop stop-color='rgba(19,19,19,1)' offset='0.53636'/><stop stop-color='rgba(19,19,19,1)' offset='1'/></radialGradient></defs></svg>");
-}
-/* 115:61 — 1440×800, 프레임 대비 (0,800). left 0, top 71.62%, width 83.38%, height 71.62% */
-.members-glow-accent {
-  position: absolute;
-  left: 0;
-  top: 71.62%;
-  width: 83.38%;
-  height: 71.62%;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 800' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%25' width='100%25' fill='url(%23grad)' opacity='0.3'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(160.85 -168.15 264.72 253.22 271.06 1617.5)'><stop stop-color='rgba(255,246,232,1)' offset='0'/><stop stop-color='rgba(235,193,177,1)' offset='0.078125'/><stop stop-color='rgba(216,140,122,1)' offset='0.15625'/><stop stop-color='rgba(206,114,95,1)' offset='0.19531'/><stop stop-color='rgba(196,87,67,1)' offset='0.23437'/><stop stop-color='rgba(186,61,40,1)' offset='0.27344'/><stop stop-color='rgba(181,47,26,1)' offset='0.29297'/><stop stop-color='rgba(176,34,12,1)' offset='0.3125'/><stop stop-color='rgba(132,26,9,0.75)' offset='0.36846'/><stop stop-color='rgba(88,17,6,0.5)' offset='0.42443'/><stop stop-color='rgba(44,9,3,0.25)' offset='0.48039'/><stop stop-color='rgba(0,0,0,0)' offset='0.53636'/><stop stop-color='rgba(0,0,0,0)' offset='1'/></radialGradient></defs></svg>");
+
+/* 스크롤 진입 모션 — JS가 준비된 뒤에만 숨겨 콘텐츠가 유실되는 실패를 막는다.
+   각 요소가 --reveal-y로 자기 이동거리를 정할 수 있어(카드마다 다른 오프셋) 계단식으로 떠오른다. */
+.scroll-reveal-ready .scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, var(--reveal-y, 44px), 0) scale(0.985);
+  -webkit-transition:
+    opacity 520ms linear,
+    -webkit-transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 520ms linear,
+    transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 
-/* Introduce 헤드라인 — 두 문구 크로스페이드 (a: 코딩이 처음이더라도... / b: 아이디어를...) */
-.headline-swap {
-  position: absolute;
-  inset: 0;
-  animation: headline-swap-cycle 10s ease-in-out infinite;
+
+.scroll-reveal-ready .scroll-reveal--left {
+  transform: translate3d(-28px, 10px, 0) scale(0.99);
 }
-.headline-swap--a {
-  animation-delay: 0s;
+
+.scroll-reveal-ready .scroll-reveal--right {
+  transform: translate3d(28px, 10px, 0) scale(0.99);
+  transition-delay: 60ms;
 }
-.headline-swap--b {
-  animation-delay: -5s;
+
+.scroll-reveal-ready .scroll-reveal--scale {
+  transform: translate3d(0, 20px, 0) scale(0.975);
 }
-@keyframes headline-swap-cycle {
-  0% { opacity: 1; }
-  40% { opacity: 1; }
-  50% { opacity: 0; }
-  90% { opacity: 0; }
-  100% { opacity: 1; }
+
+.scroll-reveal-ready .scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
-@media (prefers-reduced-motion: reduce) {
-  .headline-swap {
-    animation: none !important;
+
+.session-card-reveal:nth-child(2),
+.project-card-reveal:nth-child(3n + 2),
+.member-card-reveal:nth-child(even) {
+  transition-delay: 35ms;
+}
+
+.session-card-reveal:nth-child(3),
+.project-card-reveal:nth-child(3n) {
+  transition-delay: 70ms;
+}
+
+.session-card-reveal:nth-child(4) {
+  transition-delay: 105ms;
+}
+
+/* 연간 계획은 부모가 나타난 뒤 선과 끝점이 한 박자 늦게 이어진다. */
+.timeline-group--bottom .timeline-line {
+  transform-origin: right;
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+  .scroll-reveal-ready .timeline-group .timeline-line {
+    opacity: 0.2;
+    transform: scaleX(0);
+    transition:
+      opacity 600ms linear 80ms,
+      transform 700ms cubic-bezier(0.22, 0.72, 0.2, 1) 80ms;
   }
-  .headline-swap--b {
+
+  .scroll-reveal-ready .timeline-group.is-visible .timeline-line {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .scroll-reveal-ready .timeline-group .timeline-endpoint {
+    opacity: 0;
+    transform: scale(0.35);
+    transition:
+      opacity 220ms linear 450ms,
+      transform 280ms cubic-bezier(0.22, 0.72, 0.2, 1) 450ms;
+  }
+
+  .scroll-reveal-ready .timeline-group.is-visible .timeline-endpoint {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 최근 블로그 레이아웃을 건드리지 않고 랜딩 진입 리듬만 동일하게 맞춘다. */
+.home-blog-chapter {
+  background: #131313;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-scroll-progress {
     display: none;
+  }
+
+  .hero-copy,
+  .hero-brand-mark,
+  .hero-scroll-cue {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .timeline-line,
+  .timeline-endpoint {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .scroll-reveal-ready .scroll-reveal {
+    transform: none !important;
+    transition: opacity 160ms linear !important;
   }
 }

@@ -2,12 +2,21 @@
 
 이 문서가 단일 진실이다. 발주 쪽(PM용 `mission` 스킬)과 받는 쪽(`claim-mission`)이 **같은 약속**을 봐야 QA에서 안 터진다. 약속이 어긋나면(라벨을 바꾼다, 라우팅을 assignee 말고 다른 걸로 한다 등) 미션이 큐에 안 잡히거나 엉뚱한 사람에게 간다.
 
+## 계층 모델 — 4단 (GitHub Native Issue Type 기준)
+Jira식 4계층을 GitHub **네이티브 Issue Type**으로 그대로 쓴다. 담당 팀(BE/FE/인프라/디자인)은 제목 접두사가 아니라 **라벨**, 이슈 종류는 제목 접두사가 아니라 **네이티브 Issue Type 뱃지**다.
+- **Epic** (테마, 예: 프로젝트 쇼케이스·블로그·모집) — 큰 묶음. 담당자 없음.
+- **Story** — 사용자 향 기능 슬라이스 하나(예: "방문자가 프로젝트 목록을 볼 수 있다"). 왜·완료기준·위키 스펙 링크를 들고 있다. 테마 Epic의 sub-issue.
+- **Sub-task** — 이 스킬이 다루는 **미션 그 자체**. 팀원이 채가 R→P→I→Q로 미는 단위. Story의 sub-issue.
+- **Task** — 사용자 스토리가 없는 순수 기술 작업(스택 셋업·인프라 등)의 미션. Story 밑에 안 달리고 독립.
+
+즉 **미션 = 네이티브 Issue Type `Sub-task`(또는 순수 기술 작업이면 `Task`), 미션의 상위(Target) = `Story`**, Story의 상위 = 테마 `Epic`. (예전엔 슬라이스를 Epic, 미션을 Story로 불렀는데 — 지금은 이 4단이 정본.)
+
 ## 대상 레포·보드
 - 레포: `github.com/likelion-khu-official/website`
 - 조직 Projects v2: **project #1** (owner `likelion-khu-official`, id `PVT_kwDOEZZ_V84BbPtZ`)
 
 ## 명부 (단일 진실)
-- `pm/roster.yml` — `members[].{name, handle, team}`. `team ∈ {디자인,프론트,백엔드,인프라,PM}`.
+- `pm/roster.yml` — `members[].{name, handle, team}`. `team ∈ {디자인,FE,BE,인프라,PM}`.
 - `handle: null` = GitHub 계정 없음(디자인) → **claim-mission 대상 아님**(디자인은 카톡/Figma 경로).
 - 이름·팀은 roster에만. 개인 신원 파일엔 안 적고 handle로 파생(drift 방지).
 
@@ -17,21 +26,20 @@
 - PAT 스코프: **repo + project**(이슈 읽기 + 보드 카드 쓰기). 값은 어떤 로그에도 출력 금지.
 
 ## 라우팅·뱃지
-- 미션 뱃지 = 라벨 **`roadmap`** + **팀 라벨**(`프론트`/`백엔드`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
+- 미션 뱃지 = 라벨 **`roadmap`** + **분야 라벨**(`FE`/`BE`/`인프라`/`디자인`). (새 라벨 만들지 않는다 — 기존 관례 재사용.)
 - 라우팅 = **GitHub assignee**. 클레임은 `assignee == 내 handle` 인 이슈를 가져온다.
 - 클레임 쿼리: `state:open` + `label:roadmap` + `assignee:<내 handle>`.
 
 ## 보드 좌표 (Projects v2)
 - `PROJ_NUM=1` · `OWNER=likelion-khu-official` · `PROJ_ID=PVT_kwDOEZZ_V84BbPtZ`
-- Status 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlCY` — Todo `f75ad846` · In Progress `47fc9ee4` · Done `98236657`
-- Team 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` — 프론트 `a2398a16` · 백엔드 `c2387007` · 인프라 `7d9a54b6` · 디자인 `2171eaba`
+- Status 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlCY` — Todo `f75ad846` · Done `98236657`
+- Team 필드 `PVTSSF_lADOEZZ_V84BbPtZzhWBlF8` — FE `a2398a16` · BE `c2387007` · 인프라 `7d9a54b6` · 디자인 `2171eaba`
 - (id가 안 맞으면 `gh project field-list 1 --owner likelion-khu-official --format json` 로 갱신.)
 
 ## 인증
 - 모든 gh 는 `GH_HOST=github.com GH_TOKEN=<pat>` 방식(`pm/scripts/mission-fields.sh`와 동일). 스크립트가 신원 파일에서 PAT를 읽어 내부적으로 세팅한다 — 사용자는 gh를 볼 일이 없다.
 
-## Status 이동 규칙 (개정)
-- 원칙은 "카드 이동은 PM만". 단 claim-mission 에서 **미션을 채간 팀원**이 두 지점을 스스로 옮긴다:
-  - **착수 시** Todo→In Progress (`start-mission.sh`)
-  - **IQ 게이트 통과 후 마감 시** In Progress→Done + 이슈 close (`close-mission.sh`)
+## Status 이동 규칙
+- Status는 **끝나지 않은 Todo / 끝난 Done** 두 값만 쓴다. 착수 여부는 별도 Status로 표시하지 않는다.
+- **IQ 게이트 통과 후 마감 시** 미션을 채간 팀원이 Todo→Done + 이슈 close (`close-mission.sh`)한다.
 - 즉 **미션은 연 사람이 닫는다.** PM은 발주·방향만.

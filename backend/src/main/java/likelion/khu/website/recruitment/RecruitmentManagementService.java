@@ -1,10 +1,17 @@
 package likelion.khu.website.recruitment;
 
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.dto.PublicRecruitmentStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,6 +26,7 @@ public class RecruitmentManagementService {
     private final NotificationSubscriptionRepository subscriptionRepository;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditService auditService;
 
     // app.frontend-base-url(admin.likelion-khu.com)이 아니라 이걸 쓴다 — frontend-base-url은
     // 어드민 초대·비밀번호 재설정 전용이고(#124 리뷰에서 혼용 발견), 이 메일은 일반 구독자에게
@@ -26,8 +34,33 @@ public class RecruitmentManagementService {
     @Value("${app.public-site-url}")
     private String publicSiteUrl;
 
+    // 지원폼(#152)이 완성되기 전까지 모집 열기를 막는 스위치(이슈 #154 PM 결정: B — prod에서는
+    // 지원폼 없이 모집을 열지 않는다, 스테이지에서만 검증). 기본값 false라 운영(.env.prod)은
+    // 이 값을 명시적으로 켜기 전까지 항상 막혀 있고, 검증 환경(스테이지 .env.stage·테스트)만
+    // true로 열어 관리자 화면·안내 메일 발송을 미리 확인한다. #152가 끝나면 .env.prod에서
+    // 이 값을 true로 바꾸는 것으로 운영 오픈을 허용한다 — 코드 변경이 필요 없다.
+    @Value("${app.recruitment.application-form-ready:false}")
+    private boolean applicationFormReady;
+
     public RecruitmentStatusResponse getStatus() {
         return toResponse(findOrCreate());
+    }
+
+    // 공개(비로그인) 조회 — 방문자의 지원폼/모집알림 전환 판단용(#151·#152). 공개 GET이라
+    // 없는 싱글턴을 새로 만들지(findOrCreate) 않고 읽기만 한다(없으면 닫힘으로 간주).
+    // subscriberCount는 관리자 전용 정보라 여기 담지 않는다.
+    public PublicRecruitmentStatusResponse getPublicStatus() {
+        boolean open = statusRepository.findById(RecruitmentStatus.SINGLETON_ID)
+                .map(RecruitmentStatus::isOpen)
+                .orElse(false);
+        return new PublicRecruitmentStatusResponse(open);
+    }
+
+    public List<SubscriberSummary> getSubscribers() {
+        return subscriptionRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(SubscriberSummary::from)
+                .toList();
     }
 
     // 의도적으로 클래스/메서드 레벨 @Transactional을 안 쓴다 — 상태 플립(statusRepository.save)
@@ -51,6 +84,9 @@ public class RecruitmentManagementService {
     // 단일 인스턴스 배포를 전제하므로, synchronized(= 이 빈 인스턴스 기준 락)만으로 충분하다 —
     // 여러 인스턴스로 수평 확장하게 되면 DB 레벨 락(@Version 등)으로 다시 가야 한다.
     public synchronized RecruitmentStatusResponse open() {
+        if (!applicationFormReady) {
+            throw new RecruitmentProductionHoldException();
+        }
         RecruitmentStatus status = findOrCreate();
         // "닫힘→열림 전이일 때만" — 이미 열려있으면(open()을 두 번 눌러도) 이 if를 안 타서
         // 이벤트 자체가 발행되지 않는다. 완료기준의 "중복 발송 방지"는 이 한 줄이 전부다.
@@ -63,6 +99,7 @@ public class RecruitmentManagementService {
             // 이미 커밋된 뒤라 멱등 가드(isOpen()==true)는 이 시점부터 바로 유효하므로, 이벤트만
             // 발행하고 실제 발송은 RecruitmentOpenEmailEventListener(@Async)가 이어받아도 안전하다.
             eventPublisher.publishEvent(new RecruitmentOpenedEvent());
+            auditService.recordStateChange("모집 열기", "RECRUITMENT", null, AuditOutcome.SUCCESS);
         }
         return toResponse(status);
     }
@@ -75,6 +112,7 @@ public class RecruitmentManagementService {
         RecruitmentStatus status = findOrCreate();
         status.markClosed();
         statusRepository.save(status);
+        auditService.recordStateChange("모집 닫기", "RECRUITMENT", null, AuditOutcome.SUCCESS);
         return toResponse(status);
     }
 

@@ -17,6 +17,7 @@ public class Project {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "integer")
     private Long id;
 
     @Column(nullable = false)
@@ -30,7 +31,7 @@ public class Project {
     private Integer cohort;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "project_tech_stack", joinColumns = @JoinColumn(name = "project_id"))
+    @CollectionTable(name = "project_tech_stack", joinColumns = @JoinColumn(name = "project_id", columnDefinition = "bigint"))
     @Column(name = "tech")
     private Set<String> techStack = new HashSet<>();
 
@@ -76,6 +77,17 @@ public class Project {
         if (githubUrl != null) this.githubUrl = githubUrl;
         if (startDate != null) this.startDate = startDate;
         if (endDate != null) this.endDate = endDate;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void replace(String title, String summary, Set<String> techStack,
+                        String githubUrl, LocalDate startDate, LocalDate endDate) {
+        this.title = title;
+        this.summary = summary;
+        this.techStack = new HashSet<>(techStack);
+        this.githubUrl = githubUrl;
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.updatedAt = LocalDateTime.now();
     }
 
