@@ -54,7 +54,7 @@ sudo setfacl -m u:logviewer:x /home/ubuntu
 ```
 그 아래(`website/infra/logs/`, `infra/scripts/`)는 이미 `rwxr-xr-x`/`rw-r--r--`로 전체 공개 상태라 별도 권한 작업 불필요(로그 파일 자체가 개인정보를 마스킹해 남기므로 — `LogMasker`, `backend/SECURITY.md` — 읽기 권한을 넓게 둬도 괜찮다고 판단).
 
-**현재 등록 상태(2026-08-03 서버 실측)**: 안시현(키 2개), 신선우 — `dbclient`에 등록돼 있던 기존 키 재활용. 계정(`useradd -s /bin/bash`, nologin이 아닌 이유는 아래 참고) 생성 + `/home/ubuntu` ACL(`setfacl -m u:logviewer:x`) + 더미 UUID로 동작 검증(정상 형식은 grep 시도 후 "일치하는 로그 없음", 비정상 형식은 즉시 차단)까지 완료. 실제 요청 ID로 찾아지는 로그는 #404가 `dev`에 머지·배포된 뒤부터 생긴다.
+**현재 등록 상태(2026-08-03 서버 실측)**: 안시현(키 2개), 신선우, 김우진(PM), 장찬욱(본인) — 전부 `dbclient`에 이미 등록돼 있던 기존 키 재활용, 새로 발급받은 키 없음. 계정(`useradd -s /bin/bash`, nologin이 아닌 이유는 아래 참고) 생성 + `/home/ubuntu` ACL(`setfacl -m u:logviewer:x`) + 더미 UUID로 동작 검증(정상 형식은 grep 시도 후 "일치하는 로그 없음", 비정상 형식은 즉시 차단)까지 완료. 실제 요청 ID로 찾아지는 로그는 #404가 `dev`에 머지·배포된 뒤부터 생긴다.
 
 **주의 — 계정 셸을 `/usr/sbin/nologin`으로 만들면 안 된다**: forced command(`authorized_keys`의 `command=`)는 sshd가 그 계정의 로그인 셸을 통해 실행한다 — 셸 자체가 `nologin`이면 어떤 명령이 오든 무시하고 즉시 거부해버려서 forced command 자체가 통째로 동작 안 한다(실제로 처음 이렇게 만들었다가 겪음). `dbclient`와 마찬가지로 `/bin/bash`여야 한다 — 보안은 셸을 막는 게 아니라 `command=` 강제 + `no-pty`(대화형 세션 차단) 조합으로 확보된다.
 
