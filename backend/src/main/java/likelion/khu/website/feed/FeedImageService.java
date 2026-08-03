@@ -55,9 +55,10 @@ public class FeedImageService {
                 && (header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8 && (header[2] & 0xFF) == 0xFF) {
             return true;
         }
-        // PNG: 89 50 4E 47
-        if (header.length >= 4
-                && (header[0] & 0xFF) == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (header.length >= 8
+                && (header[0] & 0xFF) == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G'
+                && (header[4] & 0xFF) == 0x0D && (header[5] & 0xFF) == 0x0A && (header[6] & 0xFF) == 0x1A && (header[7] & 0xFF) == 0x0A) {
             return true;
         }
         // GIF: "GIF8" (87a/89a)
