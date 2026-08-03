@@ -1,0 +1,7 @@
+# prod 전용 오버라이드. SPRING_PROFILES_ACTIVE=prod로 이미 뜨고 있어(infra/.env.prod.example) 자동 적용됨.
+spring:
+  jpa:
+    # 공통 application.yml의 show-sql: true를 prod에서만 끈다 — 매 쿼리 로그가 20MB 로그
+    # 롤링 용량을 갉아먹어서 정작 필요한 에러 로그가 더 빨리 밀려나는 걸 막기 위함.
+    # stage/로컬은 디버깅 편의를 위해 계속 켜둔다.
+    show-sql: false

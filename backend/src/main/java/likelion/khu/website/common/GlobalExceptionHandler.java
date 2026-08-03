@@ -30,6 +30,7 @@ import likelion.khu.website.project.exception.ParticipantMemberNotFoundException
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
 import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -40,6 +41,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -214,6 +216,7 @@ public class GlobalExceptionHandler {
     // 계정 열거 방지 스펙(#90)을 유지한다 — AdminPasswordResetService 주석 참고.
     @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
     }
@@ -236,6 +239,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleRecruitmentProductionHold(RecruitmentProductionHoldException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "RECRUITMENT_PRODUCTION_HOLD"));
     }
+
+    // 여기(위 30여 개 규칙)에 안 걸리는 나머지 — 예상 못한 버그, 그리고 여기 오기 전에 이미
+    // 처리되는 AccessDeniedException/404 등 프레임워크 예외 — 는 LoggingErrorAttributes가
+    // Spring Boot 기본 처리기(BasicErrorController) 안에서 로깅·응답 형태를 맞춘다. 여기서
+    // catch-all(Exception.class)을 직접 걸면 그 프레임워크 예외들까지 먼저 가로채서 403/404가
+    // 500으로 깨지는 회귀가 났었다(#313 PR 참고) — 그래서 여기엔 일부러 안 둔다.
 
     private Map<String, Object> errorBody(String message, String code) {
         return Map.of("success", false, "message", message, "code", code);
