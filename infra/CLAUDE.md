@@ -152,7 +152,7 @@ http {
            ssl_certificate/key: likelion-khu.com-0001 lineage
            limit_conn conn_limit 20;                                 # IP당 동시연결 20으로 제한
 
-           # 보안 헤더 (2026-08-04 추가) — location에서 개별 override 없는 한 상속됨
+           # 보안 헤더 (추가) — nginx는 location에 add_header를 하나라도 선언하면 상위(server)의 add_header가 상속되지 않으니, location에서 add_header를 쓰면 필요한 헤더를 전부 다시 선언할 것
            add_header X-Frame-Options "DENY" always;
            add_header X-Content-Type-Options "nosniff" always;
            add_header Referrer-Policy "no-referrer" always;
