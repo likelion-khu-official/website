@@ -1,8 +1,13 @@
 import type { MetadataRoute } from 'next';
 
 const siteUrl = 'https://likelion-khu.com';
+const isProduction = process.env.VERCEL_ENV === 'production';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!isProduction) {
+    return [];
+  }
+
   return [
     { url: siteUrl, changeFrequency: 'weekly', priority: 1 },
     { url: `${siteUrl}/projects`, changeFrequency: 'weekly', priority: 0.9 },
