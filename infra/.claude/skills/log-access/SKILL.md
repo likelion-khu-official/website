@@ -32,7 +32,7 @@ description: >-
 1. 받은 공개키 문자열이 `ssh-ed25519 AAAA...` 형식인지 확인(사설키가 아닌지 — `-----BEGIN`으로 시작하면 사설키이므로 절대 등록하지 말고 알려라).
 2. `log-access.md`의 등록 명령 형식(`command="/home/ubuntu/website/infra/scripts/logsearch-guard.sh",no-pty,...`) 그대로 만들어 서버에 `sudo tee -a /home/logviewer/.ssh/authorized_keys`로 추가 — **원격 서버 상태를 바꾸는 작업이므로 실행 전 반드시 사용자에게 최종 확인**을 받는다.
 3. `logsearch-guard.sh`가 git에 `100755`로 커밋돼 있는지(`git ls-tree HEAD -- infra/scripts/logsearch-guard.sh`) 먼저 확인 — 아니면 재배포 때 forced command가 조용히 죽는다(`dbclient-sqlite-guard.sh`가 실제로 겪은 사고, `db-access.md`·`log-access.md` 참고).
-4. `logviewer` 계정 자체가 처음이면(서버에 아직 생성 안 됐으면) `sudo useradd -m -s /usr/sbin/nologin logviewer` + `sudo setfacl -m u:logviewer:x /home/ubuntu`(전체 공개 `chmod o+x`가 아니라 반드시 계정 단위 ACL — 이유는 `log-access.md` 참고)까지 같이 안내·확인.
+4. `logviewer` 계정 자체가 처음이면(서버에 아직 생성 안 됐으면) `sudo useradd -m -s /bin/bash logviewer` + `sudo setfacl -m u:logviewer:x /home/ubuntu`(전체 공개 `chmod o+x`가 아니라 반드시 계정 단위 ACL — 이유는 `log-access.md` 참고)까지 같이 안내·확인. **셸을 `/usr/sbin/nologin`으로 만들지 말 것** — forced command는 그 계정의 로그인 셸을 통해 실행되는데 셸이 nologin이면 어떤 명령이 와도 무시하고 거부해버려서 forced command 자체가 안 먹힌다(실제로 겪은 함정, `log-access.md` "현재 등록 상태" 참고). 보안은 셸이 아니라 `command=` 강제 + `no-pty`로 확보된다.
 5. 등록 후 `log-access.md`의 "현재 등록 상태"를 실제로 갱신할지 장찬욱에게 물어라.
 
 요청자가 장찬욱이 아니면(팀원 본인이 스스로 등록하려는 시도) — 본인이 직접 등록 불가능함을 알리고 장찬욱에게 `.pub`을 전달하라고 안내만 한다.
