@@ -89,7 +89,7 @@ class RecruitmentOpenEmailHttpEndToEndIntegrationTest {
     @Autowired EmailLogRepository emailLogRepository;
 
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_ThreeRealSubscribers_AllThreeActuallyReceiveMailAndAreLogged() throws Exception {
         Set<String> subscribers = Set.of(
                 "recruit-a@khu.ac.kr", "recruit-b@khu.ac.kr", "recruit-c@khu.ac.kr");
@@ -114,7 +114,7 @@ class RecruitmentOpenEmailHttpEndToEndIntegrationTest {
     // 구독자 발송까지 막히면 안 된다 — RecruitmentManagementService가 한 명씩 개별로 예외를
     // 삼키고 계속 진행하는지 실제 HTTP 경로로 확인.
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_OneMalformedAddressAmongSubscribers_OthersStillReceiveMail() throws Exception {
         subscriptionRepository.save(new NotificationSubscription("recruit-valid@khu.ac.kr"));
         subscriptionRepository.save(new NotificationSubscription("not-an-email-address"));
@@ -140,7 +140,7 @@ class RecruitmentOpenEmailHttpEndToEndIntegrationTest {
     // EmailService를 목으로 처리해 발송 "호출 횟수"만 셌다 — 여기서는 email_log·실제 SMTP 수신함
     // 양쪽에서 구독자당 정확히 한 통인지까지 확인한다.
     @Test
-    @WithMockAdminUser(role = "SUPER_ADMIN")
+    @WithMockAdminUser(role = "ADMIN")
     void open_ManySubscribersConcurrentTriggers_EachReceivesExactlyOneMailWithCorrectLink() throws Exception {
         Set<String> subscribers = IntStream.rangeClosed(1, 15)
                 .mapToObj(i -> "recruit-lock-" + i + "@khu.ac.kr")
@@ -190,7 +190,7 @@ class RecruitmentOpenEmailHttpEndToEndIntegrationTest {
             JsonNode detail = getJson("/api/v1/message/" + summary.get("ID").asText());
             assertThat(detail.get("HTML").asText())
                     .as("%s에게 간 메일의 링크", to)
-                    .contains("href=\"https://dev.likelion-khu.com\"");
+                    .contains("href=\"https://dev.likelion-khu.com/apply\"");
         }
         assertThat(countMessagesAmong(subscribers))
                 .as("구독자당 정확히 1통 — 락이 없었다면 여기서 15보다 컸을 것")

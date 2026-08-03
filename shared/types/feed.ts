@@ -27,7 +27,10 @@ export interface PostSummary {
   summary: string | null;
   thumbnailUrl: string | null;
   authorName: string;
-  authorPart: string | null; // 작성자 파트 (BE/FE/PM 등), 파트 없는 멤버는 null
+  authorPart: string[]; // 작성자 역할 목록 (예: ["BACKEND"]), 없으면 빈 배열
+  /** 공개 동의한 작성자의 프로필. 사진을 우선 사용하고 없으면 emoji를 쓴다. */
+  authorEmoji: string | null;
+  authorPhotoUrl: string | null;
   status: PostStatus;
   publishedAt: string | null; // ISO 8601
   createdAt: string;
@@ -35,6 +38,7 @@ export interface PostSummary {
 
 /** GET /api/posts/{slug} — 개별 글 상세 */
 export interface PostDetail extends PostSummary {
+  /** Markdown 본문. 기존 plain text도 유효한 Markdown이므로 그대로 호환된다. */
   content: string;
   updatedAt: string;
   commentCount: number;
@@ -48,6 +52,23 @@ export interface PostCreateRequest {
   thumbnailUrl?: string;
 }
 
+/** 로그인한 멤버가 보는 자기 글. 숨김 글도 포함되며 status로 구분한다. */
+export type MemberPostSummary = PostSummary;
+
+/** PUT /api/posts/{id} — 본인 글 전체 교체. null로 요약·썸네일을 지울 수 있다. */
+export interface PostReplaceRequest {
+  title: string;
+  summary: string | null;
+  content: string;
+  thumbnailUrl: string | null;
+}
+
+export interface PostSuccessResponse {
+  success: true;
+}
+
+export type PostErrorCode = 'POST_NOT_FOUND' | 'NOT_POST_AUTHOR';
+
 /** PATCH /api/admin/posts/{id}/status — 상태 전이 */
 export interface PostStatusUpdateRequest {
   status: PostStatus;
@@ -58,15 +79,42 @@ export interface PostStatusUpdateRequest {
 /** GET /api/posts/{postId}/comments */
 export interface Comment {
   id: number;
-  nickname: string | null;    // null이면 "익명" 표시
-  content: string;
+  nickname: string | null;    // null이면 "익명" 표시. hidden이면 항상 null
+  content: string | null;     // hidden이면 원문을 전달하지 않음
   createdAt: string;
+  hidden: boolean;
 }
 
 /** POST /api/posts/{postId}/comments */
 export interface CommentCreateRequest {
   nickname?: string;          // 선택, 최대 50자
   content: string;            // 필수, 최대 300자
+}
+
+/** GET /api/admin/comments — 관리자 댓글 검열 목록 */
+export interface AdminComment {
+  id: number;
+  postId: number;
+  postTitle: string;
+  postSlug: string;
+  nickname: string | null;
+  content: string;
+  createdAt: string;
+  hidden: boolean;
+  hiddenAt: string | null;
+  hiddenByAdminName: string | null;
+  hiddenReason: string | null;
+  anonymousActorLabel: string;
+  actorCommentCount: number;
+  networkLabel: string;
+  networkCommentCount: number;
+  userAgent: string;
+}
+
+/** PATCH /api/admin/comments/{commentId}/visibility */
+export interface CommentVisibilityRequest {
+  hidden: boolean;
+  reason?: string;
 }
 
 /**

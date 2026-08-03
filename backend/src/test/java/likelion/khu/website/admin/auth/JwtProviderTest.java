@@ -2,7 +2,6 @@ package likelion.khu.website.admin.auth;
 
 import io.jsonwebtoken.Claims;
 import likelion.khu.website.admin.Admin;
-import likelion.khu.website.admin.AdminRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -18,7 +17,7 @@ class JwtProviderTest {
     private final Admin admin = admin();
 
     private static Admin admin() {
-        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash", AdminRole.SUPER_ADMIN);
+        Admin admin = Admin.register("a@khu.ac.kr", "이름", "hash");
         ReflectionTestUtils.setField(admin, "id", 42L);
         return admin;
     }
@@ -31,7 +30,7 @@ class JwtProviderTest {
 
         assertThat(claims.getSubject()).isEqualTo("42");
         assertThat(claims.get("email", String.class)).isEqualTo(admin.getEmail());
-        assertThat(claims.get("role", String.class)).isEqualTo(admin.getRole().name());
+        assertThat(claims.get("role", String.class)).isEqualTo(JwtProvider.ADMIN_ROLE);
         assertThat(jwtProvider.isAccessToken(claims)).isTrue();
         assertThat(jwtProvider.isRefreshToken(claims)).isFalse();
     }

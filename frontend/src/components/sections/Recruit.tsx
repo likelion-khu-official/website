@@ -1,49 +1,117 @@
 'use client';
 
 import { useState } from 'react';
-import NotificationForm from '@/components/NotificationForm';
+import Link from 'next/link';
+import NotificationPanel from '@/components/NotificationPanel';
+import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
+import { useRecruitAlertSubscription } from '@/lib/recruitAlertSubscription';
+import { trackKeyClick } from '@/lib/publicAnalytics';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
+  // 이 브라우저에서 이미 알림을 신청했는지 — 신청 후엔 CTA를 "신청 완료"로 다르게 보여준다.
+  // 신청이 성공하면 markRecruitAlertSubscribed가 이벤트를 쏘고 이 값이 자동으로 갱신된다.
+  const subscribed = useRecruitAlertSubscription();
+  // 모집이 열려 있으면 이 자리는 알림 신청 대신 지원폼(/apply)으로 안내한다(#152 · 모집.md).
+  const { recruiting } = useRecruitmentStatus();
 
   return (
     <section
       id="recruit"
-      className="recruit-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-14 px-6 py-24 overflow-hidden"
+      aria-labelledby="recruit-title"
+      className="recruit-bg relative flex min-h-[88svh] w-full items-center overflow-hidden px-5 py-24 sm:px-8 sm:py-28 lg:min-h-screen lg:px-12"
     >
-      {/* 문구 */}
-      <div className="relative flex flex-col items-center gap-2 text-center">
-        <p
-          className="text-accent font-bold"
-          style={{ fontSize: 'clamp(24px, 3vw, 52px)', letterSpacing: '-2px', lineHeight: 1.35 }}
-        >
+      <div className="scroll-reveal mx-auto flex w-full max-w-6xl flex-col items-center text-center">
+        <p className="break-keep text-lg font-medium tracking-[-0.01em] text-white/55 sm:text-xl">
           아이디어를 현실로 만드는 여정,
         </p>
-        <p
-          className="text-white font-bold"
-          style={{ fontSize: 'clamp(24px, 3vw, 52px)', letterSpacing: '-2px', lineHeight: 1.35 }}
+        <h2
+          id="recruit-title"
+          className="mt-4 max-w-5xl text-balance break-keep text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.12] tracking-[-0.035em] text-white"
         >
-          경희대학교 멋쟁이사자처럼과 함께할 아기사자를 기다립니다.
-        </p>
+          <span className="text-accent">멋쟁이사자처럼</span>과 함께할 아기사자를 기다립니다
+        </h2>
+
+        {/* 모집 중이면 지원폼으로, 평소엔 알림 신청 CTA → 클릭 시 이메일 폼 노출 */}
+        <div className="mt-9 flex w-full justify-center sm:mt-11">
+          {recruiting ? (
+            <Link
+              href="/apply"
+              onClick={() => trackKeyClick('APPLY_LANDING_RECRUIT')}
+              className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-7 text-[15px] font-semibold text-white outline-none transition-[background-color,transform] hover:-translate-y-0.5 hover:bg-[#ff6a35] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
+            >
+              지원서 작성하기
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="size-4 transition-transform group-hover:translate-x-0.5"
+              >
+                <path
+                  d="M5 12h14M13 6l6 6-6 6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Link>
+          ) : subscribed ? (
+            // 이미 신청한 브라우저 — 채워진 CTA 대신 "신청 완료" 상태로 보여주되, 눌러 다시 신청할 수 있다.
+            <div className="flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label="모집 시작 알림 신청 완료 — 다시 신청하려면 누르기"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/[0.06] px-7 text-[15px] font-semibold text-white/85 outline-none transition-colors hover:border-white/35 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
+              >
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="size-4 text-accent"
+                >
+                  <path d="M4 12.5l5 5L20 6.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                모집 시작 알림 신청 완료
+              </button>
+              <p className="text-[13px] text-white/40">모집이 열리면 이메일로 알려드릴게요.</p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              aria-label="모집 시작 알림 받기"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-7 text-[15px] font-semibold text-white outline-none transition-[background-color,transform] hover:-translate-y-0.5 hover:bg-[#ff6a35] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
+            >
+              모집 시작 알림 받기
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="size-4 transition-transform group-hover:translate-x-0.5"
+              >
+                <path
+                  d="M5 12h14M13 6l6 6-6 6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 평소 모드: 알림 신청 pill → 클릭 시 이메일 폼 노출 */}
-      {open ? (
-        <NotificationForm />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="rounded-full border border-white/10 bg-white/[0.07] text-muted hover:text-white hover:bg-white/[0.12] transition-colors"
-          style={{
-            padding: 'clamp(14px, 1.4vw, 22px) clamp(32px, 3.2vw, 56px)',
-            fontSize: 'clamp(16px, 1.35vw, 24px)',
-            letterSpacing: '-0.8px',
-          }}
-        >
-          지원기간 신청 알림 받기
-        </button>
-      )}
+      {/* 모집 안 열렸을 때만 알림 신청 오버레이(사이드 패널/바텀시트)를 띄운다. */}
+      {!recruiting ? <NotificationPanel open={open} onClose={() => setOpen(false)} /> : null}
     </section>
   );
 }

@@ -2,12 +2,12 @@ package likelion.khu.website.admin.management;
 
 import likelion.khu.website.admin.Admin;
 import likelion.khu.website.admin.AdminRepository;
-import likelion.khu.website.admin.AdminRole;
 import likelion.khu.website.admin.auth.AdminAuthService;
 import likelion.khu.website.admin.exception.AdminNotFoundException;
-import likelion.khu.website.admin.exception.LastSuperAdminException;
-import likelion.khu.website.admin.management.dto.AdminRoleUpdateResponse;
+import likelion.khu.website.admin.exception.LastAdminException;
 import likelion.khu.website.admin.management.dto.AdminSummaryResponse;
+import likelion.khu.website.audit.AuditOutcome;
+import likelion.khu.website.audit.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +20,7 @@ public class AdminManagementService {
 
     private final AdminRepository adminRepository;
     private final AdminAuthService adminAuthService;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<AdminSummaryResponse> list() {
@@ -31,26 +32,17 @@ public class AdminManagementService {
     @Transactional
     public void remove(Long id) {
         Admin admin = findById(id);
-        guardLastSuperAdmin(admin);
+        guardLastAdmin();
         adminAuthService.revokeAllTokensFor(id);
         adminRepository.delete(admin);
+        auditService.recordStateChange("관리자 삭제: " + admin.getName() + " (" + admin.getEmail() + ")",
+                "ADMIN", id, AuditOutcome.SUCCESS);
     }
 
-    @Transactional
-    public AdminRoleUpdateResponse changeRole(Long id, AdminRole newRole) {
-        Admin admin = findById(id);
-        if (admin.getRole() == AdminRole.SUPER_ADMIN && newRole != AdminRole.SUPER_ADMIN) {
-            guardLastSuperAdmin(admin);
-        }
-        admin.changeRole(newRole);
-        adminAuthService.revokeAllTokensFor(id);
-        return AdminRoleUpdateResponse.from(admin);
-    }
-
-    // 마지막 SUPER_ADMIN 삭제·강등 금지 — Admin 엔티티가 아니라 여기서 가드(countByRole 리포지토리 조회가 필요해서).
-    private void guardLastSuperAdmin(Admin admin) {
-        if (admin.getRole() == AdminRole.SUPER_ADMIN && adminRepository.countByRole(AdminRole.SUPER_ADMIN) <= 1) {
-            throw new LastSuperAdminException();
+    // 마지막 관리자 삭제 금지 — 아무도 로그인할 수 없는 상태가 되는 걸 막는다.
+    private void guardLastAdmin() {
+        if (adminRepository.count() <= 1) {
+            throw new LastAdminException();
         }
     }
 

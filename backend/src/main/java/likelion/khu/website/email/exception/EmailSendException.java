@@ -1,5 +1,6 @@
 package likelion.khu.website.email.exception;
 
+import likelion.khu.website.common.LogMasker;
 import likelion.khu.website.email.EmailType;
 
 // unchecked(RuntimeException)로 만들어 호출부가 매번 try/catch·throws를 강제로 안 써도 되게 함
@@ -9,6 +10,7 @@ public class EmailSendException extends RuntimeException {
 
     public EmailSendException(EmailType type, String recipient, Throwable cause) {
         // cause를 그대로 보존 — 로그에서 "표면은 EmailSendException, 진짜 원인은 cause"까지 추적 가능하게.
-        super("메일 발송 실패 (종류: " + type + ", 수신자: " + recipient + ")", cause);
+        // 수신자는 마스킹 — 이 메시지가 그대로 로그로 남기 때문(GlobalExceptionHandler).
+        super("메일 발송 실패 (종류: " + type + ", 수신자: " + LogMasker.maskEmail(recipient) + ")", cause);
     }
 }

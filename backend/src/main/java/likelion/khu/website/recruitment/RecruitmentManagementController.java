@@ -3,6 +3,7 @@ package likelion.khu.website.recruitment;
 import jakarta.validation.Valid;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusResponse;
 import likelion.khu.website.recruitment.dto.RecruitmentStatusUpdateRequest;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/recruitment")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class RecruitmentManagementController {
 
     private final RecruitmentManagementService service;
@@ -29,5 +32,11 @@ public class RecruitmentManagementController {
     @PatchMapping("/status")
     public RecruitmentStatusResponse updateStatus(@Valid @RequestBody RecruitmentStatusUpdateRequest request) {
         return request.getOpen() ? service.open() : service.close();
+    }
+
+    /** 모집 알림 구독자 명단 — 최근 신청 순. ADMIN 이상만. */
+    @GetMapping("/subscribers")
+    public List<SubscriberSummary> subscribers() {
+        return service.getSubscribers();
     }
 }

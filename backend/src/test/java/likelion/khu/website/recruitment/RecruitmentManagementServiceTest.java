@@ -1,7 +1,9 @@
 package likelion.khu.website.recruitment;
 
+import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.email.EmailService;
 import likelion.khu.website.notification.NotificationSubscriptionRepository;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -9,7 +11,14 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import likelion.khu.website.notification.NotificationSubscription;
+import likelion.khu.website.recruitment.dto.SubscriberSummary;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +30,9 @@ class RecruitmentManagementServiceTest {
     private RecruitmentStatusRepository statusRepository;
 
     @Mock
+    private RecruitmentRoundLifecycle roundLifecycle;
+
+    @Mock
     private NotificationSubscriptionRepository subscriptionRepository;
 
     @Mock
@@ -29,12 +41,16 @@ class RecruitmentManagementServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private AuditService auditService;
+
     private RecruitmentManagementService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new RecruitmentManagementService(statusRepository, subscriptionRepository, emailService, eventPublisher);
+        service = new RecruitmentManagementService(
+                statusRepository, roundLifecycle, subscriptionRepository, emailService, eventPublisher, auditService);
         ReflectionTestUtils.setField(service, "publicSiteUrl", "https://likelion-khu.com");
     }
 
@@ -43,11 +59,34 @@ class RecruitmentManagementServiceTest {
     // 핸들러가 로그 한 줄만 남기고 끝났다 — 여기선 바깥 try/catch가 삼켜서 예외가 호출자까지
     // 전파되지 않는지(= @Async 스레드가 죽지 않는지) 확인한다.
     @Test
+    void getSubscribers_ReturnsAllMappedToSummary() {
+        NotificationSubscription a = new NotificationSubscription("a@khu.ac.kr");
+        NotificationSubscription b = new NotificationSubscription("b@khu.ac.kr");
+        when(subscriptionRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(b, a));
+
+        List<SubscriberSummary> result = service.getSubscribers();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getEmail()).isEqualTo("b@khu.ac.kr");
+        assertThat(result.get(1).getEmail()).isEqualTo("a@khu.ac.kr");
+    }
+
+    @Test
     void sendToAllSubscribers_SubscriberListLookupFails_DoesNotPropagate() {
         when(subscriptionRepository.findAll()).thenThrow(new RuntimeException("DB down"));
 
         assertThatCode(service::sendToAllSubscribers).doesNotThrowAnyException();
 
         verifyNoInteractions(emailService);
+    }
+
+    // #154 결정(B) — 지원폼(#152)이 준비되지 않은 환경(기본값)에서는 open()이 상태를 바꾸거나
+    // 메일 이벤트를 발행하기 전에 막혀야 한다. applicationFormReady는 기본값(false)을 그대로 둬서
+    // "아직 세팅 안 한 환경 = 막힘"이 기본 동작임도 함께 확인한다.
+    @Test
+    void open_ApplicationFormNotReady_ThrowsAndDoesNotChangeState() {
+        assertThatThrownBy(service::open).isInstanceOf(RecruitmentProductionHoldException.class);
+
+        verifyNoInteractions(statusRepository, eventPublisher);
     }
 }

@@ -22,6 +22,10 @@ infra/data/
 infra/logs/
 infra/.prev_backend_tag_*
 
+# Infra — IAM 그룹/정책/버킷 최소권한 매핑(공개 레포에 "누굴 뚫으면 뭘 얻는지" 지도를 안 남기려고 로컬 전용,
+# 2026-07-27 장찬욱 결정). 인수인계 시 후임자에게 직접 전달.
+infra/docs/iam.md
+
 # Backend — 로컬 SQLite DB
 backend/data/
 *.db
@@ -85,3 +89,7 @@ bin/
 /dist/
 /nbdist/
 /.nb-gradle/
+
+### Python (infra/scripts) ###
+__pycache__/
+*.pyc

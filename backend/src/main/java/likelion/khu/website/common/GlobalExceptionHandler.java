@@ -10,13 +10,18 @@ import likelion.khu.website.admin.exception.AdminNotFoundException;
 import likelion.khu.website.admin.exception.InvalidCredentialsException;
 import likelion.khu.website.admin.exception.InvalidEmailDomainException;
 import likelion.khu.website.admin.exception.InvalidRefreshTokenException;
-import likelion.khu.website.admin.exception.LastSuperAdminException;
+import likelion.khu.website.admin.exception.LastAdminException;
 import likelion.khu.website.admin.exception.PasswordResetTokenExpiredException;
 import likelion.khu.website.admin.exception.PasswordResetTokenNotFoundException;
 import likelion.khu.website.admin.exception.WeakPasswordException;
+import likelion.khu.website.application.exception.PrivacyConsentRequiredException;
+import likelion.khu.website.application.exception.RecruitmentClosedException;
 import likelion.khu.website.email.exception.EmailSendException;
 import likelion.khu.website.feed.exception.InvalidImageFileException;
+import likelion.khu.website.feed.post.exception.NotPostAuthorException;
+import likelion.khu.website.feed.post.exception.PostNotFoundException;
 import likelion.khu.website.member.exception.MemberNotFoundException;
+import likelion.khu.website.member.exception.MemberBulkCreateException;
 import likelion.khu.website.project.exception.DuplicateParticipantException;
 import likelion.khu.website.project.exception.EmptyParticipantsException;
 import likelion.khu.website.project.exception.InvalidRepresentativeImageException;
@@ -24,6 +29,8 @@ import likelion.khu.website.project.exception.NotProjectParticipantException;
 import likelion.khu.website.project.exception.ParticipantMemberNotFoundException;
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
+import likelion.khu.website.recruitment.exception.RecruitmentProductionHoldException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -34,6 +41,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -112,9 +120,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "WEAK_PASSWORD"));
     }
 
-    @ExceptionHandler(LastSuperAdminException.class)
-    public ResponseEntity<Map<String, Object>> handleLastSuperAdmin(LastSuperAdminException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "LAST_SUPER_ADMIN"));
+    @ExceptionHandler(LastAdminException.class)
+    public ResponseEntity<Map<String, Object>> handleLastAdmin(LastAdminException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "LAST_ADMIN"));
     }
 
     @ExceptionHandler(AdminNotFoundException.class)
@@ -132,6 +140,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MemberNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleMemberNotFound(MemberNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "NOT_FOUND"));
+    }
+
+    @ExceptionHandler(MemberBulkCreateException.class)
+    public ResponseEntity<Map<String, Object>> handleMemberBulkCreate(MemberBulkCreateException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                "success", false,
+                "message", ex.getMessage(),
+                "code", "BULK_MEMBER_INVALID",
+                "index", ex.getIndex(),
+                "field", ex.getField()
+        ));
     }
 
     // ── 프로젝트 쇼케이스(#119) — 블랙박스 QA에서 발견한 에러 계약 갭 수정.
@@ -175,6 +194,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "EMPTY_PARTICIPANTS"));
     }
 
+    // ── 블로그 멤버 CRUD ────────────────────────────────────────────
+
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePostNotFound(PostNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(ex.getMessage(), "POST_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(NotPostAuthorException.class)
+    public ResponseEntity<Map<String, Object>> handleNotPostAuthor(NotPostAuthorException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody(ex.getMessage(), "NOT_POST_AUTHOR"));
+    }
+
     // ── 이메일 발송(#123) ── #113 QA에서 발견 — AdminInvitationService.invite()/
     // AdminPasswordResetService.forgot()가 EmailService.send()를 트랜잭션 안 마지막 단계로
     // 호출해서, SMTP 장애 시 이 예외가 컨트롤러 밖으로 그대로 새나가 핸들러 없는 채로 Spring
@@ -185,9 +216,35 @@ public class GlobalExceptionHandler {
     // 계정 열거 방지 스펙(#90)을 유지한다 — AdminPasswordResetService 주석 참고.
     @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<Map<String, Object>> handleEmailSendFailure(EmailSendException ex) {
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(errorBody("메일 발송에 실패했어요. 잠시 후 다시 시도해주세요.", "EMAIL_SEND_FAILED"));
     }
+
+    // ── 지원폼(#152) ─────────────────────────────────────────────────
+
+    @ExceptionHandler(RecruitmentClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleRecruitmentClosed(RecruitmentClosedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "RECRUITMENT_CLOSED"));
+    }
+
+    @ExceptionHandler(PrivacyConsentRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handlePrivacyConsentRequired(PrivacyConsentRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(ex.getMessage(), "PRIVACY_CONSENT_REQUIRED"));
+    }
+
+    // ── 모집 관리(#151) — 지원폼(#152) 완성 전까지 모집 열기를 막을 때(이슈 #154 결정) ──
+
+    @ExceptionHandler(RecruitmentProductionHoldException.class)
+    public ResponseEntity<Map<String, Object>> handleRecruitmentProductionHold(RecruitmentProductionHoldException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody(ex.getMessage(), "RECRUITMENT_PRODUCTION_HOLD"));
+    }
+
+    // 여기(위 30여 개 규칙)에 안 걸리는 나머지 — 예상 못한 버그, 그리고 여기 오기 전에 이미
+    // 처리되는 AccessDeniedException/404 등 프레임워크 예외 — 는 LoggingErrorAttributes가
+    // Spring Boot 기본 처리기(BasicErrorController) 안에서 로깅·응답 형태를 맞춘다. 여기서
+    // catch-all(Exception.class)을 직접 걸면 그 프레임워크 예외들까지 먼저 가로채서 403/404가
+    // 500으로 깨지는 회귀가 났었다(#313 PR 참고) — 그래서 여기엔 일부러 안 둔다.
 
     private Map<String, Object> errorBody(String message, String code) {
         return Map.of("success", false, "message", message, "code", code);

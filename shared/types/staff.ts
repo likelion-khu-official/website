@@ -13,10 +13,15 @@ export interface Staff {
   admissionYear: number;
   photoUrl: string;
   introduction: string | null;
+  /** 운영진 활동 이력. 없으면 빈 배열. 랜딩 카드에 순서대로 노출된다. */
+  activities: string[];
   sortOrder: number;
 }
 
-/** POST /api/admin/staff — 최고관리자 전용. 사진은 /api/feed/images로 먼저 업로드해 URL을 받는다 */
+/**
+ * POST /api/admin/staff — 관리자 전용.
+ * phone은 저장만 하고 응답하지 않으며, publicationConsent=true이면 publicationConsentedAt도 함께 보낸다.
+ */
 export interface StaffCreateRequest {
   name: string;
   position: string;
@@ -24,13 +29,39 @@ export interface StaffCreateRequest {
   admissionYear: number;
   photoUrl: string;
   introduction?: string;
+  activities?: string[];
   sortOrder: number;
+  studentId?: string;
+  phone?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
 }
 
-/** PATCH /api/admin/staff/{id} — 최고관리자 전용. name·department·admissionYear는 등록 후 불변이라 DTO에 없음 */
+/** PATCH /api/admin/staff/{id} — 관리자 전용 */
 export interface StaffUpdateRequest {
+  name?: string;
   position?: string;
+  department?: string;
+  admissionYear?: number;
   photoUrl?: string;
   introduction?: string;
+  /** null이 아니라 값이 오면 활동을 통째로 교체한다. */
+  activities?: string[];
   sortOrder?: number;
+  studentId?: string;
+  phone?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
+}
+
+/** GET /api/admin/staff와 관리자 생성·수정 응답. phone은 저장만 하고 응답하지 않는다. */
+export interface StaffAdminSummary extends Staff {
+  studentId: string | null;
+  publicationConsent: boolean;
+  publicationConsentedAt: string | null;
+}
+
+/** POST /api/admin/staff/images — 크롭을 마친 운영진 프로필 이미지 업로드 */
+export interface StaffImageUploadResponse {
+  url: string;
 }

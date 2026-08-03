@@ -12,7 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Transactional
 class MemberAuthControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -39,7 +39,7 @@ class MemberAuthControllerTest {
 
     private Member createMember(String studentId, String phone) {
         Member member = Member.create(
-                "시현", Set.of(MemberRole.BE), 13, "🦁", null, null, "admin@likelion.org",
+                "시현", Set.of(MemberRole.BACKEND), 13, "🦁", null, null, "admin@likelion.org",
                 studentId, phone, passwordEncoder.encode(phone));
         return memberRepository.save(member);
     }
@@ -302,7 +302,7 @@ class MemberAuthControllerTest {
         // (재로그인으로 검증하지 않는다 — 같은 유저를 밀리초 안에 두 번 로그인시키면 JWT의 iat까지
         // 완전히 같아져 refresh 토큰 문자열이 동일해지고, token_hash UNIQUE 제약과 충돌하는 별도
         // 문제가 있다. #97부터 물려받은 JwtProvider 패턴의 문제라 여기서 우회하고 별도 보고한다.)
-        Member unchanged = memberRepository.findByStudentId("2020000008").orElseThrow();
+        Member unchanged = memberRepository.findAllByStudentId("2020000008").get(0);
         org.junit.jupiter.api.Assertions.assertTrue(
                 passwordEncoder.matches("01000000008", unchanged.getPasswordHash()));
     }

@@ -3,6 +3,7 @@ package likelion.khu.website.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import likelion.khu.website.admin.auth.JwtAuthenticationFilter;
+import likelion.khu.website.audit.AuditFilter;
 import likelion.khu.website.member.auth.MemberPasswordGuardFilter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
@@ -32,6 +33,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                             JwtAuthenticationFilter jwtAuthenticationFilter,
                                             MemberPasswordGuardFilter memberPasswordGuardFilter,
+                                            AuditFilter auditFilter,
                                             ObjectMapper objectMapper) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
@@ -48,6 +50,15 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                // 공개 이용 이벤트 수집 — 서버가 운영 호스트·봇을 재검증하고 익명 식별자는 해시해서 저장한다.
+                .requestMatchers(HttpMethod.POST, "/api/analytics/pageviews", "/api/analytics/events").permitAll()
+
+                // 지원폼(#152) — 비로그인 방문자가 폼 정의를 보고 지원 제출.
+                // (관리자용 폼 편집·지원자 열람 /api/admin/** 은 아래 anyRequest().authenticated() + @PreAuthorize)
+                .requestMatchers(HttpMethod.GET, "/api/application-form").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/applications").permitAll()
+                // 모집 상태(공개용, subscriberCount 없음) — 랜딩 모집 섹션·지원폼이 평소/모집중을 가르는 데 씀(#151·#152)
+                .requestMatchers(HttpMethod.GET, "/api/recruitment/status").permitAll()
                 // 멤버 공개 목록
                 .requestMatchers("/api/members").permitAll()
 
@@ -58,8 +69,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
                 // 프로젝트 쇼케이스 — 목록·상세는 공개, 생성/수정/삭제는 hasRole('MEMBER')로 컨트롤러에서 처리(#119)
                 .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*").permitAll()
-                // 피드 댓글 — 공개 읽기·작성 + 어드민 숨기기
-                .requestMatchers("/api/posts/*/comments/**").permitAll()
+                // 피드 댓글 — 공개 읽기·작성만 허용. 검열은 /api/admin/comments/**에서 인증 후 처리.
+                .requestMatchers(HttpMethod.GET, "/api/posts/*/comments").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/posts/*/comments").permitAll()
                 // 어드민 로그인/로그아웃/리프레시 — SecurityContext가 아니라 refresh_token 쿠키 자체 내용으로
                 // 동작(만료된 access 토큰으로도 로그아웃·리프레시가 가능해야 함)이라 matcher 자체는 permitAll()
                 .requestMatchers("/api/admin/auth/**").permitAll()
@@ -90,7 +102,9 @@ public class SecurityConfig {
                     writeJsonError(response, objectMapper, 403, "FORBIDDEN", "권한이 없어요."))
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(memberPasswordGuardFilter, JwtAuthenticationFilter.class);
+            .addFilterAfter(memberPasswordGuardFilter, JwtAuthenticationFilter.class)
+            // 인증(principal 세팅) 뒤에 두어야 actor를 식별할 수 있다. 응답이 끝난 뒤 상태변경·민감 열람을 남긴다.
+            .addFilterAfter(auditFilter, MemberPasswordGuardFilter.class);
 
         return http.build();
     }

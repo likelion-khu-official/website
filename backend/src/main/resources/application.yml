@@ -15,15 +15,26 @@ spring:
 
   # === JPA (Java Persistence API) ===
   # Java 엔티티 클래스 ↔ DB 테이블 자동 매핑
+  # #133 — update는 SQLite ALTER TABLE 실패(예: UNIQUE 컬럼 추가)를 조용히 삼켜 스키마 드리프트를
+  # 냈다. 스키마 변경은 이제 Flyway 마이그레이션(db/migration/*.sql)으로만 하고, JPA는 그 결과가
+  # 엔티티 매핑과 실제로 맞는지 확인(validate)만 한다 — 안 맞으면 기동 자체가 실패해 배포가 막힌다.
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
     show-sql: true
+
+  # === 스키마 마이그레이션 (Flyway, #133) ===
+  # stage·prod는 이미 V1__baseline.sql과 동일한 스키마 상태라 baseline-on-migrate로 "이미 적용됨"만
+  # 기록하고 V1을 실제로 재실행하지 않는다(실행하면 "table already exists"로 깨짐). 새로 뜨는 빈 DB
+  # (로컬 개발 등)만 V1이 실제로 실행돼 스키마를 처음부터 만든다.
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 1
 
   # === 피드 이미지 업로드 용량 제한 ===
   servlet:
@@ -51,6 +62,11 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+server:
+  # nginx가 전달한 실제 클라이언트 주소를 Tomcat이 remoteAddr로 해석한다.
+  # Tomcat 기본 신뢰 프록시 범위(사설망) 밖에서 온 임의 X-Forwarded-For는 신뢰하지 않는다.
+  forward-headers-strategy: native
+
 jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}        # 15분 (ms)
@@ -62,9 +78,15 @@ admin:
     max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:5}
     duration-minutes: ${ADMIN_LOCKOUT_DURATION_MINUTES:15}
   # 포맷: "email:name,email2:name2" — 실제 이메일은 여기(커밋되는 파일)에 절대 넣지 않고
-  # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상)
+  # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상).
   seed:
-    super-admins: ${ADMIN_SEED_SUPER_ADMINS:}
+    admins: ${ADMIN_SEED_ADMINS:}
+  # e2e 전용(SPRING_PROFILES_ACTIVE=e2e일 때만 E2eAdminSeedRunner가 활성화됨) — 고정 비밀번호로
+  # 관리자 계정 하나를 만든다(단일 관리자 모델). 로컬/CI에서만 쓰는 값이라 기본값을 그대로 커밋해도
+  # 안전(stage/prod .env엔 이 프로필을 절대 넣지 않는다).
+  e2e-seed:
+    admin-email: ${ADMIN_E2E_ADMIN_EMAIL:e2e-admin@likelion-khu.com}
+    admin-password: ${ADMIN_E2E_ADMIN_PASSWORD:E2eAdmin!2026}
 
 app:
   # 초대·재설정 메일 링크의 베이스 URL — 어드민(admin.likelion-khu.com) 전용. 일반 사용자 대상
@@ -73,8 +95,17 @@ app:
   # 일반 사용자(구독자 등)에게 보내는 메일의 베이스 URL — 공개 사이트. stage=dev.likelion-khu.com,
   # prod=likelion-khu.com(이 기본값)이라 stage 배포 .env.stage엔 PUBLIC_SITE_URL을 반드시 오버라이드해야 함.
   public-site-url: ${PUBLIC_SITE_URL:https://likelion-khu.com}
+  analytics:
+    # 운영 공개 도메인에서 온 조회만 저장한다. stage·localhost·Vercel preview는 기본적으로 모두 제외된다.
+    allowed-hosts: ${ANALYTICS_ALLOWED_HOSTS:likelion-khu.com,www.likelion-khu.com}
   # 로컬 개발(HTTP)에서만 false — stage/prod는 반드시 true(HTTPS 전제)
   cookie-secure: ${COOKIE_SECURE:true}
+
+  recruitment:
+    # 지원폼(#152) 완성 전까지 모집 열기를 막는 스위치(#154 결정: B). 기본값 false — 운영
+    # (.env.prod)은 #152가 끝나 이 값을 true로 바꾸기 전까지 항상 막혀 있다. 스테이지
+    # (.env.stage)만 true로 설정해 관리자 화면·안내 메일 발송을 미리 검증한다.
+    application-form-ready: ${RECRUITMENT_APPLICATION_FORM_READY:false}
 
 # === OCI Object Storage (S3 호환 API) ===
 oci-storage:
@@ -87,6 +118,9 @@ oci-storage:
 
 mail-sender:
   from: ${MAIL_FROM_ADDRESS:noreply@likelion-khu.com}
+  # 유저 쪽 원인(주소 형식 오류)이 아닌 발송 실패를 다시 시도하는 횟수·간격 — EmailService 참고
+  max-attempts: ${MAIL_MAX_ATTEMPTS:3}
+  retry-delay-ms: ${MAIL_RETRY_DELAY_MS:2000}
 
 # === 로그 파일 영속화 ===
 # LOG_FILE_PATH는 docker-compose(backend-stage/backend-prod)에서 배포 태그(커밋 SHA)를 포함한
@@ -100,6 +134,10 @@ logging:
       max-file-size: 20MB
       max-history: 14
       total-size-cap: 1GB
+  # 요청 하나가 로그 여러 줄에 걸칠 때 묶어보기 위한 requestId(RequestIdFilter가 채움).
+  # 전체 패턴을 새로 정의하지 않고 레벨 표기 자리에 얹는 방식 — Spring Boot 기본 패턴 유지.
+  pattern:
+    level: '%5p [reqId=%X{requestId}]'
 
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이

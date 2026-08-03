@@ -30,6 +30,9 @@ public class JwtProvider {
     // public: MemberAccountResponse가 로그인 응답 바디에 내려주는 role 값도 이 상수와 같은 값이어야
     // 하므로(JWT 클레임과 응답 바디가 따로 놀면 안 됨) 단일 출처로 공유한다.
     public static final String MEMBER_ROLE = "MEMBER";
+    // 어드민은 역할 구분이 없어졌지만(권한 모델 단일화), MEMBER와 구분되는 인증 주체 타입 표시는
+    // 여전히 필요해서 이 값 자체는 남긴다 — @PreAuthorize("hasRole('ADMIN')")이 근거하는 authority.
+    public static final String ADMIN_ROLE = "ADMIN";
 
     private final SecretKey key;
     private final long accessExpirationMs;
@@ -52,11 +55,11 @@ public class JwtProvider {
     }
 
     public String createAccessToken(Admin admin) {
-        return buildToken(admin.getId(), admin.getEmail(), admin.getRole().name(), false, TYPE_ACCESS, accessExpirationMs);
+        return buildToken(admin.getId(), admin.getEmail(), ADMIN_ROLE, false, TYPE_ACCESS, accessExpirationMs);
     }
 
     public String createRefreshToken(Admin admin) {
-        return buildToken(admin.getId(), admin.getEmail(), admin.getRole().name(), false, TYPE_REFRESH, refreshExpirationMs);
+        return buildToken(admin.getId(), admin.getEmail(), ADMIN_ROLE, false, TYPE_REFRESH, refreshExpirationMs);
     }
 
     public String createAccessToken(Member member) {
@@ -93,6 +96,9 @@ public class JwtProvider {
                                String type, long expirationMs) {
         Date now = new Date();
         return Jwts.builder()
+                // 매 발급마다 고유값 — 같은 관리자가 같은 초에 두 번 로그인해도 토큰(=refresh_tokens.token_hash)이
+                // 달라져 UNIQUE 충돌로 500이 나던 것을 막는다. iat가 초 단위라 이게 없으면 동일 토큰이 재생성됐다.
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(String.valueOf(id))
                 .claim(CLAIM_EMAIL, loginIdentifier)
                 .claim(CLAIM_ROLE, role)

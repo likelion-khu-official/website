@@ -25,15 +25,19 @@ const HIGHLIGHT =
 
 function MonthCell({ month }: { month: Month }) {
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
+    <div className="relative flex min-h-[104px] min-w-0 flex-col items-start gap-2 border-l border-accent/45 pl-4 text-left md:min-h-0 md:items-center md:gap-4 md:border-l-0 md:pl-0 md:text-center">
       <span
-        className="text-accent leading-none"
-        style={{ ...gremlin, fontSize: 'clamp(28px, 3vw, 48px)', letterSpacing: '-0.5px' }}
+        aria-hidden
+        className="absolute -left-[5px] top-0 h-[9px] w-[9px] rounded-full bg-accent md:hidden"
+      />
+      <span
+        className="leading-none text-accent"
+        style={{ ...gremlin, fontSize: 'clamp(24px, 2.6vw, 42px)', letterSpacing: '-0.5px' }}
       >
         {month.m}
       </span>
       <div
-        className="flex flex-col gap-1 text-white"
+        className="flex min-w-0 flex-col gap-1 break-keep text-white"
         style={{ fontSize: 'clamp(13px, 1.05vw, 20px)', letterSpacing: '-0.5px', lineHeight: 1.35 }}
       >
         {month.lines.map((line, i) => (
@@ -41,7 +45,7 @@ function MonthCell({ month }: { month: Month }) {
             {month.highlight && i === 0 && (
               <span
                 aria-hidden
-                className="absolute left-[-6px] top-1/2 -translate-y-1/2 h-[1.9em] w-[320%] rounded-[3px]"
+                className="absolute -left-1 top-1/2 h-[1.9em] w-[calc(100%+1rem)] -translate-y-1/2 rounded-[3px] md:left-[-6px] md:w-[320%]"
                 style={{ background: HIGHLIGHT, zIndex: 0 }}
               />
             )}
@@ -64,20 +68,21 @@ function Timeline({
 }) {
   const isTop = side === 'top';
   return (
-    <div className="relative">
+    <div className={`scroll-reveal timeline-group relative ${isTop ? 'timeline-group--top' : 'timeline-group--bottom'}`}>
       {/* 타임라인 라인 + 끝점 */}
       <div
-        className="absolute top-0 h-[2px] bg-accent"
+        className="timeline-line absolute top-0 hidden h-[2px] origin-left bg-accent md:block"
         style={isTop ? { left: 0, right: '35%' } : { left: '35%', right: 0 }}
       />
       <div
-        className="absolute top-0 h-[13px] w-[13px] -translate-y-1/2 rounded-full bg-accent"
+        className="timeline-endpoint absolute top-0 hidden h-[13px] w-[13px] -translate-y-1/2 rounded-full bg-accent md:block"
         style={isTop ? { left: 'calc(65% - 6.5px)' } : { left: 'calc(35% - 6.5px)' }}
       />
       {/* 월 그리드 */}
       <div
-        className={`mt-9 grid grid-cols-6 gap-x-3 w-[59%] ${isTop ? 'mr-auto' : 'ml-auto'}`}
-        style={isTop ? { marginLeft: '5%' } : { marginRight: '5%' }}
+        className={`grid grid-cols-2 gap-x-5 gap-y-7 md:mt-9 md:w-[59%] md:grid-cols-6 md:gap-x-3 md:gap-y-0 ${
+          isTop ? 'md:ml-[5%] md:mr-auto' : 'md:ml-auto md:mr-[5%]'
+        }`}
       >
         {months.map((month) => (
           <MonthCell key={month.m} month={month} />
@@ -91,25 +96,19 @@ export default function Plan() {
   return (
     <section
       id="plan"
-      className="plan-bg relative min-h-screen w-full flex flex-col items-center justify-center gap-16 px-6 py-24 overflow-hidden"
+      className="plan-bg relative flex w-full flex-col items-center justify-center gap-12 overflow-hidden px-5 py-24 sm:px-8 sm:py-32 md:gap-16 lg:py-36"
     >
       {/* 헤더 */}
-      <div className="relative flex flex-col items-center gap-4 text-center">
-        <p
-          className="text-muted"
-          style={{ fontSize: 'clamp(22px, 2.3vw, 40px)', letterSpacing: '-1.6px' }}
-        >
-          멋쟁이 사자처럼
+      <div className="scroll-reveal relative flex flex-col items-center gap-3 text-center">
+        <p className="landing-section-copy">
+          멋쟁이사자처럼
         </p>
-        <p
-          className="text-accent font-semibold"
-          style={{ fontSize: 'clamp(22px, 2.8vw, 48px)', letterSpacing: '-1.92px' }}
-        >
+        <h2 className="landing-section-title text-balance break-keep">
           연간 활동 계획
-        </p>
+        </h2>
       </div>
 
-      <div className="relative w-full max-w-[1417px] flex flex-col gap-24 mt-8">
+      <div className="relative mt-4 flex w-full max-w-[1417px] flex-col gap-14 md:mt-8 md:gap-24">
         <Timeline months={firstHalf} side="top" />
         <Timeline months={secondHalf} side="bottom" />
       </div>

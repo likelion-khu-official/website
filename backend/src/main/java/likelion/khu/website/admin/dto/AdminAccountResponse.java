@@ -10,9 +10,8 @@ public class AdminAccountResponse {
     private Long id;
     private String email;
     private String name;
-    private String role;
 
     public static AdminAccountResponse from(Admin admin) {
-        return new AdminAccountResponse(admin.getId(), admin.getEmail(), admin.getName(), admin.getRole().name());
+        return new AdminAccountResponse(admin.getId(), admin.getEmail(), admin.getName());
     }
 }
