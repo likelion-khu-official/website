@@ -19,7 +19,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://likelion-khu.com"),
-  title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
+  title: {
+    default: "멋쟁이사자처럼 경희대학교",
+    template: "%s | 멋쟁이사자처럼 경희대학교",
+  },
   description:
     "멋쟁이사자처럼 경희대학교 공식 웹사이트. 코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 프로젝트와 활동을 소개합니다.",
   applicationName: "LIKELION KHU",
