@@ -56,6 +56,7 @@ import type {
   KeyClickAnalyticsResponse,
   NotificationSignupAnalyticsResponse,
   PopularTimeAnalyticsResponse,
+  ContentImpactAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -199,6 +200,20 @@ export function getPopularTimeAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/popular-times?${params.toString()}`,
     {},
     '인기 시간대와 요일을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getContentImpactAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  if (query.impactType && query.impactId) {
+    params.set('type', query.impactType);
+    params.set('id', String(query.impactId));
+  }
+  return request<ContentImpactAnalyticsResponse>(
+    `/analytics/content-impact?${params.toString()}`,
+    {},
+    '콘텐츠 공개 전후 변화를 불러오지 못했어요.',
     true
   );
 }
