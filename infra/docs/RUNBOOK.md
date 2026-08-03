@@ -195,6 +195,24 @@ ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --ta
 
 **복구**: `failure_cause`가 `SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). `TEMPLATE_RENDERING_FAILED`면 최근 배포 커밋을 확인한다. 원인이 해소되면 **그 이후에 새로 시도되는 발송**은 자동으로 다시 성공하고, 마지막 실패가 5분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 5~10분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. **주의**: `SMTP_AUTHENTICATION_FAILED`는 재시도를 안 하므로(OCI의 반복 인증실패 IP 스로틀을 스스로 유발하지 않기 위함, `FailureCause.java` 참고), 이미 실패로 기록된 그 특정 메일은 자격증명을 고쳐도 저절로 재발송되지 않는다 — 초대·비번재설정은 유저/관리자가 재요청하면 새 토큰으로 재발송되지만(기존 기능), 모집 안내 메일은 개별 재발송 수단이 없어 그 구독자는 못 받은 채로 남는다. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
 
+<a id="alarm-error-log"></a>
+### 1-7. OCI Monitoring — 백엔드 ERROR 로그 발생 (prod/stage, OCI 심각도: WARNING / 대응 긴급도: 확인 필요, website #313 후속)
+
+**경고**: 최근 5분 안에 backend 로그 파일에 `ERROR` 레벨 줄이 하나라도 찍혔다는 뜻이다(임계치가 0인 이유는 `observability.md` "백엔드 ERROR 로그 알람" 절 참고 — 흔한 4xx는 애초에 ERROR로 안 남게 설계돼 있어, 한 건이라도 뜨면 이미 확인이 필요한 신호). `GlobalExceptionHandler`가 처리하는 30여 개 알려진 예외(로그인 실패, 존재하지 않는 리소스 등)는 이 레벨로 안 남고, `LoggingErrorAttributes`가 잡는 "예상 못한 버그"(NPE·DB 에러 등)와 이메일 발송 실패만 여기 해당한다.
+
+**영향**: 그 요청을 보낸 사용자만 실패 응답을 받았을 뿐, 사이트 전체는 계속 정상 동작한다. 다만 원인이 코드 버그라면 같은 상황을 겪는 다른 사용자도 계속 실패하고 있을 수 있다.
+
+```bash
+ssh likelion-oci 'ls -t ~/website/infra/logs/<prod|stage>/*.log | head -1'
+# ↑ 현재 활성 로그 파일 경로 확인(배포 태그별로 파일이 나뉨 — 가장 최근에 수정된 게 지금 컨테이너가 쓰는 것)
+
+ssh likelion-oci 'grep -A 20 " ERROR " ~/website/infra/logs/<prod|stage>/<위에서_찾은_파일>.log | tail -60'
+# ↑ 가장 최근 ERROR 줄과 그 뒤에 딸린 스택트레이스 확인. "예상하지 못한 서버 에러"면 진짜 버그,
+#   "메일 발송 실패..."면 위 1-6(이메일 실패) 알람과 같은 원인일 가능성이 높음 — 같이 확인
+```
+
+**복구**: 스택트레이스로 원인 코드 위치를 특정해 버그면 수정 배포. 이메일 발송 관련이면 1-6절 참고. 일회성(예: 순간적인 DB 락 경합)이면 재발 여부를 지켜본다 — 마지막 ERROR 줄이 5분 쿼리 윈도우 밖으로 밀려나면(최대 약 5~10분) 알람이 자연히 OK로 전환된다. 재현·수동 검증은 `push-error-log-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
+
 ---
 
 <a id="cheat-sheet"></a>
