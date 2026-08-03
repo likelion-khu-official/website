@@ -49,6 +49,11 @@ public class OciStorageService {
                 .build());
     }
 
+    public void deleteByUrl(String url) {
+        if (url == null || url.isBlank() || !url.startsWith(publicUrl + "/")) return;
+        delete(url.substring(publicUrl.length() + 1));
+    }
+
     private String normalizePrefix(String prefix) {
         if (prefix == null || prefix.isBlank()) return "";
         String trimmed = prefix.strip();

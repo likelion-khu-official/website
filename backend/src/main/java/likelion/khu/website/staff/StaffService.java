@@ -7,6 +7,7 @@ import likelion.khu.website.staff.dto.StaffCreateRequest;
 import likelion.khu.website.staff.dto.StaffAdminResponse;
 import likelion.khu.website.staff.dto.StaffResponse;
 import likelion.khu.website.staff.dto.StaffUpdateRequest;
+import likelion.khu.website.storage.OciStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class StaffService {
 
     private final StaffRepository staffRepository;
     private final AuditService auditService;
+    private final OciStorageService storageService;
 
     @Transactional(readOnly = true)
     public List<StaffResponse> getAll() {
@@ -94,8 +96,10 @@ public class StaffService {
     @Transactional
     public void delete(Long id) {
         Staff staff = findOrThrow(id);
+        String photoUrl = staff.getPhotoUrl();
         staffRepository.delete(staff);
         auditService.recordStateChange("운영진 삭제: " + staff.getName(), "STAFF", id, AuditOutcome.SUCCESS);
+        storageService.deleteByUrl(photoUrl);
     }
 
     private Staff findOrThrow(Long id) {
