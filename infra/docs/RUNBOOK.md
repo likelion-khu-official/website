@@ -15,6 +15,8 @@
 | [`infra/.claude/skills/db-access/SKILL.md`](../.claude/skills/db-access/SKILL.md) | 팀원의 DB 관련 질문(접속법·SQL 허용여부·GUI·공개키 등록)에 Claude Code가 `db-access.md` 기반으로 즉답하게 하는 스킬 |
 | [`backend/.claude/skills/db-man/SKILL.md`](../../backend/.claude/skills/db-man/SKILL.md) | 위치는 `backend/`(엔티티 변경 시 자동 트리거되게 스코프)지만 장찬욱(인프라)이 Flyway 도입(#133) 때 같이 만들고 관리하는 스킬 — 엔티티 변경 시 마이그레이션 파일을 빠뜨리지 않게 함 |
 | [`logging.md`](./logging.md) | 로그 구조 |
+| [`log-access.md`](./log-access.md) | 로그 접속(`logviewer` 계정) — `X-Request-Id`로 요청 로그 찾기 |
+| [`infra/.claude/skills/log-access/SKILL.md`](../.claude/skills/log-access/SKILL.md) | 팀원의 로그 조회 요청에 Claude Code가 `log-access.md` 기반으로 즉답하게 하는 스킬 |
 | [`CI-CD.md`](./CI-CD.md) | CI/CD 절차 설명 |
 | `pm/docs/learnings.md` "인프라 · CI/CD" 절 | 실제 사고 히스토리 — 같은 함정을 반복하지 않기 위한 원본 |
 
@@ -195,6 +197,24 @@ ssh likelion-oci 'docker compose -f ~/website/infra/docker-compose.yml logs --ta
 
 **복구**: `failure_cause`가 `SMTP_AUTHENTICATION_FAILED`/`SMTP_CONNECTION_FAILED`면 OCI Email Delivery 콘솔에서 `smtp-mailer` 자격증명·Approved Sender 상태를 확인한다(`email-delivery.md` OCID 참고 절). `TEMPLATE_RENDERING_FAILED`면 최근 배포 커밋을 확인한다. 원인이 해소되면 **그 이후에 새로 시도되는 발송**은 자동으로 다시 성공하고, 마지막 실패가 5분 쿼리 윈도우 밖으로 밀려나는 시점(최대 약 5~10분)에 알람이 자연히 OK로 전환된다 — 별도로 알람을 수동 리셋할 필요 없음. **주의**: `SMTP_AUTHENTICATION_FAILED`는 재시도를 안 하므로(OCI의 반복 인증실패 IP 스로틀을 스스로 유발하지 않기 위함, `FailureCause.java` 참고), 이미 실패로 기록된 그 특정 메일은 자격증명을 고쳐도 저절로 재발송되지 않는다 — 초대·비번재설정은 유저/관리자가 재요청하면 새 토큰으로 재발송되지만(기존 기능), 모집 안내 메일은 개별 재발송 수단이 없어 그 구독자는 못 받은 채로 남는다. 재현·수동 검증이 필요하면 `push-email-failure-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
 
+<a id="alarm-error-log"></a>
+### 1-7. OCI Monitoring — 백엔드 ERROR 로그 발생 (prod/stage, OCI 심각도: WARNING / 대응 긴급도: 확인 필요, website #313 후속)
+
+**경고**: 최근 5분 안에 backend 로그 파일에 `ERROR` 레벨 줄이 하나라도 찍혔다는 뜻이다(임계치가 0인 이유는 `observability.md` "백엔드 ERROR 로그 알람" 절 참고 — 흔한 4xx는 애초에 ERROR로 안 남게 설계돼 있어, 한 건이라도 뜨면 이미 확인이 필요한 신호). `GlobalExceptionHandler`가 처리하는 30여 개 알려진 예외(로그인 실패, 존재하지 않는 리소스 등)는 이 레벨로 안 남고, `LoggingErrorAttributes`가 잡는 "예상 못한 버그"(NPE·DB 에러 등)와 이메일 발송 실패만 여기 해당한다.
+
+**영향**: 그 요청을 보낸 사용자만 실패 응답을 받았을 뿐, 사이트 전체는 계속 정상 동작한다. 다만 원인이 코드 버그라면 같은 상황을 겪는 다른 사용자도 계속 실패하고 있을 수 있다.
+
+```bash
+ssh likelion-oci 'ls -t ~/website/infra/logs/<prod|stage>/*.log | head -1'
+# ↑ 현재 활성 로그 파일 경로 확인(배포 태그별로 파일이 나뉨 — 가장 최근에 수정된 게 지금 컨테이너가 쓰는 것)
+
+ssh likelion-oci 'grep -A 20 " ERROR " ~/website/infra/logs/<prod|stage>/<위에서_찾은_파일>.log | tail -60'
+# ↑ 가장 최근 ERROR 줄과 그 뒤에 딸린 스택트레이스 확인. "예상하지 못한 서버 에러"면 진짜 버그,
+#   "메일 발송 실패..."면 위 1-6(이메일 실패) 알람과 같은 원인일 가능성이 높음 — 같이 확인
+```
+
+**복구**: 스택트레이스로 원인 코드 위치를 특정해 버그면 수정 배포. 이메일 발송 관련이면 1-6절 참고. 일회성(예: 순간적인 DB 락 경합)이면 재발 여부를 지켜본다 — 마지막 ERROR 줄이 5분 쿼리 윈도우 밖으로 밀려나면(최대 약 5~10분) 알람이 자연히 OK로 전환된다. 재현·수동 검증은 `push-error-log-metric.py <prod|stage>`를 직접 실행해 최신 값을 즉시 밀어넣고 확인할 수 있다.
+
 ---
 
 <a id="cheat-sheet"></a>
@@ -227,6 +247,12 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 **`git pull`이 아니라 `git reset --hard origin/<브랜치>`를 쓰는 이유(2026-07-30 정정)**: 예전엔 여기 `git pull`을 썼는데, 서버 배포 키가 origin에 push를 못 하는 구조(의도적 최소권한)와 안 맞았다 — pull(=fetch+merge)이 로컬 전용 머지 커밋을 만들고, 그 커밋을 다시 push 못 하니 배포할 때마다 어긋남이 쌓여 서버 `dev`가 `origin/dev`보다 **54커밋**까지 앞서는 사고로 이어졌다(최초 발견 2026-07-26엔 26커밋, `pm/docs/learnings.md` 참고). `reset --hard`로 실제 정리 완료했고(내용 손실 없음 확인됨), `cd.yml`도 같은 이유로 `git pull` → `git reset --hard`로 고쳤다 — 이 서버는 배포 전용이라 로컬 전용 커밋이 있을 이유가 없으므로, 앞으로는 이 방식이 표준이다. 상세는 `infra/CLAUDE.md` "서버 dev 동기화" 절 참고.
 
 **DB 접근 계정 발급**: `infra/.claude/skills/db-access/` 스킬 호출 또는 `db-access.md` "온보딩" 절 그대로 — 공개키를 받아 서버에서 직접 등록(자동화하지 않은 이유는 그 문서에 있음).
+
+**QA·FE 버그 리포트에 딸려온 `X-Request-Id`로 정확한 로그 줄 찾기**(website #404): QA·FE가 이상한 응답을 발견해 브라우저 개발자도구(Network 탭)에서 복사한 `X-Request-Id` 값을 리포트에 같이 남기면, 시간대로 짐작할 필요 없이 그 값으로 바로 찾는다. 상세 배경·한계(401/403엔 아직 매칭할 로그가 없음 등)는 `logging.md` "버그 리포트에 활용하기" 절 참고.
+
+```bash
+ssh likelion-oci 'grep "reqId=<받은 값>" $(ls -t ~/website/infra/logs/<stage|prod>/*.log | head -1)'
+```
 
 ### DB 복원 — 백업 스냅샷으로 되돌리기
 

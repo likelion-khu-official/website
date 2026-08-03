@@ -27,9 +27,12 @@ public class RecruitmentStatus {
 
     private LocalDateTime openedAt;
 
-    public void markOpened() {
+    private Long currentRoundId;
+
+    public void markOpened(Long roundId, LocalDateTime openedAt) {
         this.open = true;
-        this.openedAt = LocalDateTime.now();
+        this.openedAt = openedAt;
+        this.currentRoundId = roundId;
     }
 
     public void markClosed() {

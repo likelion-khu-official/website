@@ -95,6 +95,9 @@ app:
   # 일반 사용자(구독자 등)에게 보내는 메일의 베이스 URL — 공개 사이트. stage=dev.likelion-khu.com,
   # prod=likelion-khu.com(이 기본값)이라 stage 배포 .env.stage엔 PUBLIC_SITE_URL을 반드시 오버라이드해야 함.
   public-site-url: ${PUBLIC_SITE_URL:https://likelion-khu.com}
+  analytics:
+    # 운영 공개 도메인에서 온 조회만 저장한다. stage·localhost·Vercel preview는 기본적으로 모두 제외된다.
+    allowed-hosts: ${ANALYTICS_ALLOWED_HOSTS:likelion-khu.com,www.likelion-khu.com}
   # 로컬 개발(HTTP)에서만 false — stage/prod는 반드시 true(HTTPS 전제)
   cookie-secure: ${COOKIE_SECURE:true}
 
@@ -131,6 +134,10 @@ logging:
       max-file-size: 20MB
       max-history: 14
       total-size-cap: 1GB
+  # 요청 하나가 로그 여러 줄에 걸칠 때 묶어보기 위한 requestId(RequestIdFilter가 채움).
+  # 전체 패턴을 새로 정의하지 않고 레벨 표기 자리에 얹는 방식 — Spring Boot 기본 패턴 유지.
+  pattern:
+    level: '%5p [reqId=%X{requestId}]'
 
 # === Actuator ===
 # /actuator/health 만 노출. Security 없을 때는 auto-config(ManagementWebSecurityAutoConfiguration)이

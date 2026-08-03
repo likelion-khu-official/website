@@ -10,6 +10,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByStatusOrderByPublishedAtDesc(PostStatus status, Pageable pageable);
     Page<Post> findByAuthorMemberIdOrderByCreatedAtDesc(Long authorMemberId, Pageable pageable);
     Optional<Post> findBySlugAndStatus(String slug, PostStatus status);
+    Optional<Post> findBySlug(String slug);
     Optional<Post> findByIdAndStatus(Long id, PostStatus status);
     boolean existsBySlug(String slug);
 }

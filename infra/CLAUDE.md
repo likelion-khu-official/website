@@ -123,7 +123,7 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 
 ---
 
-## nginx 설정 — 실제 값 (2026-08-02 서버 실측, 레이트리미팅 추가 반영)
+## nginx 설정 — 실제 값 (2026-08-04 서버 실측, 로그인 rate limit·보안 헤더 추가 반영)
 
 `infra/nginx.conf`는 gitignore라 레포엔 없다 — 여기가 실제 구조를 확인할 수 있는 유일한 곳이니 nginx를 바꾸면 이 절도 같이 갱신할 것.
 
@@ -152,6 +152,13 @@ http {
            ssl_certificate/key: likelion-khu.com-0001 lineage
            limit_conn conn_limit 20;                                 # IP당 동시연결 20으로 제한
 
+           # 보안 헤더 (추가) — nginx는 location에 add_header를 하나라도 선언하면 상위(server)의 add_header가 상속되지 않으니, location에서 add_header를 쓰면 필요한 헤더를 전부 다시 선언할 것
+           add_header X-Frame-Options "DENY" always;
+           add_header X-Content-Type-Options "nosniff" always;
+           add_header Referrer-Policy "no-referrer" always;
+           add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+           location ~ ^/api/(admin|member)/auth/login$ { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
            location = /api/applications { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
            location ~ ^/api/posts/[^/]+/comments$ { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
            location = /api/notifications/subscribe { limit_req zone=sensitive burst=3 nodelay; proxy_pass ...; }
@@ -168,6 +175,11 @@ http {
 - **sensitive(1r/s, burst 3)**: `/api/applications`(지원서)·`/api/posts/*/comments`(댓글)·`/api/notifications/subscribe`(구독)·`/api/admin/password/forgot`(비번재설정 메일) — 전부 `permitAll()`이라 인증 없이 누구나 반복 호출 가능했던 곳. 사람이면 초당 1번씩 반복할 이유가 없는 액션들이고, 특히 `password/forgot`는 남용되면 OCI Email Delivery 월 3,000통 한도까지 위협해서 반드시 넣었다.
 - **upload(2r/s, burst 10)**: `/api/feed/images`·`/api/admin/staff/images` — 로그인은 필요하지만(MEMBER/ADMIN) 요청 횟수 제한이 전혀 없었음. 정상 사용자가 한 세션에 여러 장 올리는 걸 허용하려고 sensitive보다는 여유를 뒀다.
 - **2026-08-02 실측 검증**: `/api/applications`에 연속 요청을 쏴서 burst 초과분이 `429`로 즉시 막히는 것, 동시에 일반 조회(`/api/posts` 등)는 영향 없이 계속 `200`인 것까지 확인 후 반영. 배포 전 `nginx -t`로 문법 검증 → reload(무중단) → 헬스체크로 순서 진행(DB 복원 절차와 동일 패턴).
+
+**2026-08-04 추가 — 레이어별 보안 현황 점검(#403)에서 발견한 구멍 2개:**
+- **로그인(`/api/admin/auth/login`, `/api/member/auth/login`)이 sensitive 존 목록에 빠져 있었다.** 비밀번호 찾기(`password/forgot`)보다 로그인 자체가 더 느슨하게(general, 10r/s) 걸려있던 역전 상황 — 무차별 대입 공격 대상인데 정작 제일 약하게 막혀 있었다. sensitive 존(1r/s, burst 3)으로 옮김.
+- **보안 헤더가 전혀 없었다.** `X-Frame-Options`/`X-Content-Type-Options`/`Referrer-Policy`/`Strict-Transport-Security` 4종 추가. (`X-Frame-Options`·`X-Content-Type-Options`는 Spring Security 기본값으로 백엔드도 이미 보내고 있어서 응답에 중복으로 찍히지만 값이 같아 무해 — 굳이 백엔드 쪽을 끄지 않고 nginx에도 둔 이유는, 이 서버 앞에 다른 백엔드가 붙거나 정적 응답을 nginx가 직접 낼 일이 생겨도 방어가 유지되게 하려고.)
+- **배포 시 겪은 함정**: 새 설정 파일을 `mv`로 갈아끼웠더니 `nginx -t`·`reload`가 전부 "성공"이라고 나왔는데도 실제로는 옛날 설정이 계속 돌고 있었다 — Docker 바인드 마운트가 특정 inode를 참조해서, `mv`(rename)로 파일을 교체하면 컨테이너 안에서는 여전히 옛 inode(옛 내용)를 보게 된다. `docker compose exec nginx cat nginx.conf`로 컨테이너 내부 실제 내용을 직접 비교해서 발견했고, `docker compose up -d --force-recreate nginx`로 컨테이너를 재생성해야 새 바인드 마운트가 맺어지며 반영됐다. **앞으로 nginx.conf를 고칠 때는 `mv`로 교체하지 말고 기존 파일에 직접 덮어쓰거나(`cat > nginx.conf`), 교체 후 반드시 `docker exec`로 컨테이너 내부 파일을 재확인할 것.**
 
 ---
 

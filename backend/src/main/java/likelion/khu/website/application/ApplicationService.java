@@ -53,14 +53,16 @@ public class ApplicationService {
     public void submit(JsonNode answers, boolean privacyConsent) {
         // 모집이 닫혀 있으면 접수하지 않는다 — 공개 화면은 그 자리에 모집 알림을 대신 띄우지만,
         // API를 직접 찌르는 경로도 서버에서 막는다(#152).
-        if (!isRecruitmentOpen()) {
+        RecruitmentStatus status = currentRecruitmentStatus();
+        if (!status.isOpen() || status.getCurrentRoundId() == null) {
             throw new RecruitmentClosedException();
         }
         if (!privacyConsent) {
             throw new PrivacyConsentRequiredException();
         }
         // 제출 시점의 폼 정의를 답변과 함께 스냅샷으로 저장한다(다음 기수 질문 변경에도 옛 답변 해석 가능).
-        applicationRepository.save(new Application(currentSchemaJson(), writeString(answers)));
+        applicationRepository.save(new Application(
+                currentSchemaJson(), writeString(answers), status.getCurrentRoundId()));
     }
 
     @Transactional(readOnly = true)
@@ -74,10 +76,9 @@ public class ApplicationService {
                 .toList();
     }
 
-    private boolean isRecruitmentOpen() {
+    private RecruitmentStatus currentRecruitmentStatus() {
         return recruitmentStatusRepository.findById(RecruitmentStatus.SINGLETON_ID)
-                .map(RecruitmentStatus::isOpen)
-                .orElse(false);
+                .orElseGet(RecruitmentStatus::new);
     }
 
     private String currentSchemaJson() {

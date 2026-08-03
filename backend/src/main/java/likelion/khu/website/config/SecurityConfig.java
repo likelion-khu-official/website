@@ -50,6 +50,8 @@ public class SecurityConfig {
                 ).permitAll()
                 // 모집 알림 구독 — 비인증 공개
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                // 공개 이용 이벤트 수집 — 서버가 운영 호스트·봇을 재검증하고 익명 식별자는 해시해서 저장한다.
+                .requestMatchers(HttpMethod.POST, "/api/analytics/pageviews", "/api/analytics/events").permitAll()
 
                 // 지원폼(#152) — 비로그인 방문자가 폼 정의를 보고 지원 제출.
                 // (관리자용 폼 편집·지원자 열람 /api/admin/** 은 아래 anyRequest().authenticated() + @PreAuthorize)

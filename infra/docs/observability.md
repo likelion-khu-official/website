@@ -47,6 +47,8 @@ OCI Notifications (ONS)
 | likelion-prod 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
 | likelion-prod 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountProd[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 | likelion-stage 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountStage[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
+| likelion-prod 백엔드 ERROR 로그 발생 | `custom_likelion` | `ErrorLogCountProd[5m].max() > 0` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
+| likelion-stage 백엔드 ERROR 로그 발생 | `custom_likelion` | `ErrorLogCountStage[5m].max() > 0` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 
 **백업 알람이 dead man's switch인 이유**: 백업 자체(`backup-db.sh`)는 2026-07-04부터 이미 매일 잘 돌고 있었음(cron+버킷 실측 확인됨, #83 조사 과정에서 재확인). 근데 "잘 되고 있다"를 사람이 매번 SSH로 들어가 확인해야 아는 상태였음 — 이 알람은 그 확인을 자동화한 것. 값 자체(`=1`)엔 의미가 없고, 신호가 26시간 동안 **안 들어오는 것** 자체가 이상 신호. cron이 안 돌았든, 서버가 죽었든, 백업 스크립트가 중간에 실패했든 원인 불문하고 다 잡힘. 26시간 = 매일 18:00 UTC 실행 주기(24h) + 2시간 버퍼.
 
@@ -66,6 +68,25 @@ OCI Notifications (ONS)
 - **왜 severity가 WARNING인가(다른 4개는 CRITICAL)**: 디스크·메모리·백업부재·git드리프트는 "사이트 생존"에 직결되지만, 이메일 실패는 모집 알림 발송 실패로 사용자 경험은 나빠져도 사이트 자체는 계속 정상 동작한다 — 즉시 대응이 필요한 CRITICAL보다는 확인이 필요한 WARNING이 맞다고 판단.
 - **왜 pending-duration이 cron 주기와 같은가(P=C=5분, "연속 2번 나쁨" 요구 안 함)**: 처음엔 git드리프트 알람처럼 P를 C보다 크게 잡아(C=15/P=20분) 단일 blip을 걸러내려 했는데, 이 지표엔 안 맞는 전제였다. 디스크·메모리는 5분마다 "지금 값"이 항상 존재하는 연속 샘플링 지표라 P>C로 "진짜 지속" 여부를 가릴 수 있지만, 이메일 발송은 클럽 규모상 요청 자체가 뜸하다가 몰릴 때 한꺼번에 몰리는 성격(장찬욱 실측 지적, 2026-07-29)이라 "연속된 나쁜 tick"이 보장되지 않는다. 예를 들어 모집 열림 전환으로 구독자 전원에게 한 번에 발송하다 SMTP가 통째로 죽으면, 그 실패들이 슬라이딩 윈도우 한 구간에만 걸리고 그다음 틱엔 이미 윈도우 밖으로 밀려나 0으로 돌아갈 수 있다 — P>C 요구를 그대로 두면 **이런 진짜 burst 장애를 알람이 영영 못 잡는** 구조적 결함이 생긴다. 그래서 디스크·메모리와 같은 P=C(`k_min = ceil((C-W)/C)+1 = 1`, W=C=5분이라 첫 breach에 바로 발동)로 맞췄다 — "튄 값 한 번은 무시"가 아니라 "이 규모에서 5분에 3건 이상 실패는 그 자체로 이미 드문 신호"라는 판단. C(=W=P)는 15분으로 시작했다가, "이렇게까지 오래 기다려야 하나" 지적(장찬욱, 2026-07-29)에 디스크·git드리프트와 같은 5분으로 낮춰 감지 시간을 3배 단축했다 — sqlite 조회는 가벼운 SELECT라 주기를 낮춰도 비용이 안 든다.
 - **슬라이딩 윈도우 이중 카운트 주의**: `push-email-failure-metric.py`의 SQL 자체가 "최근 5분 안 실패 건수"를 매번 새로 세므로, 같은 실패 1건이 여러 cron tick에 걸쳐 반복 카운트될 수 있다(예: 한 건이 5분 윈도우에 여러 tick 동안 계속 잡힘). 이건 "새로 발생한 실패 수"가 아니라 "지금 이 순간 최근 5분 안에 실패가 몇 건 쌓여 있는가"를 보는 지표라 의도된 동작 — 대량 실패가 5분 넘게 지속되면 계속 높은 값을 유지해 알람이 계속 breaching 상태를 유지하는 게 오히려 목적에 맞는다(디스크 사용률처럼 "현재 상태" 지표와 같은 성격, 백업처럼 "이벤트 발생 여부"가 아님).
+
+### 백엔드 ERROR 로그 알람 — `ErrorLogCountProd`/`Stage` (website #313 후속)
+
+website #313에서 GlobalExceptionHandler·LoggingErrorAttributes로 "예상 못한 서버 에러"를
+ERROR 레벨로 로그에 남기는 것까지는 됐지만, 그 로그를 사람이 능동적으로 SSH로 들어가
+열어보지 않으면 아무도 모르는 상태였다. 이 알람은 이메일실패 알람과 같은 패턴(5분 윈도우,
+cron 주기, instance principal)이지만 판단 기준은 다르다.
+
+- **왜 임계치가 0(이메일실패는 >2)인가**: website #313 설계상 ERROR 레벨은 "정상적인 클라이언트
+  흐름(4xx 등)"이 아니라 "우리가 미처 몰랐던 버그"에만 쓰도록 의도적으로 좁혀뒀다(`GlobalExceptionHandler`
+  주석 참고 — 흔한 4xx는 로깅 안 함). 그래서 이메일 오탈자처럼 "정상적으로 간헐 발생하는" 노이즈가
+  아니라, 한 건이라도 나면 그 자체로 이미 확인이 필요한 신호다.
+- **로그 파일을 직접 읽는 이유**: `push-email-failure-metric.py`가 `email_log` 테이블을 직접 읽듯,
+  ERROR 로그는 DB가 아니라 파일에만 있어서 `infra/logs/{prod,stage}/` 안 가장 최근에 수정된
+  파일(=현재 배포가 쓰고 있는 파일)을 찾아 최근 5분 이내 타임스탬프의 ERROR 줄만 센다. 새 API를
+  안 만드는 이유는 다른 push 스크립트들과 동일(새 HTTP 표면이 안 생김).
+- **severity가 WARNING인 이유**: 디스크·메모리·백업부재·git드리프트처럼 사이트 생존에 직결되진
+  않고(에러 난 그 요청만 실패, 나머지는 정상 동작), 확인이 필요한 수준이라 이메일실패 알람과
+  같은 판단.
 
 ### 발송 성공 시계열 — `EmailSuccessCountProd`/`Stage` (알람 없음, #113 후속)
 
@@ -119,6 +140,7 @@ k_min = ceil( (P - W) / C ) + 1
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
 | `infra/scripts/push-email-failure-metric.py` | 최근 5분 `email_log` 실패 건수(prod/stage 각각) → custom metric. cron `*/5 * * * *`로 실행 (인자 `prod`/`stage`로 두 줄 등록, #113) |
+| `infra/scripts/push-error-log-metric.py` | 최근 5분 backend ERROR 로그 줄 수(prod/stage 각각) → custom metric. cron `*/5 * * * *`로 실행 (인자 `prod`/`stage`로 두 줄 등록, website #313 후속 — 로깅은 도입됐지만 사람이 능동적으로 안 보면 놓치던 문제) |
 
 서버의 `~/oci-monitor-venv`(venv, oci SDK만 설치)는 레포에 없음 — 최초 세팅 시 아래로 재현:
 ```bash

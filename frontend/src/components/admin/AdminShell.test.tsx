@@ -76,11 +76,12 @@ describe('AdminShell', () => {
     expect(screen.getAllByText('김운영')).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: '멤버 관리' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: '관리자 계정' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: '이용 현황' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: '멤버 관리' })[0]).toHaveAttribute(
       'aria-current',
       'page'
     );
-    expect(screen.getAllByRole('link', { name: '대시보드' })[0]).not.toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: '이용 현황' })[0]).not.toHaveAttribute(
       'aria-current'
     );
   });
