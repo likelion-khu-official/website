@@ -149,10 +149,11 @@ export function buildTimeSeriesOption(
 interface AnalyticsTimeSeriesChartProps {
   points: AnalyticsTimePoint[];
   label: string;
+  valueLabel?: string;
   comparison?: { points: AnalyticsTimePoint[]; label: string; unit: string };
 }
 
-export default function AnalyticsTimeSeriesChart({ points, label, comparison }: AnalyticsTimeSeriesChartProps) {
+export default function AnalyticsTimeSeriesChart({ points, label, valueLabel = '조회수', comparison }: AnalyticsTimeSeriesChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
@@ -187,7 +188,7 @@ export default function AnalyticsTimeSeriesChart({ points, label, comparison }: 
       <table className="sr-only">
         <caption>{label}{comparison ? `와 ${comparison.label}` : ''} 날짜별 수치</caption>
         <thead>
-          <tr><th>날짜</th><th>조회수</th>{comparison ? <th>{comparison.label}</th> : null}</tr>
+          <tr><th>날짜</th><th>{valueLabel}</th>{comparison ? <th>{comparison.label}</th> : null}</tr>
         </thead>
         <tbody>
           {points.map((point) => (
