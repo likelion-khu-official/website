@@ -55,6 +55,8 @@ import type {
   SectionReachAnalyticsResponse,
   KeyClickAnalyticsResponse,
   NotificationSignupAnalyticsResponse,
+  PopularTimeAnalyticsResponse,
+  ContentImpactAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -188,6 +190,30 @@ export function getNotificationSignupAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/notification-signups?${params.toString()}`,
     {},
     '모집 알림 신청 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getPopularTimeAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return request<PopularTimeAnalyticsResponse>(
+    `/analytics/popular-times?${params.toString()}`,
+    {},
+    '인기 시간대와 요일을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getContentImpactAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  if (query.impactType && query.impactId) {
+    params.set('type', query.impactType);
+    params.set('id', String(query.impactId));
+  }
+  return request<ContentImpactAnalyticsResponse>(
+    `/analytics/content-impact?${params.toString()}`,
+    {},
+    '콘텐츠 공개 전후 변화를 불러오지 못했어요.',
     true
   );
 }
