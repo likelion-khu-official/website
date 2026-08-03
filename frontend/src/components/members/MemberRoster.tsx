@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Member } from '@shared/types/member';
 import type { ProjectSummary } from '@shared/types/project';
+import { cardColor } from '@/lib/roster';
 import MemberCard from './MemberCard';
 import MemberDetailModal from './MemberDetailModal';
 
@@ -15,21 +16,29 @@ type Props = {
 };
 
 export default function MemberRoster({ members, projectsByMember, projectsUnavailable }: Props) {
-  const [selected, setSelected] = useState<Member | null>(null);
+  // 선택을 인덱스로 잡아 모달이 카드와 같은 색(cardColor)을 악센트로 쓸 수 있게 한다.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selected = selectedIndex === null ? null : members[selectedIndex];
 
   return (
     <>
       <div className="grid grid-cols-2 justify-center gap-x-3 gap-y-8 sm:grid-cols-[repeat(auto-fit,minmax(144px,156px))] sm:gap-x-[38px] sm:gap-y-[38px]">
         {members.map((member, index) => (
-          <MemberCard key={member.id} member={member} colorIndex={index} onSelect={setSelected} />
+          <MemberCard
+            key={member.id}
+            member={member}
+            colorIndex={index}
+            onSelect={() => setSelectedIndex(index)}
+          />
         ))}
       </div>
 
       <MemberDetailModal
         member={selected}
+        accent={selectedIndex === null ? undefined : cardColor(selectedIndex)}
         projects={selected ? (projectsByMember[selected.id] ?? []) : []}
         projectsUnavailable={projectsUnavailable}
-        onClose={() => setSelected(null)}
+        onClose={() => setSelectedIndex(null)}
       />
     </>
   );

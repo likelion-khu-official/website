@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
-import { ROLE_LABELS } from '@/lib/roster';
+import { ROLE_LABELS, cardColor } from '@/lib/roster';
 
 const ROLE_ORDER: MemberRole[] = [
   'PRESIDENT', 'VICE_PRESIDENT',
@@ -11,44 +11,6 @@ const ROLE_ORDER: MemberRole[] = [
   'PR_HEAD', 'PR_MEMBER',
   'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
 ];
-
-const CARD_COLORS = [
-  ['#f47f83', '#111111'],
-  ['#4b268d', '#ffffff'],
-  ['#58f34f', '#111111'],
-  ['#ff2424', '#111111'],
-  ['#050505', '#ffffff'],
-  ['#f7f7f3', '#111111'],
-  ['#fff431', '#111111'],
-  ['#c9ff8a', '#111111'],
-  ['#ff0064', '#ffffff'],
-  ['#ffdeaf', '#111111'],
-  ['#1d3e7c', '#ffffff'],
-  ['#8d35cb', '#ffffff'],
-  ['#ffaa51', '#111111'],
-  ['#555555', '#ffffff'],
-  ['#ffb400', '#111111'],
-  ['#ca2f36', '#ffffff'],
-  ['#00b89c', '#111111'],
-  ['#3978e9', '#ffffff'],
-  ['#c9b6ff', '#111111'],
-  ['#ff8c6b', '#111111'],
-  ['#237a3b', '#ffffff'],
-  ['#47dde8', '#111111'],
-  ['#731c45', '#ffffff'],
-  ['#f05587', '#111111'],
-  ['#3e3acb', '#ffffff'],
-  ['#8dd6ff', '#111111'],
-  ['#b7ef43', '#111111'],
-  ['#ff9c96', '#111111'],
-  ['#7d451d', '#ffffff'],
-  ['#63e8c6', '#111111'],
-  ['#743a77', '#ffffff'],
-  ['#e2ba36', '#111111'],
-  ['#e83d63', '#ffffff'],
-  ['#536b91', '#ffffff'],
-  ['#e9cfa7', '#111111'],
-] as const;
 
 function TrackMark({ role }: { role: MemberRole }) {
   const props = {
@@ -144,7 +106,7 @@ export default function MemberCard({
     (left, right) => ROLE_ORDER.indexOf(left) - ROLE_ORDER.indexOf(right),
   );
   const primaryRole = roles[0] ?? 'BACKEND';
-  const [backgroundColor, color] = CARD_COLORS[colorIndex % CARD_COLORS.length];
+  const [backgroundColor, color] = cardColor(colorIndex);
 
   return (
     <button

@@ -15,8 +15,12 @@ import type { Member } from '@shared/types/member';
 import type { ProjectSummary } from '@shared/types/project';
 import { ROLE_LABELS } from '@/lib/roster';
 
+type Accent = readonly [string, string]; // [배경색, 글자색] — 멤버 카드 색 쌍
+
 type Props = {
   member: Member | null;
+  // 선택한 멤버 카드의 색 쌍. 아바타 링·세션 배지·상단 글로우에 악센트로만 쓴다.
+  accent?: Accent;
   projects: ProjectSummary[];
   // 프로젝트 정보를 아예 못 불러온 경우(빈 목록과 구분해 다른 문구를 보여준다).
   projectsUnavailable?: boolean;
@@ -26,6 +30,7 @@ type Props = {
 // 닫힘 애니메이션이 끝난 뒤 언마운트하기까지의 시간(ms). transition duration과 맞춘다.
 const CLOSE_MS = 220;
 const reducedMotionQuery = '(prefers-reduced-motion: reduce)';
+const FALLBACK_ACCENT: Accent = ['#ff8a3d', '#111111'];
 
 function subscribeReducedMotion(onChange: () => void) {
   const mediaQuery = window.matchMedia(reducedMotionQuery);
@@ -41,6 +46,7 @@ const FOCUSABLE =
 
 export default function MemberDetailModal({
   member,
+  accent,
   projects,
   projectsUnavailable = false,
   onClose,
@@ -49,8 +55,9 @@ export default function MemberDetailModal({
   const [prevOpen, setPrevOpen] = useState(open);
   const [shown, setShown] = useState(false); // 진입 애니메이션(scale/opacity) 토글
   const [closing, setClosing] = useState(false); // 닫힘 애니메이션 동안 마운트 유지
-  // 닫히는 동안에도 내용을 그려야 하므로 마지막으로 선택된 멤버를 붙잡아 둔다.
+  // 닫히는 동안에도 내용을 그려야 하므로 마지막 선택 멤버·색을 붙잡아 둔다.
   const [activeMember, setActiveMember] = useState<Member | null>(member);
+  const [activeAccent, setActiveAccent] = useState<Accent>(accent ?? FALLBACK_ACCENT);
   const [index, setIndex] = useState(0);
 
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -68,6 +75,7 @@ export default function MemberDetailModal({
     setClosing(!open);
     if (open) {
       setActiveMember(member);
+      setActiveAccent(accent ?? FALLBACK_ACCENT);
       setIndex(0);
     }
   }
@@ -124,8 +132,8 @@ export default function MemberDetailModal({
     [projects.length],
   );
 
-  // Tab이 다이얼로그 밖으로 나가지 않게 가둔다(배경 포커스 차단).
-  function handleTabTrap(event: React.KeyboardEvent<HTMLDivElement>) {
+  // Tab이 다이얼로그 밖으로 나가지 않게 가둔다(배경 포커스 차단). 좌우 화살표로 프로젝트 이동.
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'ArrowLeft' && projects.length > 1) move(-1);
     if (event.key === 'ArrowRight' && projects.length > 1) move(1);
     if (event.key !== 'Tab') return;
@@ -157,6 +165,7 @@ export default function MemberDetailModal({
 
   if (!rendered || !activeMember) return null;
 
+  const [accentBg, accentFg] = activeAccent;
   const roleLabels = activeMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
   const activeProject = projects[index];
 
@@ -178,11 +187,18 @@ export default function MemberDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        onKeyDown={handleTabTrap}
-        className={`relative m-0 flex max-h-[92svh] w-full max-w-[560px] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#161616] shadow-[0_-24px_90px_rgba(0,0,0,0.5)] transition-all duration-200 ease-[var(--motion-ease-out)] will-change-transform motion-reduce:transition-none sm:m-4 sm:rounded-3xl sm:shadow-[0_30px_120px_rgba(0,0,0,0.6)] ${
+        onKeyDown={handleKeyDown}
+        className={`relative flex max-h-[92svh] w-full max-w-[880px] flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-background shadow-[0_-24px_90px_rgba(0,0,0,0.5)] transition-all duration-200 ease-[var(--motion-ease-out)] will-change-transform motion-reduce:transition-none sm:m-4 sm:rounded-3xl sm:shadow-[0_30px_120px_rgba(0,0,0,0.6)] ${
           shown ? 'translate-y-0 opacity-100 sm:scale-100' : 'translate-y-6 opacity-0 sm:translate-y-0 sm:scale-95'
         }`}
       >
+        {/* 멤버 카드 색을 은은한 상단 글로우로만 얹는다(넓은 채우기 대신 악센트). */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: `radial-gradient(120% 65% at 0% 0%, ${accentBg}26, transparent 62%)` }}
+        />
+
         <button
           type="button"
           onClick={onClose}
@@ -194,56 +210,62 @@ export default function MemberDetailModal({
           </svg>
         </button>
 
-        <div className="overflow-y-auto overscroll-contain px-6 pb-7 pt-8 sm:px-8">
-          {/* 멤버 정보 — 공개 필드만(학과·학번 등 비공개 정보는 노출하지 않는다). */}
-          <div className="flex items-center gap-4">
-            {activeMember.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={activeMember.photoUrl}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-full border-2 border-white/15 object-cover"
-              />
-            ) : (
+        <div className="relative flex flex-col gap-6 overflow-y-auto overscroll-contain p-6 sm:flex-row sm:gap-8 sm:p-8">
+          {/* 왼쪽 — 멤버(공개 필드만. 학과·학번은 공개 API/PM 결정 #423 전까지 노출하지 않는다) */}
+          <div className="sm:w-[42%] sm:shrink-0">
+            <div className="flex items-center gap-4">
               <span
-                aria-hidden
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/5 text-4xl leading-none"
+                className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2"
+                style={{ borderColor: accentBg }}
               >
-                {activeMember.emoji}
+                {activeMember.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={activeMember.photoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span aria-hidden className="flex h-full w-full items-center justify-center bg-white/5 text-4xl leading-none">
+                    {activeMember.emoji}
+                  </span>
+                )}
               </span>
-            )}
-            <div className="min-w-0">
-              <h2 id={headingId} className="truncate text-2xl font-bold tracking-[-0.03em] text-white">
-                {activeMember.name}
-              </h2>
-              <p className="mt-1 text-sm text-accent">{roleLabels}</p>
-              <p className="mt-0.5 text-xs text-white/45">{activeMember.cohort}기</p>
+
+              <div className="min-w-0">
+                <span
+                  className="inline-block rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ backgroundColor: accentBg, color: accentFg }}
+                >
+                  {roleLabels}
+                </span>
+                <h2 id={headingId} className="mt-2 truncate text-2xl font-bold tracking-[-0.03em] text-foreground">
+                  {activeMember.name}
+                </h2>
+                <p className="mt-0.5 text-xs text-muted">{activeMember.cohort}기</p>
+              </div>
             </div>
+
+            {activeMember.joinReason && (
+              <p className="mt-5 break-keep rounded-2xl bg-white/[0.04] px-4 py-3.5 text-sm leading-6 text-white/75">
+                {activeMember.joinReason}
+              </p>
+            )}
           </div>
 
-          {activeMember.joinReason && (
-            <p className="mt-5 break-keep rounded-2xl bg-white/[0.04] px-4 py-3.5 text-sm leading-6 text-white/75">
-              {activeMember.joinReason}
-            </p>
-          )}
-
-          {/* 참여 프로젝트 */}
-          <section aria-label="참여 프로젝트" className="mt-7">
+          {/* 오른쪽 — 참여 프로젝트 */}
+          <section aria-label="참여 프로젝트" className="min-w-0 flex-1">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white/80">참여 프로젝트</h3>
               {projects.length > 1 && (
-                <span className="text-xs tabular-nums text-white/45" aria-hidden>
+                <span className="text-xs tabular-nums text-muted" aria-hidden>
                   {index + 1} / {projects.length}
                 </span>
               )}
             </div>
 
             {projectsUnavailable ? (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-white/50">
+              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-10 text-center text-sm text-muted">
                 프로젝트 정보를 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.
               </p>
             ) : projects.length === 0 ? (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-white/50">
+              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-10 text-center text-sm text-muted">
                 아직 등록된 프로젝트가 없어요.
               </p>
             ) : (
@@ -258,33 +280,30 @@ export default function MemberDetailModal({
                 <div aria-live="polite" aria-atomic="true">
                   <Link
                     href={`/projects/${activeProject.id}`}
-                    className="group block overflow-hidden rounded-2xl border border-white/10 bg-black/20 outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <div className="aspect-[16/9] w-full overflow-hidden bg-[radial-gradient(circle_at_70%_20%,rgba(255,80,0,0.28),transparent_40%),linear-gradient(145deg,#2b2b2b,#151515)]">
+                    <div className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-black/30">
                       {activeProject.representativeImageUrl ? (
+                        // 잘라내지 않고 원본 비율 그대로(object-contain).
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           key={activeProject.id}
                           src={activeProject.representativeImageUrl}
                           alt={`${activeProject.title} 대표 이미지`}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+                          className="h-full w-full object-contain"
                           draggable={false}
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <span className="text-5xl font-semibold text-white/10">
-                            {String(activeProject.cohort).padStart(2, '0')}
-                          </span>
-                        </div>
+                        <span className="text-5xl font-semibold text-white/10">
+                          {String(activeProject.cohort).padStart(2, '0')}
+                        </span>
                       )}
                     </div>
                     <div className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/60">
-                          {activeProject.cohort}기
-                        </span>
-                      </div>
-                      <p className="mt-2 font-semibold tracking-[-0.02em] text-white">
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-muted">
+                        {activeProject.cohort}기
+                      </span>
+                      <p className="mt-2 font-semibold tracking-[-0.02em] text-foreground">
                         {activeProject.title}
                       </p>
                       <p className="mt-1 line-clamp-2 break-keep text-sm leading-5 text-white/55">
