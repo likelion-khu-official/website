@@ -11,9 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +33,7 @@ public class AnalyticsPageViewService {
     private final AnalyticsPageViewRepository repository;
     private final PostRepository postRepository;
     private final ProjectRepository projectRepository;
+    private final AnalyticsAnonymousKeyHasher anonymousKeyHasher;
 
     @Value("${app.analytics.allowed-hosts:likelion-khu.com,www.likelion-khu.com}")
     private String allowedHostsConfig;
@@ -48,7 +46,7 @@ public class AnalyticsPageViewService {
         }
         ContentIdentity content = resolveContent(path);
         repository.save(new AnalyticsPageView(
-                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id(), hashVisitorId(rawVisitorId),
+                path, LocalDateTime.now(ANALYTICS_ZONE), content.type(), content.id(), anonymousKeyHasher.hash(rawVisitorId),
                 classifyDevice(userAgent)));
     }
 
@@ -180,17 +178,6 @@ public class AnalyticsPageViewService {
             }
         }
         return ContentIdentity.NONE;
-    }
-
-    private String hashVisitorId(String visitorId) {
-        if (visitorId == null || visitorId.isBlank()) return null;
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(("likelion-khu-analytics:" + visitorId).getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("익명 방문자 해시를 만들 수 없어요.", impossible);
-        }
     }
 
     private record ContentIdentity(AnalyticsContentType type, Long id) {

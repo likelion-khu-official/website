@@ -8,6 +8,11 @@ import BlogAnalyticsPanel from './BlogAnalyticsPanel';
 import ProjectAnalyticsPanel from './ProjectAnalyticsPanel';
 import RecruitmentApplicationCard from './RecruitmentApplicationCard';
 import DeviceAnalyticsPanel from './DeviceAnalyticsPanel';
+import SectionReachAnalyticsPanel from './SectionReachAnalyticsPanel';
+import KeyClickAnalyticsPanel from './KeyClickAnalyticsPanel';
+import NotificationSignupAnalyticsPanel from './NotificationSignupAnalyticsPanel';
+import PopularTimeAnalyticsPanel from './PopularTimeAnalyticsPanel';
+import ContentImpactAnalyticsPanel from './ContentImpactAnalyticsPanel';
 import type {
   AnalyticsInterval,
   AnalyticsPageTotal,
@@ -48,6 +53,10 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
   const page = params.get('page') || undefined;
   const blogPostId = Number(params.get('blog'));
   const projectId = Number(params.get('project'));
+  const clickAction = params.get('click');
+  const validClickActions = ['APPLY', 'NOTIFICATION', 'BLOG_MORE', 'PROJECT_MORE', 'PROJECT_GITHUB'];
+  const impactType = params.get('impactType');
+  const impactId = Number(params.get('impact'));
 
   return {
     from: validRange ? from : defaultFrom,
@@ -56,6 +65,9 @@ export function parseAnalyticsQuery(params: URLSearchParams, today = kstToday())
     ...(page ? { page } : {}),
     ...(Number.isInteger(blogPostId) && blogPostId > 0 ? { blogPostId } : {}),
     ...(Number.isInteger(projectId) && projectId > 0 ? { projectId } : {}),
+    ...(clickAction && validClickActions.includes(clickAction) ? { clickAction: clickAction as AnalyticsPageViewQuery['clickAction'] } : {}),
+    ...((impactType === 'BLOG_POST' || impactType === 'PROJECT') && Number.isInteger(impactId) && impactId > 0
+      ? { impactType, impactId } : {}),
   };
 }
 
@@ -240,6 +252,11 @@ export default function AnalyticsDashboard() {
     if (next.page) params.set('page', next.page);
     if (next.blogPostId) params.set('blog', String(next.blogPostId));
     if (next.projectId) params.set('project', String(next.projectId));
+    if (next.clickAction) params.set('click', next.clickAction);
+    if (next.impactType && next.impactId) {
+      params.set('impactType', next.impactType);
+      params.set('impact', String(next.impactId));
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [pathname, router]);
 
@@ -360,6 +377,27 @@ export default function AnalyticsDashboard() {
       </section>
 
       <DeviceAnalyticsPanel key={`devices:${query.from}:${query.to}`} query={query} />
+
+      <SectionReachAnalyticsPanel key={`sections:${query.from}:${query.to}`} query={query} />
+
+      <KeyClickAnalyticsPanel
+        key={`clicks:${query.from}:${query.to}:${query.interval}:${query.clickAction ?? 'all'}`}
+        query={query}
+        onChange={replaceQuery}
+      />
+
+      <NotificationSignupAnalyticsPanel
+        key={`notification-signups:${query.from}:${query.to}:${query.interval}`}
+        query={query}
+      />
+
+      <PopularTimeAnalyticsPanel key={`popular-times:${query.from}:${query.to}`} query={query} />
+
+      <ContentImpactAnalyticsPanel
+        key={`content-impact:${query.from}:${query.to}:${query.impactType ?? 'latest'}:${query.impactId ?? ''}`}
+        query={query}
+        onChange={replaceQuery}
+      />
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="top-pages-title">
         <div className="flex flex-col gap-3 border-b border-white/10 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">

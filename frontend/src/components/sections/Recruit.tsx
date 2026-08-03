@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import NotificationForm from '@/components/NotificationForm';
 import { useRecruitmentStatus } from '@/lib/useRecruitmentStatus';
+import { trackKeyClick } from '@/lib/publicAnalytics';
 
 export default function Recruit() {
   const [open, setOpen] = useState(false);
@@ -32,6 +33,7 @@ export default function Recruit() {
           {recruiting ? (
             <Link
               href="/apply"
+              onClick={() => trackKeyClick('APPLY_LANDING_RECRUIT')}
               className="group inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-7 text-[15px] font-semibold text-white outline-none transition-[background-color,transform] hover:-translate-y-0.5 hover:bg-[#ff6a35] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#171717] sm:px-8 sm:text-base"
             >
               지원서 작성하기
@@ -51,7 +53,7 @@ export default function Recruit() {
               </svg>
             </Link>
           ) : open ? (
-            <NotificationForm onClose={() => setOpen(false)} />
+            <NotificationForm onClose={() => setOpen(false)} analyticsLocation="LANDING_RECRUIT" />
           ) : (
             <button
               type="button"
