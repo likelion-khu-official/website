@@ -115,14 +115,14 @@ function TrackMark({ role }: { role: MemberRole }) {
 export default function MemberCard({
   member,
   colorIndex,
+  onSelect,
 }: {
   member: Member;
   colorIndex: number;
+  onSelect: (member: Member) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [lastPhotoUrl, setLastPhotoUrl] = useState(member.photoUrl);
-  const pointerStarted = useRef(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   if (member.photoUrl !== lastPhotoUrl) {
@@ -149,82 +149,39 @@ export default function MemberCard({
   return (
     <button
       type="button"
-      aria-expanded={open}
-      aria-label={`${member.name}님의 참여 이유 ${open ? '닫기' : '보기'}`}
+      aria-haspopup="dialog"
+      aria-label={`${member.name}님 소개와 참여 프로젝트 보기`}
       data-track={primaryRole}
-      onPointerDown={() => {
-        pointerStarted.current = true;
-      }}
-      onClick={() => {
-        setOpen((current) => (pointerStarted.current ? !current : true));
-        pointerStarted.current = false;
-      }}
-      onFocus={() => {
-        if (!pointerStarted.current) setOpen(true);
-      }}
-      onBlur={() => {
-        pointerStarted.current = false;
-        setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          setOpen(false);
-          event.currentTarget.blur();
-        }
-      }}
-      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+      onClick={() => onSelect(member)}
+      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] cursor-pointer justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
       style={{ backgroundColor, color }}
     >
       <span className="sr-only">{ROLE_LABELS[primaryRole]} 트랙</span>
 
-      <span
-        className={`absolute inset-0 transition-opacity duration-200 ${open ? 'opacity-0' : 'opacity-100'}`}
-        aria-hidden={open}
-      >
-        <span className="absolute right-[9%] top-[7.4%]">
-          <TrackMark role={primaryRole} />
-        </span>
-
-        <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-          {member.photoUrl && !imgError ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              ref={imgRef}
-              src={member.photoUrl}
-              alt=""
-              className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
-              {member.emoji}
-            </span>
-          )}
-        </span>
-
-        <span className="absolute inset-x-3 bottom-[11.6%] truncate text-center text-[clamp(24px,8vw,29px)] font-bold leading-[1.16] tracking-[-0.075em]">
-          {member.name}
-        </span>
+      {/* 세션 구분 표시 — 위치·표현 그대로 유지(#309 범위 밖: 변경 금지) */}
+      <span className="absolute right-[9%] top-[7.4%]">
+        <TrackMark role={primaryRole} />
       </span>
 
-      <span
-        className={`absolute inset-0 flex flex-col p-3 transition-opacity duration-200 sm:p-[15px] ${
-          open ? 'opacity-100' : 'pointer-events-none opacity-0'
-        }`}
-        aria-hidden={!open}
-      >
-        <span className="flex items-start justify-between gap-2">
-          <span className="text-[10px] font-bold">{ROLE_LABELS[primaryRole]}</span>
-          <TrackMark role={primaryRole} />
-        </span>
-        <span className="flex flex-1 items-center">
-          <span className="line-clamp-7 break-keep text-[clamp(10px,3vw,11px)] font-semibold leading-[1.5] tracking-[-0.025em]">
-            {member.joinReason || '함께 배우고 만들며 성장하고 있어요.'}
+      <span className="absolute left-1/2 top-[39.7%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        {member.photoUrl && !imgError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            ref={imgRef}
+            src={member.photoUrl}
+            alt=""
+            className="h-[clamp(56px,18vw,66px)] w-[clamp(56px,18vw,66px)] rounded-full border-[3px] border-white object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <span className="select-none text-[clamp(48px,16vw,58px)] leading-none" aria-hidden>
+            {member.emoji}
           </span>
-        </span>
-        <span className="truncate text-[clamp(18px,5.5vw,20px)] font-bold leading-[1.16] tracking-[-0.06em]">
-          {member.name}
-        </span>
+        )}
+      </span>
+
+      <span className="absolute inset-x-3 bottom-[11.6%] truncate text-center text-[clamp(24px,8vw,29px)] font-bold leading-[1.16] tracking-[-0.075em]">
+        {member.name}
       </span>
     </button>
   );

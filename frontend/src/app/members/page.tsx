@@ -1,10 +1,35 @@
 import type { Metadata } from 'next';
 import type { Member } from '@shared/types/member';
+import type { ProjectSummary } from '@shared/types/project';
 import BackLink from '@/components/BackLink';
-import MemberCard from '@/components/members/MemberCard';
+import MemberRoster from '@/components/members/MemberRoster';
 import { getMembers, getStaff } from '@/lib/rosterApi';
+import { getProjects, getProjectById } from '@/lib/projectApi';
 import { mergeRoster } from '@/lib/roster';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+
+// 멤버 상세 모달에서 "이 멤버가 참여한 프로젝트"를 보여주려면 memberId→프로젝트 매핑이 필요하다.
+// 공개 API엔 그 매핑을 바로 주는 엔드포인트가 없어, 목록(GET /api/projects)과 각 상세
+// (participants 포함)를 서버에서 한 번 집계해 만든다. 참여자 memberId는 양수 멤버 id에만
+// 매칭되고, staff-only 로스터 항목은 음수 id라 자연히 프로젝트가 없다.
+async function buildProjectsByMember(
+  baseUrl: string,
+): Promise<Record<number, ProjectSummary[]>> {
+  const summaries = await getProjects(baseUrl);
+  const details = await Promise.all(summaries.map((project) => getProjectById(project.id, baseUrl)));
+  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
+
+  const byMember: Record<number, ProjectSummary[]> = {};
+  for (const detail of details) {
+    if (!detail) continue;
+    const summary = summaryById.get(detail.id);
+    if (!summary) continue;
+    for (const participant of detail.participants) {
+      (byMember[participant.memberId] ??= []).push(summary);
+    }
+  }
+  return byMember;
+}
 
 export const metadata: Metadata = {
   title: '멤버 — 멋쟁이사자처럼 경희대',
@@ -23,6 +48,16 @@ export default async function MembersPage() {
     members = mergeRoster(memberList, staffList);
   } catch {
     failed = true;
+  }
+
+  // 프로젝트 집계는 멤버 목록과 독립적으로 처리한다 — 프로젝트가 실패해도 멤버 그리드는 그대로 보이고,
+  // 모달에서만 "프로젝트 정보를 불러오지 못했어요"로 안내한다.
+  let projectsByMember: Record<number, ProjectSummary[]> = {};
+  let projectsUnavailable = false;
+  try {
+    projectsByMember = await buildProjectsByMember(baseUrl);
+  } catch {
+    projectsUnavailable = true;
   }
 
   return (
@@ -54,13 +89,11 @@ export default async function MembersPage() {
             <p className="text-sm text-white/50">아직 등록된 멤버가 없어요.</p>
           </div>
         ) : (
-          <div
-            className="grid grid-cols-2 justify-center gap-x-3 gap-y-8 sm:grid-cols-[repeat(auto-fit,minmax(144px,156px))] sm:gap-x-[38px] sm:gap-y-[38px]"
-          >
-            {members.map((member, index) => (
-              <MemberCard key={member.id} member={member} colorIndex={index} />
-            ))}
-          </div>
+          <MemberRoster
+            members={members}
+            projectsByMember={projectsByMember}
+            projectsUnavailable={projectsUnavailable}
+          />
         )}
       </div>
     </main>
