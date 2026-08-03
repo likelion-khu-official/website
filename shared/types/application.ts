@@ -9,6 +9,16 @@
 /** 지원 세션 — 1·2지망 선택지이자, 세션별 조건부 질문의 분기 키 */
 export type ApplicationTrack = 'FE' | 'BE' | 'DESIGN' | 'AI';
 
+/**
+ * 질문으로 받는 데이터의 처리 분류 — PM(김우진) 결정. 파기·노출 정책의 근거가 된다(#152·#217).
+ *   A — 모집할 때만 필요한 데이터. 모집 종료 후 파기 대상(개인정보·연락처 등).
+ *   B — 홈페이지에 노출되는 데이터. 자동 파기 X, 본인 요청 시에만 파기.
+ *   C — 홈페이지엔 안 뜨지만 db에 계속 보관하는 데이터.
+ * 파기 자동화는 아직 없다 — 지금은 "어떤 답변이 어느 분류인지"를 제출 스냅샷에 함께 박아,
+ * 나중에 파기 로직이 생겨도 과거 답변을 소급 분류할 수 있게 하는 게 목적이다.
+ */
+export type ApplicationDataClass = 'A' | 'B' | 'C';
+
 /** 질문 입력 타입 */
 export type ApplicationQuestionType =
   | 'short_text' // 한 줄 (이름·학번·학과 등)
@@ -26,6 +36,11 @@ export interface ApplicationQuestion {
   label: string;
   type: ApplicationQuestionType;
   required: boolean;
+  /**
+   * 이 답변 데이터의 처리 분류(A/B/C). 없으면 A(모집 후 파기)로 본다 — 과거에 만든
+   * 폼과의 하위호환. 새 질문은 관리자 편집기에서 기본 A로 만들어진다.
+   */
+  dataClass?: ApplicationDataClass;
   /** select 타입일 때의 선택지 */
   options?: string[];
   /**
