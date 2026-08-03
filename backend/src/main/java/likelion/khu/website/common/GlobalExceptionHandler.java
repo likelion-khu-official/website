@@ -42,7 +42,6 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import java.util.Map;
 
 @Slf4j
-@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
