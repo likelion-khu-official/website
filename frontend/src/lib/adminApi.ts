@@ -48,6 +48,15 @@ import type {
   AnalyticsPageViewQuery,
   AnalyticsPageViewResponse,
   BlogAnalyticsResponse,
+  ProjectAnalyticsResponse,
+  RecruitmentAnalyticsResponse,
+  VisitorAnalyticsResponse,
+  DeviceAnalyticsResponse,
+  SectionReachAnalyticsResponse,
+  KeyClickAnalyticsResponse,
+  NotificationSignupAnalyticsResponse,
+  PopularTimeAnalyticsResponse,
+  ContentImpactAnalyticsResponse,
 } from '@shared/types/analytics';
 
 /**
@@ -93,6 +102,118 @@ export function getBlogAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/blog-posts?${params.toString()}`,
     {},
     '블로그 조회 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getProjectAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.projectId) params.set('projectId', String(query.projectId));
+  return request<ProjectAnalyticsResponse>(
+    `/analytics/projects?${params.toString()}`,
+    {},
+    '프로젝트 조회 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getRecruitmentAnalytics() {
+  return request<RecruitmentAnalyticsResponse>(
+    '/analytics/recruitment',
+    {},
+    '지원 수를 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getVisitorAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.page) params.set('page', query.page);
+  return request<VisitorAnalyticsResponse>(
+    `/analytics/visitors?${params.toString()}`,
+    {},
+    '순 방문자 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getDeviceAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return request<DeviceAnalyticsResponse>(
+    `/analytics/devices?${params.toString()}`,
+    {},
+    '기기 비율을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getSectionReachAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return request<SectionReachAnalyticsResponse>(
+    `/analytics/sections?${params.toString()}`,
+    {},
+    '랜딩 섹션 도달 수를 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getKeyClickAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  if (query.clickAction) params.set('action', query.clickAction);
+  return request<KeyClickAnalyticsResponse>(
+    `/analytics/clicks?${params.toString()}`,
+    {},
+    '주요 클릭 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getNotificationSignupAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    interval: query.interval,
+  });
+  return request<NotificationSignupAnalyticsResponse>(
+    `/analytics/notification-signups?${params.toString()}`,
+    {},
+    '모집 알림 신청 현황을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getPopularTimeAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  return request<PopularTimeAnalyticsResponse>(
+    `/analytics/popular-times?${params.toString()}`,
+    {},
+    '인기 시간대와 요일을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getContentImpactAnalytics(query: AnalyticsPageViewQuery) {
+  const params = new URLSearchParams({ from: query.from, to: query.to });
+  if (query.impactType && query.impactId) {
+    params.set('type', query.impactType);
+    params.set('id', String(query.impactId));
+  }
+  return request<ContentImpactAnalyticsResponse>(
+    `/analytics/content-impact?${params.toString()}`,
+    {},
+    '콘텐츠 공개 전후 변화를 불러오지 못했어요.',
     true
   );
 }

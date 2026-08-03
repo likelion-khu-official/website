@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AnalyticsDashboard, { friendlyPageName, parseAnalyticsQuery } from './AnalyticsDashboard';
-import { getAnalyticsPageViews, getBlogAnalytics } from '@/lib/adminApi';
+import { getAnalyticsPageViews, getBlogAnalytics, getContentImpactAnalytics, getDeviceAnalytics, getKeyClickAnalytics, getNotificationSignupAnalytics, getPopularTimeAnalytics, getProjectAnalytics, getRecruitmentAnalytics, getSectionReachAnalytics, getVisitorAnalytics } from '@/lib/adminApi';
 
 const replace = vi.fn();
 let params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
@@ -12,9 +12,36 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/admin/analytics',
   useSearchParams: () => params,
 }));
-vi.mock('@/lib/adminApi', () => ({ getAnalyticsPageViews: vi.fn(), getBlogAnalytics: vi.fn() }));
+vi.mock('@/lib/adminApi', () => ({
+  getAnalyticsPageViews: vi.fn(),
+  getBlogAnalytics: vi.fn(),
+  getProjectAnalytics: vi.fn(),
+  getRecruitmentAnalytics: vi.fn(),
+  getVisitorAnalytics: vi.fn(),
+  getDeviceAnalytics: vi.fn(),
+  getSectionReachAnalytics: vi.fn(),
+  getKeyClickAnalytics: vi.fn(),
+  getNotificationSignupAnalytics: vi.fn(),
+  getPopularTimeAnalytics: vi.fn(),
+  getContentImpactAnalytics: vi.fn(),
+}));
 vi.mock('./AnalyticsTimeSeriesChart', () => ({
-  default: ({ label }: { label: string }) => <div data-testid="chart">{label}</div>,
+  default: ({ label, comparison }: { label: string; comparison?: { label: string } }) => (
+    <div data-testid="chart">{label}{comparison ? ` / ${comparison.label}` : ''}</div>
+  ),
+}));
+vi.mock('./DeviceRatioChart', () => ({
+  default: () => <div data-testid="device-chart">기기 비율 그래프</div>,
+}));
+vi.mock('./SectionReachChart', () => ({
+  SECTION_LABELS: { PROJECT: '프로젝트', STAFF: '운영진', BLOG: '블로그', RECRUIT: '모집' },
+  default: () => <div data-testid="section-chart">랜딩 섹션 도달 그래프</div>,
+}));
+vi.mock('./DistributionBarChart', () => ({
+  default: ({ label }: { label: string }) => <div data-testid="distribution-chart">{label} 분포 그래프</div>,
+}));
+vi.mock('./ContentImpactChart', () => ({
+  default: ({ contentTitle }: { contentTitle: string }) => <div data-testid="content-impact-chart">{contentTitle} 공개 전후 그래프</div>,
 }));
 
 const response = {
@@ -40,14 +67,135 @@ const blogResponse = {
   ],
 };
 
+const projectResponse = {
+  range: response.range,
+  totalViews: 0,
+  series: response.series,
+  projects: [
+    { id: 31, title: '모두의 프로젝트', cohort: 14, hidden: false, createdAt: '2026-07-29T10:00:00', views: 8 },
+    { id: 32, title: '지난 기수 프로젝트', cohort: 13, hidden: true, createdAt: '2026-07-20T10:00:00', views: 2 },
+  ],
+};
+
+const recruitmentResponse = {
+  roundId: 7,
+  state: 'CLOSED' as const,
+  openedAt: '2026-07-01T09:00:00',
+  closedAt: '2026-07-14T18:00:00',
+  applicationCount: 42,
+};
+
+const visitorResponse = {
+  range: response.range,
+  uniqueVisitors: 5,
+  series: [
+    { date: '2026-08-01', visitors: 2 },
+    { date: '2026-08-02', visitors: 3 },
+  ],
+};
+
+const deviceResponse = {
+  range: response.range,
+  totalViews: 8,
+  devices: [
+    { device: 'MOBILE' as const, views: 5, percentage: 62.5 },
+    { device: 'DESKTOP' as const, views: 2, percentage: 25.0 },
+    { device: 'OTHER' as const, views: 1, percentage: 12.5 },
+  ],
+};
+
+const sectionReachResponse = {
+  range: response.range,
+  sections: [
+    { section: 'PROJECT' as const, reaches: 120 },
+    { section: 'STAFF' as const, reaches: 88 },
+    { section: 'BLOG' as const, reaches: 54 },
+    { section: 'RECRUIT' as const, reaches: 31 },
+  ],
+};
+
+const keyClickResponse = {
+  range: response.range,
+  totalClicks: 29,
+  series: [
+    { date: '2026-08-01', clicks: 12 },
+    { date: '2026-08-02', clicks: 17 },
+  ],
+  clicks: [
+    { action: 'APPLY' as const, location: 'LANDING_RECRUIT' as const, clicks: 11 },
+    { action: 'APPLY' as const, location: 'APPLICATION_FORM' as const, clicks: 7 },
+    { action: 'BLOG_MORE' as const, location: 'LANDING_BLOG' as const, clicks: 6 },
+    { action: 'PROJECT_GITHUB' as const, location: 'PROJECT_DETAIL' as const, clicks: 5 },
+  ],
+};
+
+const notificationSignupResponse = {
+  range: response.range,
+  totalSignups: 37,
+  series: [
+    { date: '2026-08-01', signups: 15 },
+    { date: '2026-08-02', signups: 22 },
+  ],
+};
+
+const popularTimeResponse = {
+  range: response.range,
+  totalViews: 8,
+  hours: Array.from({ length: 24 }, (_, hour) => ({ hour, views: hour === 20 ? 5 : hour === 9 ? 3 : 0 })),
+  weekdays: [
+    { day: 'MONDAY' as const, views: 2 }, { day: 'TUESDAY' as const, views: 5 },
+    { day: 'WEDNESDAY' as const, views: 1 }, { day: 'THURSDAY' as const, views: 0 },
+    { day: 'FRIDAY' as const, views: 0 }, { day: 'SATURDAY' as const, views: 0 },
+    { day: 'SUNDAY' as const, views: 0 },
+  ],
+};
+
+const contentImpactResponse = {
+  range: response.range,
+  contents: [
+    { type: 'BLOG_POST' as const, id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+    { type: 'PROJECT' as const, id: 31, title: '모두의 캠퍼스', publishedAt: '2026-07-29T10:00:00' },
+  ],
+  comparison: {
+    content: { type: 'BLOG_POST' as const, id: 91, title: '운영진이 기록한 한 학기', publishedAt: '2026-07-20T10:00:00' },
+    comparisonDays: 7,
+    complete: true,
+    before: { from: '2026-07-13', to: '2026-07-19', siteViews: 210 },
+    after: { from: '2026-07-20', to: '2026-07-26', siteViews: 294 },
+    contentViewsAfter: 87,
+    series: [
+      { date: '2026-07-19', siteViews: 30, contentViews: 0 },
+      { date: '2026-07-20', siteViews: 42, contentViews: 12 },
+    ],
+  },
+};
+
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {
     params = new URLSearchParams('from=2026-07-04&to=2026-08-02&interval=day');
     replace.mockReset();
     vi.mocked(getAnalyticsPageViews).mockReset();
     vi.mocked(getBlogAnalytics).mockReset();
+    vi.mocked(getProjectAnalytics).mockReset();
+    vi.mocked(getRecruitmentAnalytics).mockReset();
+    vi.mocked(getVisitorAnalytics).mockReset();
+    vi.mocked(getDeviceAnalytics).mockReset();
+    vi.mocked(getSectionReachAnalytics).mockReset();
+    vi.mocked(getKeyClickAnalytics).mockReset();
+    vi.mocked(getNotificationSignupAnalytics).mockReset();
+    vi.mocked(getPopularTimeAnalytics).mockReset();
+    vi.mocked(getContentImpactAnalytics).mockReset();
     vi.mocked(getAnalyticsPageViews).mockResolvedValue(response);
     vi.mocked(getBlogAnalytics).mockResolvedValue(blogResponse);
+    vi.mocked(getProjectAnalytics).mockResolvedValue(projectResponse);
+    vi.mocked(getRecruitmentAnalytics).mockResolvedValue(recruitmentResponse);
+    vi.mocked(getVisitorAnalytics).mockResolvedValue(visitorResponse);
+    vi.mocked(getDeviceAnalytics).mockResolvedValue(deviceResponse);
+    vi.mocked(getSectionReachAnalytics).mockResolvedValue(sectionReachResponse);
+    vi.mocked(getKeyClickAnalytics).mockResolvedValue(keyClickResponse);
+    vi.mocked(getNotificationSignupAnalytics).mockResolvedValue(notificationSignupResponse);
+    vi.mocked(getPopularTimeAnalytics).mockResolvedValue(popularTimeResponse);
+    vi.mocked(getContentImpactAnalytics).mockResolvedValue(contentImpactResponse);
   });
 
   it('비개발자가 뜻을 알 수 있는 설명·합계·페이지 표를 보여준다', async () => {
@@ -58,9 +206,48 @@ describe('AnalyticsDashboard', () => {
     expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.getByText('프로젝트 목록')).toBeInTheDocument();
     expect(screen.getByText('블로그 글')).toBeInTheDocument();
-    expect(screen.getByTestId('chart')).toHaveTextContent('전체 페이지 조회수');
+    expect(screen.getAllByTestId('chart')[0]).toHaveTextContent('전체 페이지 조회수 / 추정 순 방문자');
+    expect(await screen.findByText('5')).toBeInTheDocument();
+    expect(screen.getByText(/같은 브라우저의 반복 조회를 선택 기간에 한 명/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '기기 비율' })).toBeInTheDocument();
+    expect(screen.getByText('62.5%')).toBeInTheDocument();
+    expect(screen.getByText(/알 수 없는 기기도 버리지 않고/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '랜딩 섹션 도달' })).toBeInTheDocument();
+    expect(screen.getByText('120회')).toBeInTheDocument();
+    expect(screen.getByText(/같은 방문에서 위아래로 다시 움직여도 중복해서 세지 않아요/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '주요 클릭' })).toBeInTheDocument();
+    expect(screen.getByText('29')).toBeInTheDocument();
+    expect(screen.getByText('지원서 화면')).toBeInTheDocument();
+    expect(screen.getByText(/지원 접수·알림 신청 성공 건수와는 다를 수 있어요/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '모집 알림 신청' })).toBeInTheDocument();
+    expect(screen.getByLabelText('새 모집 알림 신청 37건')).toBeInTheDocument();
+    expect(screen.getByText(/같은 이메일의 반복 요청과 봇 요청은 늘어나지 않으며/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '방문이 몰린 때' })).toBeInTheDocument();
+    expect(screen.getByText('오후 8–9시 · 5회')).toBeInTheDocument();
+    expect(screen.getByText('화요일 · 5회')).toBeInTheDocument();
+    expect(screen.getByText(/두 그래프는 모두 0회부터 시작/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '콘텐츠 공개 전후' })).toBeInTheDocument();
+    expect(screen.getByText('7일 비교 완료')).toBeInTheDocument();
+    expect(screen.getByText('+84회 (+40.0%)')).toBeInTheDocument();
+    expect(screen.getByText(/콘텐츠 하나의 효과라고 단정할 수는 없어요/)).toBeInTheDocument();
     expect(await screen.findByText('운영 회고')).toBeInTheDocument();
-    expect(screen.getByText('숨김')).toBeInTheDocument();
+    expect(await screen.findByText('모두의 프로젝트')).toBeInTheDocument();
+    expect(screen.getAllByText('숨김')).toHaveLength(2);
+    expect(await screen.findByLabelText('접수된 지원서 42건')).toBeInTheDocument();
+    expect(screen.getByText('최근 종료 모집')).toBeInTheDocument();
+    expect(screen.getByText(/아래 조회 기간을 바꿔도/)).toBeInTheDocument();
+  });
+
+  it('프로젝트를 선택하면 불변 프로젝트 ID를 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.click(await screen.findByRole('button', { name: /^모두의 프로젝트/ }));
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&project=31',
+      { scroll: false }
+    );
   });
 
   it('블로그 글을 선택하면 불변 글 ID를 URL에 남긴다', async () => {
@@ -71,6 +258,30 @@ describe('AnalyticsDashboard', () => {
 
     expect(replace).toHaveBeenCalledWith(
       '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&blog=11',
+      { scroll: false }
+    );
+  });
+
+  it('클릭 종류를 선택하면 기간·간격과 함께 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.selectOptions(await screen.findByLabelText('확인할 행동'), 'APPLY');
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&click=APPLY',
+      { scroll: false }
+    );
+  });
+
+  it('비교 콘텐츠를 선택하면 불변 종류와 ID를 URL에 남긴다', async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsDashboard />);
+
+    await user.selectOptions(await screen.findByLabelText('비교할 콘텐츠'), 'PROJECT:31');
+
+    expect(replace).toHaveBeenCalledWith(
+      '/admin/analytics?from=2026-07-04&to=2026-08-02&interval=day&impactType=PROJECT&impact=31',
       { scroll: false }
     );
   });

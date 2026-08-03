@@ -12,6 +12,7 @@ import type {
   ApplicationQuestion,
   ApplicationTrack,
 } from '@shared/types/application';
+import { trackKeyClick } from '@/lib/publicAnalytics';
 
 const TRACK_OPTIONS: ApplicationTrack[] = ['FE', 'BE', 'DESIGN', 'AI'];
 const TRACK_LABEL: Record<ApplicationTrack, string> = {
@@ -78,6 +79,7 @@ export default function ApplyForm({ preview = false }: { preview?: boolean }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed || submitting || !schema) return;
+    trackKeyClick('APPLY_APPLICATION_FORM');
 
     // 화면에 보이는 질문의 답만 보낸다 — 세션을 바꾸며 남은 이전 세션의 답이 섞이지 않게.
     const visible = schema.questions.filter(isVisible);
@@ -118,7 +120,7 @@ export default function ApplyForm({ preview = false }: { preview?: boolean }) {
         <p className="text-sm text-muted">
           이메일을 남겨두면 다음 모집이 열릴 때 가장 먼저 알려드릴게요.
         </p>
-        <NotificationForm />
+        <NotificationForm analyticsLocation="APPLICATION_CLOSED" />
       </div>
     );
   }
