@@ -228,6 +228,12 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 
 **DB 접근 계정 발급**: `infra/.claude/skills/db-access/` 스킬 호출 또는 `db-access.md` "온보딩" 절 그대로 — 공개키를 받아 서버에서 직접 등록(자동화하지 않은 이유는 그 문서에 있음).
 
+**QA·FE 버그 리포트에 딸려온 `X-Request-Id`로 정확한 로그 줄 찾기**(website #404): QA·FE가 이상한 응답을 발견해 브라우저 개발자도구(Network 탭)에서 복사한 `X-Request-Id` 값을 리포트에 같이 남기면, 시간대로 짐작할 필요 없이 그 값으로 바로 찾는다. 상세 배경·한계(401/403엔 아직 매칭할 로그가 없음 등)는 `logging.md` "버그 리포트에 활용하기" 절 참고.
+
+```bash
+ssh likelion-oci 'grep "reqId=<받은 값>" $(ls -t ~/website/infra/logs/<stage|prod>/*.log | head -1)'
+```
+
 ### DB 복원 — 백업 스냅샷으로 되돌리기
 
 **언제 쓰나**: 실수로 데이터가 잘못 들어갔거나, 배포·마이그레이션이 데이터를 망가뜨렸거나, DB 자체가 손상됐을 때 — 매일 자동으로 뜨는 백업(`db-access.md` "백업 전략")이 `likelion-backups`라는 별도 저장소(OCI Object Storage 버킷)에 prod·stage 각각 최근 30일치 쌓여 있어서, 그중 하나를 골라 지금의 DB 파일을 통째로 그 시점 것으로 바꿔치기할 수 있다. 아래 절차·명령은 전부 2026-07-27에 실제로 실행해서 결과까지 확인한 것이다(원래 백업 스크립트엔 업로드만 있고 다운로드 기능이 없어서, 이번에 `backup_manager.py`에 `get`(내려받기)·`list`(목록 보기) 명령을 추가했다).
