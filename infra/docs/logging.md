@@ -57,11 +57,29 @@
 - **`infra/**` 단독 변경은 CD를 트리거하지 않는다** (`.github/workflows/cd.yml` paths 필터가 `backend/**`, `shared/**`만 감시). `docker-compose.yml`만 고친 두 번째 커밋(접두사 버그 수정)은 push해도 자동 배포가 안 돌아서, 서버에 SSH로 들어가 `git pull` + `docker compose up -d backend-stage`를 수동으로 해야 했다.
 - **OCI 서버의 배포용 SSH 키(deploy key)는 GitHub에 read-only로 등록돼 있다.** 서버의 git 체크아웃에서 커밋까지는 되지만 `git push`가 `key ... marked as read only`로 거부된다 — 서버가 origin보다 여러 커밋 앞서 있던 것도 이 때문(과거에 서버에서 만든 로컬 전용 sync 커밋들이 애초에 push가 안 됐던 것). 이 세션에서는 로컬 머신에 `gh` CLI로 인증된(레포 write 권한 있는) 계정이 있어, 서버에서 만든 커밋과 동일한 파일을 로컬 클론에 재현해 그쪽에서 push했다. **서버 SSH 세션에서 레포 변경이 필요하면, 커밋은 거기서 해도 push는 write 권한이 있는 다른 경로로 해야 한다.**
 
+## 버그 리포트에 활용하기 — `X-Request-Id`로 정확한 로그 줄 찾기
+
+> website #404(요청추적 ID) 도입 — 아직 `dev` 미머지. 머지 전까지는 아래 워크플로가 실제로 동작하지 않는다.
+
+지금까지는 QA·FE가 이상한 에러를 발견해도 "몇 시쯤, 어느 화면에서"처럼 시간대로만 보고할 수 있었다 — 개발자가 그 시간대 로그를 눈으로 훑으며 짐작해야 했고, 트래픽이 겹치면 어느 줄이 그 요청인지 확신하기 어려웠다.
+
+**#404부터는 서버가 응답하는 모든 요청에 `X-Request-Id` 헤더가 붙는다**(값은 UUID). 이걸 활용하면:
+
+1. **QA·FE**: 문제가 생긴 요청을 브라우저 개발자도구(Network 탭)에서 찾아 응답 헤더의 `X-Request-Id` 값을 복사해 버그 리포트에 포함시킨다.
+2. **개발자(인프라 포함)**: 그 값으로 현재 활성 로그 파일에서 정확히 그 요청의 로그 줄만 찾는다:
+   ```bash
+   ssh likelion-oci 'grep "reqId=<복사한 값>" $(ls -t ~/website/infra/logs/<stage|prod>/*.log | head -1)'
+   ```
+   로그 한 줄 안에서 요청 처리 중 찍힌 다른 줄들도 전부 같은 `reqId=...`를 달고 있어서(`application.yml`의 `logging.pattern.level` 참고), 짐작이 아니라 정확한 매칭으로 그 요청과 관련된 로그를 전부 모아볼 수 있다.
+
+**참고**: 이 워크플로 자체는 아직 팀에서 실제로 쓰인 적은 없다 — #404가 만든 "배관"이고, QA·FE가 실제로 이렇게 리포트하는 습관이 자리 잡아야 값어치가 생긴다. Security가 막아버리는 요청(401/403 등)에도 헤더는 동일하게 붙지만, 그 경로엔 아직 대응하는 로그 줄 자체가 없어서(코드에 로깅 없음) 지금은 헤더만 있고 매칭할 로그는 없다 — 그런 로깅이 나중에 추가되면 이 워크플로가 그대로 커버한다.
+
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
-| `backend/src/main/resources/application.yml` | `logging.file.name`/`logging.logback.rollingpolicy` — 파일 로깅 + 롤링 정책 |
+| `backend/src/main/resources/application.yml` | `logging.file.name`/`logging.logback.rollingpolicy` — 파일 로깅 + 롤링 정책. `logging.pattern.level`은 각 로그 줄에 `reqId`를 붙임(#404) |
+| `backend/.../common/RequestIdFilter.java` | 요청마다 requestId를 발급해 MDC에 심고 `X-Request-Id` 응답 헤더로 반환(#404) |
 | `infra/docker-compose.yml` | `backend-stage`/`backend-prod`에 `LOG_FILE_PATH` 환경변수 + `./logs/{stage,prod}:/app/logs` 볼륨 |
 | `infra/logs/{stage,prod}/` | 실제 로그 파일 저장 위치 (서버에만 존재, gitignore) — 파일명 = 배포 태그(`stage-<sha>.log`) |
 | `infra/scripts/cleanup-old-logs.sh` | 30일 넘은 로그 파일 삭제 (2026-07-26 추가, 아래 "미결 사항" 참고) — 목표 cron `0 19 * * *` |
