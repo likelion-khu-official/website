@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NotificationForm from './NotificationForm';
+import { trackKeyClick } from '@/lib/publicAnalytics';
+
+vi.mock('@/lib/publicAnalytics', () => ({ trackKeyClick: vi.fn() }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -58,5 +61,21 @@ describe('NotificationForm', () => {
     expect(closeButton).toHaveClass('size-11');
     await user.click(closeButton);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('알림 신청 버튼을 누른 위치만 명시적으로 기록한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    render(<NotificationForm analyticsLocation="APPLICATION_CLOSED" />);
+
+    await user.type(screen.getByLabelText('이메일 주소'), 'lion@example.com');
+    await user.click(screen.getByRole('checkbox', { name: /개인정보 수집·이용에 동의/ }));
+    await user.click(screen.getByRole('button', { name: '알림 신청하기' }));
+
+    expect(trackKeyClick).toHaveBeenCalledWith('NOTIFICATION_APPLICATION_CLOSED');
   });
 });

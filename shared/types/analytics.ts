@@ -12,6 +12,11 @@ export interface AnalyticsTimePoint {
   views: number;
 }
 
+export interface AnalyticsVisitorTimePoint {
+  date: string;
+  visitors: number;
+}
+
 export interface AnalyticsPageTotal {
   path: string;
   views: number;
@@ -31,6 +36,9 @@ export interface AnalyticsPageViewQuery {
   page?: string;
   blogPostId?: number;
   projectId?: number;
+  clickAction?: KeyClickAction;
+  impactType?: AnalyticsContentType;
+  impactId?: number;
 }
 
 export type AnalyticsPostStatus = 'PUBLISHED' | 'HIDDEN';
@@ -75,4 +83,124 @@ export interface RecruitmentAnalyticsResponse {
   openedAt: string | null;
   closedAt: string | null;
   applicationCount: number;
+}
+
+export interface VisitorAnalyticsResponse {
+  range: AnalyticsDateRange;
+  uniqueVisitors: number;
+  series: AnalyticsVisitorTimePoint[];
+}
+
+export type AnalyticsDeviceType = 'MOBILE' | 'DESKTOP' | 'OTHER';
+
+export interface DeviceAnalyticsTotal {
+  device: AnalyticsDeviceType;
+  views: number;
+  percentage: number;
+}
+
+export interface DeviceAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  devices: DeviceAnalyticsTotal[];
+}
+
+export type LandingSectionKey = 'PROJECT' | 'STAFF' | 'BLOG' | 'RECRUIT';
+
+export interface SectionReachTotal {
+  section: LandingSectionKey;
+  reaches: number;
+}
+
+export interface SectionReachAnalyticsResponse {
+  range: AnalyticsDateRange;
+  sections: SectionReachTotal[];
+}
+
+export type KeyClickAction = 'APPLY' | 'NOTIFICATION' | 'BLOG_MORE' | 'PROJECT_MORE' | 'PROJECT_GITHUB';
+export type KeyClickLocation =
+  | 'LANDING_RECRUIT'
+  | 'APPLICATION_FORM'
+  | 'APPLICATION_CLOSED'
+  | 'LANDING_BLOG'
+  | 'LANDING_PROJECT'
+  | 'PROJECT_DETAIL';
+
+export interface KeyClickTimePoint {
+  date: string;
+  clicks: number;
+}
+
+export interface KeyClickTotal {
+  action: KeyClickAction;
+  location: KeyClickLocation;
+  clicks: number;
+}
+
+export interface KeyClickAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalClicks: number;
+  series: KeyClickTimePoint[];
+  clicks: KeyClickTotal[];
+}
+
+export interface NotificationSignupTimePoint {
+  date: string;
+  signups: number;
+}
+
+export interface NotificationSignupAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalSignups: number;
+  series: NotificationSignupTimePoint[];
+}
+
+export type AnalyticsWeekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface PopularHourTotal {
+  hour: number;
+  views: number;
+}
+
+export interface PopularWeekdayTotal {
+  day: AnalyticsWeekday;
+  views: number;
+}
+
+export interface PopularTimeAnalyticsResponse {
+  range: AnalyticsDateRange;
+  totalViews: number;
+  hours: PopularHourTotal[];
+  weekdays: PopularWeekdayTotal[];
+}
+
+export type AnalyticsContentType = 'BLOG_POST' | 'PROJECT';
+
+export interface ContentImpactSummary {
+  type: AnalyticsContentType;
+  id: number;
+  title: string;
+  publishedAt: string;
+}
+
+export interface ContentImpactTimePoint {
+  date: string;
+  siteViews: number;
+  contentViews: number;
+}
+
+export interface ContentImpactComparison {
+  content: ContentImpactSummary;
+  comparisonDays: number;
+  complete: boolean;
+  before: { from: string; to: string; siteViews: number };
+  after: { from: string; to: string; siteViews: number };
+  contentViewsAfter: number;
+  series: ContentImpactTimePoint[];
+}
+
+export interface ContentImpactAnalyticsResponse {
+  range: AnalyticsDateRange;
+  contents: ContentImpactSummary[];
+  comparison: ContentImpactComparison | null;
 }
