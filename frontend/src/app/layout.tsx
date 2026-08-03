@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { gremlinTrial } from "@/fonts/gremlin";
 import Footer from "@/components/sections/Footer";
+import PageViewTracker from "@/components/analytics/PageViewTracker";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -89,6 +90,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <PageViewTracker />
         {children}
         <Footer />
       </body>

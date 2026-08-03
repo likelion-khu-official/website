@@ -37,9 +37,13 @@ public class Application {
     @Column(nullable = false)
     private LocalDateTime submittedAt;
 
-    public Application(String schemaSnapshotJson, String answersJson) {
+    // 답변을 읽지 않고 모집기별 건수만 셀 수 있게 하는 익명 집계 키다.
+    private Long recruitmentRoundId;
+
+    public Application(String schemaSnapshotJson, String answersJson, Long recruitmentRoundId) {
         this.schemaSnapshotJson = schemaSnapshotJson;
         this.answersJson = answersJson;
         this.submittedAt = LocalDateTime.now();
+        this.recruitmentRoundId = recruitmentRoundId;
     }
 }

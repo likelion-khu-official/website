@@ -5,14 +5,16 @@ import type {
   NotificationSubscribeRequest,
   NotificationSubscribeResponse,
 } from '@/types/notification';
+import { trackKeyClick } from '@/lib/publicAnalytics';
 
 type FormState = 'idle' | 'loading' | 'success' | 'error';
 
 type Props = {
   onClose?: () => void;
+  analyticsLocation?: 'LANDING_RECRUIT' | 'APPLICATION_CLOSED';
 };
 
-export default function NotificationForm({ onClose }: Props) {
+export default function NotificationForm({ onClose, analyticsLocation }: Props) {
   const [email, setEmail] = useState('');
   const [agreed, setAgreed] = useState(false);
   // 봇 함정(honeypot, #69) — 화면에서 숨겨 사람은 못 채운다. 값이 차 오면 서버가 봇으로 보고 무시.
@@ -24,6 +26,7 @@ export default function NotificationForm({ onClose }: Props) {
     e.preventDefault();
     // 버튼 disabled로 이미 막지만, 폼 submit이 다른 경로(엔터 등)로 트리거돼도 동의 없인 못 나가게 이중 방어
     if (!agreed) return;
+    if (analyticsLocation) trackKeyClick(`NOTIFICATION_${analyticsLocation}`);
     setState('loading');
 
     const body: NotificationSubscribeRequest = { email, privacyConsent: agreed, website };
