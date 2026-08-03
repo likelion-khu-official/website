@@ -81,7 +81,7 @@ describe('AdminShell', () => {
       'aria-current',
       'page'
     );
-    expect(screen.getAllByRole('link', { name: '대시보드' })[0]).not.toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: '이용 현황' })[0]).not.toHaveAttribute(
       'aria-current'
     );
   });
