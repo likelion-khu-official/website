@@ -5,6 +5,8 @@ import Footer from "@/components/sections/Footer";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 import "./globals.css";
 
+const isProduction = process.env.VERCEL_ENV === "production";
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -60,17 +62,22 @@ export const metadata: Metadata = {
       "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교 공식 웹사이트.",
     images: ["/og-image.png"],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
-  },
+  robots: isProduction
+    ? {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+          "max-video-preview": -1,
+        },
+      }
+    : {
+        index: false,
+        follow: false,
+      },
 };
 
 export default function RootLayout({
