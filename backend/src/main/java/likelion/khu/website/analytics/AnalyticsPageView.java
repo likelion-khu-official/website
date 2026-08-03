@@ -40,6 +40,10 @@ public class AnalyticsPageView {
     @Column(length = 64)
     private String visitorKey;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(length = 16, nullable = false)
+    private AnalyticsDeviceType deviceType = AnalyticsDeviceType.OTHER;
+
     AnalyticsPageView(String path, LocalDateTime occurredAt) {
         this(path, occurredAt, null, null);
     }
@@ -50,10 +54,16 @@ public class AnalyticsPageView {
 
     AnalyticsPageView(String path, LocalDateTime occurredAt, AnalyticsContentType contentType, Long contentId,
                       String visitorKey) {
+        this(path, occurredAt, contentType, contentId, visitorKey, AnalyticsDeviceType.OTHER);
+    }
+
+    AnalyticsPageView(String path, LocalDateTime occurredAt, AnalyticsContentType contentType, Long contentId,
+                      String visitorKey, AnalyticsDeviceType deviceType) {
         this.path = path;
         this.occurredAt = occurredAt;
         this.contentType = contentType;
         this.contentId = contentId;
         this.visitorKey = visitorKey;
+        this.deviceType = deviceType;
     }
 }
