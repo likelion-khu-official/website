@@ -105,6 +105,8 @@ describe('AdminAccountManagement', () => {
     expect(screen.getByText('대기 중')).toBeInTheDocument();
     expect(screen.getByText('수락됨')).toBeInTheDocument();
 
+    // 단일 관리자 모델: 역할 구분이 없으므로 로그인한 관리자면 누구나 초대할 수 있다.
+    expect(screen.getByRole('button', { name: '초대 보내기' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: '계정 삭제' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: '초대 취소' })).toHaveLength(1);
     expect(screen.queryByText('최고관리자')).not.toBeInTheDocument();
