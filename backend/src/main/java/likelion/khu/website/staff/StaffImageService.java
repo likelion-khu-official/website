@@ -1,6 +1,7 @@
 package likelion.khu.website.staff;
 
 import likelion.khu.website.staff.dto.StaffImageUploadResponse;
+import likelion.khu.website.storage.ImageValidator;
 import likelion.khu.website.storage.OciStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,8 +17,10 @@ import java.util.Set;
 public class StaffImageService {
 
     private static final String IMAGE_PREFIX = "staff/images";
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/webp"
+    private static final Set<ImageValidator.ImageType> ALLOWED_TYPES = Set.of(
+            ImageValidator.ImageType.JPEG,
+            ImageValidator.ImageType.PNG,
+            ImageValidator.ImageType.WEBP
     );
 
     private final OciStorageService storageService;
@@ -26,9 +29,11 @@ public class StaffImageService {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 이미지가 비어있어요.");
         }
-        if (file.getContentType() == null || !ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
+        byte[] bytes = file.getBytes();
+        ImageValidator.ImageType detected = ImageValidator.detect(bytes);
+        if (detected == null || !ALLOWED_TYPES.contains(detected)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "jpg·png·webp 이미지만 업로드할 수 있어요.");
         }
-        return new StaffImageUploadResponse(storageService.upload(file, IMAGE_PREFIX));
+        return new StaffImageUploadResponse(storageService.upload(bytes, IMAGE_PREFIX, detected.mimeType, detected.extension));
     }
 }

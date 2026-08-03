@@ -3,13 +3,11 @@ package likelion.khu.website.storage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
 import java.util.UUID;
 
 @Service
@@ -25,18 +23,21 @@ public class OciStorageService {
     private String publicUrl;
 
     /**
-     * @param prefix 버킷 내 폴더 경로 (예: "feed/images")
+     * @param content   검증 완료된 파일 바이트
+     * @param prefix    버킷 내 폴더 경로 (예: "feed/images")
+     * @param mimeType  magic bytes로 확인된 MIME 타입 — 클라이언트 선언값이 아니라 호출자가 검증한 값
+     * @param extension 해당 타입의 표준 확장자 (예: ".jpg")
      * @return 퍼블릭 접근 URL
      */
-    public String upload(MultipartFile file, String prefix) throws IOException {
-        String key = normalizePrefix(prefix) + UUID.randomUUID() + extractExtension(file.getOriginalFilename());
+    public String upload(byte[] content, String prefix, String mimeType, String extension) {
+        String key = normalizePrefix(prefix) + UUID.randomUUID() + extension;
         ociStorageClient.putObject(
                 PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
-                        .contentType(file.getContentType())
+                        .contentType(mimeType)
                         .build(),
-                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                RequestBody.fromBytes(content)
         );
         return publicUrl + "/" + key;
     }
@@ -59,8 +60,4 @@ public class OciStorageService {
         return normalized.isEmpty() ? "" : normalized + "/";
     }
 
-    private String extractExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "";
-        return filename.substring(filename.lastIndexOf('.'));
-    }
 }
