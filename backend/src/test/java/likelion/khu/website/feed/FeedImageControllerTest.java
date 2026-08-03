@@ -31,7 +31,9 @@ class FeedImageControllerTest {
     @WithMockAdminUser(role = "MEMBER")
     void upload_ValidImage_Returns200WithUrl() throws Exception {
         when(storageService.upload(any(), anyString())).thenReturn("https://cdn.example.com/feed/images/abc.png");
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+        // #403(매직바이트 검증 추가) 이후 진짜 PNG 시그니처 필요
+        byte[] pngBytes = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", pngBytes);
 
         mockMvc.perform(multipart("/api/feed/images").file(file))
                 .andExpect(status().isOk())
