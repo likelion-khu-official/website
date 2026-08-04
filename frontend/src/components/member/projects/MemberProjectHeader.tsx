@@ -9,6 +9,7 @@ type Props = {
 
 export default function MemberProjectHeader({ memberName }: Props) {
   const pathname = usePathname();
+  const homeActive = pathname === '/member';
   const projectActive = pathname.startsWith('/member/projects');
   const postActive = pathname.startsWith('/member/posts') || pathname === '/member/write';
 
@@ -26,6 +27,15 @@ export default function MemberProjectHeader({ memberName }: Props) {
         </span>
       </Link>
       <nav aria-label="멤버 공간" className="order-3 flex w-full gap-1 sm:order-none sm:w-auto">
+        <Link
+          href="/member"
+          aria-current={homeActive ? 'page' : undefined}
+          className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:flex-none ${
+            homeActive ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white'
+          }`}
+        >
+          홈
+        </Link>
         <Link
           href="/member/projects"
           aria-current={projectActive ? 'page' : undefined}
