@@ -109,7 +109,8 @@ class EmailServiceTest {
         assertThat(sent.getRecipients(Message.RecipientType.TO)[0].toString()).contains(to);
         assertThat(sent.getContent().toString())
                 .contains(inviteUrl)
-                .contains("2026.07.08 15:30");
+                // expiresAt은 UTC 벽시계 값으로 넘긴다 — 렌더링 시 KST(+9h)로 변환되어 찍혀야 한다.
+                .contains("2026.07.09 00:30");
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());
@@ -139,7 +140,8 @@ class EmailServiceTest {
         assertThat(sent.getRecipients(Message.RecipientType.TO)[0].toString()).contains(to);
         assertThat(sent.getContent().toString())
                 .contains(resetUrl)
-                .contains("2026.07.09 09:00");
+                // expiresAt은 UTC 벽시계 값으로 넘긴다 — 렌더링 시 KST(+9h)로 변환되어 찍혀야 한다.
+                .contains("2026.07.09 18:00");
 
         ArgumentCaptor<EmailLog> logCaptor = ArgumentCaptor.forClass(EmailLog.class);
         verify(emailLogRepository).save(logCaptor.capture());

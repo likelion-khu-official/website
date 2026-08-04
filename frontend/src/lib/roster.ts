@@ -1,6 +1,24 @@
 import type { Member, MemberRole } from '@shared/types/member';
 import type { Staff } from '@shared/types/staff';
 
+// 멤버 카드 배경·글자 색 쌍 [background, foreground]. 그리드 순서(colorIndex)로 순환한다.
+// 카드와 상세 모달이 같은 색 정체성을 쓰도록 단일 출처로 둔다(모달은 이 색을 악센트로만 사용).
+export const CARD_COLORS: readonly (readonly [string, string])[] = [
+  ['#f47f83', '#111111'], ['#4b268d', '#ffffff'], ['#58f34f', '#111111'], ['#ff2424', '#111111'],
+  ['#050505', '#ffffff'], ['#f7f7f3', '#111111'], ['#fff431', '#111111'], ['#c9ff8a', '#111111'],
+  ['#ff0064', '#ffffff'], ['#ffdeaf', '#111111'], ['#1d3e7c', '#ffffff'], ['#8d35cb', '#ffffff'],
+  ['#ffaa51', '#111111'], ['#555555', '#ffffff'], ['#ffb400', '#111111'], ['#ca2f36', '#ffffff'],
+  ['#00b89c', '#111111'], ['#3978e9', '#ffffff'], ['#c9b6ff', '#111111'], ['#ff8c6b', '#111111'],
+  ['#237a3b', '#ffffff'], ['#47dde8', '#111111'], ['#731c45', '#ffffff'], ['#f05587', '#111111'],
+  ['#3e3acb', '#ffffff'], ['#8dd6ff', '#111111'], ['#b7ef43', '#111111'], ['#ff9c96', '#111111'],
+  ['#7d451d', '#ffffff'], ['#63e8c6', '#111111'], ['#743a77', '#ffffff'], ['#e2ba36', '#111111'],
+  ['#e83d63', '#ffffff'], ['#536b91', '#ffffff'], ['#e9cfa7', '#111111'],
+] as const;
+
+export function cardColor(index: number): readonly [string, string] {
+  return CARD_COLORS[index % CARD_COLORS.length];
+}
+
 // MemberRole → 한국어 라벨.
 // MemberCard 표시와 staff.position 역매핑이 공유하는 단일 출처(중복 정의로 인한 drift 방지).
 export const ROLE_LABELS: Record<MemberRole, string> = {
