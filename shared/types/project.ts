@@ -51,6 +51,7 @@ export interface ProjectSummary {
   representativeImageUrl: string | null; // 대표 이미지가 없으면 null
   cohort: number;
   techStack: string[];
+  createdAt: string; // ISO 8601. 활동 타임라인에서 시작일이 없는 프로젝트의 정렬 기준
 }
 
 /** GET /api/member/projects — 참여 중인 프로젝트. 관리자 숨김 상태도 멤버 화면에는 보인다. */

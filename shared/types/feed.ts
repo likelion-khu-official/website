@@ -27,6 +27,8 @@ export interface PostSummary {
   summary: string | null;
   thumbnailUrl: string | null;
   authorName: string;
+  /** 공개 프로필과 연결할 수 있는 작성자 ID. 비공개 동의 또는 과거 미연결 글이면 null. */
+  authorMemberId: number | null;
   authorPart: string[]; // 작성자 역할 목록 (예: ["BACKEND"]), 없으면 빈 배열
   /** 공개 동의한 작성자의 프로필. 사진을 우선 사용하고 없으면 emoji를 쓴다. */
   authorEmoji: string | null;

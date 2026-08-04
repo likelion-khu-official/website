@@ -81,7 +81,8 @@ class ProjectControllerTest {
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].representativeImageUrl").value("https://img/1.png"))
-                .andExpect(jsonPath("$[0].title").value("멋사 홈페이지"));
+                .andExpect(jsonPath("$[0].title").value("멋사 홈페이지"))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
     }
 
     @Test

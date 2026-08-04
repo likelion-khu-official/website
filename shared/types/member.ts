@@ -30,13 +30,18 @@ export interface Member {
   joinReason: string | null;
 }
 
-/** POST /api/admin/members — studentId·phone은 로그인 계정 발급용(#117). 초기 비번=phone을 서버가 해시한다. */
+/**
+ * POST /api/admin/members — studentId·phone은 로그인 계정 발급용(#117). 초기 비번=phone을 서버가 해시한다.
+ * publicationConsent를 생략하면 공개 동의(true)로 등록되고 서버가 동의 시각을 기록한다.
+ */
 export interface MemberCreateRequest {
   name: string;
   roles: MemberRole[];
   cohort: number;
   photoUrl?: string;
   joinReason?: string;
+  publicationConsent?: boolean;
+  publicationConsentedAt?: string;
   studentId: string;
   phone: string;
 }

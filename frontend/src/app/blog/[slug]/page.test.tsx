@@ -21,6 +21,7 @@ const post: PostDetail = {
   summary: '글 상세 여백을 확인합니다.',
   thumbnailUrl: null,
   authorName: '김우진',
+  authorMemberId: 1,
   authorPart: ['BACKEND'],
   authorEmoji: '🦁',
   authorPhotoUrl: null,

@@ -34,8 +34,14 @@ async function parseJsonOrThrow<T>(res: Response, fallbackMessage: string): Prom
   return res.json();
 }
 
-export async function getPosts(page: number, baseUrl = ''): Promise<SpringPage<PostSummary>> {
-  const res = await fetch(`${baseUrl}/api/posts?page=${page}`, { cache: 'no-store' });
+export async function getPosts(
+  page: number,
+  baseUrl = '',
+  size?: number,
+): Promise<SpringPage<PostSummary>> {
+  const params = new URLSearchParams({ page: String(page) });
+  if (size !== undefined) params.set('size', String(size));
+  const res = await fetch(`${baseUrl}/api/posts?${params}`, { cache: 'no-store' });
   return parseJsonOrThrow(res, '글 목록을 불러오지 못했어요.');
 }
 

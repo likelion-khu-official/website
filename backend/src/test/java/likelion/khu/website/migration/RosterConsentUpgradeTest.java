@@ -13,7 +13,8 @@ import java.sql.Statement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * V4가 기존 명단을 임의로 공개하지 않고, 새 프로필·동의 증적을 저장할 수 있는지 검증한다.
+ * V4 도입 시점에는 기존 명단을 비공개로 보존하고, 이후 변경된 제품 기본값은 활성 멤버에만
+ * 적용되는지 검증한다.
  */
 class RosterConsentUpgradeTest {
 
@@ -53,12 +54,24 @@ class RosterConsentUpgradeTest {
                 """
         );
 
-        MigrationUpgradeHarness.migrateToLatest(dbUrl);
+        MigrationUpgradeHarness.migrateTo(dbUrl, "4");
 
         try (Connection connection = DriverManager.getConnection(dbUrl);
              Statement statement = connection.createStatement()) {
             assertThat(value(statement, "select publication_consent from members where id = 1"))
                     .isEqualTo("0");
+            assertThat(value(statement, "select publication_consent from staff where id = 1"))
+                    .isEqualTo("0");
+        }
+
+        MigrationUpgradeHarness.migrateToLatest(dbUrl);
+
+        try (Connection connection = DriverManager.getConnection(dbUrl);
+             Statement statement = connection.createStatement()) {
+            assertThat(value(statement, "select publication_consent from members where id = 1"))
+                    .isEqualTo("1");
+            assertThat(value(statement, "select publication_consented_at from members where id = 1"))
+                    .matches("\\d{13}");
             assertThat(value(statement, "select publication_consent from staff where id = 1"))
                     .isEqualTo("0");
         }
