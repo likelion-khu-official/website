@@ -161,14 +161,16 @@ public class MemberService {
 
     private Member buildMember(MemberCreateRequest request, String createdBy) {
         String emoji = EMOJI_POOL.get(RANDOM.nextInt(EMOJI_POOL.size()));
-        LocalDateTime consentedAt = validateConsent(
+        boolean publicationConsent = request.getPublicationConsent() == null
+                || Boolean.TRUE.equals(request.getPublicationConsent());
+        LocalDateTime consentedAt = resolveCreateConsent(
                 request.getPublicationConsent(), request.getPublicationConsentedAt()
         );
         // 초기 비밀번호 = 전화번호(BCrypt 해시). 첫 로그인 때 반드시 바꾸게 되므로 평문 그대로 저장하지 않는다.
         Member member = Member.create(
                 request.getName(), request.getRoles(), request.getCohort(),
                 emoji, request.getPhotoUrl(), request.getJoinReason(), request.getDepartment(),
-                Boolean.TRUE.equals(request.getPublicationConsent()), consentedAt, createdBy,
+                publicationConsent, consentedAt, createdBy,
                 request.getStudentId(), request.getPhone(), passwordEncoder.encode(request.getPhone())
         );
         return member;
@@ -204,6 +206,16 @@ public class MemberService {
                 .toDetailOrNull();
         auditService.recordStateChange("멤버 수정: " + member.getName(), updateDetail, "MEMBER", id, AuditOutcome.SUCCESS);
         return MemberAdminResponse.from(member);
+    }
+
+    private LocalDateTime resolveCreateConsent(Boolean consent, LocalDateTime consentedAt) {
+        if (consent == null) {
+            if (consentedAt != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게재 동의 여부와 동의 시각을 함께 입력해주세요.");
+            }
+            return LocalDateTime.now();
+        }
+        return validateConsent(consent, consentedAt);
     }
 
     private LocalDateTime validateConsent(Boolean consent, LocalDateTime consentedAt) {

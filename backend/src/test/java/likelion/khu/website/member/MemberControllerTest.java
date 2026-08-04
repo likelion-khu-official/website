@@ -81,8 +81,15 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.name").value("선우"))
                 .andExpect(jsonPath("$.cohort").value(13))
                 .andExpect(jsonPath("$.emoji").isNotEmpty())
+                .andExpect(jsonPath("$.publicationConsent").value(true))
+                .andExpect(jsonPath("$.publicationConsentedAt").isNotEmpty())
                 .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.createdBy").doesNotExist());
+
+        mockMvc.perform(get("/api/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("선우"));
     }
 
     @WithMockAdminUser

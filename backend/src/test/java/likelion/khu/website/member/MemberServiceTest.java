@@ -45,6 +45,19 @@ class MemberServiceTest {
     }
 
     @Test
+    void create_OmittedPublicationConsentDefaultsToPublicAndRecordsTimestamp() {
+        MemberCreateRequest request = sampleRequest();
+        request.setPublicationConsent(null);
+        request.setPublicationConsentedAt(null);
+
+        MemberAdminResponse created = memberService.create(request, "admin@likelion.org");
+
+        assertThat(created.isPublicationConsent()).isTrue();
+        assertThat(created.getPublicationConsentedAt()).isNotNull();
+        assertThat(memberService.getAll()).extracting(MemberResponse::getId).containsExactly(created.getId());
+    }
+
+    @Test
     void create_SetsInitialPasswordFromPhoneAndRequiresChange() {
         memberService.create(sampleRequest(), "admin@likelion.org");
 

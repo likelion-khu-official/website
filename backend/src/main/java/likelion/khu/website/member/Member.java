@@ -113,7 +113,7 @@ public class Member {
     }
 
     // 프로필·동의 필드 도입 전부터 쓰던 내부 생성 시그니처. 기존 도메인 테스트와 호출자는
-    // 안전한 기본값(비공개)으로 유지하고, 명단 등록 경로만 확장 시그니처를 사용한다.
+    // 안전한 기본값(비공개)으로 유지하고, 실제 명단 등록의 제품 기본값은 MemberService가 적용한다.
     public static Member create(String name, Set<MemberRole> roles, Integer cohort, String emoji,
                                 String photoUrl, String joinReason, String createdBy,
                                 String studentId, String phone, String initialPasswordHash) {
