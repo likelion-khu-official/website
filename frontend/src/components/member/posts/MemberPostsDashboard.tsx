@@ -3,23 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
 import type { MemberPostSummary, SpringPage } from '@shared/types/feed';
 import { formatDate } from '@/lib/formatDate';
-import {
-  deletePost,
-  getCurrentMember,
-  getMemberPosts,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from '@/components/member/projects/MemberProjectHeader';
+import { deletePost, getMemberPosts, MemberApiError } from '@/lib/memberApi';
 
 const PAGE_PATH = '/member/posts';
 const PAGE_SIZE = 24;
-
-function sendToLogin(router: ReturnType<typeof useRouter>) {
-  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
-}
 
 function statusStyle(status: MemberPostSummary['status']) {
   if (status === 'PUBLISHED') return 'bg-emerald-400/10 text-emerald-300';
@@ -35,7 +24,6 @@ function statusLabel(status: MemberPostSummary['status']) {
 
 export default function MemberPostsDashboard() {
   const router = useRouter();
-  const [member, setMember] = useState<MemberAccount | null>(null);
   const [posts, setPosts] = useState<MemberPostSummary[]>([]);
   const [page, setPage] = useState(0);
   const [pageInfo, setPageInfo] = useState<Pick<
@@ -51,15 +39,7 @@ export default function MemberPostsDashboard() {
       setLoading(true);
       setError('');
       try {
-        const [{ member: currentMember }, postPage] = await Promise.all([
-          getCurrentMember(),
-          getMemberPosts(nextPage, PAGE_SIZE),
-        ]);
-        if (currentMember.mustChangePassword) {
-          sendToLogin(router);
-          return;
-        }
-        setMember(currentMember);
+        const postPage = await getMemberPosts(nextPage, PAGE_SIZE);
         setPosts(postPage.content);
         setPage(postPage.number);
         setPageInfo({
@@ -69,7 +49,7 @@ export default function MemberPostsDashboard() {
         });
       } catch (loadError) {
         if (loadError instanceof MemberApiError && loadError.status === 401) {
-          sendToLogin(router);
+          router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
           return;
         }
         setError(loadError instanceof Error ? loadError.message : '내 글을 불러오지 못했어요.');
@@ -105,7 +85,7 @@ export default function MemberPostsDashboard() {
         deleteError instanceof MemberApiError &&
         (deleteError.status === 401 || deleteError.code === 'MUST_CHANGE_PASSWORD')
       ) {
-        sendToLogin(router);
+        router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
         return;
       }
       setError(deleteError instanceof Error ? deleteError.message : '글 삭제에 실패했어요.');
@@ -116,8 +96,6 @@ export default function MemberPostsDashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={member?.name} />
-
       <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">

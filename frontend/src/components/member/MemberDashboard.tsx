@@ -9,21 +9,10 @@ import type { MemberPostSummary } from '@shared/types/feed';
 import type { MemberProjectSummary } from '@shared/types/project';
 import { formatDate } from '@/lib/formatDate';
 import { ROLE_LABELS } from '@/lib/roster';
-import {
-  getAllMembers,
-  getCurrentMember,
-  getMemberPosts,
-  getMemberProjects,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from './projects/MemberProjectHeader';
+import { getMemberPosts, getMemberProjects, getMyProfile, MemberApiError } from '@/lib/memberApi';
+import { useMemberSession } from '@/components/member/MemberShell';
 
-const PAGE_PATH = '/member';
 const PREVIEW_SIZE = 3;
-
-function sendToLogin(router: ReturnType<typeof useRouter>) {
-  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
-}
 
 function postStatusStyle(status: MemberPostSummary['status']) {
   if (status === 'PUBLISHED') return 'bg-emerald-400/10 text-emerald-300';
@@ -38,8 +27,7 @@ function postStatusLabel(status: MemberPostSummary['status']) {
 }
 
 type DashboardData = {
-  member: MemberAccount;
-  profile: Member | null;
+  profile: Member;
   posts: MemberPostSummary[];
   postsTotal: number;
   projects: MemberProjectSummary[];
@@ -47,6 +35,7 @@ type DashboardData = {
 
 export default function MemberDashboard() {
   const router = useRouter();
+  const member = useMemberSession();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,26 +44,20 @@ export default function MemberDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [{ member: currentMember }, allMembers, postPage, projects] = await Promise.all([
-        getCurrentMember(),
-        getAllMembers(),
+      const [profile, postPage, projects] = await Promise.all([
+        getMyProfile(),
         getMemberPosts(0, PREVIEW_SIZE),
         getMemberProjects(),
       ]);
-      if (currentMember.mustChangePassword) {
-        sendToLogin(router);
-        return;
-      }
       setData({
-        member: currentMember,
-        profile: allMembers.find((candidate) => candidate.id === currentMember.id) ?? null,
+        profile,
         posts: postPage.content,
         postsTotal: postPage.totalElements,
         projects,
       });
     } catch (err) {
       if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
+        router.replace(`/member/login?returnTo=${encodeURIComponent('/member')}`);
         return;
       }
       setError(err instanceof Error ? err.message : '대시보드를 불러오지 못했어요.');
@@ -90,8 +73,6 @@ export default function MemberDashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={data?.member.name} />
-
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
           Member workspace
@@ -134,7 +115,7 @@ export default function MemberDashboard() {
         </>
       ) : data ? (
         <>
-          <IdentityCard member={data.member} profile={data.profile} />
+          <IdentityCard member={member} profile={data.profile} />
 
           <div className="mt-6 grid gap-5 sm:grid-cols-3">
             <PostsCard posts={data.posts} total={data.postsTotal} />
@@ -147,25 +128,24 @@ export default function MemberDashboard() {
   );
 }
 
-function IdentityCard({ member, profile }: { member: MemberAccount; profile: Member | null }) {
-  const roles = profile?.roles ?? [];
+function IdentityCard({ member, profile }: { member: MemberAccount; profile: Member }) {
   return (
     <div className="mt-10 flex flex-col items-start gap-5 rounded-3xl border border-white/10 bg-white/[0.025] p-6 sm:flex-row sm:items-center">
       <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.05]">
-        {profile?.photoUrl ? (
+        {profile.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.photoUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className="text-3xl" aria-hidden>
-            {profile?.emoji ?? '🦁'}
+            {profile.emoji}
           </span>
         )}
       </div>
       <div className="min-w-0">
         <p className="text-xl font-semibold tracking-[-0.03em] text-white">{member.name} 님</p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          {profile ? <span className="text-accent">{profile.cohort}기</span> : null}
-          {roles.map((role) => (
+          <span className="text-accent">{profile.cohort}기</span>
+          {profile.roles.map((role) => (
             <span key={role} className="rounded-full bg-white/[0.06] px-2 py-1 text-white/60">
               {ROLE_LABELS[role]}
             </span>
@@ -291,11 +271,11 @@ function ProjectsCard({ projects }: { projects: MemberProjectSummary[] }) {
   );
 }
 
-function ProfileCard({ profile }: { profile: Member | null }) {
+function ProfileCard({ profile }: { profile: Member }) {
   return (
-    <DashboardCard title="내 프로필" meta={profile?.joinReason ? '작성됨' : '미작성'} href="/member/profile" hrefLabel="프로필 편집">
+    <DashboardCard title="내 프로필" meta={profile.joinReason ? '작성됨' : '미작성'} href="/member/profile" hrefLabel="프로필 편집">
       <p className="line-clamp-4 text-sm leading-6 text-white/60">
-        {profile?.joinReason || '입부계기를 아직 적지 않았어요. 편집에서 나를 소개해보세요.'}
+        {profile.joinReason || '입부계기를 아직 적지 않았어요. 편집에서 나를 소개해보세요.'}
       </p>
     </DashboardCard>
   );

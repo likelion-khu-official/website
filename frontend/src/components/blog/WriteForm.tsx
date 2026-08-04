@@ -6,13 +6,12 @@ import { useRouter } from 'next/navigation';
 import type { PostCreateRequest, PostReplaceRequest, PostStatus } from '@shared/types/feed';
 import {
   createPost,
-  getCurrentMember,
   getMemberPost,
   MemberApiError,
   replacePost,
   uploadMemberImage,
 } from '@/lib/memberApi';
-import MemberProjectHeader from '@/components/member/projects/MemberProjectHeader';
+import { useMemberSession } from '@/components/member/MemberShell';
 import ImageUploader from './ImageUploader';
 import MarkdownContent, { markdownIncludesImage } from './MarkdownContent';
 
@@ -68,13 +67,13 @@ function markdownImageAlt(filename: string) {
 
 export default function WriteForm({ postId }: Props) {
   const router = useRouter();
+  const member = useMemberSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pagePath = postId ? `/member/posts/${postId}/edit` : '/member/write';
   const editing = postId !== undefined;
 
   const [sessionState, setSessionState] = useState<SessionState>('checking');
   const [sessionError, setSessionError] = useState<SessionError>(GENERIC_SESSION_ERROR);
-  const [authorName, setAuthorName] = useState('');
   const [postStatus, setPostStatus] = useState<PostStatus>('PUBLISHED');
 
   const [title, setTitle] = useState('');
@@ -94,17 +93,9 @@ export default function WriteForm({ postId }: Props) {
 
     (async () => {
       try {
-        const [{ member }, post] = await Promise.all([
-          getCurrentMember(),
-          postId ? getMemberPost(postId) : Promise.resolve(undefined),
-        ]);
+        const post = postId ? await getMemberPost(postId) : undefined;
         if (cancelled) return;
-        if (member.mustChangePassword) {
-          sendToLogin(router, pagePath);
-          return;
-        }
 
-        setAuthorName(member.name);
         if (post) {
           setTitle(post.title);
           setSummary(post.summary ?? '');
@@ -245,7 +236,6 @@ export default function WriteForm({ postId }: Props) {
   if (sessionState === 'checking') {
     return (
       <div className="mx-auto w-full max-w-6xl">
-        <MemberProjectHeader />
         <p className="py-24 text-center text-sm text-muted">확인하고 있어요…</p>
       </div>
     );
@@ -254,7 +244,6 @@ export default function WriteForm({ postId }: Props) {
   if (sessionState === 'error') {
     return (
       <div className="mx-auto w-full max-w-6xl">
-        <MemberProjectHeader />
         <NoticeScreen title={sessionError.title} description={sessionError.description} />
       </div>
     );
@@ -262,8 +251,6 @@ export default function WriteForm({ postId }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={authorName} />
-
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
           Blog
@@ -272,7 +259,7 @@ export default function WriteForm({ postId }: Props) {
           {editing ? '글 수정' : '새 글 작성'}
         </h1>
         <p className="mt-4 text-sm leading-6 text-white/45">
-          {authorName}님의 블로그 글을 Markdown으로 작성해요.
+          {member.name}님의 블로그 글을 Markdown으로 작성해요.
         </p>
       </div>
 
