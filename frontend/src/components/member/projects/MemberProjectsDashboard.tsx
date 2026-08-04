@@ -3,25 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
 import type { MemberProjectSummary } from '@shared/types/project';
-import {
-  deleteProject,
-  getCurrentMember,
-  getMemberProjects,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from './MemberProjectHeader';
-
-const PAGE_PATH = '/member/projects';
-
-function sendToLogin(router: ReturnType<typeof useRouter>) {
-  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
-}
+import { deleteProject, getMemberProjects, MemberApiError } from '@/lib/memberApi';
 
 export default function MemberProjectsDashboard() {
   const router = useRouter();
-  const [member, setMember] = useState<MemberAccount | null>(null);
   const [projects, setProjects] = useState<MemberProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,19 +17,10 @@ export default function MemberProjectsDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [{ member: currentMember }, projectList] = await Promise.all([
-        getCurrentMember(),
-        getMemberProjects(),
-      ]);
-      if (currentMember.mustChangePassword) {
-        sendToLogin(router);
-        return;
-      }
-      setMember(currentMember);
-      setProjects(projectList);
+      setProjects(await getMemberProjects());
     } catch (err) {
       if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
+        router.replace(`/member/login?returnTo=${encodeURIComponent('/member/projects')}`);
         return;
       }
       setError(err instanceof Error ? err.message : '내 프로젝트를 불러오지 못했어요.');
@@ -70,7 +47,7 @@ export default function MemberProjectsDashboard() {
       setProjects((current) => current.filter((item) => item.id !== project.id));
     } catch (err) {
       if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
+        router.replace(`/member/login?returnTo=${encodeURIComponent('/member/projects')}`);
         return;
       }
       setError(err instanceof Error ? err.message : '프로젝트 삭제에 실패했어요.');
@@ -81,8 +58,6 @@ export default function MemberProjectsDashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={member?.name} />
-
       <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">

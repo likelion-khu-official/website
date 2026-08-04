@@ -1,17 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
+import { useRouter } from 'next/navigation';
 import type { Member } from '@shared/types/member';
-import { getCurrentMember, getMyProfile, MemberApiError } from '@/lib/memberApi';
-import MemberProjectHeader from '@/components/member/projects/MemberProjectHeader';
+import { getMyProfile, MemberApiError } from '@/lib/memberApi';
 import MemberProfileForm from './MemberProfileForm';
 
 export default function MemberProfileEditor() {
   const router = useRouter();
-  const pathname = usePathname();
-  const [account, setAccount] = useState<MemberAccount | null>(null);
   const [profile, setProfile] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,26 +16,17 @@ export default function MemberProfileEditor() {
     setLoading(true);
     setError('');
     try {
-      const [{ member: currentMember }, myProfile] = await Promise.all([
-        getCurrentMember(),
-        getMyProfile(),
-      ]);
-      if (currentMember.mustChangePassword) {
-        router.replace(`/member/login?returnTo=${encodeURIComponent(pathname)}`);
-        return;
-      }
-      setAccount(currentMember);
-      setProfile(myProfile);
+      setProfile(await getMyProfile());
     } catch (loadError) {
       if (loadError instanceof MemberApiError && loadError.status === 401) {
-        router.replace(`/member/login?returnTo=${encodeURIComponent(pathname)}`);
+        router.replace(`/member/login?returnTo=${encodeURIComponent('/member/profile')}`);
         return;
       }
       setError(loadError instanceof Error ? loadError.message : '프로필을 불러오지 못했어요.');
     } finally {
       setLoading(false);
     }
-  }, [pathname, router]);
+  }, [router]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void load(), 0);
@@ -48,7 +35,6 @@ export default function MemberProfileEditor() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <MemberProjectHeader memberName={account?.name} />
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
           Member profile

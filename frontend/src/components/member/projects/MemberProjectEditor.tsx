@@ -1,17 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
+import { useRouter } from 'next/navigation';
 import type { Member } from '@shared/types/member';
 import type { ProjectDetail } from '@shared/types/project';
-import {
-  getAllMembers,
-  getCurrentMember,
-  getMemberProject,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from './MemberProjectHeader';
+import { getAllMembers, getMemberProject, MemberApiError } from '@/lib/memberApi';
+import { useMemberSession } from '@/components/member/MemberShell';
 import ProjectForm from './ProjectForm';
 
 type Props = {
@@ -20,8 +14,7 @@ type Props = {
 
 export default function MemberProjectEditor({ projectId }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [member, setMember] = useState<MemberAccount | null>(null);
+  const member = useMemberSession();
   const [members, setMembers] = useState<Member[]>([]);
   const [project, setProject] = useState<ProjectDetail | undefined>();
   const [loading, setLoading] = useState(true);
@@ -31,22 +24,16 @@ export default function MemberProjectEditor({ projectId }: Props) {
     setLoading(true);
     setError('');
     try {
-      const [{ member: currentMember }, memberList, projectDetail] = await Promise.all([
-        getCurrentMember(),
+      const [memberList, projectDetail] = await Promise.all([
         getAllMembers(),
         projectId ? getMemberProject(projectId) : Promise.resolve(undefined),
       ]);
-
-      if (currentMember.mustChangePassword) {
-        router.replace(`/member/login?returnTo=${encodeURIComponent(pathname)}`);
-        return;
-      }
-      setMember(currentMember);
       setMembers(memberList);
       setProject(projectDetail);
     } catch (loadError) {
       if (loadError instanceof MemberApiError && loadError.status === 401) {
-        router.replace(`/member/login?returnTo=${encodeURIComponent(pathname)}`);
+        const pagePath = projectId ? `/member/projects/${projectId}/edit` : '/member/projects/new';
+        router.replace(`/member/login?returnTo=${encodeURIComponent(pagePath)}`);
         return;
       }
       if (loadError instanceof MemberApiError && loadError.code === 'NOT_PARTICIPANT') {
@@ -59,7 +46,7 @@ export default function MemberProjectEditor({ projectId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [pathname, projectId, router]);
+  }, [projectId, router]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void load(), 0);
@@ -68,7 +55,6 @@ export default function MemberProjectEditor({ projectId }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={member?.name} />
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
           {projectId ? 'Edit project' : 'New project'}
@@ -99,9 +85,9 @@ export default function MemberProjectEditor({ projectId }: Props) {
             내 프로젝트로 돌아가기
           </button>
         </div>
-      ) : member ? (
+      ) : (
         <ProjectForm currentMember={member} members={members} initialProject={project} />
-      ) : null}
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type {
   MemberErrorCode,
   MemberLoginRequest,
   MemberLoginResponse,
+  MemberLogoutResponse,
   MemberChangePasswordRequest,
   MemberChangePasswordResponse,
   MemberMeResponse,
@@ -140,6 +141,14 @@ export function getCurrentMember() {
     '/auth/me',
     { method: 'GET' },
     '로그인 상태를 확인하지 못했어요.'
+  );
+}
+
+export function logout() {
+  return request<MemberLogoutResponse>(
+    '/auth/logout',
+    { method: 'POST' },
+    '로그아웃에 실패했어요.'
   );
 }
 
