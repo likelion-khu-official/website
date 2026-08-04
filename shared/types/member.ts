@@ -64,6 +64,16 @@ export interface MemberUpdateRequest {
   joinReason?: string;
 }
 
+/**
+ * GET /api/members/me — 로그인한 본인의 프로필. 응답 형태는 공개 목록과 같은 Member.
+ * PUT /api/members/me — 본인 프로필 전체 교체. photoUrl·joinReason만 있고 name·roles·cohort·emoji는
+ * 필드 자체가 없다 — 관리자 소유 필드라 요청 본문을 조작해도 못 바꾼다(#285). null이면 지운다.
+ */
+export interface MemberProfileReplaceRequest {
+  photoUrl: string | null;
+  joinReason: string | null;
+}
+
 /** GET /api/admin/members — 관리자 전용 멤버 상세 (studentId·오프보딩 상태 포함) */
 export interface MemberAdminSummary {
   id: number;

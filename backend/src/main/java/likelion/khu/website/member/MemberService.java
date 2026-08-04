@@ -5,6 +5,7 @@ import likelion.khu.website.audit.AuditOutcome;
 import likelion.khu.website.audit.AuditService;
 import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
+import likelion.khu.website.member.dto.MemberProfileReplaceRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
 import likelion.khu.website.member.exception.MemberBulkCreateException;
@@ -206,6 +207,34 @@ public class MemberService {
                 .toDetailOrNull();
         auditService.recordStateChange("멤버 수정: " + member.getName(), updateDetail, "MEMBER", id, AuditOutcome.SUCCESS);
         return MemberAdminResponse.from(member);
+    }
+
+    // 로그인한 본인의 프로필 조회(#285) — publicationConsent와 무관하게 항상 자기 자신은 볼 수 있어야 해서
+    // getAll()의 공개 목록 쿼리를 안 쓰고 id로 바로 찾는다.
+    @Transactional(readOnly = true)
+    public MemberResponse getSelf(Long memberId) {
+        return MemberResponse.from(findActiveMember(memberId));
+    }
+
+    // 본인 프로필 셀프 편집(#285) — 사진·입부계기만 바뀐다. 요청 DTO에 이름·역할·기수·이모지 필드가
+    // 아예 없어서 본문을 조작해도 그 필드들은 못 건드린다. admin update()와 달리 관리자 행위가 아니라
+    // 감사 로그(auditService) 대상이 아니다 — PostService/ProjectService의 본인 콘텐츠 수정도 마찬가지.
+    @Transactional
+    public MemberResponse updateSelfProfile(Long memberId, MemberProfileReplaceRequest request) {
+        Member member = findActiveMember(memberId);
+        member.updateProfile(request.getPhotoUrl(), request.getJoinReason(), "member:" + member.getStudentId());
+        return MemberResponse.from(member);
+    }
+
+    // 오프보딩된 계정은 로그인 자체가 막히지만(MemberAuthService), 혹시 남아있는 refresh 토큰 등으로
+    // 여기까지 요청이 왔을 때 본인 프로필을 계속 고칠 수 있으면 안 되므로 한 번 더 막는다.
+    private Member findActiveMember(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요."));
+        if (member.isOffboarded()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "멤버를 찾을 수 없어요.");
+        }
+        return member;
     }
 
     private LocalDateTime resolveCreateConsent(Boolean consent, LocalDateTime consentedAt) {
