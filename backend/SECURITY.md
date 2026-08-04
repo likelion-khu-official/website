@@ -18,6 +18,10 @@
 
 - **공개 리소스의 `/**` matcher로 관리 작업까지 함께 열지 않는다.** 공개 읽기·작성은 HTTP 메서드와 정확한 경로를 각각 허용하고, 숨김·복원 같은 관리 작업은 `/api/admin/**` 아래에서 인증과 역할을 다시 확인한다. 공개 경로 접두어 아래 관리 엔드포인트를 두면 넓은 `permitAll` 규칙 하나가 인가를 우회시킬 수 있기 때문이다(#317).
 
+- **파일 업로드는 Content-Type 헤더가 아닌 magic bytes로 검증하고, 검증된 MIME 타입과 확장자만 저장소에 넘긴다.** `file.getContentType()`은 클라이언트가 임의로 설정할 수 있어 신뢰하지 않는다 — PHP·HTML 등 임의 파일을 `Content-Type: image/jpeg`로 위장해 올릴 수 있고, `OciStorageService`가 그 값을 그대로 저장하면 OCI도 해당 MIME으로 서빙한다. `ImageValidator.detect(bytes)`로 파일 앞부분 magic bytes를 확인하고, 그 결과를 업로드와 저장소 content-type 양쪽에 쓴다. 파일명 확장자도 원본이 아닌 검증된 타입 기준(`detected.extension`)으로 결정한다.
+
+- **인증된 멤버의 이미지 업로드에도 분당 횟수 제한을 건다.** 5MB 제한은 요청당 한도고, 탈취·악의적 계정이 반복 요청으로 OCI 무료 스토리지(20GB)를 소진할 수 있다. `UploadRateLimiter`가 사용자 ID별 슬라이딩 윈도 방식으로 분당 20회를 초과하면 429를 반환한다.
+
 ### 로그에 이메일 등 개인정보를 원문으로 남기지 않는다
 
 로그 파일은 서버 디스크에 삭제 정책 없이 계속 쌓인다(자동 만료·정리 크론이 없음 — `infra/CLAUDE.md` 미결 사항 참고). 운영 원인추적용 로깅을 도입하면서(이메일 발송 실패 등) 개인정보가 로그에 섞여 들어갈 여지가 생겼다 — `LogMasker`(`backend/src/main/java/likelion/khu/website/common/LogMasker.java`)로 항상 마스킹해서 남긴다(`ab***@domain.com`). 새로 로깅을 추가할 때 이메일·학번·전화번호 등을 로그 메시지에 넣게 되면 반드시 이 유틸을 거칠 것.
