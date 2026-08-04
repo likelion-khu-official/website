@@ -4,6 +4,7 @@ import likelion.khu.website.admin.WithMockAdminUser;
 import likelion.khu.website.member.auth.MemberAuthService;
 import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
+import likelion.khu.website.member.dto.MemberResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -613,5 +615,119 @@ class MemberControllerTest {
                         .content("{\"studentId\":\"2020123456\",\"password\":\"01000000000\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    // ── GET/PUT /api/members/me (#285) ───────────────────────────────
+    // @Transactional로 매 테스트 롤백되므로 createMember()의 첫 INSERT는 항상 id=1
+    // — @WithMockAdminUser(id = 1L, role = "MEMBER")와 짝을 맞춘다(PostControllerTest와 같은 관례).
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void getSelf_ReturnsOwnProfile() throws Exception {
+        createMember();
+
+        mockMvc.perform(get("/api/members/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("시현"))
+                .andExpect(jsonPath("$.cohort").value(13));
+    }
+
+    @Test
+    void getSelf_Unauthenticated_Returns4xx() throws Exception {
+        mockMvc.perform(get("/api/members/me"))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void getSelf_Offboarded_Returns404() throws Exception {
+        Long id = createMember();
+        memberAuthService.offboard(id);
+
+        mockMvc.perform(get("/api/members/me"))
+                .andExpect(status().isNotFound());
+    }
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void updateSelf_ChangesPhotoAndJoinReason() throws Exception {
+        createMember();
+
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"photoUrl\":\"https://example.com/new.png\",\"joinReason\":\"같이 배우고 싶어서\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.photoUrl").value("https://example.com/new.png"))
+                .andExpect(jsonPath("$.joinReason").value("같이 배우고 싶어서"));
+    }
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void updateSelf_NullClearsPhotoAndJoinReason() throws Exception {
+        createMember();
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"photoUrl\":\"https://example.com/a.png\",\"joinReason\":\"이유\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"photoUrl\":null,\"joinReason\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.photoUrl").doesNotExist())
+                .andExpect(jsonPath("$.joinReason").doesNotExist());
+    }
+
+    // 요청 본문에 이름·역할·기수·이모지를 실어 보내도 MemberProfileReplaceRequest에 그 필드가 아예
+    // 없어 무시된다 — 관리자 소유 필드는 이 경로로 못 바꾼다는 걸 증명한다.
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void updateSelf_CannotChangeProtectedFields() throws Exception {
+        createMember();
+
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"해킹시도\",\"roles\":[\"AI\"],\"cohort\":99,\"emoji\":\"👽\"," +
+                                "\"photoUrl\":\"https://example.com/ok.png\",\"joinReason\":\"정상 입력\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("시현"))
+                .andExpect(jsonPath("$.cohort").value(13))
+                .andExpect(jsonPath("$.roles[0]").value("BACKEND"))
+                .andExpect(jsonPath("$.photoUrl").value("https://example.com/ok.png"));
+    }
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    @Test
+    void updateSelf_DoesNotAffectAnotherMembersProfile() throws Exception {
+        createMember(); // id=1, 로그인 principal과 짝
+
+        MemberCreateRequest other = new MemberCreateRequest();
+        other.setName("다른멤버");
+        other.setRoles(Set.of(MemberRole.FRONTEND));
+        other.setCohort(13);
+        other.setStudentId("2020999999");
+        other.setPhone("01099990000");
+        Long otherId = memberService.create(other, "admin@likelion.org").getId();
+
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"photoUrl\":\"https://example.com/self.png\",\"joinReason\":\"내 이유\"}"))
+                .andExpect(status().isOk());
+
+        MemberResponse otherProfile = memberService.getSelf(otherId);
+        assertThat(otherProfile.getPhotoUrl()).isNull();
+        assertThat(otherProfile.getJoinReason()).isNull();
+    }
+
+    @WithMockAdminUser(id = 1L, role = "MEMBER", mustChangePassword = true)
+    @Test
+    void updateSelf_MustChangePassword_Returns403() throws Exception {
+        createMember();
+
+        mockMvc.perform(put("/api/members/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"photoUrl\":null,\"joinReason\":\"이유\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MUST_CHANGE_PASSWORD"));
     }
 }
