@@ -18,6 +18,7 @@ public class PostSummaryResponse {
     private String summary;
     private String thumbnailUrl;
     private String authorName;
+    private Long authorMemberId;
     private List<String> authorPart;
     private String authorEmoji;
     private String authorPhotoUrl;
@@ -30,7 +31,8 @@ public class PostSummaryResponse {
         return new PostSummaryResponse(
                 post.getId(), post.getSlug(), post.getTitle(),
                 post.getSummary(), post.getThumbnailUrl(),
-                post.getAuthorName(), post.getAuthorPart(),
+                post.getAuthorName(), showProfile ? post.getAuthorMemberId() : null,
+                post.getAuthorPart(),
                 showProfile ? author.getEmoji() : null,
                 showProfile ? author.getPhotoUrl() : null,
                 post.getStatus(),

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Member } from '@shared/types/member';
-import type { ProjectSummary } from '@shared/types/project';
+import type { MemberActivity } from '@/lib/memberActivity';
 import MemberDetailModal from './MemberDetailModal';
 
 // jsdom엔 matchMedia가 없다 — 모달의 reduced-motion 구독이 쓰므로 기본값(감소 안 함)으로 mock.
@@ -27,19 +27,35 @@ const member: Member = {
   joinReason: '서비스를 직접 만들어보고 싶었어요.',
 };
 
-const projects: ProjectSummary[] = [
-  { id: 1, title: '첫 번째 프로젝트', summary: '요약 1', representativeImageUrl: null, cohort: 14, techStack: [] },
-  { id: 2, title: '두 번째 프로젝트', summary: '요약 2', representativeImageUrl: null, cohort: 13, techStack: [] },
+const activities: MemberActivity[] = [
+  {
+    id: 'blog-1',
+    kind: 'BLOG',
+    title: '최근 블로그 글',
+    summary: '블로그 요약',
+    imageUrl: null,
+    href: '/blog/recent-post',
+    occurredAt: '2026-08-03T10:00:00+09:00',
+  },
+  {
+    id: 'project-2',
+    kind: 'PROJECT',
+    title: '참여 프로젝트',
+    summary: '프로젝트 요약',
+    imageUrl: null,
+    href: '/projects/2',
+    occurredAt: '2026-07-01',
+  },
 ];
 
 describe('MemberDetailModal', () => {
   it('member가 없으면 아무것도 렌더링하지 않는다', () => {
-    render(<MemberDetailModal member={null} projects={[]} onClose={vi.fn()} />);
+    render(<MemberDetailModal member={null} activities={[]} onClose={vi.fn()} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('선택한 멤버의 공개 정보를 다이얼로그로 보여준다', () => {
-    render(<MemberDetailModal member={member} projects={[]} onClose={vi.fn()} />);
+    render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
@@ -49,36 +65,65 @@ describe('MemberDetailModal', () => {
     expect(screen.getByText(member.joinReason!)).toBeInTheDocument();
   });
 
-  it('참여 프로젝트가 없으면 빈 상태를 보여준다', () => {
-    render(<MemberDetailModal member={member} projects={[]} onClose={vi.fn()} />);
-    expect(screen.getByText('아직 등록된 프로젝트가 없어요.')).toBeInTheDocument();
+  it('공개 활동이 없으면 빈 상태를 보여준다', () => {
+    render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
+    expect(screen.getByText('아직 공개된 활동이 없어요.')).toBeInTheDocument();
   });
 
-  it('프로젝트를 불러오지 못하면 빈 상태와 다른 안내를 보여준다', () => {
-    render(<MemberDetailModal member={member} projects={[]} projectsUnavailable onClose={vi.fn()} />);
-    expect(screen.getByText(/프로젝트 정보를 불러오지 못했어요/)).toBeInTheDocument();
+  it('활동을 불러오지 못하면 빈 상태와 다른 안내를 보여준다', () => {
+    render(
+      <MemberDetailModal
+        member={member}
+        activities={[]}
+        activitiesIncomplete
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/활동 정보를 불러오지 못했어요/)).toBeInTheDocument();
   });
 
-  it('여러 프로젝트를 이전·다음으로 순환하며 현재 위치를 알려준다', async () => {
+  it('블로그와 프로젝트를 이전·다음으로 순환하며 현재 위치를 알려준다', async () => {
     const user = userEvent.setup();
-    render(<MemberDetailModal member={member} projects={projects} onClose={vi.fn()} />);
+    render(<MemberDetailModal member={member} activities={activities} onClose={vi.fn()} />);
 
-    expect(screen.getByText('첫 번째 프로젝트')).toBeInTheDocument();
+    expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '최근 블로그 글 자세히 보기' })).toHaveAttribute(
+      'href',
+      '/blog/recent-post',
+    );
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '다음 프로젝트' }));
-    expect(screen.getByText('두 번째 프로젝트')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '다음 활동' }));
+    expect(screen.getByText('참여 프로젝트')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '참여 프로젝트 자세히 보기' })).toHaveAttribute(
+      'href',
+      '/projects/2',
+    );
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
 
     // 끝에서 다음 → 처음으로 순환
-    await user.click(screen.getByRole('button', { name: '다음 프로젝트' }));
-    expect(screen.getByText('첫 번째 프로젝트')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '다음 활동' }));
+    expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
+  });
+
+  it('한 활동 소스가 실패해도 불러온 활동을 보여주며 일부 누락을 알린다', () => {
+    render(
+      <MemberDetailModal
+        member={member}
+        activities={[activities[0]]}
+        activitiesIncomplete
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
+    expect(screen.getByText(/일부 활동을 불러오지 못했어요/)).toBeInTheDocument();
   });
 
   it('닫기 버튼을 누르면 onClose를 호출한다', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<MemberDetailModal member={member} projects={[]} onClose={onClose} />);
+    render(<MemberDetailModal member={member} activities={[]} onClose={onClose} />);
 
     await user.click(screen.getByRole('button', { name: '닫기' }));
     expect(onClose).toHaveBeenCalled();

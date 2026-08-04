@@ -10,6 +10,7 @@ const project: ProjectSummary = {
   representativeImageUrl: 'https://example.com/project.png',
   cohort: 14,
   techStack: ['Next.js', 'Spring'],
+  createdAt: '2026-08-01T00:00:00Z',
 };
 
 describe('ProjectCard', () => {

@@ -10,6 +10,7 @@ const post: PostSummary = {
   summary: '프로젝트의 시행착오와 해결 과정을 기록했습니다.',
   thumbnailUrl: 'https://example.com/post.png',
   authorName: '김우진',
+  authorMemberId: 1,
   authorPart: ['BACKEND'],
   authorEmoji: '🦁',
   authorPhotoUrl: null,

@@ -19,6 +19,7 @@ public class PostDetailResponse {
     private String content;
     private String thumbnailUrl;
     private String authorName;
+    private Long authorMemberId;
     private List<String> authorPart;
     private String authorEmoji;
     private String authorPhotoUrl;
@@ -33,7 +34,8 @@ public class PostDetailResponse {
         return new PostDetailResponse(
                 post.getId(), post.getSlug(), post.getTitle(),
                 post.getSummary(), post.getContent(), post.getThumbnailUrl(),
-                post.getAuthorName(), post.getAuthorPart(),
+                post.getAuthorName(), showProfile ? post.getAuthorMemberId() : null,
+                post.getAuthorPart(),
                 showProfile ? author.getEmoji() : null,
                 showProfile ? author.getPhotoUrl() : null,
                 post.getStatus(),

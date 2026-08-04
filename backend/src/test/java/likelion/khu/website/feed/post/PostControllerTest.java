@@ -62,6 +62,7 @@ class PostControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"))
                 .andExpect(jsonPath("$.authorName").value("시현"))
+                .andExpect(jsonPath("$.authorMemberId").value(member.getId()))
                 .andExpect(jsonPath("$.authorPart[0]").value("BACKEND"))
                 .andExpect(jsonPath("$.authorEmoji").value("🦁"))
                 .andExpect(jsonPath("$.authorPhotoUrl").value("https://example.com/sihyeon.png"))
@@ -183,7 +184,18 @@ class PostControllerTest {
 
         mockMvc.perform(get("/api/posts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].authorMemberId").value(member.getId()));
+    }
+
+    @Test
+    void listPosts_NonConsentingAuthor_DoesNotExposeProfileLinkId() throws Exception {
+        postService.createPost(anotherMember.getId(), sampleRequest());
+
+        mockMvc.perform(get("/api/posts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].authorName").value("선우"))
+                .andExpect(jsonPath("$.content[0].authorMemberId").doesNotExist());
     }
 
     @Test
