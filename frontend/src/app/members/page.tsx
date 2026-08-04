@@ -1,34 +1,42 @@
 import type { Metadata } from 'next';
 import type { Member } from '@shared/types/member';
-import type { ProjectSummary } from '@shared/types/project';
+import type { PostSummary } from '@shared/types/feed';
 import BackLink from '@/components/BackLink';
 import MemberRoster from '@/components/members/MemberRoster';
 import { getMembers, getStaff } from '@/lib/rosterApi';
 import { getProjects, getProjectById } from '@/lib/projectApi';
+import { getPosts } from '@/lib/feedApi';
+import {
+  groupMemberActivities,
+  type ProjectWithDetail,
+} from '@/lib/memberActivity';
 import { mergeRoster } from '@/lib/roster';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
 
-// 멤버 상세 모달에서 "이 멤버가 참여한 프로젝트"를 보여주려면 memberId→프로젝트 매핑이 필요하다.
-// 공개 API엔 그 매핑을 바로 주는 엔드포인트가 없어, 목록(GET /api/projects)과 각 상세
-// (participants 포함)를 서버에서 한 번 집계해 만든다. 참여자 memberId는 양수 멤버 id에만
-// 매칭되고, staff-only 로스터 항목은 음수 id라 자연히 프로젝트가 없다.
-async function buildProjectsByMember(
-  baseUrl: string,
-): Promise<Record<number, ProjectSummary[]>> {
+const POST_PAGE_SIZE = 100;
+
+// 프로젝트 목록엔 참여자가 없으므로 상세를 함께 불러와 멤버별 활동에 연결한다.
+// 20명 안팎인 현재 규모에서는 별도 활동 API를 추가하는 것보다 기존 공개 계약을 조합하는 편이 단순하다.
+async function getProjectsWithDetails(baseUrl: string): Promise<ProjectWithDetail[]> {
   const summaries = await getProjects(baseUrl);
   const details = await Promise.all(summaries.map((project) => getProjectById(project.id, baseUrl)));
-  const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
+  return details.flatMap((detail, index) => (
+    detail ? [{ summary: summaries[index], detail }] : []
+  ));
+}
 
-  const byMember: Record<number, ProjectSummary[]> = {};
-  for (const detail of details) {
-    if (!detail) continue;
-    const summary = summaryById.get(detail.id);
-    if (!summary) continue;
-    for (const participant of detail.participants) {
-      (byMember[participant.memberId] ??= []).push(summary);
-    }
-  }
-  return byMember;
+// 기본 공개 목록은 10개 단위지만 멤버 활동에는 공개 글 전체가 필요하다.
+// 먼저 한 페이지를 받고 남은 페이지는 병렬로 읽어 월 2건 규모에서도 요청 수를 제한한다.
+async function getAllPublishedPosts(baseUrl: string): Promise<PostSummary[]> {
+  const first = await getPosts(0, baseUrl, POST_PAGE_SIZE);
+  if (first.totalPages <= 1) return first.content;
+
+  const rest = await Promise.all(
+    Array.from({ length: first.totalPages - 1 }, (_, index) => (
+      getPosts(index + 1, baseUrl, POST_PAGE_SIZE)
+    )),
+  );
+  return [first, ...rest].flatMap((page) => page.content);
 }
 
 export const metadata: Metadata = {
@@ -50,15 +58,15 @@ export default async function MembersPage() {
     failed = true;
   }
 
-  // 프로젝트 집계는 멤버 목록과 독립적으로 처리한다 — 프로젝트가 실패해도 멤버 그리드는 그대로 보이고,
-  // 모달에서만 "프로젝트 정보를 불러오지 못했어요"로 안내한다.
-  let projectsByMember: Record<number, ProjectSummary[]> = {};
-  let projectsUnavailable = false;
-  try {
-    projectsByMember = await buildProjectsByMember(baseUrl);
-  } catch {
-    projectsUnavailable = true;
-  }
+  // 두 활동 소스는 서로 독립적으로 읽는다. 한쪽이 실패해도 다른 쪽 활동과 멤버 그리드는 유지한다.
+  const [projectsResult, postsResult] = await Promise.allSettled([
+    getProjectsWithDetails(baseUrl),
+    getAllPublishedPosts(baseUrl),
+  ]);
+  const projectActivities = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
+  const postActivities = postsResult.status === 'fulfilled' ? postsResult.value : [];
+  const activitiesIncomplete = projectsResult.status === 'rejected' || postsResult.status === 'rejected';
+  const activitiesByMember = groupMemberActivities(postActivities, projectActivities);
 
   return (
     <main className="mx-auto min-h-[calc(100svh-64px)] w-full max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">
@@ -113,8 +121,8 @@ export default async function MembersPage() {
         ) : (
           <MemberRoster
             members={members}
-            projectsByMember={projectsByMember}
-            projectsUnavailable={projectsUnavailable}
+            activitiesByMember={activitiesByMember}
+            activitiesIncomplete={activitiesIncomplete}
           />
         )}
       </section>

@@ -11,6 +11,7 @@ function projects(count: number): ProjectSummary[] {
     representativeImageUrl: `/project-${index + 1}.png`,
     cohort: 14,
     techStack: [],
+    createdAt: '2026-08-01T00:00:00Z',
   }));
 }
 

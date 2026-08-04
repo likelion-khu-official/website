@@ -4,6 +4,7 @@ import likelion.khu.website.project.Project;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Getter
@@ -15,6 +16,7 @@ public class MemberProjectSummaryResponse {
     private String representativeImageUrl;
     private Integer cohort;
     private Set<String> techStack;
+    private LocalDateTime createdAt;
     private boolean hidden;
 
     public static MemberProjectSummaryResponse from(Project project, String representativeImageUrl) {
@@ -25,6 +27,7 @@ public class MemberProjectSummaryResponse {
                 representativeImageUrl,
                 project.getCohort(),
                 project.getTechStack(),
+                project.getCreatedAt(),
                 project.isHidden()
         );
     }

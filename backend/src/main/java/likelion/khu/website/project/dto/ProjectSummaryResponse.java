@@ -4,6 +4,7 @@ import likelion.khu.website.project.Project;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Getter
@@ -15,11 +16,13 @@ public class ProjectSummaryResponse {
     private String representativeImageUrl;
     private Integer cohort;
     private Set<String> techStack;
+    private LocalDateTime createdAt;
 
     // representativeImageUrl은 자식 테이블(ProjectImage)에서 오는 값이라 엔티티만으론 못 만들고 서비스가 조립해 넘긴다.
     public static ProjectSummaryResponse from(Project project, String representativeImageUrl) {
         return new ProjectSummaryResponse(
                 project.getId(), project.getTitle(), project.getSummary(),
-                representativeImageUrl, project.getCohort(), project.getTechStack());
+                representativeImageUrl, project.getCohort(), project.getTechStack(),
+                project.getCreatedAt());
     }
 }

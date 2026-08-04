@@ -12,7 +12,8 @@ import {
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Member } from '@shared/types/member';
-import type { ProjectSummary } from '@shared/types/project';
+import type { MemberActivity } from '@/lib/memberActivity';
+import { formatDate } from '@/lib/formatDate';
 import { ROLE_LABELS } from '@/lib/roster';
 
 type Accent = readonly [string, string]; // [배경색, 글자색] — 멤버 카드 색 쌍
@@ -21,9 +22,9 @@ type Props = {
   member: Member | null;
   // 선택한 멤버 카드의 색 쌍. 아바타 링·세션 배지·상단 글로우에 악센트로만 쓴다.
   accent?: Accent;
-  projects: ProjectSummary[];
-  // 프로젝트 정보를 아예 못 불러온 경우(빈 목록과 구분해 다른 문구를 보여준다).
-  projectsUnavailable?: boolean;
+  activities: MemberActivity[];
+  // 블로그·프로젝트 중 일부를 못 불러오면 완전한 빈 상태와 구분해 안내한다.
+  activitiesIncomplete?: boolean;
   onClose: () => void;
 };
 
@@ -41,28 +42,70 @@ function getReducedMotion() {
   return window.matchMedia(reducedMotionQuery).matches;
 }
 
+function ActivityVisual({ activity }: { activity: MemberActivity }) {
+  const [imgError, setImgError] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const kindLabel = activity.kind === 'BLOG' ? 'BLOG' : 'PROJECT';
+
+  // 하이드레이션 전에 이미지 요청이 실패해 onError가 유실된 경우까지 보정한다.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth === 0) setImgError(true);
+  }, [activity.imageUrl]);
+
+  return (
+    <div className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-black/30">
+      {activity.imageUrl && !imgError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          ref={imgRef}
+          src={activity.imageUrl}
+          alt={`${activity.title} 대표 이미지`}
+          className={`h-full w-full ${activity.kind === 'PROJECT' ? 'object-contain' : 'object-cover'} transition duration-300 group-hover:scale-[1.015] group-hover:opacity-90`}
+          draggable={false}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="flex h-full w-full flex-col justify-between bg-[radial-gradient(circle_at_75%_20%,rgba(255,80,0,0.22),transparent_38%),linear-gradient(145deg,#252525,#171717)] p-4">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            LIKELION KHU
+          </span>
+          <span className="text-4xl font-semibold tracking-[-0.06em] text-white/10" aria-hidden>
+            {kindLabel}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
 
 export default function MemberDetailModal({
   member,
   accent,
-  projects,
-  projectsUnavailable = false,
+  activities,
+  activitiesIncomplete = false,
   onClose,
 }: Props) {
   const open = member !== null;
   const [prevOpen, setPrevOpen] = useState(open);
   const [shown, setShown] = useState(false); // 진입 애니메이션(scale/opacity) 토글
   const [closing, setClosing] = useState(false); // 닫힘 애니메이션 동안 마운트 유지
-  // 닫히는 동안에도 내용을 그려야 하므로 마지막 선택 멤버·색을 붙잡아 둔다.
+  // 닫히는 동안에도 내용을 그려야 하므로 마지막 선택 멤버·색·활동을 붙잡아 둔다.
   const [activeMember, setActiveMember] = useState<Member | null>(member);
   const [activeAccent, setActiveAccent] = useState<Accent>(accent ?? FALLBACK_ACCENT);
+  const [activeActivities, setActiveActivities] = useState(activities);
+  const [activeActivitiesIncomplete, setActiveActivitiesIncomplete] = useState(
+    activitiesIncomplete,
+  );
   const [index, setIndex] = useState(0);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const lastTriggerRef = useRef<Element | null>(null);
   const pointerStart = useRef<number | null>(null);
+  const swiped = useRef(false);
   const headingId = useId();
 
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, () => false);
@@ -76,6 +119,8 @@ export default function MemberDetailModal({
     if (open) {
       setActiveMember(member);
       setActiveAccent(accent ?? FALLBACK_ACCENT);
+      setActiveActivities(activities);
+      setActiveActivitiesIncomplete(activitiesIncomplete);
       setIndex(0);
     }
   }
@@ -127,15 +172,17 @@ export default function MemberDetailModal({
 
   const move = useCallback(
     (direction: -1 | 1) => {
-      setIndex((current) => (current + direction + projects.length) % projects.length);
+      setIndex((current) => (
+        (current + direction + activeActivities.length) % activeActivities.length
+      ));
     },
-    [projects.length],
+    [activeActivities.length],
   );
 
-  // Tab이 다이얼로그 밖으로 나가지 않게 가둔다(배경 포커스 차단). 좌우 화살표로 프로젝트 이동.
+  // Tab이 다이얼로그 밖으로 나가지 않게 가둔다(배경 포커스 차단). 좌우 화살표로 활동 이동.
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowLeft' && projects.length > 1) move(-1);
-    if (event.key === 'ArrowRight' && projects.length > 1) move(1);
+    if (event.key === 'ArrowLeft' && activeActivities.length > 1) move(-1);
+    if (event.key === 'ArrowRight' && activeActivities.length > 1) move(1);
     if (event.key !== 'Tab') return;
 
     const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
@@ -154,11 +201,15 @@ export default function MemberDetailModal({
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     pointerStart.current = event.clientX;
+    swiped.current = false;
   }
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    if (pointerStart.current !== null && projects.length > 1) {
+    if (pointerStart.current !== null && activeActivities.length > 1) {
       const distance = event.clientX - pointerStart.current;
-      if (Math.abs(distance) > 48) move(distance > 0 ? -1 : 1);
+      if (Math.abs(distance) > 48) {
+        swiped.current = true;
+        move(distance > 0 ? -1 : 1);
+      }
     }
     pointerStart.current = null;
   }
@@ -167,7 +218,7 @@ export default function MemberDetailModal({
 
   const [accentBg, accentFg] = activeAccent;
   const roleLabels = activeMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
-  const activeProject = projects[index];
+  const activeActivity = activeActivities[index];
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
@@ -249,90 +300,109 @@ export default function MemberDetailModal({
             )}
           </div>
 
-          {/* 오른쪽 — 참여 프로젝트 */}
-          <section aria-label="참여 프로젝트" className="min-w-0 flex-1">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white/80">참여 프로젝트</h3>
-              {projects.length > 1 && (
-                <span className="text-xs tabular-nums text-muted" aria-hidden>
-                  {index + 1} / {projects.length}
-                </span>
-              )}
+          {/* 오른쪽 — 공개 블로그 글과 참여 프로젝트를 한 흐름으로 보여주는 활동 캐러셀 */}
+          <section aria-label="활동" className="min-w-0 flex-1">
+            <div className="mb-3 flex min-h-11 items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-white/85">활동</h3>
+                <p className="mt-0.5 text-xs text-white/40">블로그와 참여 프로젝트</p>
+              </div>
+              {activeActivities.length > 1 ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => move(-1)}
+                    aria-label="이전 활동"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-lg text-white/70 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    ←
+                  </button>
+                  <span
+                    className="min-w-10 text-center text-xs tabular-nums text-muted"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    {index + 1} / {activeActivities.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => move(1)}
+                    aria-label="다음 활동"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-lg text-white/70 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    →
+                  </button>
+                </div>
+              ) : null}
             </div>
 
-            {projectsUnavailable ? (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-10 text-center text-sm text-muted">
-                프로젝트 정보를 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.
-              </p>
-            ) : projects.length === 0 ? (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-10 text-center text-sm text-muted">
-                아직 등록된 프로젝트가 없어요.
+            {activeActivities.length === 0 ? (
+              <p
+                className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-12 text-center text-sm text-muted"
+                role={activeActivitiesIncomplete ? 'alert' : undefined}
+              >
+                {activeActivitiesIncomplete
+                  ? '활동 정보를 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
+                  : '아직 공개된 활동이 없어요.'}
               </p>
             ) : (
-              <div
-                className="relative"
-                onPointerDown={handlePointerDown}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={() => {
-                  pointerStart.current = null;
-                }}
-              >
-                <div aria-live="polite" aria-atomic="true">
-                  <Link
-                    href={`/projects/${activeProject.id}`}
-                    className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    <div className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden bg-black/30">
-                      {activeProject.representativeImageUrl ? (
-                        // 잘라내지 않고 원본 비율 그대로(object-contain).
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={activeProject.id}
-                          src={activeProject.representativeImageUrl}
-                          alt={`${activeProject.title} 대표 이미지`}
-                          className="h-full w-full object-contain"
-                          draggable={false}
-                        />
-                      ) : (
-                        <span className="text-5xl font-semibold text-white/10">
-                          {String(activeProject.cohort).padStart(2, '0')}
+              <div>
+                <div
+                  className="relative touch-pan-y"
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={() => {
+                    pointerStart.current = null;
+                    swiped.current = false;
+                  }}
+                >
+                  <div aria-live="polite" aria-atomic="true">
+                    <Link
+                      href={activeActivity.href}
+                      aria-label={`${activeActivity.title} 자세히 보기`}
+                      onClick={(event) => {
+                        // 스와이프가 카드 클릭으로 이어져 의도치 않게 상세로 이동하지 않게 한다.
+                        if (swiped.current) {
+                          event.preventDefault();
+                          swiped.current = false;
+                        }
+                      }}
+                      className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] outline-none transition-colors hover:border-white/20 focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <ActivityVisual key={activeActivity.id} activity={activeActivity} />
+                      <div className="p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/65">
+                            {activeActivity.kind === 'BLOG' ? '블로그 글' : '프로젝트'}
+                          </span>
+                          <time
+                            dateTime={activeActivity.occurredAt}
+                            className="text-xs tabular-nums text-white/35"
+                          >
+                            {formatDate(activeActivity.occurredAt)}
+                          </time>
+                        </div>
+                        <h4 className="mt-3 line-clamp-2 break-keep text-lg font-semibold tracking-[-0.03em] text-foreground transition-colors group-hover:text-accent">
+                          {activeActivity.title}
+                        </h4>
+                        {activeActivity.summary ? (
+                          <p className="mt-1.5 line-clamp-2 break-keep text-sm leading-5 text-white/50">
+                            {activeActivity.summary}
+                          </p>
+                        ) : null}
+                        <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-white/55 transition-colors group-hover:text-white">
+                          {activeActivity.kind === 'BLOG' ? '글 읽기' : '프로젝트 보기'}
+                          <span aria-hidden>→</span>
                         </span>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-muted">
-                        {activeProject.cohort}기
-                      </span>
-                      <p className="mt-2 font-semibold tracking-[-0.02em] text-foreground">
-                        {activeProject.title}
-                      </p>
-                      <p className="mt-1 line-clamp-2 break-keep text-sm leading-5 text-white/55">
-                        {activeProject.summary}
-                      </p>
-                    </div>
-                  </Link>
-                </div>
-
-                {projects.length > 1 && (
-                  <div className="mt-4 flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => move(-1)}
-                      aria-label="이전 프로젝트"
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => move(1)}
-                      aria-label="다음 프로젝트"
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      →
-                    </button>
+                      </div>
+                    </Link>
                   </div>
-                )}
+                </div>
+                {activeActivitiesIncomplete ? (
+                  <p className="mt-3 text-center text-xs text-white/40" role="status">
+                    일부 활동을 불러오지 못했어요. 보이는 활동은 계속 둘러볼 수 있어요.
+                  </p>
+                ) : null}
               </div>
             )}
           </section>

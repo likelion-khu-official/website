@@ -17,6 +17,7 @@ function post(id: number): PostSummary {
     summary: `기록 ${id}의 요약`,
     thumbnailUrl: `/story-${id}.png`,
     authorName: '아기사자',
+    authorMemberId: id,
     authorPart: ['FRONTEND'],
     authorEmoji: '🦁',
     authorPhotoUrl: null,
