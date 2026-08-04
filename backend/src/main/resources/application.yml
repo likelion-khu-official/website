@@ -89,9 +89,13 @@ admin:
     admin-password: ${ADMIN_E2E_ADMIN_PASSWORD:E2eAdmin!2026}
 
 app:
-  # 초대·재설정 메일 링크의 베이스 URL — 어드민(admin.likelion-khu.com) 전용. 일반 사용자 대상
+  # 초대·재설정 메일 링크의 베이스 URL — 어드민(/admin/* 경로) 전용. 일반 사용자 대상
   # 메일(모집 안내 등)엔 절대 재사용하지 말 것 — public-site-url을 쓸 것(#124 리뷰에서 혼용 발견).
-  frontend-base-url: ${FRONTEND_BASE_URL:https://admin.likelion-khu.com}
+  # admin.likelion-khu.com은 실제로 존재하는 도메인이 아니다(별도 서브도메인 없음, 프론트는 단일
+  # Next 앱이고 어드민은 그 안의 /admin 경로일 뿐 — infra/docs/dns.md 기준). 이 기본값이 옛 설계를
+  # 그대로 남기고 있어 stage/prod .env에 오버라이드가 없으면 초대·재설정 메일 링크가 존재하지 않는
+  # 도메인(게다가 경로까지 /admin/admin/...으로 중복)을 가리키던 버그를 여기서 고친다.
+  frontend-base-url: ${FRONTEND_BASE_URL:https://likelion-khu.com}
   # 일반 사용자(구독자 등)에게 보내는 메일의 베이스 URL — 공개 사이트. stage=dev.likelion-khu.com,
   # prod=likelion-khu.com(이 기본값)이라 stage 배포 .env.stage엔 PUBLIC_SITE_URL을 반드시 오버라이드해야 함.
   public-site-url: ${PUBLIC_SITE_URL:https://likelion-khu.com}
