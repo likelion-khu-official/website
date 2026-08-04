@@ -2,7 +2,7 @@ import type { Member, MemberRole } from '@shared/types/member';
 import type { Staff } from '@shared/types/staff';
 
 // 멤버 카드 배경·글자 색 쌍 [background, foreground]. 그리드 순서(colorIndex)로 순환한다.
-// 카드와 상세 모달이 같은 색 정체성을 쓰도록 단일 출처로 둔다(모달은 이 색을 악센트로만 사용).
+// 카드와 상세 모달이 같은 색 정체성을 쓰도록 단일 출처로 둔다.
 export const CARD_COLORS: readonly (readonly [string, string])[] = [
   ['#f47f83', '#111111'], ['#4b268d', '#ffffff'], ['#58f34f', '#111111'], ['#ff2424', '#111111'],
   ['#050505', '#ffffff'], ['#f7f7f3', '#111111'], ['#fff431', '#111111'], ['#c9ff8a', '#111111'],

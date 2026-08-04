@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Member } from '@shared/types/member';
 import type { MemberActivity } from '@/lib/memberActivity';
@@ -61,8 +61,28 @@ describe('MemberDetailModal', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByRole('heading', { name: '김멋사' })).toBeInTheDocument();
     expect(screen.getByText('프론트엔드 · 디자인')).toBeInTheDocument();
-    expect(screen.getByText('14기')).toBeInTheDocument();
+    expect(screen.getByText('멋쟁이사자처럼 14기')).toBeInTheDocument();
     expect(screen.getByText(member.joinReason!)).toBeInTheDocument();
+  });
+
+  it('선택한 카드 색을 확장한 반응형 패널 안에 밝은 활동 카드와 이동 버튼을 둔다', () => {
+    render(
+      <MemberDetailModal
+        member={member}
+        accent={['#4b268d', '#ffffff']}
+        activities={activities}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveStyle({ backgroundColor: '#4b268d', color: '#ffffff' });
+    expect(dialog).toHaveClass('rounded-t-[36px]', 'sm:max-w-[1180px]', 'sm:rounded-[56px]');
+
+    const activityCard = screen.getByRole('region', { name: '활동' });
+    expect(activityCard).toHaveClass('bg-[#eeeeea]');
+    expect(within(activityCard).getByRole('button', { name: '이전 활동' })).toBeInTheDocument();
+    expect(within(activityCard).getByRole('button', { name: '다음 활동' })).toBeInTheDocument();
   });
 
   it('공개 활동이 없으면 빈 상태를 보여준다', () => {
@@ -91,7 +111,7 @@ describe('MemberDetailModal', () => {
       'href',
       '/blog/recent-post',
     );
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByText('01 / 02')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '다음 활동' }));
     expect(screen.getByText('참여 프로젝트')).toBeInTheDocument();
@@ -99,7 +119,7 @@ describe('MemberDetailModal', () => {
       'href',
       '/projects/2',
     );
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    expect(screen.getByText('02 / 02')).toBeInTheDocument();
 
     // 끝에서 다음 → 처음으로 순환
     await user.click(screen.getByRole('button', { name: '다음 활동' }));
