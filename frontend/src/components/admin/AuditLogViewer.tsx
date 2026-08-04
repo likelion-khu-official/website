@@ -163,8 +163,11 @@ function describe(entry: AuditLogEntry): string {
 }
 
 function formatKst(iso: string): string {
+  // 백엔드 JVM 기본 타임존이 UTC라(TZ 설정 없음) 타임존 없는 문자열은 KST가 아니라 UTC 벽시계 값이다
+  // (2026-08-04 실측 — 어드민 메일 만료시각이 9시간 이르게 찍히는 버그와 같은 원인). "+09:00"으로
+  // 잘못 파싱하면 실제 KST보다 9시간 늦게 표시된다 — UTC로 파싱한 뒤 아래 Intl 변환이 KST로 맞춘다.
   const hasZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(iso);
-  const date = new Date(hasZone ? iso : `${iso}+09:00`);
+  const date = new Date(hasZone ? iso : `${iso}Z`);
   if (Number.isNaN(date.getTime())) return iso;
   const parts = new Intl.DateTimeFormat('ko-KR', {
     timeZone: 'Asia/Seoul',
