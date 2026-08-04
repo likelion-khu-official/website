@@ -10,6 +10,7 @@ import {
   AdminApiError,
 } from '@/lib/adminApi';
 import type {
+  ApplicationDataClass,
   ApplicationQuestion,
   ApplicationQuestionType,
   ApplicationTrack,
@@ -27,12 +28,20 @@ const TYPE_OPTIONS: { value: ApplicationQuestionType; label: string }[] = [
 
 const TRACK_OPTIONS: ApplicationTrack[] = ['FE', 'BE', 'DESIGN', 'AI'];
 
+// 데이터 처리 분류(PM 결정) — 파기·노출 정책의 근거. 자세한 정의는 shared/types/application.ts.
+const DATA_CLASS_OPTIONS: { value: ApplicationDataClass; label: string }[] = [
+  { value: 'A', label: 'A · 모집 후 파기' },
+  { value: 'B', label: 'B · 홈페이지 노출' },
+  { value: 'C', label: 'C · 비노출 보관' },
+];
+
 function newQuestion(): ApplicationQuestion {
   return {
     id: 'q_' + Math.random().toString(36).slice(2, 8),
     label: '',
     type: 'short_text',
     required: true,
+    dataClass: 'A',
   };
 }
 
@@ -225,6 +234,26 @@ export default function ApplicationFormEditor() {
                     className="h-4 w-4 accent-white"
                   />
                   필수
+                </label>
+
+                {/* 데이터 분류(A/B/C) — 파기·노출 정책 근거. 기본 A(모집 후 파기) */}
+                <label className="flex items-center gap-1.5 text-sm text-muted">
+                  분류
+                  <select
+                    value={q.dataClass ?? 'A'}
+                    onChange={(e) =>
+                      patchQuestion(index, {
+                        dataClass: e.target.value as ApplicationDataClass,
+                      })
+                    }
+                    className={controlClass}
+                  >
+                    {DATA_CLASS_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 {/* 세션별 조건부 노출 — track 질문 자체는 분기 기준이라 대상에서 제외 */}
