@@ -23,6 +23,8 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.exceptions.TemplateProcessingException;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 @Slf4j
@@ -31,6 +33,12 @@ import java.time.format.DateTimeFormatter;
 public class EmailService {
 
     private static final DateTimeFormatter DISPLAY_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
+    // JVM 기본 타임존이 UTC(서버·컨테이너에 TZ 설정 없음)라 LocalDateTime.now()로 만든 expiresAt은
+    // UTC 벽시계 값이다. 이걸 그냥 포맷하면 "06:40까지 유효"처럼 실제 KST보다 9시간 이른 값이 메일에
+    // 찍힌다(2026-08-04 실측 — admin.likelion-khu.com 링크 수정 작업 중 발견) — 표시 직전에만 KST로
+    // 변환하고, 저장값 자체(감사로그 등 다른 소비자가 UTC를 전제)는 건드리지 않는다.
+    private static final ZoneId SERVER_ZONE = ZoneOffset.UTC;
+    private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
     // stage·prod가 발신주소·DKIM을 공유해 실제 수신자가 테스트/실사용을 헷갈릴 수 있어 stage 발송에만 붙임 (infra 요청, #75)
     private static final String STAGE_SUBJECT_PREFIX = "[stage] ";
 
@@ -62,15 +70,19 @@ public class EmailService {
     public void sendInviteEmail(String to, String inviteUrl, LocalDateTime expiresAt) {
         Context context = new Context();
         context.setVariable("inviteUrl", inviteUrl);
-        context.setVariable("expiresAt", DISPLAY_FORMAT.format(expiresAt));
+        context.setVariable("expiresAt", formatForDisplay(expiresAt));
         send(to, EmailType.INVITE, context);
     }
 
     public void sendPasswordResetEmail(String to, String resetUrl, LocalDateTime expiresAt) {
         Context context = new Context();
         context.setVariable("resetUrl", resetUrl);
-        context.setVariable("expiresAt", DISPLAY_FORMAT.format(expiresAt));
+        context.setVariable("expiresAt", formatForDisplay(expiresAt));
         send(to, EmailType.PASSWORD_RESET, context);
+    }
+
+    private String formatForDisplay(LocalDateTime expiresAt) {
+        return DISPLAY_FORMAT.format(expiresAt.atZone(SERVER_ZONE).withZoneSameInstant(DISPLAY_ZONE));
     }
 
     // #124(모집 관리) — 만료 없는 공지 메일이라 expiresAt 없음. siteUrl은 모집 섹션과

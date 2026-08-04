@@ -61,7 +61,8 @@ class EmailServiceIntegrationTest extends MailpitContainerSupport {
         JsonNode detail = fetchMessageDetail(received.get("ID").asText());
         assertThat(detail.get("HTML").asText())
                 .contains(inviteUrl)
-                .contains("2026.07.10 12:00");
+                // expiresAt은 UTC 벽시계 값으로 넘긴다 — 렌더링 시 KST(+9h)로 변환되어 찍혀야 한다.
+                .contains("2026.07.10 21:00");
 
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
@@ -93,7 +94,8 @@ class EmailServiceIntegrationTest extends MailpitContainerSupport {
         JsonNode detail = fetchMessageDetail(received.get("ID").asText());
         assertThat(detail.get("HTML").asText())
                 .contains(resetUrl)
-                .contains("2026.07.11 09:30");
+                // expiresAt은 UTC 벽시계 값으로 넘긴다 — 렌더링 시 KST(+9h)로 변환되어 찍혀야 한다.
+                .contains("2026.07.11 18:30");
 
         List<EmailLog> logs = emailLogRepository.findAll();
         assertThat(logs).hasSize(1);
