@@ -248,6 +248,21 @@ ssh likelion-oci 'cd ~/website/infra && docker compose up -d <바뀐 서비스>'
 
 **DB 접근 계정 발급**: `infra/.claude/skills/db-access/` 스킬 호출 또는 `db-access.md` "온보딩" 절 그대로 — 공개키를 받아 서버에서 직접 등록(자동화하지 않은 이유는 그 문서에 있음).
 
+**관리자 계정 추가 — 어드민 시드(`ADMIN_SEED_ADMINS`, 2026-08-04 정리)**: prod/stage에 새 관리자를 등록하는 정식 경로는 `admins` 테이블에 직접 `INSERT`하는 게 아니라, 서버의 `infra/.env.{stage,prod}`(gitignore)에 있는 `ADMIN_SEED_ADMINS` 환경변수에 추가하고 `backend-<stage|prod>` 컨테이너를 재기동하는 것이다 — 백엔드 `AdminSeedRunner`(앱 기동 시 1회 실행)가 이 값을 읽어서 계정을 만든다.
+
+```bash
+# 형식: "이메일:이름,이메일2:이름2" — 콤마로 여러 명, 이메일은 절대 레포(*.example 포함)에 커밋하지 않는다.
+ssh likelion-oci
+cd ~/website/infra
+cp .env.prod .env.prod.bak.$(date +%Y%m%d%H%M%S)   # 되돌릴 수 있게 항상 백업 먼저
+vi .env.prod   # ADMIN_SEED_ADMINS=기존값,새이메일:이름  형태로 이어붙이기(기존 값 지우지 말 것)
+docker compose up -d --force-recreate backend-prod   # stage는 backend-stage
+```
+
+- **멱등이다** — `existsByEmail`로 이미 있는 이메일은 건너뛴다. 그래서 컨테이너가 재기동될 때마다(예: 다른 이유로 재배포) 중복 생성되거나 메일이 또 나가지 않는다. **역으로, 코드 버그(예: 메일 링크 도메인 오류)를 고친 뒤 재배포해도 이미 시드된 이메일에는 새 메일이 자동으로 다시 안 나간다** — 이미 계정이 존재하기 때문. 이럴 땐 시드를 다시 트리거하는 게 아니라, 아래 "비밀번호 재설정 메일 재발송"으로 새로 트리거해야 한다.
+- **초기 비밀번호는 아무도 모르는 무작위 값**(`UUID.randomUUID()×2`, 폐기용)이다. `Admin` 엔티티엔 전화번호 등 유추 가능한 필드 자체가 없다 — 즉 초기 비밀번호를 추측해서 로그인할 방법이 없다. 시드 직후 자동으로 비밀번호 재설정 메일이 발송되고, 그 메일 링크로 본인이 직접 비밀번호를 설정해야만 로그인 가능하다.
+- **비밀번호 재설정 메일 재발송**(이미 시드된 계정에 새 메일을 보내야 할 때 — 최초 메일을 못 받았거나, 위처럼 코드 수정 후 다시 보내야 할 때): 어드민 로그인 화면의 "비밀번호를 잊으셨나요" 흐름과 동일한 공개 엔드포인트(`AdminPasswordController`, 이메일 존재 여부와 무관하게 항상 같은 응답을 주는 #90 스펙)를 호출하면 된다 — 상세 요청 형식은 프론트 `adminApi.ts`/백엔드 컨트롤러가 정본. 발송 성공 여부는 `db-access` 스킬로 `email_log`(최근 발송 이력) 최신 행을 조회해 확인한다.
+
 **QA·FE 버그 리포트에 딸려온 `X-Request-Id`로 정확한 로그 줄 찾기**(website #404): QA·FE가 이상한 응답을 발견해 브라우저 개발자도구(Network 탭)에서 복사한 `X-Request-Id` 값을 리포트에 같이 남기면, 시간대로 짐작할 필요 없이 그 값으로 바로 찾는다. 상세 배경·한계(401/403엔 아직 매칭할 로그가 없음 등)는 `logging.md` "버그 리포트에 활용하기" 절 참고.
 
 ```bash
