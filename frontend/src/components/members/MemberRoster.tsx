@@ -22,7 +22,7 @@ export default function MemberRoster({ members, projectsByMember, projectsUnavai
 
   return (
     <>
-      <div className="grid grid-cols-2 justify-center gap-x-3 gap-y-8 sm:grid-cols-[repeat(auto-fit,minmax(144px,156px))] sm:gap-x-[38px] sm:gap-y-[38px]">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-[38px] sm:gap-y-[38px] md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {members.map((member, index) => (
           <MemberCard
             key={member.id}
