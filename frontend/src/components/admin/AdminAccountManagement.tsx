@@ -41,10 +41,15 @@ function isUnauthenticated(error: unknown) {
 }
 
 function formatExpiresAt(value: string) {
+  // 백엔드 JVM 기본 타임존이 UTC라(TZ 설정 없음) 타임존 없는 문자열은 KST가 아니라 UTC 벽시계 값이다
+  // (AuditLogViewer의 formatKst()와 동일한 이유 — "+09:00"으로 잘못 파싱하면 실제보다 9시간 늦게 표시된다).
+  const hasZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+  const date = new Date(hasZone ? value : `${value}Z`);
   return new Intl.DateTimeFormat('ko-KR', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value));
+    timeZone: 'Asia/Seoul',
+  }).format(date);
 }
 
 export default function AdminAccountManagement() {
