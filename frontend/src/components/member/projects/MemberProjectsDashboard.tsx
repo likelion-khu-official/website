@@ -86,7 +86,7 @@ export default function MemberProjectsDashboard() {
       <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-            Member workspace
+            Projects
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
             내 프로젝트

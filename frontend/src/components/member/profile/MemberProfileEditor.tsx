@@ -51,7 +51,7 @@ export default function MemberProfileEditor() {
       <MemberProjectHeader memberName={account?.name} />
       <div className="border-b border-white/10 pb-10">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-          Member profile
+          Profile
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
           프로필 편집
