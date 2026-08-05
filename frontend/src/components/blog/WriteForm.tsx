@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { PostCreateRequest, PostReplaceRequest, PostStatus } from '@shared/types/feed';
@@ -12,7 +12,6 @@ import {
   replacePost,
   uploadMemberImage,
 } from '@/lib/memberApi';
-import ImageUploader from './ImageUploader';
 import MarkdownContent, { markdownIncludesImage } from './MarkdownContent';
 
 type SessionState = 'checking' | 'ready' | 'error';
@@ -73,6 +72,18 @@ function markdownImageAlt(filename: string) {
   return filename.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '').trim() || '본문 이미지';
 }
 
+// 본문 마크다운에 들어간 이미지 URL을 등장 순서대로(중복 제거) 뽑는다. 업로드 중 자리표시자
+// (`uploading:...`)는 대표 이미지 후보에서 제외한다.
+function extractContentImages(content: string): string[] {
+  const urls: string[] = [];
+  for (const match of content.matchAll(/!\[[^\]]*]\(\s*([^)\s]+)/g)) {
+    const url = match[1];
+    if (url.startsWith('uploading:')) continue;
+    if (!urls.includes(url)) urls.push(url);
+  }
+  return urls;
+}
+
 export default function WriteForm({ postId }: Props) {
   const router = useRouter();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -91,7 +102,6 @@ export default function WriteForm({ postId }: Props) {
   const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [bodyUploading, setBodyUploading] = useState(false);
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit');
   const [publishOpen, setPublishOpen] = useState(false);
@@ -298,7 +308,7 @@ export default function WriteForm({ postId }: Props) {
   }
 
   async function handleSubmit() {
-    if (submitting || thumbnailUploading || bodyUploading) return;
+    if (submitting || bodyUploading) return;
     if (!title.trim() || !content.trim()) {
       setSubmitError('제목과 본문을 모두 입력해 주세요.');
       setPublishOpen(false);
@@ -340,6 +350,9 @@ export default function WriteForm({ postId }: Props) {
       setSubmitting(false);
     }
   }
+
+  // 대표 이미지 후보 = 본문에 들어간 이미지들. early return 앞에 둬야 훅 순서가 안정적이다.
+  const contentImages = useMemo(() => extractContentImages(content), [content]);
 
   if (sessionState === 'checking') {
     return (
@@ -497,7 +510,7 @@ export default function WriteForm({ postId }: Props) {
             <button
               type="button"
               onClick={() => setPublishOpen(true)}
-              disabled={!canPublish || submitting || thumbnailUploading || bodyUploading}
+              disabled={!canPublish || submitting || bodyUploading}
               className="min-h-11 rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white outline-none transition-colors hover:bg-[#ff6a26] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40"
             >
               {editing ? '수정하기' : '출간하기'}
@@ -537,10 +550,9 @@ export default function WriteForm({ postId }: Props) {
           hiddenNotice={editing && postStatus === 'HIDDEN'}
           summary={summary}
           onSummaryChange={setSummary}
+          contentImages={contentImages}
           thumbnailUrl={thumbnailUrl}
           onThumbnailChange={setThumbnailUrl}
-          onThumbnailUploadingChange={setThumbnailUploading}
-          thumbnailUploading={thumbnailUploading}
           submitting={submitting}
           submitError={submitError}
           onCancel={() => setPublishOpen(false)}
@@ -632,10 +644,9 @@ function PublishModal({
   hiddenNotice,
   summary,
   onSummaryChange,
+  contentImages,
   thumbnailUrl,
   onThumbnailChange,
-  onThumbnailUploadingChange,
-  thumbnailUploading,
   submitting,
   submitError,
   onCancel,
@@ -645,15 +656,19 @@ function PublishModal({
   hiddenNotice: boolean;
   summary: string;
   onSummaryChange: (value: string) => void;
+  contentImages: string[];
   thumbnailUrl: string | null;
   onThumbnailChange: (url: string | null) => void;
-  onThumbnailUploadingChange: (uploading: boolean) => void;
-  thumbnailUploading: boolean;
   submitting: boolean;
   submitError: string;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
+  // 후보 = 본문 이미지들. 수정 중인 글의 기존 대표 이미지가 본문에 없더라도 현재 선택으로 보이게 앞에 붙인다.
+  const thumbnailCandidates =
+    thumbnailUrl && !contentImages.includes(thumbnailUrl)
+      ? [thumbnailUrl, ...contentImages]
+      : contentImages;
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onCancel();
@@ -679,11 +694,43 @@ function PublishModal({
         </h2>
 
         <div className="mt-5">
-          <ImageUploader
-            value={thumbnailUrl}
-            onChange={onThumbnailChange}
-            onUploadingChange={onThumbnailUploadingChange}
-          />
+          <p className="mb-1 text-sm font-medium text-white">
+            대표 이미지 <span className="font-normal text-white/35">(선택)</span>
+          </p>
+          <p className="mb-3 text-xs leading-5 text-white/40">
+            본문에 넣은 이미지 중 하나를 목록·미리보기의 대표 이미지로 골라요.
+          </p>
+          {thumbnailCandidates.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-xs leading-5 text-white/40">
+              본문에 이미지를 넣으면 그중 하나를 대표 이미지로 고를 수 있어요.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {thumbnailCandidates.map((url) => {
+                const selected = url === thumbnailUrl;
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => onThumbnailChange(selected ? null : url)}
+                    aria-pressed={selected}
+                    aria-label={selected ? '대표 이미지 선택 해제' : '대표 이미지로 선택'}
+                    className={`relative aspect-[16/10] overflow-hidden rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-accent ${
+                      selected ? 'border-accent ring-2 ring-accent' : 'border-white/10 hover:border-white/30'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    {selected ? (
+                      <span className="absolute right-1 top-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        대표
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="mt-5">
@@ -728,18 +775,16 @@ function PublishModal({
           <button
             type="button"
             onClick={onSubmit}
-            disabled={submitting || thumbnailUploading}
+            disabled={submitting}
             className="min-h-11 rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white outline-none transition-colors hover:bg-[#ff6a26] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting
               ? editing
                 ? '저장 중…'
                 : '출간 중…'
-              : thumbnailUploading
-                ? '이미지 업로드 중…'
-                : editing
-                  ? '수정 저장'
-                  : '출간하기'}
+              : editing
+                ? '수정 저장'
+                : '출간하기'}
           </button>
         </div>
       </div>
