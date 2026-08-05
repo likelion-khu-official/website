@@ -21,6 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class FeedImageControllerTest {
 
+    private static final byte[] PNG_BYTES = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00};
+
     @Autowired
     MockMvc mockMvc;
 
@@ -30,8 +32,9 @@ class FeedImageControllerTest {
     @Test
     @WithMockAdminUser(role = "MEMBER")
     void upload_ValidImage_Returns200WithUrl() throws Exception {
-        when(storageService.upload(any(), anyString())).thenReturn("https://cdn.example.com/feed/images/abc.png");
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+        when(storageService.upload(any(byte[].class), anyString(), anyString(), anyString()))
+                .thenReturn("https://cdn.example.com/feed/images/abc.png");
+        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", PNG_BYTES);
 
         mockMvc.perform(multipart("/api/feed/images").file(file))
                 .andExpect(status().isOk())
@@ -40,8 +43,9 @@ class FeedImageControllerTest {
 
     @Test
     @WithMockAdminUser(role = "MEMBER")
-    void upload_DisallowedContentType_Returns400() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "notice.pdf", "application/pdf", "data".getBytes());
+    void upload_NonImageBytes_Returns400() throws Exception {
+        // 파일 바이트가 이미지가 아니면 Content-Type 헤더와 무관하게 거부
+        MockMultipartFile file = new MockMultipartFile("file", "evil.php", "image/png", "<?php ?>".getBytes());
 
         mockMvc.perform(multipart("/api/feed/images").file(file))
                 .andExpect(status().isBadRequest())
@@ -61,7 +65,7 @@ class FeedImageControllerTest {
 
     @Test
     void upload_Unauthenticated_Returns401() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", PNG_BYTES);
 
         mockMvc.perform(multipart("/api/feed/images").file(file))
                 .andExpect(status().isUnauthorized());

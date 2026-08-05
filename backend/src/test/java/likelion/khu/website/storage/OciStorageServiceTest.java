@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -35,10 +34,10 @@ class OciStorageServiceTest {
     }
 
     @Test
-    void upload_NormalPrefix_ReturnsUrlUnderPrefix() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+    void upload_NormalPrefix_ReturnsUrlUnderPrefix() {
+        byte[] content = "data".getBytes();
 
-        String url = ociStorageService.upload(file, "feed/images");
+        String url = ociStorageService.upload(content, "feed/images", "image/png", ".png");
 
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(ociStorageClient).putObject(requestCaptor.capture(), any(RequestBody.class));
@@ -53,10 +52,10 @@ class OciStorageServiceTest {
     }
 
     @Test
-    void upload_PrefixWithLeadingAndTrailingSlashes_NormalizesToSingleSlash() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+    void upload_PrefixWithLeadingAndTrailingSlashes_NormalizesToSingleSlash() {
+        byte[] content = "data".getBytes();
 
-        ociStorageService.upload(file, "/feed/images/");
+        ociStorageService.upload(content, "/feed/images/", "image/png", ".png");
 
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(ociStorageClient).putObject(requestCaptor.capture(), any(RequestBody.class));
@@ -67,10 +66,10 @@ class OciStorageServiceTest {
     }
 
     @Test
-    void upload_BlankPrefix_DoesNotProduceLeadingSlash() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+    void upload_BlankPrefix_DoesNotProduceLeadingSlash() {
+        byte[] content = "data".getBytes();
 
-        ociStorageService.upload(file, "");
+        ociStorageService.upload(content, "", "image/jpeg", ".jpg");
 
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(ociStorageClient).putObject(requestCaptor.capture(), any(RequestBody.class));
@@ -80,10 +79,10 @@ class OciStorageServiceTest {
     }
 
     @Test
-    void upload_NullPrefix_DoesNotProduceLeadingSlash() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "data".getBytes());
+    void upload_NullPrefix_DoesNotProduceLeadingSlash() {
+        byte[] content = "data".getBytes();
 
-        ociStorageService.upload(file, null);
+        ociStorageService.upload(content, null, "image/jpeg", ".jpg");
 
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(ociStorageClient).putObject(requestCaptor.capture(), any(RequestBody.class));

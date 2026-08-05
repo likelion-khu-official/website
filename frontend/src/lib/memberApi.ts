@@ -6,7 +6,7 @@ import type {
   MemberChangePasswordResponse,
   MemberMeResponse,
 } from '@shared/types/member-auth';
-import type { Member } from '@shared/types/member';
+import type { Member, MemberProfileReplaceRequest } from '@shared/types/member';
 import type {
   MemberProjectSummary,
   ProjectCreateRequest,
@@ -234,6 +234,24 @@ export function getAllMembers() {
     '/api/members',
     { method: 'GET' },
     '멤버 목록을 불러오지 못했어요.',
+    false
+  );
+}
+
+export function getMyProfile() {
+  return request<Member>(
+    '/api/members/me',
+    { method: 'GET' },
+    '내 프로필을 불러오지 못했어요.',
+    false
+  );
+}
+
+export function updateMyProfile(body: MemberProfileReplaceRequest) {
+  return request<Member>(
+    '/api/members/me',
+    { method: 'PUT', body: JSON.stringify(body) },
+    '프로필 저장에 실패했어요.',
     false
   );
 }

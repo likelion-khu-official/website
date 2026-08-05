@@ -139,6 +139,17 @@ public class Member {
         this.updatedAt = LocalDateTime.now();
     }
 
+    // 본인 프로필 셀프 편집(#285) — 사진·입부계기만. admin용 update()와 달리 null이 "값 유지"가 아니라
+    // "지운다"는 뜻이다(PostReplaceRequest/ProjectReplaceRequest와 같은 명시적 null-clear 관례) — 이름·역할·
+    // 기수·이모지 같은 관리자 소유 필드는 이 메서드가 아예 건드리지 않아 컨트롤러가 요청 DTO에 그 필드를
+    // 안 둬도 보호된다.
+    public void updateProfile(String photoUrl, String joinReason, String updatedBy) {
+        this.photoUrl = photoUrl;
+        this.joinReason = joinReason;
+        this.updatedBy = updatedBy;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public boolean isLocked() {
         return lockedUntil != null && LocalDateTime.now().isBefore(lockedUntil);
     }

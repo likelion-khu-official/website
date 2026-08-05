@@ -8,6 +8,7 @@ import likelion.khu.website.member.dto.MemberAdminResponse;
 import likelion.khu.website.member.dto.MemberBulkCreateRequest;
 import likelion.khu.website.member.dto.MemberBulkCreateResponse;
 import likelion.khu.website.member.dto.MemberCreateRequest;
+import likelion.khu.website.member.dto.MemberProfileReplaceRequest;
 import likelion.khu.website.member.dto.MemberResponse;
 import likelion.khu.website.member.dto.MemberUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,24 @@ public class MemberController {
     @GetMapping("/api/members")
     public List<MemberResponse> list() {
         return memberService.getAll();
+    }
+
+    /** 로그인한 본인의 프로필 — 사진·입부계기 편집 화면의 현재값 프리필용(#285) */
+    @PreAuthorize("hasRole('MEMBER')")
+    @GetMapping("/api/members/me")
+    public MemberResponse me(Authentication authentication) {
+        AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
+        return memberService.getSelf(principal.getId());
+    }
+
+    /** 본인 프로필 전체 교체 — 사진·입부계기만. null로 지울 수 있다(#285) */
+    @PreAuthorize("hasRole('MEMBER')")
+    @PutMapping("/api/members/me")
+    public MemberResponse updateMe(
+            @Valid @RequestBody MemberProfileReplaceRequest request,
+            Authentication authentication) {
+        AdminPrincipal principal = (AdminPrincipal) authentication.getPrincipal();
+        return memberService.updateSelfProfile(principal.getId(), request);
     }
 
     // 관리자 화면 전용 목록 — 공개 목록과 달리 studentId·오프보딩 상태를 포함한다(#145).

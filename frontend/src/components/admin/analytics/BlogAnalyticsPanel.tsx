@@ -11,9 +11,12 @@ import type {
 
 function formatPublishedAt(value: string | null) {
   if (!value) return '게시일 없음';
+  // timeZone: 'Asia/Seoul'만으로는 부족하다 — 백엔드가 타임존 없이 보내는 값은 UTC 벽시계 값이라
+  // new Date(value)가 브라우저 로컬로 잘못 해석한 뒤에는 뒤의 timeZone 옵션이 그 오류를 못 바로잡는다.
+  const hasZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Seoul',
-  }).format(new Date(value));
+  }).format(new Date(hasZone ? value : `${value}Z`));
 }
 
 export default function BlogAnalyticsPanel({
