@@ -60,10 +60,8 @@ export default function MemberProfileForm({ profile }: Props) {
   }
 
   function handleCancel() {
-    setPhotoUrl(savedProfile.photoUrl);
-    setJoinReason(savedProfile.joinReason ?? '');
-    setError('');
-    setSaved(false);
+    // 취소 = 편집을 접고 이전 화면(멤버 대시보드)으로 돌아간다. 폼 값만 되돌리는 게 아니다.
+    router.back();
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -190,7 +188,7 @@ export default function MemberProfileForm({ profile }: Props) {
         <button
           type="button"
           onClick={handleCancel}
-          disabled={submitting || !dirty}
+          disabled={submitting}
           className="min-h-11 rounded-full border border-white/15 px-6 text-sm text-white/65 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
         >
           취소
