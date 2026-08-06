@@ -63,8 +63,13 @@ resolve_actor() {
         echo "unknown(ExposeAuthInfo 미설정 또는 세션정보 없음)"
         return
     fi
+    # SSH_USER_AUTH 파일의 한 줄은 "publickey <알고리즘> <SHA256:지문>" 3필드다(OpenSSH
+    # ExposeAuthInfo, 2026-08-06 실측 확인 — 처음엔 $2를 지문으로 잘못 읽어서 감사로그에
+    # actor가 계속 "unknown(등록되지 않은 키, fp=ssh-ed25519)"로 찍히는 버그가 있었다,
+    # $2는 알고리즘 이름이었을 뿐 지문이 아니었음). 필드 순서에 기대지 않고 SHA256:로
+    # 시작하는 필드를 찾는 방식이 알고리즘 이름 길이가 달라져도 안전하다.
     local used_fp
-    used_fp="$(awk '$1=="publickey"{print $2; exit}' "$SSH_USER_AUTH")"
+    used_fp="$(awk '$1=="publickey"{for(i=2;i<=NF;i++) if ($i ~ /^SHA256:/) {print $i; exit}}' "$SSH_USER_AUTH")"
     if [ -z "$used_fp" ]; then
         echo "unknown(publickey 인증정보 없음)"
         return
