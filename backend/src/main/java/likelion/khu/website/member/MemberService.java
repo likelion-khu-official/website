@@ -168,13 +168,26 @@ public class MemberService {
                 request.getPublicationConsent(), request.getPublicationConsentedAt()
         );
         // 초기 비밀번호 = 전화번호(BCrypt 해시). 첫 로그인 때 반드시 바꾸게 되므로 평문 그대로 저장하지 않는다.
+        // 하이픈 유무로 같은 번호가 다르게 취급되지 않도록(등록 화면에 "010-1234-5678"/"01012345678"이
+        // 섞여 들어올 수 있음) 저장·해시 양쪽에 쓰는 값을 여기서 한 번만 정규화한다 — phone 컬럼과
+        // password_hash가 항상 같은 정규화된 값에서 나오므로, 이후 관리자 비밀번호 초기화
+        // (MemberAuthService#resetPasswordByAdmin)도 member.getPhone()을 그대로 재사용하기만 하면
+        // 자동으로 정규화된 값을 쓰게 된다 — 정규화 로직을 여러 곳에 중복시킬 필요가 없다.
+        String normalizedPhone = normalizePhone(request.getPhone());
         Member member = Member.create(
                 request.getName(), request.getRoles(), request.getCohort(),
                 emoji, request.getPhotoUrl(), request.getJoinReason(), request.getDepartment(),
                 publicationConsent, consentedAt, createdBy,
-                request.getStudentId(), request.getPhone(), passwordEncoder.encode(request.getPhone())
+                request.getStudentId(), normalizedPhone, passwordEncoder.encode(normalizedPhone)
         );
         return member;
+    }
+
+    // 하이픈만 제거 — 국내 휴대폰 번호 표기(010-1234-5678 등)에서 자릿수·숫자 자체는 그대로 두고
+    // 구분자만 없앤다. 공백 등 다른 문자까지 넓게 벗겨내면 오입력을 조용히 삼켜버릴 수 있어 범위를
+    // 하이픈으로 좁혔다.
+    private String normalizePhone(String phone) {
+        return phone == null ? null : phone.replace("-", "");
     }
 
     @Transactional

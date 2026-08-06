@@ -66,6 +66,19 @@ class MemberServiceTest {
         assertThat(passwordEncoder.matches("01000000001", saved.getPasswordHash())).isTrue();
     }
 
+    @Test
+    void create_HyphenatedPhone_NormalizesStoredPhoneAndPasswordBothHyphenFree() {
+        MemberCreateRequest request = sampleRequest();
+        request.setStudentId("2020000099");
+        request.setPhone("010-1234-5678");
+
+        memberService.create(request, "admin@likelion.org");
+
+        Member saved = memberRepository.findAllByStudentId("2020000099").get(0);
+        assertThat(saved.getPhone()).isEqualTo("01012345678");
+        assertThat(passwordEncoder.matches("01012345678", saved.getPasswordHash())).isTrue();
+    }
+
     // 학번 중복 시 409는 MemberControllerTest.createMember_DuplicateStudentId_Returns409가
     // 실제 HTTP 상태코드까지 더 강하게 검증한다 — 여기선 중복 검증하지 않는다.
 

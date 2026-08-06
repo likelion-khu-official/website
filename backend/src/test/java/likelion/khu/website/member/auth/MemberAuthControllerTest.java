@@ -85,10 +85,10 @@ class MemberAuthControllerTest {
     }
 
     @Test
-    void login_FifthFailedAttempt_LocksAccount() throws Exception {
+    void login_TenthFailedAttempt_LocksAccount() throws Exception {
         createMember("2020000003", "01000000003");
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 9; i++) {
             mockMvc.perform(post("/api/member/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"studentId\":\"2020000003\",\"password\":\"wrong\"}"));

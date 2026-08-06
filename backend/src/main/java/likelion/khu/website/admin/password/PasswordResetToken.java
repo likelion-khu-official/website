@@ -23,8 +23,10 @@ public class PasswordResetToken {
     @Column(columnDefinition = "integer")
     private Long id;
 
+    // 원문 토큰이 아니라 SHA-256 해시만 저장 — dbclient로 DB를 SELECT해도 살아있는 재설정 토큰을
+    // 그대로 못 읽게 하기 위함. RefreshToken과 동일 패턴.
     @Column(nullable = false, unique = true)
-    private String token;
+    private String tokenHash;
 
     @Column(nullable = false, columnDefinition = "bigint")
     private Long adminId;
@@ -38,10 +40,10 @@ public class PasswordResetToken {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    public static PasswordResetToken issue(Long adminId, String token, Duration ttl) {
+    public static PasswordResetToken issue(Long adminId, String tokenHash, Duration ttl) {
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.adminId = adminId;
-        resetToken.token = token;
+        resetToken.tokenHash = tokenHash;
         resetToken.used = false;
         resetToken.expiresAt = LocalDateTime.now().plus(ttl);
         resetToken.createdAt = LocalDateTime.now();

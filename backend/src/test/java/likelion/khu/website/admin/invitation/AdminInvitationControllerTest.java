@@ -40,6 +40,18 @@ class AdminInvitationControllerTest {
     @MockitoBean
     EmailService emailService;
 
+    // AdminInvitationService#hash()와 동일한 알고리즘 — 서비스가 URL의 원문 토큰을 해시해서
+    // 찾는 것과 같은 값으로 DB에 시드해야 한다.
+    private String hash(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(bytes);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Test
     @WithMockAdminUser(email = "super@khu.ac.kr", role = "ADMIN")
     void invite_ValidKhuEmail_Returns201AndSendsInviteEmail() throws Exception {
@@ -81,7 +93,7 @@ class AdminInvitationControllerTest {
     @WithMockAdminUser(role = "ADMIN")
     void list_ReturnsInvitations() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-a", Duration.ofHours(72)));
+                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", hash("token-a"), Duration.ofHours(72)));
 
         mockMvc.perform(get("/api/admin/invitations"))
                 .andExpect(status().isOk())
@@ -92,7 +104,7 @@ class AdminInvitationControllerTest {
     @WithMockAdminUser(role = "ADMIN")
     void cancel_PendingInvitation_Succeeds() throws Exception {
         AdminInvitation invitation = invitationRepository.save(
-                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-b", Duration.ofHours(72)));
+                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", hash("token-b"), Duration.ofHours(72)));
 
         mockMvc.perform(delete("/api/admin/invitations/{id}", invitation.getId()))
                 .andExpect(status().isOk())
@@ -109,7 +121,7 @@ class AdminInvitationControllerTest {
     @Test
     void verify_PendingToken_ReturnsEmail() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-c", Duration.ofHours(72)));
+                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", hash("token-c"), Duration.ofHours(72)));
 
         mockMvc.perform(get("/api/admin/invitations/{token}/verify", "token-c"))
                 .andExpect(status().isOk())
@@ -119,7 +131,7 @@ class AdminInvitationControllerTest {
     @Test
     void verify_ExpiredToken_Returns410() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", "token-d", Duration.ofMillis(-1)));
+                AdminInvitation.issue("a@khu.ac.kr", "super@khu.ac.kr", hash("token-d"), Duration.ofMillis(-1)));
 
         mockMvc.perform(get("/api/admin/invitations/{token}/verify", "token-d"))
                 .andExpect(status().isGone())
@@ -136,7 +148,7 @@ class AdminInvitationControllerTest {
     @Test
     void accept_ValidToken_CreatesAdminAndAllowsLogin() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("new@khu.ac.kr", "super@khu.ac.kr", "token-e", Duration.ofHours(72)));
+                AdminInvitation.issue("new@khu.ac.kr", "super@khu.ac.kr", hash("token-e"), Duration.ofHours(72)));
 
         mockMvc.perform(post("/api/admin/invitations/{token}/accept", "token-e")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -153,7 +165,7 @@ class AdminInvitationControllerTest {
     @Test
     void accept_WeakPassword_Returns400() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("new2@khu.ac.kr", "super@khu.ac.kr", "token-f", Duration.ofHours(72)));
+                AdminInvitation.issue("new2@khu.ac.kr", "super@khu.ac.kr", hash("token-f"), Duration.ofHours(72)));
 
         mockMvc.perform(post("/api/admin/invitations/{token}/accept", "token-f")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -165,7 +177,7 @@ class AdminInvitationControllerTest {
     @Test
     void accept_AlreadyAcceptedToken_Returns400() throws Exception {
         invitationRepository.save(
-                AdminInvitation.issue("new3@khu.ac.kr", "super@khu.ac.kr", "token-g", Duration.ofHours(72)));
+                AdminInvitation.issue("new3@khu.ac.kr", "super@khu.ac.kr", hash("token-g"), Duration.ofHours(72)));
         mockMvc.perform(post("/api/admin/invitations/{token}/accept", "token-g")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"새운영진\",\"password\":\"password1\"}"));

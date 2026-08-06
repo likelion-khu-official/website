@@ -75,7 +75,7 @@ jwt:
 # === 어드민 인증(#90) ===
 admin:
   lockout:
-    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:5}
+    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:10}
     duration-minutes: ${ADMIN_LOCKOUT_DURATION_MINUTES:15}
   # 포맷: "email:name,email2:name2" — 실제 이메일은 여기(커밋되는 파일)에 절대 넣지 않고
   # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상).
