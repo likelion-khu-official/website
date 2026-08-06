@@ -38,7 +38,7 @@ function severityOf(record: DeployRecord): Severity {
   return OUTCOME_SEVERITY[record.outcome];
 }
 
-type StageStatus = 'ok' | 'fail' | 'skip' | 'dim' | 'unknown';
+type StageStatus = 'ok' | 'fail' | 'skip' | 'unknown';
 
 interface Stage {
   label: string;
@@ -89,7 +89,15 @@ function deriveStages(record: DeployRecord): Stage[] {
     case 'manual_intervention_needed':
       return [
         { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'ok', note: '삭제·변경형 포함 — 자동 롤백 생략' },
+        {
+          label: '마이그레이션 점검',
+          status: 'ok',
+          // destructive=true(실제 삭제·변경형 발견)와 destructive=unknown(workflow_dispatch라
+          // 판단 자체가 불가능 — cd.yml 마이그레이션 위험도 판단 참고)이 둘 다 이 job으로
+          // 온다. migrations 배열은 후자일 땐 비어 있으므로("판단 불가" 분기가 added_migrations_json을
+          // "[]"로 남김), 실제로 위험 파일을 찾았다고 단정하지 않는다.
+          note: destructive ? '삭제·변경형 마이그레이션 포함 — 자동 롤백 생략' : '위험도 판단 불가(수동 배포 등) — 자동 롤백 생략',
+        },
         { label: '빌드', status: 'ok' },
         { label: '배포·검증', status: 'fail' },
         { label: '수동 개입 필요', status: 'fail' },
@@ -99,7 +107,10 @@ function deriveStages(record: DeployRecord): Stage[] {
       return [
         { label: '설정', status: 'ok' },
         { label: '마이그레이션 점검', status: 'fail', note: '이미 적용된 파일이 삭제·수정됨' },
-        { label: '빌드', status: 'dim', note: '됐지만 배포엔 안 쓰임' },
+        // deploy job은 migration-check와 build 둘 다에 독립적으로 의존한다(needs: [config,
+        // migration-check, build]) — migration-check가 막혀도 build는 병렬로 계속 진행되고
+        // 그 성공/실패 여부는 이 기록에 안 남는다. 성공했다고 단정하지 않는다.
+        { label: '빌드', status: 'unknown', note: '독립적으로 병렬 진행 — 이 기록만으론 성공 여부 알 수 없음' },
         { label: '배포·검증', status: 'skip' },
         { label: '사후처리', status: 'skip' },
         { label: '기록', status: 'ok' },
@@ -187,13 +198,19 @@ const STAGE_DOT: Record<StageStatus, string> = {
   ok: 'bg-emerald-400',
   fail: 'bg-red-400',
   skip: 'bg-white/15',
-  dim: 'bg-emerald-400/30',
   unknown: 'bg-amber-300/60',
+};
+
+const STAGE_STATUS_LABEL: Record<StageStatus, string> = {
+  ok: '성공',
+  fail: '실패',
+  skip: '건너뜀',
+  unknown: '판정 불가',
 };
 
 function StageStrip({ stages }: { stages: Stage[] }) {
   return (
-    <div className="flex items-center gap-[3px]" role="img" aria-label={`파이프라인: ${stages.map((stage) => `${stage.label} ${stage.status === 'ok' ? '성공' : stage.status === 'fail' ? '실패' : stage.status === 'skip' ? '건너뜀' : stage.status === 'dim' ? '성공(미사용)' : '판정 불가'}`).join(' → ')}`}>
+    <div className="flex items-center gap-[3px]" role="img" aria-label={`파이프라인: ${stages.map((stage) => `${stage.label} ${STAGE_STATUS_LABEL[stage.status]}`).join(' → ')}`}>
       {stages.map((stage, index) => (
         <div key={`${stage.label}-${index}`} className="group relative flex items-center">
           {index > 0 ? <span className="mr-[3px] h-px w-2 bg-white/12" /> : null}

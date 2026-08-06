@@ -67,12 +67,23 @@ describe('deriveStages — cd.yml의 job DAG를 outcome에서 되짚는다', () 
     expect(byLabel['기록']).toBe('ok'); // record-deploy-status는 always()라 항상 실행됨
   });
 
-  it('migration_check_blocked는 빌드가 성공해도(병렬 job) 배포엔 안 쓰인다 — deploy job이 migration-check에도 의존하므로', () => {
+  it('migration_check_blocked는 build job의 실제 성공 여부를 알 수 없다 — deploy가 migration-check·build 둘 다에 독립적으로 의존하므로 build가 성공했다고 단정하지 않는다', () => {
     const stages = deriveStages(record({ outcome: 'migration_check_blocked' }));
     const byLabel = Object.fromEntries(stages.map((s) => [s.label, s.status]));
     expect(byLabel['마이그레이션 점검']).toBe('fail');
-    expect(byLabel['빌드']).toBe('dim');
+    expect(byLabel['빌드']).toBe('unknown');
     expect(byLabel['배포·검증']).toBe('skip');
+  });
+
+  it('manual_intervention_needed는 destructive=unknown(수동 배포 등)일 때 실제로 위험 파일을 찾았다고 단정하지 않는다', () => {
+    const stages = deriveStages(record({ outcome: 'manual_intervention_needed', migrations: [] }));
+    const migrationCheck = stages.find((s) => s.label === '마이그레이션 점검');
+    expect(migrationCheck?.note).toContain('판단 불가');
+
+    const withDestructive = deriveStages(
+      record({ outcome: 'manual_intervention_needed', migrations: [{ file: 'V1__x.sql', type: 'destructive' }] })
+    );
+    expect(withDestructive.find((s) => s.label === '마이그레이션 점검')?.note).toContain('삭제·변경형 마이그레이션 포함');
   });
 
   it('rollback_failed는 배포·검증 실패 뒤 자동 롤백 자체도 실패한 것으로 표시한다', () => {
