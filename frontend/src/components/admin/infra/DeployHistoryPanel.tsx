@@ -42,7 +42,7 @@ export default function DeployHistoryPanel() {
           <p className="text-xs font-semibold tracking-[0.16em] text-muted">APP × DB TRACK</p>
           <h2 id="deploy-history-title" className="mt-2 text-lg font-semibold text-white">배포 이력 — 앱·DB 정합성</h2>
           <p className="mt-1 text-sm text-muted">
-            앱 트랙과 DB 트랙, 두 개의 가로 트랙이 같은 칸에 있으면 일치하는 거예요. 마이그레이션이 안 먹거나 배포가 실패하면 한쪽만 앞으로 가서 뒤처진 칸수가 그대로 보여요.
+            앱 트랙과 DB 트랙, 두 개의 가로 직선이 배포 시각별로 나란히 가요. 배포가 실패하거나 마이그레이션이 안 먹으면 그 구간만 빨간 점선으로 끊겨서 보여요.
           </p>
         </div>
         <div className="flex gap-2" role="group" aria-label="환경 선택">

@@ -2,20 +2,17 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import * as echarts from 'echarts/core';
-import { BarChart, ScatterChart } from 'echarts/charts';
-import { AriaComponent, GridComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
+import { LineChart, ScatterChart } from 'echarts/charts';
+import { AriaComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
 import type { EChartsCoreOption } from 'echarts/core';
 import type { DeployOutcome, DeployRecord } from '@shared/types/deploy-history';
 
-echarts.use([BarChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent, AriaComponent, SVGRenderer]);
+echarts.use([LineChart, ScatterChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, SVGRenderer]);
 
 const APP_TRACK_COLOR = '#ff6b2c';
 const DB_TRACK_COLOR = '#60a5fa';
-const OK_COLOR = '#34d399';
 const CRITICAL_COLOR = '#f87171';
-const WARNING_COLOR = '#fbbf24';
-const UNKNOWN_COLOR = '#9a9a9a';
 
 export const OUTCOME_LABELS: Record<DeployOutcome, string> = {
   confirmed: '정상 배포',
@@ -26,13 +23,6 @@ export const OUTCOME_LABELS: Record<DeployOutcome, string> = {
   build_failed: '빌드 실패',
   unknown: '알 수 없음',
 };
-
-function outcomeColor(outcome: DeployOutcome): string {
-  if (outcome === 'confirmed') return OK_COLOR;
-  if (outcome === 'migration_check_blocked') return WARNING_COLOR;
-  if (outcome === 'unknown') return UNKNOWN_COLOR;
-  return CRITICAL_COLOR;
-}
 
 /** 이 레포는 저장 시각을 UTC로 남기고 화면엔 항상 KST로 바꿔 보여준다(KST 표시 버그 재발 방지). */
 function shortKst(iso: string): string {
@@ -48,96 +38,80 @@ function shortKst(iso: string): string {
   return `${get('month')}/${get('day')} ${get('hour')}:${get('minute')}`;
 }
 
-interface TrackTick {
-  cell: number;
-  timestampLabel: string;
-  sha: string;
-  outcome: DeployOutcome;
+function toChronological(records: DeployRecord[]): DeployRecord[] {
+  // API는 최신 배포가 먼저 오므로, 실제 배포 순서(과거→최신)로 뒤집는다.
+  return records.slice().reverse();
 }
 
-interface TrackSummary {
-  latestExpected: number;
-  latestActual: number;
-  latestOutcome: DeployOutcome;
-  latestTimestampLabel: string;
-  latestSha: string;
-  gap: number;
-  laggingLane: '앱' | 'DB' | null;
-  appTicks: TrackTick[];
-  dbTicks: TrackTick[];
-}
+type NullableNum = number | null;
 
-/** 칸(cell) = 그 시점까지 누적된 마이그레이션 버전 수. 두 트랙이 같은 칸에 있으면 나란히, 아니면 뒤처진 칸수만큼 벌어진다. */
-function summarize(records: DeployRecord[]): TrackSummary {
-  // API는 최신 배포가 먼저 오므로, 트랙이 앞으로 나아간 순서(과거→최신)로 뒤집는다.
-  const chronological = records.slice().reverse();
-  const latest = chronological[chronological.length - 1];
-
-  const appTicks: TrackTick[] = [];
-  const dbTicks: TrackTick[] = [];
-  const seenApp = new Set<number>();
-  const seenDb = new Set<number>();
-  for (const record of chronological) {
-    const timestampLabel = shortKst(record.timestamp);
-    const sha = record.sha.slice(0, 7);
-    if (!seenApp.has(record.expectedMigrationCount)) {
-      seenApp.add(record.expectedMigrationCount);
-      appTicks.push({ cell: record.expectedMigrationCount, timestampLabel, sha, outcome: record.outcome });
-    }
-    if (!seenDb.has(record.actualMigrationCount)) {
-      seenDb.add(record.actualMigrationCount);
-      dbTicks.push({ cell: record.actualMigrationCount, timestampLabel, sha, outcome: record.outcome });
-    }
+/** i-1→i 구간 하나만 그리는 선 시리즈. 그 구간에 도착한 배포가 ok면 트랙 색 실선, 아니면 빨간 점선. */
+function buildSegments(chronological: DeployRecord[], y: number, ok: boolean[], color: string) {
+  const n = chronological.length;
+  const series = [];
+  for (let i = 1; i < n; i += 1) {
+    const data: NullableNum[] = new Array(n).fill(null);
+    data[i - 1] = y;
+    data[i] = y;
+    series.push({
+      name: `__segment-${y}-${i}`,
+      type: 'line' as const,
+      data,
+      symbol: 'none' as const,
+      connectNulls: false,
+      silent: true,
+      tooltip: { show: false },
+      lineStyle: ok[i]
+        ? { width: 2, color }
+        : { width: 2, color: CRITICAL_COLOR, type: 'dashed' as const },
+    });
   }
+  return series;
+}
 
-  const gap = latest.expectedMigrationCount - latest.actualMigrationCount;
-
+function buildMarkers(name: string, chronological: DeployRecord[], y: number, ok: boolean[], color: string) {
+  const n = chronological.length;
   return {
-    latestExpected: latest.expectedMigrationCount,
-    latestActual: latest.actualMigrationCount,
-    latestOutcome: latest.outcome,
-    latestTimestampLabel: shortKst(latest.timestamp),
-    latestSha: latest.sha.slice(0, 7),
-    gap,
-    laggingLane: gap > 0 ? 'DB' : gap < 0 ? '앱' : null,
-    appTicks,
-    dbTicks,
+    name,
+    type: 'scatter' as const,
+    data: chronological.map((_, index) => {
+      const isLast = index === n - 1;
+      return {
+        value: y,
+        symbolSize: isLast ? 16 : 9,
+        itemStyle: { color: ok[index] ? color : CRITICAL_COLOR },
+      };
+    }),
   };
 }
 
 export function buildDeployTrackOption(records: DeployRecord[], reduceMotion: boolean): EChartsCoreOption {
-  const summary = summarize(records);
-  const frontier = Math.max(summary.latestExpected, summary.latestActual);
-  const axisMax = Math.max(frontier + 1, 4);
+  const chronological = toChronological(records);
+  const n = chronological.length;
+  const labels = chronological.map((record) => shortKst(record.timestamp));
+  const latest = chronological[n - 1];
+  const latestInSync = latest.expectedMigrationCount === latest.actualMigrationCount;
+  const latestGap = Math.abs(latest.expectedMigrationCount - latest.actualMigrationCount);
 
-  const appColor = summary.latestOutcome !== 'confirmed' ? outcomeColor(summary.latestOutcome) : summary.laggingLane === '앱' ? CRITICAL_COLOR : APP_TRACK_COLOR;
-  const dbColor = summary.laggingLane === 'DB' ? CRITICAL_COLOR : DB_TRACK_COLOR;
-
-  const tickSeries = (name: string, ticks: TrackTick[], category: string) => ({
-    name,
-    type: 'scatter' as const,
-    data: ticks.map((tick) => [tick.cell, category]),
-    symbol: 'rect',
-    symbolSize: [3, 20],
-    itemStyle: { color: 'rgba(0,0,0,0.28)' },
-    silent: false,
-    tooltip: {
-      formatter: (params: { dataIndex: number }) => {
-        const tick = ticks[params.dataIndex];
-        return `${category} · ${tick.cell}칸<br/>${tick.timestampLabel} · ${tick.sha}<br/><span style="color:${outcomeColor(tick.outcome)}">${OUTCOME_LABELS[tick.outcome]}</span>`;
-      },
-    },
-  });
+  const appOk = chronological.map((record) => record.outcome === 'confirmed');
+  const dbOk = chronological.map((record) => record.expectedMigrationCount === record.actualMigrationCount);
 
   return {
     animation: !reduceMotion,
     animationDuration: reduceMotion ? 0 : 320,
     aria: {
       enabled: true,
-      description: `앱 트랙과 DB 트랙, 두 개의 나란한 가로 트랙. 앱은 ${summary.latestExpected}칸, DB는 ${summary.latestActual}칸까지 가 있습니다. ${summary.gap === 0 ? '두 트랙이 같은 칸에 있어 일치합니다.' : `${summary.laggingLane} 트랙이 ${Math.abs(summary.gap)}칸 뒤처져 있습니다.`}`,
+      description: `앱 트랙과 DB 트랙, 두 개의 나란한 가로 직선. 같은 배포는 같은 칸에 위치합니다. 배포가 실패하면 그 구간의 트랙만 빨간 점선으로 바뀝니다. ${latestInSync ? '지금은 두 트랙 모두 정상입니다.' : `지금 DB가 마이그레이션 ${latestGap}개만큼 뒤처져 있습니다.`}`,
       decal: { show: false },
     },
-    grid: { left: 56, right: 90, top: 16, bottom: 34, containLabel: false },
+    legend: {
+      data: ['앱', 'DB'],
+      top: 0,
+      textStyle: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
+      itemWidth: 14,
+      itemHeight: 10,
+    },
+    grid: { left: 32, right: 32, top: 56, bottom: 44 },
     tooltip: {
       trigger: 'item',
       confine: true,
@@ -146,66 +120,40 @@ export function buildDeployTrackOption(records: DeployRecord[], reduceMotion: bo
       borderWidth: 1,
       padding: [10, 12],
       textStyle: { color: '#f5f5f5', fontSize: 13 },
+      formatter: (rawParams: unknown) => {
+        const params = rawParams as { seriesName: string; dataIndex: number };
+        const record = chronological[params.dataIndex];
+        if (!record) return '';
+        const isApp = params.seriesName === '앱';
+        const line = isApp
+          ? `앱 커밋: ${record.sha.slice(0, 7)}`
+          : `DB 누적 마이그레이션: ${record.actualMigrationCount}개 (앱 기대: ${record.expectedMigrationCount}개)`;
+        const inSync = record.expectedMigrationCount === record.actualMigrationCount;
+        const syncLine = inSync
+          ? '<span style="color:#34d399">앱-DB 일치</span>'
+          : `<span style="color:${CRITICAL_COLOR}">DB가 마이그레이션 ${record.expectedMigrationCount - record.actualMigrationCount}개만큼 뒤처짐</span>`;
+        return [
+          `${shortKst(record.timestamp)}`,
+          line,
+          `<span style="color:${record.outcome === 'confirmed' ? '#34d399' : CRITICAL_COLOR}">${OUTCOME_LABELS[record.outcome]}</span>`,
+          syncLine,
+        ].join('<br/>');
+      },
     },
     xAxis: {
-      type: 'value',
-      min: 0,
-      max: axisMax,
-      minInterval: 1,
-      name: '누적 마이그레이션 칸수',
-      nameTextStyle: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: 'rgba(255,255,255,0.52)' },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-    },
-    yAxis: {
       type: 'category',
-      data: ['DB', '앱'],
-      axisLine: { show: false },
+      data: labels,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.16)' } },
       axisTick: { show: false },
-      axisLabel: { color: '#e5e5e5', fontSize: 13, fontWeight: 600 },
+      axisLabel: { color: 'rgba(255,255,255,0.52)', fontSize: 11, hideOverlap: true },
     },
+    yAxis: { type: 'value', min: -0.35, max: 1.35, show: false },
     series: [
-      {
-        name: '트랙',
-        type: 'bar',
-        barWidth: 26,
-        barCategoryGap: '55%',
-        data: [
-          {
-            value: summary.latestActual,
-            itemStyle: { color: dbColor, borderRadius: [0, 6, 6, 0] },
-            label: summary.laggingLane === 'DB'
-              ? { show: true, position: 'right', color: CRITICAL_COLOR, fontSize: 12, fontWeight: 600, formatter: () => `${Math.abs(summary.gap)}칸 뒤처짐` }
-              : { show: false },
-          },
-          {
-            value: summary.latestExpected,
-            itemStyle: { color: appColor, borderRadius: [0, 6, 6, 0] },
-            label: summary.laggingLane === '앱'
-              ? { show: true, position: 'right', color: CRITICAL_COLOR, fontSize: 12, fontWeight: 600, formatter: () => `${Math.abs(summary.gap)}칸 뒤처짐` }
-              : { show: false },
-          },
-        ],
-        tooltip: {
-          formatter: (params: { dataIndex: number }) => {
-            const isDb = params.dataIndex === 0;
-            const value = isDb ? summary.latestActual : summary.latestExpected;
-            const label = isDb ? 'DB (실제 반영)' : '앱 (기대 버전)';
-            return `${label}: ${value}칸<br/>${summary.latestTimestampLabel} · ${summary.latestSha}<br/><span style="color:${outcomeColor(summary.latestOutcome)}">${OUTCOME_LABELS[summary.latestOutcome]}</span>`;
-          },
-        },
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          label: { show: true, position: 'end', color: 'rgba(255,255,255,0.55)', fontSize: 11, formatter: '최신 버전' },
-          lineStyle: { type: 'dashed', color: 'rgba(255,255,255,0.35)', width: 1 },
-          data: [{ xAxis: frontier }],
-        },
-      },
-      tickSeries('앱 배포 이력', summary.appTicks, '앱'),
-      tickSeries('DB 배포 이력', summary.dbTicks, 'DB'),
+      ...buildSegments(chronological, 1, appOk, APP_TRACK_COLOR),
+      ...buildSegments(chronological, 0, dbOk, DB_TRACK_COLOR),
+      buildMarkers('앱', chronological, 1, appOk, APP_TRACK_COLOR),
+      buildMarkers('DB', chronological, 0, dbOk, DB_TRACK_COLOR),
     ],
   };
 }
@@ -236,37 +184,32 @@ export default function DeployHistoryTrackChart({ records }: { records: DeployRe
     };
   }, [records, reduceMotion]);
 
-  const summary = summarize(records);
+  const chronological = toChronological(records);
 
   return (
     <>
-      <div ref={containerRef} className="h-40 w-full" />
+      <div ref={containerRef} className="h-56 w-full" />
       <table className="sr-only">
-        <caption>앱이 기대하는 마이그레이션 칸수와 DB에 실제 반영된 칸수 비교</caption>
+        <caption>배포마다 앱 커밋과 DB 누적 마이그레이션 수 비교</caption>
         <thead>
           <tr>
-            <th>트랙</th>
-            <th>칸수</th>
-            <th>최근 배포 시각(KST)</th>
-            <th>커밋</th>
+            <th>시각(KST)</th>
+            <th>앱 커밋</th>
+            <th>DB 누적 마이그레이션 수</th>
             <th>결과</th>
+            <th>일치 여부</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>앱</td>
-            <td>{summary.latestExpected}</td>
-            <td>{summary.latestTimestampLabel}</td>
-            <td>{summary.latestSha}</td>
-            <td>{OUTCOME_LABELS[summary.latestOutcome]}</td>
-          </tr>
-          <tr>
-            <td>DB</td>
-            <td>{summary.latestActual}</td>
-            <td>{summary.latestTimestampLabel}</td>
-            <td>{summary.latestSha}</td>
-            <td>{OUTCOME_LABELS[summary.latestOutcome]}</td>
-          </tr>
+          {chronological.map((record) => (
+            <tr key={`${record.timestamp}-${record.sha}`}>
+              <td>{shortKst(record.timestamp)}</td>
+              <td>{record.sha.slice(0, 7)}</td>
+              <td>{record.actualMigrationCount}</td>
+              <td>{OUTCOME_LABELS[record.outcome]}</td>
+              <td>{record.expectedMigrationCount === record.actualMigrationCount ? '일치' : '불일치'}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </>
