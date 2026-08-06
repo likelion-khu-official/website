@@ -56,6 +56,8 @@ OCI_STORAGE_PUBLIC_URL=http://localhost:9000/dummy
 
 - 계정: `e2e-admin@likelion-khu.com` / `E2eAdmin!2026`
 
+> **깃가디언이 이 줄을 "Company Email Password"로 오탐할 수 있음 — 실제 위협 아님.** 이건 실제 메일함이 아니라 `E2eAdminSeedRunner`(`@Profile("e2e")`)가 심는 이 앱 자체의 admin 계정이고, `SPRING_PROFILES_ACTIVE=e2e`를 명시하지 않는 한 빈 자체가 안 생겨 stage/prod엔 존재하지 않는다(`E2eAdminSeedRunnerProfileGateTest`로 고정 검증됨, `.env.stage`/`.env.prod`엔 이 프로필 자체가 없음). 이 고정값은 코드 기본값(`E2eAdminSeedRunner`의 `@Value` 기본값)으로 이미 공개 저장돼 있던 값이라 여기 적었다고 새로 유출되는 것도 아니다 — 프로필 게이트가 보안 경계라 값 자체는 비밀일 필요가 없다. 경보가 뜨면 로테이션 대신 false positive로 dismiss.
+
 ## 3. 백엔드 기동
 
 ```
