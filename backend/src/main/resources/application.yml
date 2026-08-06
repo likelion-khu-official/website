@@ -111,6 +111,12 @@ app:
     # (.env.stage)만 true로 설정해 관리자 화면·안내 메일 발송을 미리 검증한다.
     application-form-ready: ${RECRUITMENT_APPLICATION_FORM_READY:false}
 
+  infra:
+    # CD(record-deploy-status job)가 배포마다 남기는 기록을 docker-compose.yml이 이 경로로
+    # 읽기 전용 마운트한다(#451 인프라 대시보드). 로컬 개발엔 이 디렉터리가 없어 빈 목록으로
+    # 처리됨(DeployHistoryService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
+    deploy-history-path: ${DEPLOY_HISTORY_PATH:/app/deploy-history}
+
 # === OCI Object Storage (S3 호환 API) ===
 oci-storage:
   endpoint: ${OCI_STORAGE_ENDPOINT}
