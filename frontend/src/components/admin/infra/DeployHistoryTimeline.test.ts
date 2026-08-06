@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveStages, findIncidents, inSync, severityOf, toChronological } from './DeployHistoryTimeline';
+import { actionGuidance, findIncidents, inSync, severityOf, toChronological } from './DeployHistoryTimeline';
 import type { DeployRecord } from '@shared/types/deploy-history';
 
 function record(overrides: Partial<DeployRecord>): DeployRecord {
@@ -52,45 +52,43 @@ describe('severityOf', () => {
   });
 });
 
-describe('deriveStages — cd.yml의 job DAG를 outcome에서 되짚는다', () => {
-  it('confirmed는 모든 단계가 ok', () => {
-    const stages = deriveStages(record({ outcome: 'confirmed' }));
-    expect(stages.every((stage) => stage.status === 'ok')).toBe(true);
+describe('actionGuidance — 과정이 아니라 "지금 뭘 해야 하는가" 한 문장', () => {
+  it('정상 배포 + DB 일치는 할 일이 없다', () => {
+    expect(actionGuidance(record({ outcome: 'confirmed' }))).toBeNull();
   });
 
-  it('build_failed는 빌드에서 실패하고 그 뒤(배포·검증, 사후처리)는 건너뛴다 — deploy job이 build에 의존하므로', () => {
-    const stages = deriveStages(record({ outcome: 'build_failed' }));
-    const byLabel = Object.fromEntries(stages.map((s) => [s.label, s.status]));
-    expect(byLabel['빌드']).toBe('fail');
-    expect(byLabel['배포·검증']).toBe('skip');
-    expect(byLabel['사후처리']).toBe('skip');
-    expect(byLabel['기록']).toBe('ok'); // record-deploy-status는 always()라 항상 실행됨
+  it('outcome이 confirmed여도 DB가 어긋나면 확인하라는 안내가 뜬다', () => {
+    const drifted = record({ outcome: 'confirmed', expectedMigrationCount: 30, actualMigrationCount: 29 });
+    expect(actionGuidance(drifted)).not.toBeNull();
   });
 
-  it('migration_check_blocked는 build job의 실제 성공 여부를 알 수 없다 — deploy가 migration-check·build 둘 다에 독립적으로 의존하므로 build가 성공했다고 단정하지 않는다', () => {
-    const stages = deriveStages(record({ outcome: 'migration_check_blocked' }));
-    const byLabel = Object.fromEntries(stages.map((s) => [s.label, s.status]));
-    expect(byLabel['마이그레이션 점검']).toBe('fail');
-    expect(byLabel['빌드']).toBe('unknown');
-    expect(byLabel['배포·검증']).toBe('skip');
+  it('rolled_back은 원인만 고쳐 재배포하면 된다고 안내한다', () => {
+    expect(actionGuidance(record({ outcome: 'rolled_back' }))).toContain('다시 배포');
   });
 
-  it('manual_intervention_needed는 destructive=unknown(수동 배포 등)일 때 실제로 위험 파일을 찾았다고 단정하지 않는다', () => {
-    const stages = deriveStages(record({ outcome: 'manual_intervention_needed', migrations: [] }));
-    const migrationCheck = stages.find((s) => s.label === '마이그레이션 점검');
-    expect(migrationCheck?.note).toContain('판단 불가');
-
-    const withDestructive = deriveStages(
-      record({ outcome: 'manual_intervention_needed', migrations: [{ file: 'V1__x.sql', type: 'destructive' }] })
-    );
-    expect(withDestructive.find((s) => s.label === '마이그레이션 점검')?.note).toContain('삭제·변경형 마이그레이션 포함');
+  it('rollback_failed는 즉시 RUNBOOK을 보라고 안내한다', () => {
+    expect(actionGuidance(record({ outcome: 'rollback_failed' }))).toContain('RUNBOOK');
   });
 
-  it('rollback_failed는 배포·검증 실패 뒤 자동 롤백 자체도 실패한 것으로 표시한다', () => {
-    const stages = deriveStages(record({ outcome: 'rollback_failed' }));
-    const byLabel = Object.fromEntries(stages.map((s) => [s.label, s.status]));
-    expect(byLabel['배포·검증']).toBe('fail');
-    expect(byLabel['자동 롤백']).toBe('fail');
+  it('manual_intervention_needed는 fix-forward부터 검토하라고 안내한다', () => {
+    expect(actionGuidance(record({ outcome: 'manual_intervention_needed' }))).toContain('fix-forward');
+  });
+
+  it('build_failed는 로그 보고 다시 배포하라고 안내한다', () => {
+    expect(actionGuidance(record({ outcome: 'build_failed' }))).toContain('로그');
+  });
+
+  it('outcome마다 서로 다른 안내를 준다 — 뭉뚱그리지 않는다', () => {
+    const outcomes: DeployRecord['outcome'][] = [
+      'rolled_back',
+      'rollback_failed',
+      'manual_intervention_needed',
+      'migration_check_blocked',
+      'build_failed',
+      'unknown',
+    ];
+    const guidances = outcomes.map((outcome) => actionGuidance(record({ outcome })));
+    expect(new Set(guidances).size).toBe(outcomes.length);
   });
 });
 

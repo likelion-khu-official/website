@@ -43,7 +43,7 @@ export default function DeployHistoryPanel() {
           <p className="text-xs font-semibold tracking-[0.16em] text-muted">DEPLOY TIMELINE</p>
           <h2 id="deploy-history-title" className="mt-2 text-lg font-semibold text-white">배포 이력 — 앱·DB 정합성</h2>
           <p className="mt-1 text-sm text-muted">
-            배포마다 실제 CD 파이프라인(설정 → 마이그레이션 점검 → 빌드 → 배포·검증 → 사후처리 → 기록) 단계를 보여줘요. 배포 결과와 DB 정합성은 서로 다른 문제라 배지를 따로 뒀고, DB가 어긋난 채 이어진 구간은 사고로 묶어서 보여줘요.
+            배포마다 지금 상태와, 조치가 필요하면 뭘 해야 하는지 보여줘요. 배포 결과와 DB 정합성은 서로 다른 문제라 배지를 따로 뒀고, DB가 어긋난 채 이어진 구간은 사고로 묶어서 보여줘요.
           </p>
         </div>
         <div className="flex gap-2" role="group" aria-label="환경 선택">

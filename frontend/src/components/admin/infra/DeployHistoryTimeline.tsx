@@ -38,101 +38,30 @@ function severityOf(record: DeployRecord): Severity {
   return OUTCOME_SEVERITY[record.outcome];
 }
 
-type StageStatus = 'ok' | 'fail' | 'skip' | 'unknown';
-
-interface Stage {
-  label: string;
-  status: StageStatus;
-  note?: string;
-}
-
 /**
- * cd.yml의 job 그래프(config → migration-check → build → deploy → smoke-test →
- * confirm|rollback|manual-intervention → record-deploy-status)를 outcome 하나로부터 되짚는다.
- * record-deploy-status(cd.yml #476 이하)의 if/elif 판정이 각 job의 성공·실패·스킵 조합과 정확히
- * 1:1 대응해서, 저장된 outcome만으로 그 조합을 복원할 수 있다. 단 deploy·smoke-test 둘 중
- * 정확히 어느 쪽이 실패했는지는 기록에 안 남는다(rollback job의 조건이 `deploy.result==failure
- * OR smoke-test.result==failure`로 묶여 있어서) — 그래서 "배포·검증" 한 단계로 합쳐 보여준다.
- * 모르는 걸 아는 척하지 않는다.
+ * "어느 job이 성공/실패했는지"(cd.yml의 job DAG)를 점으로 보여줬더니, 실제로 화면만 보고는
+ * 점이 왜 여러 개인지·뭘 뜻하는지 알 수 없다는 피드백을 받았다(2026-08-06) — 과정을 그대로
+ * 노출하는 건 이 화면을 보는 사람(당직·온콜)이 원하는 정보가 아니었다. 필요한 건 "지금 무슨
+ * 상태고, 내가 뭘 해야 하는가" 하나뿐이다. 그래서 job 단위 상태 대신, cd.yml이 각 갈림길에서
+ * 사람에게 실제로 남기는 안내문(rollback/manual-intervention job의 echo 메시지, RUNBOOK 참고)을
+ * 그대로 옮겨 outcome 하나당 한 문장으로 압축했다. 정상 배포(+DB 일치)는 할 일이 없으므로 null.
  */
-function deriveStages(record: DeployRecord): Stage[] {
-  const destructive = record.migrations.some((migration) => migration.type === 'destructive');
-
+function actionGuidance(record: DeployRecord): string | null {
   switch (record.outcome) {
     case 'confirmed':
-      return [
-        { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'ok', note: destructive ? '삭제·변경형 포함' : undefined },
-        { label: '빌드', status: 'ok' },
-        { label: '배포·검증', status: 'ok' },
-        { label: '확정', status: 'ok' },
-        { label: '기록', status: 'ok' },
-      ];
+      return inSync(record) ? null : 'DB가 어긋난 채로 배포가 확정됐어요 — RUNBOOK으로 직접 확인하세요.';
     case 'rolled_back':
-      return [
-        { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'ok' },
-        { label: '빌드', status: 'ok' },
-        { label: '배포·검증', status: 'fail' },
-        { label: '자동 롤백', status: 'ok' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '자동으로 이전 버전으로 복구됐어요 — 원인만 고쳐서 다시 배포하면 돼요.';
     case 'rollback_failed':
-      return [
-        { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'ok' },
-        { label: '빌드', status: 'ok' },
-        { label: '배포·검증', status: 'fail' },
-        { label: '자동 롤백', status: 'fail' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '자동 복구도 실패했어요 — 즉시 RUNBOOK 절차로 확인하세요.';
     case 'manual_intervention_needed':
-      return [
-        { label: '설정', status: 'ok' },
-        {
-          label: '마이그레이션 점검',
-          status: 'ok',
-          // destructive=true(실제 삭제·변경형 발견)와 destructive=unknown(workflow_dispatch라
-          // 판단 자체가 불가능 — cd.yml 마이그레이션 위험도 판단 참고)이 둘 다 이 job으로
-          // 온다. migrations 배열은 후자일 땐 비어 있으므로("판단 불가" 분기가 added_migrations_json을
-          // "[]"로 남김), 실제로 위험 파일을 찾았다고 단정하지 않는다.
-          note: destructive ? '삭제·변경형 마이그레이션 포함 — 자동 롤백 생략' : '위험도 판단 불가(수동 배포 등) — 자동 롤백 생략',
-        },
-        { label: '빌드', status: 'ok' },
-        { label: '배포·검증', status: 'fail' },
-        { label: '수동 개입 필요', status: 'fail' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '삭제·변경형 마이그레이션이 포함돼 자동 복구를 하지 않았어요 — 원인 고쳐서 재배포(fix-forward)부터 검토하고, 안 되면 RUNBOOK으로 수동 롤백하세요.';
     case 'migration_check_blocked':
-      return [
-        { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'fail', note: '이미 적용된 파일이 삭제·수정됨' },
-        // deploy job은 migration-check와 build 둘 다에 독립적으로 의존한다(needs: [config,
-        // migration-check, build]) — migration-check가 막혀도 build는 병렬로 계속 진행되고
-        // 그 성공/실패 여부는 이 기록에 안 남는다. 성공했다고 단정하지 않는다.
-        { label: '빌드', status: 'unknown', note: '독립적으로 병렬 진행 — 이 기록만으론 성공 여부 알 수 없음' },
-        { label: '배포·검증', status: 'skip' },
-        { label: '사후처리', status: 'skip' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '이미 적용된 마이그레이션 파일이 삭제·수정된 것 같아요 — 그 파일부터 확인하세요.';
     case 'build_failed':
-      return [
-        { label: '설정', status: 'ok' },
-        { label: '마이그레이션 점검', status: 'ok' },
-        { label: '빌드', status: 'fail' },
-        { label: '배포·검증', status: 'skip' },
-        { label: '사후처리', status: 'skip' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '빌드가 안 됐어요 — 로그를 보고 원인을 고친 뒤 다시 배포하면 돼요.';
     default:
-      return [
-        { label: '설정', status: 'unknown' },
-        { label: '마이그레이션 점검', status: 'unknown' },
-        { label: '빌드', status: 'unknown' },
-        { label: '배포·검증', status: 'unknown' },
-        { label: '판정 불가', status: 'unknown' },
-        { label: '기록', status: 'ok' },
-      ];
+      return '결과를 판정하지 못했어요 — CD 로그를 직접 확인하세요.';
   }
 }
 
@@ -194,36 +123,6 @@ function findIncidents(chronological: DeployRecord[]): Incident[] {
   return incidents;
 }
 
-const STAGE_DOT: Record<StageStatus, string> = {
-  ok: 'bg-emerald-400',
-  fail: 'bg-red-400',
-  skip: 'bg-white/15',
-  unknown: 'bg-amber-300/60',
-};
-
-const STAGE_STATUS_LABEL: Record<StageStatus, string> = {
-  ok: '성공',
-  fail: '실패',
-  skip: '건너뜀',
-  unknown: '판정 불가',
-};
-
-function StageStrip({ stages }: { stages: Stage[] }) {
-  return (
-    <div className="flex items-center gap-[3px]" role="img" aria-label={`파이프라인: ${stages.map((stage) => `${stage.label} ${STAGE_STATUS_LABEL[stage.status]}`).join(' → ')}`}>
-      {stages.map((stage, index) => (
-        <div key={`${stage.label}-${index}`} className="group relative flex items-center">
-          {index > 0 ? <span className="mr-[3px] h-px w-2 bg-white/12" /> : null}
-          <span
-            title={`${stage.label}${stage.note ? ` — ${stage.note}` : ''}`}
-            className={`block h-2 w-2 shrink-0 rounded-full ${STAGE_DOT[stage.status]}`}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const SEVERITY_PILL: Record<Severity, string> = {
   ok: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200',
   warn: 'border-amber-300/25 bg-amber-300/10 text-amber-200',
@@ -278,7 +177,7 @@ export default function DeployHistoryTimeline({ records }: { records: DeployReco
           const { dateLabel, time } = kstParts(record.timestamp);
           const showDateHeader = showDateHeaderFlags[displayIndex];
           const severity = severityOf(record);
-          const stages = deriveStages(record);
+          const guidance = actionGuidance(record);
           const synced = inSync(record);
           const incident = incidentAt(chronoIndex); // 이 기록이 어떤 사고의 "시작"(가장 과거)인가
           const destructiveFiles = record.migrations.filter((migration) => migration.type === 'destructive');
@@ -318,7 +217,9 @@ export default function DeployHistoryTimeline({ records }: { records: DeployReco
                       </span>
                     ) : null}
                   </div>
-                  <StageStrip stages={stages} />
+                  {guidance ? (
+                    <p className={`text-[12px] leading-5 ${severity === 'critical' ? 'text-red-200' : 'text-muted'}`}>{guidance}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -347,15 +248,8 @@ export default function DeployHistoryTimeline({ records }: { records: DeployReco
           );
         })}
       </ol>
-
-      <div className="mt-1 flex items-center gap-4 px-1 pt-2 text-[11px] text-muted">
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-2 rounded-full bg-emerald-400" />성공</span>
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-2 rounded-full bg-red-400" />실패</span>
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-2 rounded-full bg-white/15" />건너뜀</span>
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-2 rounded-full bg-amber-300/60" />판정 불가</span>
-      </div>
     </div>
   );
 }
 
-export { deriveStages, severityOf, inSync, findIncidents, toChronological };
+export { actionGuidance, severityOf, inSync, findIncidents, toChronological };
