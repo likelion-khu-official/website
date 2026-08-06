@@ -38,6 +38,10 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs/stage:/app/logs
+      # 배포 이력(#451 인프라 대시보드) — CD의 record-deploy-status job이 여기 쓴다. 앱은
+      # 읽기 전용, stage/prod 두 컨테이너 다 같은 디렉터리를 봐서 어드민 화면 하나에서
+      # 두 환경 배포 이력을 같이 보여줄 수 있게 한다.
+      - ./logs/deploy-history:/app/deploy-history:ro
     restart: unless-stopped
 
   backend-prod:
@@ -54,6 +58,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs/prod:/app/logs
+      - ./logs/deploy-history:/app/deploy-history:ro
     restart: unless-stopped
 
   # 개발자용 DB 조회 GUI — dbclient(SQL 조작)와 별개 경로.
