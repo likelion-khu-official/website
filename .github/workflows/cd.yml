@@ -515,6 +515,13 @@ jobs:
           script: |
             set -euo pipefail
 
+            # infra/data/에서 이미 겪은 것과 같은 함정 — docker-compose.yml에 이 디렉터리를
+            # 마운트하는 볼륨이 있으면, docker compose up이 먼저 실행되면서(deploy job) 없는
+            # 호스트 디렉터리를 root 소유로 자동 생성해버린다. 그래서 여기 mkdir -p는 "처음
+            # 한 번은 소용없고"(이미 root 소유로 만들어져 있으니) 그 뒤로도 ubuntu가 못 쓴다 —
+            # 실제로 2026-08-06 첫 배포 때 Permission denied로 실측 확인, 인프라 오너가 서버에서
+            # 1회 `chown ubuntu:ubuntu`로 해결. 이 mkdir -p는 그 이후(디렉터리가 이미 ubuntu
+            # 소유인 정상 상태)에 대비한 것일 뿐, 최초 1회 root 소유 생성 문제 자체는 못 막는다.
             HISTORY_DIR="${{ secrets.OCI_DEPLOY_PATH }}/logs/deploy-history"
             mkdir -p "$HISTORY_DIR"
 
