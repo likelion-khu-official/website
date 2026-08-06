@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getDeployHistory } from '@/lib/adminApi';
-import DeployHistoryTrackChart, { OUTCOME_LABELS } from './DeployHistoryTrackChart';
+import DeployHistoryTimeline, { OUTCOME_LABELS } from './DeployHistoryTimeline';
 import type { DeployRecord } from '@shared/types/deploy-history';
 
 const ENVS = [
@@ -39,10 +39,10 @@ export default function DeployHistoryPanel() {
     <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="deploy-history-title">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-6">
         <div>
-          <p className="text-xs font-semibold tracking-[0.16em] text-muted">APP × DB TRACK</p>
+          <p className="text-xs font-semibold tracking-[0.16em] text-muted">DEPLOY TIMELINE</p>
           <h2 id="deploy-history-title" className="mt-2 text-lg font-semibold text-white">배포 이력 — 앱·DB 정합성</h2>
           <p className="mt-1 text-sm text-muted">
-            앱 트랙과 DB 트랙, 두 개의 가로 직선이 배포 시각별로 나란히 가요. 배포가 실패하거나 마이그레이션이 안 먹으면 그 구간만 빨간 점선으로 끊겨서 보여요.
+            배포마다 실제 CD 파이프라인(설정 → 마이그레이션 점검 → 빌드 → 배포·검증 → 사후처리 → 기록) 단계를 보여줘요. 배포 결과와 DB 정합성은 서로 다른 문제라 배지를 따로 뒀고, DB가 어긋난 채 이어진 구간은 사고로 묶어서 보여줘요.
           </p>
         </div>
         <div className="flex gap-2" role="group" aria-label="환경 선택">
@@ -88,7 +88,7 @@ export default function DeployHistoryPanel() {
             </div>
           </div>
           <div className="p-5 sm:p-6">
-            <DeployHistoryTrackChart records={records} />
+            <DeployHistoryTimeline records={records} />
           </div>
         </>
       )}
