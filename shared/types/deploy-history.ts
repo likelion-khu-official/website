@@ -35,4 +35,9 @@ export interface DeployRecord {
   // 으론 "몇 개"만 답하고 "어느 파일까지"는 못 답해서 추가함(#457 리뷰). optional인 이유: 이 필드가
   // 생기기 전에 이미 기록된 옛 줄에는 없다 — 화면은 없으면 그냥 개수만 보여줘야 한다.
   latestAppliedMigration?: string | null;
+  // CD가 헬스체크·스모크테스트 실패 시점에 컨테이너 로그/응답 코드를 분류해서 좁힌 원인 한 문장
+  // (infra/scripts/classify-deploy-failure.sh). "빌드는 성공했으니 A거나 B일 수 있어요" 같은
+  // 일반론 대신, 그 배포에서 CD가 실제로 관찰한 신호 기준의 구체적 문장 — 정상 배포처럼 애초에
+  // 헬스체크·스모크테스트까지 안 간 outcome이거나, 이 필드가 생기기 전 기록이면 null.
+  probableCause?: string | null;
 }

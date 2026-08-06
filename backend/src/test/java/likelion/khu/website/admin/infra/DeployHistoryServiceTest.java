@@ -51,9 +51,9 @@ class DeployHistoryServiceTest {
     }
 
     @Test
-    void recent_LineWithoutLatestAppliedMigration_DefaultsToNull() throws IOException {
-        // latestAppliedMigration은 이 필드가 생기기 전에 이미 기록된 옛 줄엔 없다 — 없어도
-        // 파싱 자체는 깨지지 않고 null로 채워져야 한다(#457 리뷰 후속, 필드 추가).
+    void recent_LineWithoutNewerFields_DefaultsToNull() throws IOException {
+        // latestAppliedMigration·probableCause는 그 필드가 생기기 전에 이미 기록된 옛 줄엔
+        // 없다 — 없어도 파싱 자체는 깨지지 않고 null로 채워져야 한다(#457 리뷰 후속, 필드 추가).
         writeLines("stage",
                 """
                 {"timestamp":"2026-08-06T00:00:00Z","env":"stage","sha":"eee","outcome":"confirmed","migrations":[],"expectedMigrationCount":5,"actualMigrationCount":5}""");
@@ -62,6 +62,18 @@ class DeployHistoryServiceTest {
 
         assertThat(records).hasSize(1);
         assertThat(records.get(0).latestAppliedMigration()).isNull();
+        assertThat(records.get(0).probableCause()).isNull();
+    }
+
+    @Test
+    void recent_LineWithProbableCause_ParsesIt() throws IOException {
+        writeLines("stage",
+                """
+                {"timestamp":"2026-08-06T00:00:00Z","env":"stage","sha":"fff","outcome":"rollback_failed","migrations":[],"expectedMigrationCount":5,"actualMigrationCount":5,"probableCause":"컨테이너가 아예 응답하지 않았어요"}""");
+
+        List<DeployRecord> records = newService().recent("stage", 20);
+
+        assertThat(records.get(0).probableCause()).isEqualTo("컨테이너가 아예 응답하지 않았어요");
     }
 
     @Test

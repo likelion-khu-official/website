@@ -56,18 +56,28 @@ const DEPLOY_FAILURE_CAUSE_HINT =
   '빌드는 성공했으니 빌드(컴파일) 문제는 아니에요 — 배포 직후 헬스체크가 아예 안 뜨거나(마이그레이션 실행 실패·필수 환경변수 누락·DB 연결 실패), 헬스체크는 통과했는데 공개 API 응답이 실패(새 코드의 런타임 버그)했을 가능성이 커요.';
 
 function actionGuidance(record: DeployRecord): string | null {
+  // CD가 그 배포에서 실제로 관찰한 신호(헬스체크 로그 분류, 어느 스모크테스트 경로가
+  // 실패했는지)를 분류해뒀으면 그 구체적인 문장을 쓴다 — 없을 때만(이 필드가 생기기 전
+  // 옛 기록 등) "A거나 B일 수 있어요" 식 일반론으로 물러난다.
+  const cause = record.probableCause ?? DEPLOY_FAILURE_CAUSE_HINT;
+
   switch (record.outcome) {
     case 'confirmed':
       return inSync(record) ? null : 'DB가 어긋난 채로 배포가 확정됐어요 — RUNBOOK으로 직접 확인하세요.';
     case 'rolled_back':
-      return `자동으로 이전 버전으로 복구됐어요. ${DEPLOY_FAILURE_CAUSE_HINT} 원인 고쳐서 다시 배포하면 돼요.`;
-    case 'rollback_failed':
+      return `자동으로 이전 버전으로 복구됐어요. ${cause} 원인 고쳐서 다시 배포하면 돼요.`;
+    case 'rollback_failed': {
       // 이전 버전은 이 배포 직전까지 정상 서비스 중이었다 — 그런데도 그 이미지로 되돌린 뒤에도
       // 헬스체크가 실패했다면, 코드 문제가 아니라 서버 자체(디스크·메모리·포트 충돌 등) 문제일
-      // 가능성이 코드 롤백보다 크다.
-      return '자동 복구(이전 버전으로 되돌리기)도 실패했어요 — 방금까지 정상 동작하던 이전 버전조차 다시 안 떴다는 뜻이라, 코드보다는 서버 자체 문제(디스크·메모리·포트 충돌 등)일 가능성이 커요. 즉시 RUNBOOK 절차로 확인하세요.';
+      // 가능성이 코드 롤백보다 크다. probableCause가 있으면 cd.yml이 이미 이 맥락(롤백 후에도)을
+      // 포함해서 분류해둔 값이라 그대로 쓴다.
+      const rollbackCause =
+        record.probableCause ??
+        '방금까지 정상 동작하던 이전 버전조차 다시 안 떴다는 뜻이라, 코드보다는 서버 자체 문제(디스크·메모리·포트 충돌 등)일 가능성이 커요.';
+      return `자동 복구(이전 버전으로 되돌리기)도 실패했어요 — ${rollbackCause} 즉시 RUNBOOK 절차로 확인하세요.`;
+    }
     case 'manual_intervention_needed':
-      return `삭제·변경형 마이그레이션이 포함돼 자동 복구를 하지 않았어요. ${DEPLOY_FAILURE_CAUSE_HINT} 원인 고쳐서 재배포(fix-forward)부터 검토하고, 안 되면 RUNBOOK으로 수동 롤백하세요.`;
+      return `삭제·변경형 마이그레이션이 포함돼 자동 복구를 하지 않았어요. ${cause} 원인 고쳐서 재배포(fix-forward)부터 검토하고, 안 되면 RUNBOOK으로 수동 롤백하세요.`;
     case 'migration_check_blocked':
       return '이미 적용된 마이그레이션 파일이 삭제·수정된 것 같아요 — 그 파일부터 확인하세요.';
     case 'build_failed':
@@ -222,8 +232,8 @@ export default function DeployHistoryTimeline({ records }: { records: DeployReco
                       }`}
                     >
                       {synced
-                        ? `DB 일치 · 마이그레이션 ${record.actualMigrationCount}개 적용됨`
-                        : `DB ${record.expectedMigrationCount - record.actualMigrationCount}개 뒤처짐 · 마이그레이션 ${record.actualMigrationCount}/${record.expectedMigrationCount}개 적용됨`}
+                        ? `마이그레이션 ${record.actualMigrationCount}개 적용된 상태 · 앱과 일치`
+                        : `마이그레이션 ${record.actualMigrationCount}/${record.expectedMigrationCount}개 적용된 상태 · DB가 앱보다 ${record.expectedMigrationCount - record.actualMigrationCount}개 뒤처짐`}
                     </span>
                     {record.latestAppliedMigration ? (
                       <span className="font-mono text-[11px] text-muted">{record.latestAppliedMigration}까지</span>

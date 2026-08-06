@@ -318,6 +318,14 @@ jobs:
                 echo "❌ 헬스체크 실패 — 마지막 응답: HTTP ${STATUS:-연결 실패}"
                 echo "--- ${{ needs.config.outputs.service }} 최근 로그 ---"
                 docker compose -f docker-compose.yml logs --tail=50 ${{ needs.config.outputs.service }}
+                # 배포 이력 화면이 "빌드는 성공했으니 A거나 B일 수 있어요" 대신 실제로 좁힌
+                # 원인 하나를 보여줄 수 있게, 로그를 분류해서 서버에 마커로 남긴다 — 이 SSH
+                # 세션이 끝나면 사라지는 정보라 record-deploy-status가 나중에 다시 SSH로 읽는다
+                # (.prev_backend_tag_* 와 같은 패턴). 원본 로그 줄은 여기(CD 실행 로그, 운영진만
+                # 봄)에만 남고 마커 파일엔 분류된 한 줄만 들어간다.
+                docker compose -f docker-compose.yml logs --tail=200 ${{ needs.config.outputs.service }} 2>&1 \
+                  | bash scripts/classify-deploy-failure.sh "${STATUS:-000}" \
+                  > .last_deploy_diagnosis_${{ needs.config.outputs.env }} || true
                 exit 1
               fi
             done
@@ -329,8 +337,13 @@ jobs:
   smoke-test:
     needs: [config, deploy]
     runs-on: ubuntu-latest
+    outputs:
+      # deploy job의 헬스체크는 통과했는데 이 단계에서 실패했다는 건 앱 자체는 떴다는 뜻이라,
+      # 실패한 구체적인 경로를 남겨두면 "어느 기능에 런타임 버그가 있는지" 바로 좁혀진다.
+      cause: ${{ steps.smoke.outputs.cause }}
     steps:
       - name: 스모크 테스트
+        id: smoke
         # localhost가 아니라 실제 공개 도메인(nginx 뒤)으로 찌른다 — 헬스체크는 "앱이 떴다"만
         # 보장하지만, 이건 DNS·TLS·nginx 라우팅까지 포함해 실제 클라이언트가 겪는 경로 그대로
         # 검증한다. 인증 없이 이미 공개돼 있는 조회 엔드포인트만 대상(어드민류 제외).
@@ -339,6 +352,7 @@ jobs:
           echo "=== 스모크 테스트 시작 (${BASE_URL}) ==="
 
           FAILED=0
+          FAILED_PATHS=""
           for path in /api/members /api/staff /api/posts /api/projects; do
             STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL$path" || echo "000")
             if [ "$STATUS" == "200" ]; then
@@ -346,11 +360,13 @@ jobs:
             else
               echo "❌ [$path] HTTP ${STATUS}"
               FAILED=1
+              FAILED_PATHS="${FAILED_PATHS}${path}(HTTP ${STATUS}) "
             fi
           done
 
           if [ "$FAILED" == "1" ]; then
             echo "=== 스모크 테스트 실패 ==="
+            echo "cause=헬스체크는 통과했지만 공개 API가 실패했어요 — ${FAILED_PATHS}새로 배포된 코드의 런타임 버그일 가능성이 커요." >> "$GITHUB_OUTPUT"
             exit 1
           fi
           echo "=== 스모크 테스트 완료 ==="
@@ -428,6 +444,16 @@ jobs:
                 if [ $ELAPSED -ge 120 ]; then
                   echo "❌ 롤백한 이미지도 정상 기동하지 못했습니다 — 즉시 수동 개입이 필요합니다 (RUNBOOK.md '1-5. UptimeRobot — DOWN' 참고)"
                   docker compose -f docker-compose.yml logs --tail=50 ${{ needs.config.outputs.service }}
+                  # 방금까지 정상이던 이전 버전조차 다시 못 뜬 것 — 새 코드보다 서버 자체 문제일
+                  # 가능성이 크다는 걸 배포 이력 화면에서 바로 알 수 있게, 원래 배포 실패 진단을
+                  # "[롤백 후에도]" 접두로 덮어써서 더 결정적인 이 사실을 남긴다.
+                  REASON=$(docker compose -f docker-compose.yml logs --tail=200 ${{ needs.config.outputs.service }} 2>&1 \
+                    | bash scripts/classify-deploy-failure.sh "${STATUS:-000}" || echo "")
+                  if [ -n "$REASON" ]; then
+                    echo "[롤백 후에도] $REASON" > .last_deploy_diagnosis_${{ needs.config.outputs.env }}
+                  else
+                    echo "[롤백 후에도] 방금까지 정상이던 이전 버전조차 다시 뜨지 않았어요 — 코드보다 서버 자체 문제(디스크·메모리·포트 충돌 등)일 가능성이 커요." > .last_deploy_diagnosis_${{ needs.config.outputs.env }}
+                  fi
                   exit 1
                 fi
               done
@@ -507,11 +533,12 @@ jobs:
           OUTCOME: "${{ steps.outcome.outputs.outcome }}"
           ADDED_MIGRATIONS_JSON: "${{ needs.migration-check.outputs.added_migrations_json || '[]' }}"
           EXPECTED_MIGRATION_COUNT: "${{ needs.migration-check.outputs.total_migration_count || '0' }}"
+          SMOKE_TEST_CAUSE: "${{ needs.smoke-test.outputs.cause || '' }}"
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
-          envs: ENV_NAME,SHA,OUTCOME,ADDED_MIGRATIONS_JSON,EXPECTED_MIGRATION_COUNT
+          envs: ENV_NAME,SHA,OUTCOME,ADDED_MIGRATIONS_JSON,EXPECTED_MIGRATION_COUNT,SMOKE_TEST_CAUSE
           script: |
             set -euo pipefail
 
@@ -545,9 +572,29 @@ jobs:
               LATEST_MIGRATION_JSON=$(printf '"%s"' "$LATEST_MIGRATION")
             fi
 
+            # deploy/rollback job이 헬스체크 실패 시 남긴 분류 결과(.last_deploy_diagnosis_*)를
+            # 최우선으로 쓴다 — 이게 있다는 건 앱 자체가 안 떴다는 뜻이라 가장 결정적인 신호다.
+            # 그게 없으면 smoke-test job의 출력(앱은 떴는데 공개 API가 실패)을 쓴다. 둘 다
+            # 없으면(정상 배포, 빌드 실패 등 애초에 이 단계까지 안 온 경우) null. 마커 파일은
+            # 다음 배포로 새지 않게 읽은 뒤 지운다(.prev_backend_tag_*와 같은 정리 패턴).
+            DIAGNOSIS_FILE="${{ secrets.OCI_DEPLOY_PATH }}/.last_deploy_diagnosis_${ENV_NAME}"
+            if [ -f "$DIAGNOSIS_FILE" ]; then
+              PROBABLE_CAUSE=$(cat "$DIAGNOSIS_FILE")
+              rm -f "$DIAGNOSIS_FILE"
+            else
+              PROBABLE_CAUSE="$SMOKE_TEST_CAUSE"
+            fi
+            if [ -z "$PROBABLE_CAUSE" ]; then
+              PROBABLE_CAUSE_JSON="null"
+            else
+              # 이 값은 전부 classify-deploy-failure.sh·smoke-test job이 하드코딩한 우리 문장이라
+              # 임의 입력이 안 섞인다 — 그래도 JSON 문자열 규칙(백슬래시·따옴표 이스케이프)은 지킨다.
+              PROBABLE_CAUSE_JSON=$(printf '"%s"' "$(printf '%s' "$PROBABLE_CAUSE" | sed 's/\\/\\\\/g; s/"/\\"/g')")
+            fi
+
             TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            RECORD=$(printf '{"timestamp":"%s","env":"%s","sha":"%s","outcome":"%s","migrations":%s,"expectedMigrationCount":%s,"actualMigrationCount":%s,"latestAppliedMigration":%s}' \
-              "$TIMESTAMP" "$ENV_NAME" "$SHA" "$OUTCOME" "$ADDED_MIGRATIONS_JSON" "$EXPECTED_MIGRATION_COUNT" "$ACTUAL_MIGRATION_COUNT" "$LATEST_MIGRATION_JSON")
+            RECORD=$(printf '{"timestamp":"%s","env":"%s","sha":"%s","outcome":"%s","migrations":%s,"expectedMigrationCount":%s,"actualMigrationCount":%s,"latestAppliedMigration":%s,"probableCause":%s}' \
+              "$TIMESTAMP" "$ENV_NAME" "$SHA" "$OUTCOME" "$ADDED_MIGRATIONS_JSON" "$EXPECTED_MIGRATION_COUNT" "$ACTUAL_MIGRATION_COUNT" "$LATEST_MIGRATION_JSON" "$PROBABLE_CAUSE_JSON")
 
             echo "$RECORD" >> "$HISTORY_DIR/${ENV_NAME}.jsonl"
             echo "기록 완료: $RECORD"

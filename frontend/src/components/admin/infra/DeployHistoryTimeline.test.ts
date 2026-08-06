@@ -90,6 +90,28 @@ describe('actionGuidance — 과정이 아니라 "지금 뭘 해야 하는가" �
     const guidances = outcomes.map((outcome) => actionGuidance(record({ outcome })));
     expect(new Set(guidances).size).toBe(outcomes.length);
   });
+
+  it('CD가 원인을 좁혀뒀으면(probableCause) "A거나 B일 수 있어요" 일반론 대신 그 문장을 그대로 쓴다', () => {
+    const narrowed = record({
+      outcome: 'rolled_back',
+      probableCause: '헬스체크는 통과했지만 공개 API가 실패했어요 — /api/projects(HTTP 500) 새로 배포된 코드의 런타임 버그일 가능성이 커요.',
+    });
+    const guidance = actionGuidance(narrowed);
+    expect(guidance).toContain('/api/projects');
+    expect(guidance).not.toContain('빌드는 성공했으니');
+  });
+
+  it('probableCause가 없으면(옛 기록 등) 일반론으로 물러난다', () => {
+    const guidance = actionGuidance(record({ outcome: 'rolled_back', probableCause: null }));
+    expect(guidance).toContain('빌드는 성공했으니');
+  });
+
+  it('rollback_failed도 probableCause가 있으면 그걸 우선한다', () => {
+    const guidance = actionGuidance(
+      record({ outcome: 'rollback_failed', probableCause: '[롤백 후에도] 메모리 부족(OOM)으로 죽었어요 — 서버 메모리 사용량을 확인하세요.' })
+    );
+    expect(guidance).toContain('OOM');
+  });
 });
 
 describe('findIncidents — 연속으로 DB가 어긋난 구간을 하나로 묶는다', () => {

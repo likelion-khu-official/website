@@ -17,7 +17,10 @@ public record DeployRecord(
         int actualMigrationCount,
         // DB에 실제로 마지막까지 적용된 마이그레이션 파일명. CD가 이 필드를 추가하기 전에 이미
         // 기록된 옛 줄에는 없으므로 null일 수 있다(Jackson이 없는 필드를 null로 채움).
-        String latestAppliedMigration
+        String latestAppliedMigration,
+        // CD가 헬스체크/스모크테스트 실패 시점에 분류해서 좁힌 원인 한 문장(infra/scripts/
+        // classify-deploy-failure.sh). 정상 배포이거나 이 필드가 생기기 전 옛 기록이면 null.
+        String probableCause
 ) {
     public boolean inSync() {
         return expectedMigrationCount == actualMigrationCount;
