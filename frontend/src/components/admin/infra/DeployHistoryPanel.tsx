@@ -18,11 +18,12 @@ export default function DeployHistoryPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    setRecords(null);
-    setError('');
     getDeployHistory(env, 30)
       .then((response) => {
-        if (!cancelled) setRecords(response);
+        if (!cancelled) {
+          setRecords(response);
+          setError('');
+        }
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : '배포 이력을 불러오지 못했어요.');
