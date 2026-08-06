@@ -38,6 +38,10 @@ const NAV_GROUPS = [
     label: '보안',
     items: [{ href: '/admin/audit-logs', label: '감사 로그' }],
   },
+  {
+    label: '인프라',
+    items: [{ href: '/admin/infra', label: '배포 이력' }],
+  },
 ] as const;
 
 interface AdminShellProps {
