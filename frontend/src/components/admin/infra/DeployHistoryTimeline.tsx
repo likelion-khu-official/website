@@ -46,16 +46,28 @@ function severityOf(record: DeployRecord): Severity {
  * 사람에게 실제로 남기는 안내문(rollback/manual-intervention job의 echo 메시지, RUNBOOK 참고)을
  * 그대로 옮겨 outcome 하나당 한 문장으로 압축했다. 정상 배포(+DB 일치)는 할 일이 없으므로 null.
  */
+// rolled_back·rollback_failed·manual_intervention_needed는 셋 다 같은 트리거(deploy 헬스체크
+// 또는 smoke-test 실패)에서 갈라진다 — build job이 이미 성공해야 deploy까지 온 것이므로
+// "빌드 문제"는 항상 배제할 수 있다. 실제 원인은 배포 직후 헬스체크(`/actuator/health`)가
+// 아예 안 뜨거나(마이그레이션 실행 자체 실패, 필수 env 누락, DB 연결 실패, 빈 초기화 예외),
+// 헬스체크는 통과했는데 공개 API 스모크 테스트(`/api/members` 등 4종)가 실패(새 코드의 런타임
+// 버그)한 경우로 나뉜다 — 어느 쪽인지는 기록에 안 남아 단정하지 않는다(cd.yml 참고).
+const DEPLOY_FAILURE_CAUSE_HINT =
+  '빌드는 성공했으니 빌드(컴파일) 문제는 아니에요 — 배포 직후 헬스체크가 아예 안 뜨거나(마이그레이션 실행 실패·필수 환경변수 누락·DB 연결 실패), 헬스체크는 통과했는데 공개 API 응답이 실패(새 코드의 런타임 버그)했을 가능성이 커요.';
+
 function actionGuidance(record: DeployRecord): string | null {
   switch (record.outcome) {
     case 'confirmed':
       return inSync(record) ? null : 'DB가 어긋난 채로 배포가 확정됐어요 — RUNBOOK으로 직접 확인하세요.';
     case 'rolled_back':
-      return '자동으로 이전 버전으로 복구됐어요 — 원인만 고쳐서 다시 배포하면 돼요.';
+      return `자동으로 이전 버전으로 복구됐어요. ${DEPLOY_FAILURE_CAUSE_HINT} 원인 고쳐서 다시 배포하면 돼요.`;
     case 'rollback_failed':
-      return '자동 복구도 실패했어요 — 즉시 RUNBOOK 절차로 확인하세요.';
+      // 이전 버전은 이 배포 직전까지 정상 서비스 중이었다 — 그런데도 그 이미지로 되돌린 뒤에도
+      // 헬스체크가 실패했다면, 코드 문제가 아니라 서버 자체(디스크·메모리·포트 충돌 등) 문제일
+      // 가능성이 코드 롤백보다 크다.
+      return '자동 복구(이전 버전으로 되돌리기)도 실패했어요 — 방금까지 정상 동작하던 이전 버전조차 다시 안 떴다는 뜻이라, 코드보다는 서버 자체 문제(디스크·메모리·포트 충돌 등)일 가능성이 커요. 즉시 RUNBOOK 절차로 확인하세요.';
     case 'manual_intervention_needed':
-      return '삭제·변경형 마이그레이션이 포함돼 자동 복구를 하지 않았어요 — 원인 고쳐서 재배포(fix-forward)부터 검토하고, 안 되면 RUNBOOK으로 수동 롤백하세요.';
+      return `삭제·변경형 마이그레이션이 포함돼 자동 복구를 하지 않았어요. ${DEPLOY_FAILURE_CAUSE_HINT} 원인 고쳐서 재배포(fix-forward)부터 검토하고, 안 되면 RUNBOOK으로 수동 롤백하세요.`;
     case 'migration_check_blocked':
       return '이미 적용된 마이그레이션 파일이 삭제·수정된 것 같아요 — 그 파일부터 확인하세요.';
     case 'build_failed':
@@ -209,8 +221,13 @@ export default function DeployHistoryTimeline({ records }: { records: DeployReco
                         synced ? 'border-white/12 bg-white/[0.03] text-muted' : 'border-red-400/30 bg-red-400/10 text-red-200'
                       }`}
                     >
-                      {synced ? `DB 일치 · ${record.actualMigrationCount}` : `DB ${record.expectedMigrationCount - record.actualMigrationCount}개 뒤처짐 · ${record.actualMigrationCount}/${record.expectedMigrationCount}`}
+                      {synced
+                        ? `DB 일치 · 마이그레이션 ${record.actualMigrationCount}개 적용됨`
+                        : `DB ${record.expectedMigrationCount - record.actualMigrationCount}개 뒤처짐 · 마이그레이션 ${record.actualMigrationCount}/${record.expectedMigrationCount}개 적용됨`}
                     </span>
+                    {record.latestAppliedMigration ? (
+                      <span className="font-mono text-[11px] text-muted">{record.latestAppliedMigration}까지</span>
+                    ) : null}
                     {destructiveFiles.length > 0 ? (
                       <span className="inline-flex rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
                         삭제·변경형 마이그레이션 {destructiveFiles.length}개

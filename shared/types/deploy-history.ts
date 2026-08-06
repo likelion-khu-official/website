@@ -30,4 +30,9 @@ export interface DeployRecord {
   migrations: DeployMigrationEntry[];
   expectedMigrationCount: number;
   actualMigrationCount: number;
+  // DB에 실제로 마지막까지 적용된 마이그레이션 파일명(예: "V20260806100345__xxx.sql").
+  // flyway_schema_history에 성공 행이 하나도 없으면(첫 배포 전 등) null. 개수(actualMigrationCount)만
+  // 으론 "몇 개"만 답하고 "어느 파일까지"는 못 답해서 추가함(#457 리뷰). optional인 이유: 이 필드가
+  // 생기기 전에 이미 기록된 옛 줄에는 없다 — 화면은 없으면 그냥 개수만 보여줘야 한다.
+  latestAppliedMigration?: string | null;
 }

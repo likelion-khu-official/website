@@ -14,7 +14,10 @@ public record DeployRecord(
         String outcome,
         List<MigrationEntry> migrations,
         int expectedMigrationCount,
-        int actualMigrationCount
+        int actualMigrationCount,
+        // DB에 실제로 마지막까지 적용된 마이그레이션 파일명. CD가 이 필드를 추가하기 전에 이미
+        // 기록된 옛 줄에는 없으므로 null일 수 있다(Jackson이 없는 필드를 null로 채움).
+        String latestAppliedMigration
 ) {
     public boolean inSync() {
         return expectedMigrationCount == actualMigrationCount;

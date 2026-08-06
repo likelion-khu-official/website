@@ -39,14 +39,15 @@ class DeployHistoryControllerTest {
         DeployRecord record = new DeployRecord(
                 "2026-08-06T00:00:00Z", "stage", "abc123", "confirmed",
                 List.of(new DeployRecord.MigrationEntry("V1__x.sql", "additive")),
-                10, 10);
+                10, 10, "V1__x.sql");
         when(deployHistoryService.recent(eq("stage"), anyInt())).thenReturn(List.of(record));
 
         mockMvc.perform(get("/api/admin/infra/deploy-history").param("env", "stage"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sha").value("abc123"))
                 .andExpect(jsonPath("$[0].outcome").value("confirmed"))
-                .andExpect(jsonPath("$[0].migrations[0].file").value("V1__x.sql"));
+                .andExpect(jsonPath("$[0].migrations[0].file").value("V1__x.sql"))
+                .andExpect(jsonPath("$[0].latestAppliedMigration").value("V1__x.sql"));
     }
 
     @Test

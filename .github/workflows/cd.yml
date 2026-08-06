@@ -532,9 +532,22 @@ jobs:
             # 보이는 게 맞다 — 없는 걸 있는 척 숨기지 않는다).
             ACTUAL_MIGRATION_COUNT=$(sqlite3 "$DB_FILE" "select count(*) from flyway_schema_history where success=1;" 2>/dev/null || echo 0)
 
+            # 개수만으론 "몇 개 적용됐는지"만 알지 "어느 파일까지"는 못 답한다(#457 리뷰에서 지적) —
+            # installed_rank 기준 가장 최근 성공 행의 version+description으로 실제 파일명을 그대로
+            # 복원한다(Flyway가 파일명의 밑줄을 description에서 공백으로 바꿔 저장하므로 되돌림).
+            # DB가 없거나 한 건도 없으면 빈 문자열 → JSON null로 남겨 "모름"과 "빈 값"을 안 섞는다.
+            LATEST_MIGRATION=$(sqlite3 "$DB_FILE" \
+              "select 'V' || version || '__' || replace(description, ' ', '_') || '.sql' from flyway_schema_history where success=1 order by installed_rank desc limit 1;" \
+              2>/dev/null || echo "")
+            if [ -z "$LATEST_MIGRATION" ]; then
+              LATEST_MIGRATION_JSON="null"
+            else
+              LATEST_MIGRATION_JSON=$(printf '"%s"' "$LATEST_MIGRATION")
+            fi
+
             TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            RECORD=$(printf '{"timestamp":"%s","env":"%s","sha":"%s","outcome":"%s","migrations":%s,"expectedMigrationCount":%s,"actualMigrationCount":%s}' \
-              "$TIMESTAMP" "$ENV_NAME" "$SHA" "$OUTCOME" "$ADDED_MIGRATIONS_JSON" "$EXPECTED_MIGRATION_COUNT" "$ACTUAL_MIGRATION_COUNT")
+            RECORD=$(printf '{"timestamp":"%s","env":"%s","sha":"%s","outcome":"%s","migrations":%s,"expectedMigrationCount":%s,"actualMigrationCount":%s,"latestAppliedMigration":%s}' \
+              "$TIMESTAMP" "$ENV_NAME" "$SHA" "$OUTCOME" "$ADDED_MIGRATIONS_JSON" "$EXPECTED_MIGRATION_COUNT" "$ACTUAL_MIGRATION_COUNT" "$LATEST_MIGRATION_JSON")
 
             echo "$RECORD" >> "$HISTORY_DIR/${ENV_NAME}.jsonl"
             echo "기록 완료: $RECORD"
