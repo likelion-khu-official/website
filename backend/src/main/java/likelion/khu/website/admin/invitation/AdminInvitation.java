@@ -25,8 +25,9 @@ public class AdminInvitation {
     @Column(columnDefinition = "integer")
     private Long id;
 
+    // 원문 토큰이 아니라 SHA-256 해시만 저장 — RefreshToken/PasswordResetToken과 동일 패턴.
     @Column(nullable = false, unique = true)
-    private String token;
+    private String tokenHash;
 
     @Column(nullable = false)
     private String email;
@@ -46,11 +47,11 @@ public class AdminInvitation {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    public static AdminInvitation issue(String email, String invitedByEmail, String token, Duration ttl) {
+    public static AdminInvitation issue(String email, String invitedByEmail, String tokenHash, Duration ttl) {
         AdminInvitation invitation = new AdminInvitation();
         invitation.email = email;
         invitation.invitedByEmail = invitedByEmail;
-        invitation.token = token;
+        invitation.tokenHash = tokenHash;
         invitation.status = InvitationStatus.PENDING;
         invitation.expiresAt = LocalDateTime.now().plus(ttl);
         invitation.createdAt = LocalDateTime.now();

@@ -60,10 +60,10 @@ class AdminAuthControllerTest {
     }
 
     @Test
-    void login_FifthFailedAttempt_LocksAccountAndBlocksEvenCorrectPassword() throws Exception {
+    void login_TenthFailedAttempt_LocksAccountAndBlocksEvenCorrectPassword() throws Exception {
         createAdmin("admin3@khu.ac.kr", "password1");
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 9; i++) {
             mockMvc.perform(post("/api/admin/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"email\":\"admin3@khu.ac.kr\",\"password\":\"wrong-pw\"}"));

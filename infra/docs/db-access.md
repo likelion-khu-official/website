@@ -156,6 +156,22 @@ docker compose up -d sqlite-web-stage sqlite-web-prod
 
 ---
 
+## 감사로그 (2026-08-06 추가)
+
+dbclient가 SELECT로 살아있는 크리덴셜(토큰 등)을 그대로 읽을 수 있다는 반례가 나온 뒤, "컬럼 단위로 막을지"보다 먼저 "누가 뭘 봤는지 남기자"로 방향을 잡았다 — 어떤 SQL이 실행됐는지 기록만 있어도 사고 시 원인 추적·억제 효과가 있고, 컬럼 필터링보다 구현이 훨씬 가볍다.
+
+**`dbclient`(팀원, forced command) — [`dbclient-sqlite-guard.sh`](../scripts/dbclient-sqlite-guard.sh)가 자동으로 남김.** 실행되는 모든 문(허용·차단 둘 다)을 `infra/logs/audit/dbclient.log`에 `시각\t환경\t실행자\t허용여부\tSQL` 형식으로 기록한다. "실행자"는 SSH 인증에 쓰인 공개키의 fingerprint를 `authorized_keys`의 등록된 키들과 대조해 이름으로 옮긴 것 — 등록된 팀원 전원이 같은 시스템 계정(`dbclient`)으로 붙기 때문에 이 방식이 아니면 "누구인지" 구분이 안 된다.
+
+**서버에 아직 반영 안 된 전제조건(인프라 오너가 서버에서 직접 1회):**
+1. `sshd_config`에 `ExposeAuthInfo yes` 추가 후 `sudo systemctl reload sshd` — 이게 있어야 실행자 fingerprint를 얻을 수 있는 `SSH_USER_AUTH` 환경변수가 세션에 생긴다.
+2. `sudo mkdir -p /home/ubuntu/website/infra/logs/audit && sudo chgrp dbaccess /home/ubuntu/website/infra/logs/audit && sudo chmod 2770 /home/ubuntu/website/infra/logs/audit` — `dbaccess` 그룹(dbclient 소속)만 쓸 수 있게.
+
+이 두 가지가 안 돼 있어도 SQL 실행 자체는 막히지 않는다 — 실행자만 "unknown"으로 남는다(fail-open이 아니라 fail-visible: 걸러야 할 문장은 그대로 걸러지고, 감사로그가 비어있다는 사실 자체가 남아서 인프라 오너가 바로 알 수 있다).
+
+**`ubuntu`(인프라 오너) — [`ubuntu-sqlite-audit.sh`](../scripts/ubuntu-sqlite-audit.sh), 설치는 선택.** `dbclient`처럼 forced command로 강제할 수 없다 — `ubuntu`는 sudo가 있는 일반 셸 전체를 가진 계정이라 이 래퍼도 실제 바이너리를 직접 부르거나 `.bashrc`를 고치면 우회된다. 그래서 이건 기술적 강제가 아니라 "평소엔 이 경로로 쓰고 그 기록이 남는다"는 관례 + 나중에(회고·인수인계 시) 되짚어볼 수 있는 가시성 도구다 — 인프라 접근이 장찬욱 한 명뿐이라 "누구"를 구분할 필요가 없다는 점에서 `dbclient`의 문제와는 성격이 다르다. 설치하면 stage/prod DB를 대상으로 한 `sqlite3` 호출을 `script`로 감싸 세션 전체(입력한 SQL + 출력)를 `infra/logs/audit/ubuntu.log` + 세션별 typescript 파일로 남긴다. 더 강한(우회하기 어려운) 보강이 필요하면 스크립트 상단 주석의 `auditd` 파일감시 규칙을 참고 — 커널 레벨이라 우회는 어렵지만 "이 파일이 언제 열렸다"만 남고 SQL 텍스트는 못 담아서, 텍스트까지 원하면 위 `script` 방식과 병행해야 한다.
+
+---
+
 ## 백업 전략 (구현·검증 완료 — 2026-07-04)
 
 **현재 상태:** 매일 자동 백업 동작 중. prod·stage 둘 다 대상.

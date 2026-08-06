@@ -42,6 +42,18 @@ class AdminPasswordControllerTest {
     @MockitoBean
     EmailService emailService;
 
+    // AdminPasswordResetService#hash()와 동일한 알고리즘 — 서비스가 URL의 원문 토큰을 해시해서
+    // 찾는 것과 같은 값으로 DB에 시드해야 한다.
+    private String hash(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(bytes);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Test
     void forgot_ExistingEmail_SendsResetEmail() throws Exception {
         adminRepository.save(
@@ -72,10 +84,10 @@ class AdminPasswordControllerTest {
         Admin admin = adminRepository.save(
                 Admin.register("reset@khu.ac.kr", "이름", passwordEncoder.encode("oldpassword1")));
         refreshTokenRepository.save(RefreshToken.issue(admin.getId(), "some-hash", LocalDateTime.now().plusDays(7)));
-        PasswordResetToken token = tokenRepository.save(
-                PasswordResetToken.issue(admin.getId(), "reset-token", Duration.ofMinutes(30)));
+        tokenRepository.save(
+                PasswordResetToken.issue(admin.getId(), hash("reset-token"), Duration.ofMinutes(30)));
 
-        mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())
+        mockMvc.perform(post("/api/admin/password/reset/{token}", "reset-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"newpassword1\"}"))
                 .andExpect(status().isOk())
@@ -128,10 +140,10 @@ class AdminPasswordControllerTest {
     void reset_ExpiredToken_Returns410() throws Exception {
         Admin admin = adminRepository.save(
                 Admin.register("expired@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
-        PasswordResetToken token = tokenRepository.save(
-                PasswordResetToken.issue(admin.getId(), "expired-token", Duration.ofMillis(-1)));
+        tokenRepository.save(
+                PasswordResetToken.issue(admin.getId(), hash("expired-token"), Duration.ofMillis(-1)));
 
-        mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())
+        mockMvc.perform(post("/api/admin/password/reset/{token}", "expired-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"newpassword1\"}"))
                 .andExpect(status().isGone())
@@ -142,10 +154,10 @@ class AdminPasswordControllerTest {
     void reset_WeakPassword_Returns400() throws Exception {
         Admin admin = adminRepository.save(
                 Admin.register("weak@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
-        PasswordResetToken token = tokenRepository.save(
-                PasswordResetToken.issue(admin.getId(), "weak-token", Duration.ofMinutes(30)));
+        tokenRepository.save(
+                PasswordResetToken.issue(admin.getId(), hash("weak-token"), Duration.ofMinutes(30)));
 
-        mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())
+        mockMvc.perform(post("/api/admin/password/reset/{token}", "weak-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"short\"}"))
                 .andExpect(status().isBadRequest())
@@ -156,13 +168,13 @@ class AdminPasswordControllerTest {
     void reset_AlreadyUsedToken_Returns400() throws Exception {
         Admin admin = adminRepository.save(
                 Admin.register("used@khu.ac.kr", "이름", passwordEncoder.encode("password1")));
-        PasswordResetToken token = tokenRepository.save(
-                PasswordResetToken.issue(admin.getId(), "used-token", Duration.ofMinutes(30)));
-        mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())
+        tokenRepository.save(
+                PasswordResetToken.issue(admin.getId(), hash("used-token"), Duration.ofMinutes(30)));
+        mockMvc.perform(post("/api/admin/password/reset/{token}", "used-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"password\":\"firstpassword1\"}"));
 
-        mockMvc.perform(post("/api/admin/password/reset/{token}", token.getToken())
+        mockMvc.perform(post("/api/admin/password/reset/{token}", "used-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"secondpassword1\"}"))
                 .andExpect(status().isBadRequest())
