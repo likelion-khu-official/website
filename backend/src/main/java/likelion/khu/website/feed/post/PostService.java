@@ -3,6 +3,7 @@ package likelion.khu.website.feed.post;
 import likelion.khu.website.audit.AuditChanges;
 import likelion.khu.website.audit.AuditOutcome;
 import likelion.khu.website.audit.AuditService;
+import likelion.khu.website.discord.SiteContentPublishedEvent;
 import likelion.khu.website.feed.comment.CommentRepository;
 import likelion.khu.website.feed.post.dto.PostCreateRequest;
 import likelion.khu.website.feed.post.dto.PostDetailResponse;
@@ -15,6 +16,7 @@ import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.member.MemberRole;
 import likelion.khu.website.member.exception.MemberNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final MemberRepository memberRepository;
     private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PostDetailResponse createPost(Long memberId, PostCreateRequest request) {
@@ -51,6 +54,9 @@ public class PostService {
                 authorName, authorParts, memberId, request.getThumbnailUrl());
         postRepository.save(post);
         auditService.recordStateChange("블로그 글 작성: " + request.getTitle(), "POST", post.getId(), AuditOutcome.SUCCESS);
+        // 멤버가 글을 쓰면 곧바로 PUBLISHED(Post.create)라, 작성 = 최초 공개. 디스코드 채널에 알린다.
+        eventPublisher.publishEvent(
+                SiteContentPublishedEvent.blog(post.getTitle(), post.getSummary(), post.getSlug(), authorName));
         return PostDetailResponse.from(post, member, 0);
     }
 
@@ -109,9 +115,17 @@ public class PostService {
     public PostSummaryResponse updateStatus(Long id, PostStatus status) {
         Post post = findPostOrThrow(id);
         PostStatus before = post.getStatus();
+        // 최초 공개인지 전이 "전에" 판정한다 — transitionTo가 publishedAt을 세팅해버리기 때문.
+        // DRAFT→PUBLISHED(publishedAt==null)만 최초 공개고, 숨김→다시 공개(HIDDEN→PUBLISHED)는
+        // 이미 publishedAt이 있어 재공지하지 않는다(같은 글 반복 알림 방지).
+        boolean firstPublish = status == PostStatus.PUBLISHED && post.getPublishedAt() == null;
         post.transitionTo(status);
         String detail = new AuditChanges().field("상태", before, post.getStatus()).toDetailOrNull();
         auditService.recordStateChange("블로그 글 상태 변경: " + post.getTitle(), detail, "POST", id, AuditOutcome.SUCCESS);
+        if (firstPublish) {
+            eventPublisher.publishEvent(
+                    SiteContentPublishedEvent.blog(post.getTitle(), post.getSummary(), post.getSlug(), post.getAuthorName()));
+        }
         return PostSummaryResponse.from(post, findAuthor(post));
     }
 
