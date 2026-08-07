@@ -1,61 +1,28 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
 import type { MemberProjectSummary } from '@shared/types/project';
-import {
-  deleteProject,
-  getCurrentMember,
-  getMemberProjects,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from './MemberProjectHeader';
-
-const PAGE_PATH = '/member/projects';
-
-function sendToLogin(router: ReturnType<typeof useRouter>) {
-  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
-}
+import { deleteProject, getMemberProjects, MemberApiError } from '@/lib/memberApi';
+import { useMemberResource } from '@/components/member/hooks/useMemberResource';
+import PageHeader from '@/components/member/ui/PageHeader';
+import ErrorAlert from '@/components/member/ui/ErrorAlert';
+import EmptyState from '@/components/member/ui/EmptyState';
+import { CardGridSkeleton } from '@/components/member/ui/MemberSkeleton';
+import { ProjectVisibilityBadge } from '@/components/member/ui/StatusBadge';
+import { primaryButton } from '@/components/member/ui/styles';
 
 export default function MemberProjectsDashboard() {
   const router = useRouter();
-  const [member, setMember] = useState<MemberAccount | null>(null);
-  const [projects, setProjects] = useState<MemberProjectSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [{ member: currentMember }, projectList] = await Promise.all([
-        getCurrentMember(),
-        getMemberProjects(),
-      ]);
-      if (currentMember.mustChangePassword) {
-        sendToLogin(router);
-        return;
-      }
-      setMember(currentMember);
-      setProjects(projectList);
-    } catch (err) {
-      if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
-        return;
-      }
-      setError(err instanceof Error ? err.message : '내 프로젝트를 불러오지 못했어요.');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  const { data, setData, loading, error, reload } = useMemberResource<MemberProjectSummary[]>(() =>
+    getMemberProjects()
+  );
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [load]);
+  const projects = data ?? [];
 
   async function handleDelete(project: MemberProjectSummary) {
     const confirmed = window.confirm(
@@ -64,81 +31,60 @@ export default function MemberProjectsDashboard() {
     if (!confirmed) return;
 
     setDeletingId(project.id);
-    setError('');
+    setDeleteError('');
     try {
       await deleteProject(project.id);
-      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setData((current) => (current ? current.filter((item) => item.id !== project.id) : current));
     } catch (err) {
-      if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
+      if (
+        err instanceof MemberApiError &&
+        (err.status === 401 || err.code === 'MUST_CHANGE_PASSWORD')
+      ) {
+        router.replace('/member/login?returnTo=%2Fmember%2Fprojects');
         return;
       }
-      setError(err instanceof Error ? err.message : '프로젝트 삭제에 실패했어요.');
+      setDeleteError(err instanceof Error ? err.message : '프로젝트 삭제에 실패했어요.');
     } finally {
       setDeletingId(null);
     }
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={member?.name} />
+    <div>
+      <PageHeader
+        kicker="Projects"
+        title="내 프로젝트"
+        description="내가 참여한 프로젝트를 등록하고 함께 관리할 수 있어요."
+        action={
+          <Link href="/member/projects/new" className={primaryButton}>
+            <span aria-hidden>＋</span> 새 프로젝트
+          </Link>
+        }
+      />
 
-      <div className="flex flex-col gap-8 border-b border-white/10 pb-10 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-            Projects
-          </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
-            내 프로젝트
-          </h1>
-          <p className="mt-4 text-sm leading-6 text-white/45">
-            내가 참여한 프로젝트를 등록하고 함께 관리할 수 있어요.
-          </p>
-        </div>
-        <Link
-          href="/member/projects/new"
-          className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff6a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <span aria-hidden>＋</span> 새 프로젝트
-        </Link>
-      </div>
-
-      {error ? (
-        <div
-          role="alert"
-          className="mt-8 flex flex-col items-start justify-between gap-2 rounded-2xl border border-red-400/20 bg-red-400/[0.07] px-5 py-4 text-sm text-red-200 sm:flex-row sm:items-center sm:gap-4"
-        >
-          <span className="min-w-0 break-words">{error}</span>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex min-h-11 shrink-0 items-center rounded-md underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
-          >
-            다시 시도
-          </button>
-        </div>
-      ) : null}
+      {error ? <ErrorAlert className="mt-8" message={error} onRetry={reload} /> : null}
+      {deleteError ? <ErrorAlert className="mt-8" message={deleteError} /> : null}
 
       {loading ? (
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {[0, 1].map((item) => (
-            <div
-              key={item}
-              className="h-52 animate-pulse rounded-3xl border border-white/5 bg-white/[0.035]"
-            />
-          ))}
+        <div className="mt-10">
+          <CardGridSkeleton count={2} height="h-52" />
         </div>
       ) : projects.length === 0 ? (
-        <div className="mt-10 flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 px-6 text-center">
-          <p className="text-lg font-semibold">아직 참여 중인 프로젝트가 없어요.</p>
-          <p className="mt-2 text-sm text-white/40">새 프로젝트를 등록하면 즉시 공개돼요.</p>
-        </div>
+        <EmptyState
+          title="아직 참여 중인 프로젝트가 없어요."
+          description="새 프로젝트를 등록하면 즉시 공개돼요."
+          action={
+            <Link href="/member/projects/new" className={primaryButton}>
+              <span aria-hidden>＋</span> 첫 프로젝트 등록
+            </Link>
+          }
+        />
       ) : (
         <ul className="mt-10 grid gap-5 sm:grid-cols-2">
           {projects.map((project) => (
             <li
               key={project.id}
-              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition hover:border-white/20"
+              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition-colors hover:border-white/20"
             >
               <div className="flex gap-5 p-5">
                 <div className="aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-2xl bg-white/[0.05]">
@@ -154,17 +100,9 @@ export default function MemberProjectsDashboard() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold text-accent">{project.cohort}기</span>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                        project.hidden
-                          ? 'bg-amber-400/10 text-amber-300'
-                          : 'bg-emerald-400/10 text-emerald-300'
-                      }`}
-                    >
-                      {project.hidden ? '숨김' : '공개'}
-                    </span>
+                    <ProjectVisibilityBadge hidden={project.hidden} />
                   </div>
-                  <h2 className="mt-3 line-clamp-2 break-words text-xl font-semibold leading-tight tracking-[-0.03em]">
+                  <h2 className="mt-3 line-clamp-2 break-words text-xl font-semibold leading-tight tracking-[-0.03em] text-white">
                     {project.title}
                   </h2>
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/45">
@@ -175,7 +113,7 @@ export default function MemberProjectsDashboard() {
               <div className="flex border-t border-white/10">
                 <Link
                   href={`/member/projects/${project.id}/edit`}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center px-5 py-3.5 text-center text-sm text-white/65 transition hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                  className="inline-flex min-h-11 flex-1 items-center justify-center px-5 py-3.5 text-center text-sm text-white/65 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                 >
                   수정
                 </Link>
@@ -183,7 +121,7 @@ export default function MemberProjectsDashboard() {
                   type="button"
                   onClick={() => void handleDelete(project)}
                   disabled={deletingId === project.id}
-                  className="min-h-11 flex-1 border-l border-white/10 px-5 py-3.5 text-sm text-red-300/75 transition hover:bg-red-400/[0.06] hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-200 disabled:opacity-40"
+                  className="min-h-11 flex-1 border-l border-white/10 px-5 py-3.5 text-sm text-red-300/75 transition-colors hover:bg-red-400/[0.06] hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-200 disabled:opacity-40"
                 >
                   {deletingId === project.id ? '삭제 중…' : '삭제'}
                 </button>
