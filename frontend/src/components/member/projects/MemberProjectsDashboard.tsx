@@ -9,9 +9,11 @@ import { useMemberResource } from '@/components/member/hooks/useMemberResource';
 import PageHeader from '@/components/member/ui/PageHeader';
 import ErrorAlert from '@/components/member/ui/ErrorAlert';
 import EmptyState from '@/components/member/ui/EmptyState';
-import { CardGridSkeleton } from '@/components/member/ui/MemberSkeleton';
+import { Skeleton } from '@/components/member/ui/MemberSkeleton';
 import { ProjectVisibilityBadge } from '@/components/member/ui/StatusBadge';
-import { primaryButton } from '@/components/member/ui/styles';
+import { chip, dangerGhostButton, listCard, primaryButton, secondaryButton } from '@/components/member/ui/styles';
+
+const MAX_STACK_CHIPS = 4;
 
 export default function MemberProjectsDashboard() {
   const router = useRouter();
@@ -66,65 +68,81 @@ export default function MemberProjectsDashboard() {
       {deleteError ? <ErrorAlert className="mt-8" message={deleteError} /> : null}
 
       {loading ? (
-        <div className="mt-10">
-          <CardGridSkeleton count={2} height="h-52" />
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {[0, 1].map((item) => (
+            <Skeleton key={item} className="h-80" />
+          ))}
         </div>
       ) : projects.length === 0 ? (
-        <EmptyState
-          title="아직 참여 중인 프로젝트가 없어요."
-          description="새 프로젝트를 등록하면 즉시 공개돼요."
-          action={
-            <Link href="/member/projects/new" className={primaryButton}>
-              <span aria-hidden>＋</span> 첫 프로젝트 등록
-            </Link>
-          }
-        />
+        <div className="mt-10">
+          <EmptyState
+            title="아직 참여 중인 프로젝트가 없어요."
+            description="새 프로젝트를 등록하면 즉시 공개돼요."
+            action={
+              <Link href="/member/projects/new" className={primaryButton}>
+                <span aria-hidden>＋</span> 첫 프로젝트 등록
+              </Link>
+            }
+          />
+        </div>
       ) : (
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2">
+        <ul className="mt-10 grid gap-6 sm:grid-cols-2">
           {projects.map((project) => (
-            <li
-              key={project.id}
-              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition-colors hover:border-white/20"
-            >
-              <div className="flex gap-5 p-5">
-                <div className="aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-2xl bg-white/[0.05]">
-                  {project.representativeImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={project.representativeImageUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-accent">{project.cohort}기</span>
-                    <ProjectVisibilityBadge hidden={project.hidden} />
-                  </div>
-                  <h2 className="mt-3 line-clamp-2 break-words text-xl font-semibold leading-tight tracking-[-0.03em] text-white">
-                    {project.title}
-                  </h2>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/45">
-                    {project.summary}
-                  </p>
+            <li key={project.id} className={listCard}>
+              <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-[#0d0d0d]">
+                {project.representativeImageUrl ? (
+                  // 프로젝트 화면은 잘라내지 않고 원본 비율 그대로(object-contain) 보여준다.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={project.representativeImageUrl}
+                    alt=""
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-[64px] font-semibold text-white/10">
+                    {String(project.cohort).padStart(2, '0')}
+                  </span>
+                )}
+                <span className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/50 px-2.5 py-1 text-xs font-semibold text-accent backdrop-blur-md">
+                  {project.cohort}기
+                </span>
+                <div className="absolute right-4 top-4">
+                  <ProjectVisibilityBadge hidden={project.hidden} />
                 </div>
               </div>
-              <div className="flex border-t border-white/10">
-                <Link
-                  href={`/member/projects/${project.id}/edit`}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center px-5 py-3.5 text-center text-sm text-white/65 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-                >
-                  수정
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(project)}
-                  disabled={deletingId === project.id}
-                  className="min-h-11 flex-1 border-l border-white/10 px-5 py-3.5 text-sm text-red-300/75 transition-colors hover:bg-red-400/[0.06] hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-200 disabled:opacity-40"
-                >
-                  {deletingId === project.id ? '삭제 중…' : '삭제'}
-                </button>
+
+              <div className="flex flex-1 flex-col p-5">
+                <h2 className="line-clamp-2 break-words text-lg font-semibold leading-tight tracking-[-0.03em] text-white">
+                  {project.title}
+                </h2>
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/45">{project.summary}</p>
+
+                {project.techStack.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {project.techStack.slice(0, MAX_STACK_CHIPS).map((tech) => (
+                      <span key={tech} className={chip}>
+                        {tech}
+                      </span>
+                    ))}
+                    {project.techStack.length > MAX_STACK_CHIPS ? (
+                      <span className={chip}>+{project.techStack.length - MAX_STACK_CHIPS}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="mt-5 flex items-center gap-1 border-t border-white/10 pt-3">
+                  <Link href={`/member/projects/${project.id}/edit`} className={`${secondaryButton} px-4`}>
+                    수정
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(project)}
+                    disabled={deletingId === project.id}
+                    className={`ml-auto ${dangerGhostButton}`}
+                  >
+                    {deletingId === project.id ? '삭제 중…' : '삭제'}
+                  </button>
+                </div>
               </div>
             </li>
           ))}

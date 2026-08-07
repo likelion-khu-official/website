@@ -10,11 +10,13 @@ import { useMemberResource } from '@/components/member/hooks/useMemberResource';
 import PageHeader from '@/components/member/ui/PageHeader';
 import ErrorAlert from '@/components/member/ui/ErrorAlert';
 import EmptyState from '@/components/member/ui/EmptyState';
-import { CardGridSkeleton } from '@/components/member/ui/MemberSkeleton';
+import { Skeleton } from '@/components/member/ui/MemberSkeleton';
 import { PostStatusBadge } from '@/components/member/ui/StatusBadge';
-import { primaryButton } from '@/components/member/ui/styles';
+import { dangerGhostButton, listCard, primaryButton, secondaryButton } from '@/components/member/ui/styles';
 
 const PAGE_SIZE = 24;
+const MEDIA_PLACEHOLDER =
+  'bg-[radial-gradient(circle_at_72%_18%,rgba(255,80,0,0.16),transparent_46%),linear-gradient(150deg,#242424,#131313)]';
 
 export default function MemberPostsDashboard() {
   const router = useRouter();
@@ -77,74 +79,74 @@ export default function MemberPostsDashboard() {
       {deleteError ? <ErrorAlert className="mt-8" message={deleteError} /> : null}
 
       {loading ? (
-        <div className="mt-10">
-          <CardGridSkeleton count={2} height="h-56" />
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {[0, 1].map((item) => (
+            <Skeleton key={item} className="h-80" />
+          ))}
         </div>
       ) : posts.length === 0 ? (
-        <EmptyState
-          title="아직 작성한 글이 없어요."
-          description="첫 글을 작성하면 방문자에게 바로 공개돼요."
-          action={
-            <Link href="/member/write" className={primaryButton}>
-              <span aria-hidden>＋</span> 첫 글 쓰기
-            </Link>
-          }
-        />
+        <div className="mt-10">
+          <EmptyState
+            title="아직 작성한 글이 없어요."
+            description="첫 글을 작성하면 방문자에게 바로 공개돼요."
+            action={
+              <Link href="/member/write" className={primaryButton}>
+                <span aria-hidden>＋</span> 첫 글 쓰기
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <>
-          <ul className="mt-10 grid gap-5 sm:grid-cols-2">
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2">
             {posts.map((post) => (
-              <li
-                key={post.id}
-                className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition-colors hover:border-white/20"
-              >
-                <div className="flex gap-5 p-5">
-                  <div className="aspect-[16/9] w-32 shrink-0 overflow-hidden rounded-2xl bg-white/[0.05]">
-                    {post.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <PostStatusBadge status={post.status} />
-                      <span className="text-xs text-white/35">
-                        {formatDate(post.publishedAt ?? post.createdAt)}
-                      </span>
-                    </div>
-                    <h2 className="mt-3 line-clamp-2 break-words text-lg font-semibold leading-tight tracking-[-0.03em] text-white">
-                      {post.title}
-                    </h2>
-                    {post.summary ? (
-                      <p className="mt-2 line-clamp-2 text-sm leading-5 text-white/45">
-                        {post.summary}
-                      </p>
-                    ) : null}
+              <li key={post.id} className={listCard}>
+                <div className={`relative aspect-[16/9] w-full overflow-hidden ${MEDIA_PLACEHOLDER}`}>
+                  {post.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={post.thumbnailUrl}
+                      alt=""
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transform-none"
+                    />
+                  ) : null}
+                  <div className="absolute left-4 top-4">
+                    <PostStatusBadge status={post.status} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 border-t border-white/10">
-                  {post.status === 'PUBLISHED' ? (
-                    <Link
-                      href={`/blog/${post.slug}`}
-                      className="col-span-2 inline-flex min-h-11 items-center justify-center border-b border-white/10 px-5 py-3 text-center text-sm text-white/45 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-                    >
-                      공개 글 보기
-                    </Link>
+
+                <div className="flex flex-1 flex-col p-5">
+                  <span className="text-xs text-white/35">
+                    {formatDate(post.publishedAt ?? post.createdAt)}
+                  </span>
+                  <h2 className="mt-2 line-clamp-2 break-words text-lg font-semibold leading-tight tracking-[-0.03em] text-white">
+                    {post.title}
+                  </h2>
+                  {post.summary ? (
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/45">{post.summary}</p>
                   ) : null}
-                  <Link
-                    href={`/member/posts/${post.id}/edit`}
-                    className="inline-flex min-h-11 items-center justify-center px-5 py-3.5 text-center text-sm text-white/65 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-                  >
-                    수정
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(post)}
-                    disabled={deletingId === post.id}
-                    className="min-h-11 border-l border-white/10 px-5 py-3.5 text-sm text-red-300/75 transition-colors hover:bg-red-400/[0.06] hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-200 disabled:opacity-40"
-                  >
-                    {deletingId === post.id ? '삭제 중…' : '삭제'}
-                  </button>
+
+                  <div className="mt-5 flex items-center gap-1 border-t border-white/10 pt-3">
+                    <Link href={`/member/posts/${post.id}/edit`} className={`${secondaryButton} px-4`}>
+                      수정
+                    </Link>
+                    {post.status === 'PUBLISHED' ? (
+                      <Link
+                        href={`/blog/${post.slug}`}
+                        className="inline-flex min-h-11 items-center rounded-full px-3 text-sm text-white/45 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        공개 글 보기 ↗
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(post)}
+                      disabled={deletingId === post.id}
+                      className={`ml-auto ${dangerGhostButton}`}
+                    >
+                      {deletingId === post.id ? '삭제 중…' : '삭제'}
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -163,7 +165,7 @@ export default function MemberPostsDashboard() {
               >
                 이전
               </button>
-              <span className="text-white/45">
+              <span className="text-white/45 tabular-nums">
                 {page + 1} / {data.totalPages}
               </span>
               <button
