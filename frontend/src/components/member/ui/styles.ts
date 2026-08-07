@@ -28,3 +28,12 @@ export const cardSurface = 'rounded-3xl border border-white/10 bg-white/[0.025]'
 // 리스트 카드 공통 표면 — hover 시 살짝 떠오른다(모션 감소 시 정지).
 export const listCard =
   'group flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-white/20 motion-reduce:transform-none motion-reduce:transition-none';
+
+// 관리 목록의 한 줄(row) — 작은 썸네일 + 본문 + 액션. 모바일은 세로로 접혀 액션이 아래로,
+// sm+에선 한 줄로 펼쳐지고 액션이 오른쪽에 붙는다. 큰 미디어 카드보다 밀도 높고 담백하다.
+export const rowCard =
+  'group flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-white/20 sm:flex-row sm:items-center sm:gap-5';
+
+// 행 안의 담백한 액션(수정·공개 보기 등). 터치 타깃은 유지하되 가로 패딩만 줄였다.
+export const rowAction =
+  'inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-sm text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';

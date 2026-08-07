@@ -10,7 +10,7 @@ import { inputField, primaryButton } from './ui/styles';
 
 /** role별 로그인 후 이동 경로. BE가 MemberAuthRole에 값을 추가하면 여기 채워야 컴파일된다. */
 const ROLE_HOME: Record<MemberAuthRole, string> = {
-  MEMBER: '/member/projects',
+  MEMBER: '/member',
 };
 
 /** '/'로 시작하는 내부 경로만 허용 — '//evil.com'이나 '/\evil.com'처럼 '/'로 시작하지만
