@@ -117,6 +117,13 @@ app:
     # 처리됨(DeployHistoryService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
     deploy-history-path: ${DEPLOY_HISTORY_PATH:/app/deploy-history}
 
+  discord:
+    # 새 블로그 글·프로젝트가 공개되면 디스코드 '동아리 홈페이지' 채널에 알림을 쏘는 웹훅 URL(#461).
+    # 기본값은 빈 문자열 — 값이 없으면 DiscordWebhookClient가 no-op이라 dev·stage·e2e는 아무것도 안 쏜다.
+    # 운영에서만 켜지도록 prod .env(gitignore)에만 DISCORD_WEBHOOK_URL을 넣는다. 이 URL은 시크릿이라
+    # (아는 사람이 봇 이름으로 아무거나 발송 가능) 커밋되는 파일엔 절대 값을 넣지 않는다 — 이 레포는 public.
+    webhook-url: ${DISCORD_WEBHOOK_URL:}
+
 # === OCI Object Storage (S3 호환 API) ===
 oci-storage:
   endpoint: ${OCI_STORAGE_ENDPOINT}

@@ -2,6 +2,7 @@ package likelion.khu.website.project;
 
 import likelion.khu.website.audit.AuditOutcome;
 import likelion.khu.website.audit.AuditService;
+import likelion.khu.website.discord.SiteContentPublishedEvent;
 import likelion.khu.website.member.Member;
 import likelion.khu.website.member.MemberRepository;
 import likelion.khu.website.project.dto.ProjectCreateRequest;
@@ -22,6 +23,7 @@ import likelion.khu.website.project.exception.ParticipantMemberNotFoundException
 import likelion.khu.website.project.exception.ProjectNotFoundException;
 import likelion.khu.website.project.exception.SelfNotIncludedException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -41,6 +43,7 @@ public class ProjectService {
     private final ProjectParticipantRepository projectParticipantRepository;
     private final MemberRepository memberRepository;
     private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<ProjectSummaryResponse> getPublicList(Integer limit) {
@@ -95,6 +98,10 @@ public class ProjectService {
         saveParticipants(project, request.getParticipants());
 
         auditService.recordStateChange("프로젝트 등록: " + request.getTitle(), "PROJECT", project.getId(), AuditOutcome.SUCCESS);
+        // 새 프로젝트는 hidden=false로 저장돼 곧바로 공개 목록에 뜬다 = 업로드. 디스코드 채널에 알린다.
+        eventPublisher.publishEvent(SiteContentPublishedEvent.project(
+                project.getTitle(), project.getSummary(), project.getId(), project.getCohort(),
+                request.getParticipants().size(), project.getTechStack(), representativeImageUrl(project.getId())));
         return toDetailResponse(project);
     }
 
