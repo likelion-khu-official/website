@@ -1,302 +1,233 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import type { MemberAccount } from '@shared/types/member-auth';
 import type { Member } from '@shared/types/member';
 import type { MemberPostSummary } from '@shared/types/feed';
 import type { MemberProjectSummary } from '@shared/types/project';
-import { formatDate } from '@/lib/formatDate';
+import { formatRelativeTime } from '@/lib/formatDate';
 import { ROLE_LABELS } from '@/lib/roster';
-import {
-  getAllMembers,
-  getCurrentMember,
-  getMemberPosts,
-  getMemberProjects,
-  MemberApiError,
-} from '@/lib/memberApi';
-import MemberProjectHeader from './projects/MemberProjectHeader';
+import { getMemberPosts, getMemberProjects, getMyProfile } from '@/lib/memberApi';
+import { useMemberResource } from './hooks/useMemberResource';
+import ErrorAlert from './ui/ErrorAlert';
+import EmptyState from './ui/EmptyState';
+import { Skeleton } from './ui/MemberSkeleton';
+import { PostStatusBadge, ProjectVisibilityBadge } from './ui/StatusBadge';
+import { cardSurface, primaryButton, secondaryButton } from './ui/styles';
 
-const PAGE_PATH = '/member';
-const PREVIEW_SIZE = 3;
-
-function sendToLogin(router: ReturnType<typeof useRouter>) {
-  router.replace(`/member/login?returnTo=${encodeURIComponent(PAGE_PATH)}`);
-}
-
-function postStatusStyle(status: MemberPostSummary['status']) {
-  if (status === 'PUBLISHED') return 'bg-emerald-400/10 text-emerald-300';
-  if (status === 'HIDDEN') return 'bg-amber-400/10 text-amber-300';
-  return 'bg-white/10 text-white/55';
-}
-
-function postStatusLabel(status: MemberPostSummary['status']) {
-  if (status === 'PUBLISHED') return '공개';
-  if (status === 'HIDDEN') return '숨김';
-  return '초안';
-}
+const ACTIVITY_FETCH = 6;
+const ACTIVITY_SHOWN = 6;
 
 type DashboardData = {
-  member: MemberAccount;
-  profile: Member | null;
+  profile: Member;
   posts: MemberPostSummary[];
   postsTotal: number;
   projects: MemberProjectSummary[];
 };
 
+type Activity =
+  | { kind: 'post'; id: number; title: string; createdAt: string; post: MemberPostSummary }
+  | { kind: 'project'; id: number; title: string; createdAt: string; project: MemberProjectSummary };
+
 export default function MemberDashboard() {
-  const router = useRouter();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, loading, error, reload } = useMemberResource<DashboardData>(async () => {
+    const [profile, postPage, projects] = await Promise.all([
+      getMyProfile(),
+      getMemberPosts(0, ACTIVITY_FETCH),
+      getMemberProjects(),
+    ]);
+    return { profile, posts: postPage.content, postsTotal: postPage.totalElements, projects };
+  });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [{ member: currentMember }, allMembers, postPage, projects] = await Promise.all([
-        getCurrentMember(),
-        getAllMembers(),
-        getMemberPosts(0, PREVIEW_SIZE),
-        getMemberProjects(),
-      ]);
-      if (currentMember.mustChangePassword) {
-        sendToLogin(router);
-        return;
-      }
-      setData({
-        member: currentMember,
-        profile: allMembers.find((candidate) => candidate.id === currentMember.id) ?? null,
-        posts: postPage.content,
-        postsTotal: postPage.totalElements,
-        projects,
-      });
-    } catch (err) {
-      if (err instanceof MemberApiError && err.status === 401) {
-        sendToLogin(router);
-        return;
-      }
-      setError(err instanceof Error ? err.message : '대시보드를 불러오지 못했어요.');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  if (error) return <ErrorAlert message={error} onRetry={reload} />;
+  if (loading || !data) return <DashboardSkeleton />;
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [load]);
+  const activities = buildActivities(data.posts, data.projects);
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <MemberProjectHeader memberName={data?.member.name} />
+    <div className="flex flex-col gap-8">
+      <WelcomeHero profile={data.profile} />
 
-      <div className="border-b border-white/10 pb-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-          Member workspace
-        </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-6xl">
-          내 활동
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-white/45">
-          내 프로필·글·프로젝트 상태를 한눈에 보고 필요한 화면으로 이동해요.
-        </p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile href="/member/posts" label="내 글" value={`${data.postsTotal}`} unit="편" />
+        <StatTile
+          href="/member/projects"
+          label="내 프로젝트"
+          value={`${data.projects.length}`}
+          unit="개"
+        />
+        <StatTile
+          href="/member/profile"
+          label="프로필"
+          value={data.profile.joinReason ? '작성됨' : '미작성'}
+        />
       </div>
 
-      {error ? (
-        <div
-          role="alert"
-          className="mt-8 flex flex-col items-start justify-between gap-2 rounded-2xl border border-red-400/20 bg-red-400/[0.07] px-5 py-4 text-sm text-red-200 sm:flex-row sm:items-center sm:gap-4"
-        >
-          <span className="min-w-0 break-words">{error}</span>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex min-h-11 shrink-0 items-center rounded-md underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
-          >
-            다시 시도
-          </button>
-        </div>
-      ) : null}
+      <section>
+        <h2 className="text-lg font-semibold tracking-[-0.03em] text-white">최근 활동</h2>
+        {activities.length === 0 ? (
+          <div className="mt-4">
+            <EmptyState
+              title="아직 활동 기록이 없어요."
+              description="첫 글이나 프로젝트를 남기면 여기에 모여요."
+              action={
+                <Link href="/member/write" className={primaryButton}>
+                  <span aria-hidden>＋</span> 첫 글 쓰기
+                </Link>
+              }
+            />
+          </div>
+        ) : (
+          <ul className={`mt-4 divide-y divide-white/5 overflow-hidden ${cardSurface}`}>
+            {activities.map((activity) => (
+              <ActivityRow key={`${activity.kind}-${activity.id}`} activity={activity} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
 
-      {loading ? (
-        <>
-          <div className="mt-10 h-28 animate-pulse rounded-3xl border border-white/5 bg-white/[0.035]" />
-          <div className="mt-6 grid gap-5 sm:grid-cols-3">
-            {[0, 1, 2].map((item) => (
-              <div
-                key={item}
-                className="h-64 animate-pulse rounded-3xl border border-white/5 bg-white/[0.035]"
-              />
+function buildActivities(posts: MemberPostSummary[], projects: MemberProjectSummary[]): Activity[] {
+  const items: Activity[] = [
+    ...posts.map(
+      (post): Activity => ({
+        kind: 'post',
+        id: post.id,
+        title: post.title,
+        createdAt: post.createdAt,
+        post,
+      })
+    ),
+    ...projects.map(
+      (project): Activity => ({
+        kind: 'project',
+        id: project.id,
+        title: project.title,
+        createdAt: project.createdAt,
+        project,
+      })
+    ),
+  ];
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return items.slice(0, ACTIVITY_SHOWN);
+}
+
+function WelcomeHero({ profile }: { profile: Member }) {
+  return (
+    <section className="member-hero-bg relative overflow-hidden rounded-3xl border border-white/10 p-7 sm:p-10">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.06]">
+          {profile.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.photoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-2xl" aria-hidden>
+              {profile.emoji || '🦁'}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white sm:text-3xl">
+            안녕하세요, {profile.name} 님 🦁
+          </h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/55">
+            <span className="text-accent">{profile.cohort}기</span>
+            {profile.roles.map((role) => (
+              <span key={role} className="rounded-full bg-white/[0.06] px-2 py-0.5">
+                {ROLE_LABELS[role]}
+              </span>
             ))}
           </div>
-        </>
-      ) : data ? (
-        <>
-          <IdentityCard member={data.member} profile={data.profile} />
-
-          <div className="mt-6 grid gap-5 sm:grid-cols-3">
-            <PostsCard posts={data.posts} total={data.postsTotal} />
-            <ProjectsCard projects={data.projects} />
-            <ProfileCard profile={data.profile} />
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function IdentityCard({ member, profile }: { member: MemberAccount; profile: Member | null }) {
-  const roles = profile?.roles ?? [];
-  return (
-    <div className="mt-10 flex flex-col items-start gap-5 rounded-3xl border border-white/10 bg-white/[0.025] p-6 sm:flex-row sm:items-center">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.05]">
-        {profile?.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profile.photoUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="text-3xl" aria-hidden>
-            {profile?.emoji ?? '🦁'}
-          </span>
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xl font-semibold tracking-[-0.03em] text-white">{member.name} 님</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          {profile ? <span className="text-accent">{profile.cohort}기</span> : null}
-          {roles.map((role) => (
-            <span key={role} className="rounded-full bg-white/[0.06] px-2 py-1 text-white/60">
-              {ROLE_LABELS[role]}
-            </span>
-          ))}
         </div>
       </div>
-    </div>
+
+      <p className="mt-5 text-sm leading-6 text-white/55">
+        내가 만든 글과 프로젝트가 이 공간에 모여요. 새 활동을 바로 남겨보세요.
+      </p>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link href="/member/write" className={primaryButton}>
+          <span aria-hidden>＋</span> 새 글 쓰기
+        </Link>
+        <Link href="/member/projects/new" className={secondaryButton}>
+          <span aria-hidden>＋</span> 새 프로젝트
+        </Link>
+      </div>
+    </section>
   );
 }
 
-function DashboardCard({
-  title,
-  meta,
+function StatTile({
   href,
-  hrefLabel,
-  secondaryHref,
-  secondaryLabel,
-  children,
+  label,
+  value,
+  unit,
 }: {
-  title: string;
-  meta: string;
   href: string;
-  hrefLabel: string;
-  secondaryHref?: string;
-  secondaryLabel?: string;
-  children: React.ReactNode;
+  label: string;
+  value: string;
+  unit?: string;
 }) {
   return (
-    <div className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.025] p-6">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold tracking-[-0.03em] text-white">{title}</h2>
-        <span className="text-xs text-white/40">{meta}</span>
+    <Link
+      href={href}
+      className={`group flex items-center justify-between gap-3 ${cardSurface} px-5 py-4 transition-colors hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+    >
+      <div className="min-w-0">
+        <p className="text-xs text-white/45">{label}</p>
+        <p className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-white">
+          {value}
+          {unit ? <span className="ml-1 text-sm font-normal text-white/40">{unit}</span> : null}
+        </p>
       </div>
-      <div className="mt-4 flex-1">{children}</div>
-      <div className="mt-5 flex flex-col gap-2 border-t border-white/10 pt-4">
-        <Link
-          href={href}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-sm font-semibold text-white transition hover:bg-[#ff6a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          {hrefLabel}
-        </Link>
-        {secondaryHref && secondaryLabel ? (
-          <Link
-            href={secondaryHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/15 px-4 text-sm text-white/65 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            {secondaryLabel}
-          </Link>
-        ) : null}
+      <span
+        aria-hidden
+        className="text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-white/50"
+      >
+        →
+      </span>
+    </Link>
+  );
+}
+
+function ActivityRow({ activity }: { activity: Activity }) {
+  const href =
+    activity.kind === 'post'
+      ? `/member/posts/${activity.id}/edit`
+      : `/member/projects/${activity.id}/edit`;
+
+  return (
+    <li>
+      <Link
+        href={href}
+        className="flex min-h-11 items-center gap-3 px-5 py-3.5 transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+      >
+        {activity.kind === 'post' ? (
+          <PostStatusBadge status={activity.post.status} />
+        ) : (
+          <ProjectVisibilityBadge hidden={activity.project.hidden} />
+        )}
+        <span className="shrink-0 text-xs text-white/35">
+          {activity.kind === 'post' ? '글' : '프로젝트'}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm text-white/80">{activity.title}</span>
+        <span className="shrink-0 text-xs text-white/35">{formatRelativeTime(activity.createdAt)}</span>
+      </Link>
+    </li>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      <Skeleton className="h-48" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <Skeleton key={item} className="h-20 rounded-3xl" />
+        ))}
       </div>
+      <Skeleton className="h-72" />
     </div>
-  );
-}
-
-function PostsCard({ posts, total }: { posts: MemberPostSummary[]; total: number }) {
-  return (
-    <DashboardCard
-      title="내 글"
-      meta={`총 ${total}편`}
-      href="/member/write"
-      hrefLabel="새 글 쓰기"
-      secondaryHref="/member/posts"
-      secondaryLabel="내 글 관리"
-    >
-      {posts.length === 0 ? (
-        <p className="text-sm text-white/40">아직 쓴 글이 없어요. 첫 글을 남겨보세요.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {posts.map((post) => (
-            <li key={post.id} className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${postStatusStyle(post.status)}`}
-                >
-                  {postStatusLabel(post.status)}
-                </span>
-                <span className="truncate text-sm text-white/80">{post.title}</span>
-              </div>
-              <p className="mt-1 text-xs text-white/35">
-                {formatDate(post.publishedAt ?? post.createdAt)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </DashboardCard>
-  );
-}
-
-function ProjectsCard({ projects }: { projects: MemberProjectSummary[] }) {
-  const preview = projects.slice(0, PREVIEW_SIZE);
-  return (
-    <DashboardCard
-      title="내 프로젝트"
-      meta={`총 ${projects.length}개`}
-      href="/member/projects/new"
-      hrefLabel="새 프로젝트 등록"
-      secondaryHref="/member/projects"
-      secondaryLabel="내 프로젝트 관리"
-    >
-      {preview.length === 0 ? (
-        <p className="text-sm text-white/40">아직 등록한 프로젝트가 없어요.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {preview.map((project) => (
-            <li key={project.id} className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    project.hidden ? 'bg-amber-400/10 text-amber-300' : 'bg-emerald-400/10 text-emerald-300'
-                  }`}
-                >
-                  {project.hidden ? '숨김' : '공개'}
-                </span>
-                <span className="truncate text-sm text-white/80">{project.title}</span>
-              </div>
-              <p className="mt-1 text-xs text-white/35">{project.cohort}기</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </DashboardCard>
-  );
-}
-
-function ProfileCard({ profile }: { profile: Member | null }) {
-  return (
-    <DashboardCard title="내 프로필" meta={profile?.joinReason ? '작성됨' : '미작성'} href="/member/profile" hrefLabel="프로필 편집">
-      <p className="line-clamp-4 text-sm leading-6 text-white/60">
-        {profile?.joinReason || '입부계기를 아직 적지 않았어요. 편집에서 나를 소개해보세요.'}
-      </p>
-    </DashboardCard>
   );
 }
