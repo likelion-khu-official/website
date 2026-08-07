@@ -21,9 +21,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 
@@ -58,7 +62,7 @@ public class AdminInvitationService {
 
         String token = generateToken();
         AdminInvitation invitation = invitationRepository.save(
-                AdminInvitation.issue(email, invitedByEmail, token, TTL));
+                AdminInvitation.issue(email, invitedByEmail, hash(token), TTL));
 
         String inviteUrl = frontendBaseUrl + "/admin/invite/" + token;
         emailService.sendInviteEmail(email, inviteUrl, invitation.getExpiresAt());
@@ -104,7 +108,7 @@ public class AdminInvitationService {
     }
 
     private AdminInvitation findPendingByToken(String token) {
-        AdminInvitation invitation = invitationRepository.findByToken(token)
+        AdminInvitation invitation = invitationRepository.findByTokenHash(hash(token))
                 .orElseThrow(AdminInvitationNotFoundException::new);
         if (invitation.getStatus() != InvitationStatus.PENDING) {
             throw new AdminInvitationAlreadyProcessedException();
@@ -119,5 +123,15 @@ public class AdminInvitationService {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hash(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없어요.", e);
+        }
     }
 }

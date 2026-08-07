@@ -17,10 +17,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Optional;
 
 @Service
@@ -71,7 +75,7 @@ public class AdminPasswordResetService {
     public void issueAndSendResetToken(Admin admin) {
         String token = generateToken();
         PasswordResetToken resetToken = tokenRepository.save(
-                PasswordResetToken.issue(admin.getId(), token, TTL));
+                PasswordResetToken.issue(admin.getId(), hash(token), TTL));
         String resetUrl = frontendBaseUrl + "/admin/reset-password/" + token;
         emailService.sendPasswordResetEmail(admin.getEmail(), resetUrl, resetToken.getExpiresAt());
     }
@@ -98,7 +102,7 @@ public class AdminPasswordResetService {
     }
 
     private PasswordResetToken findValidByToken(String token) {
-        PasswordResetToken resetToken = tokenRepository.findByToken(token)
+        PasswordResetToken resetToken = tokenRepository.findByTokenHash(hash(token))
                 .orElseThrow(PasswordResetTokenNotFoundException::new);
         if (resetToken.isUsed()) {
             throw new PasswordResetTokenNotFoundException();
@@ -113,5 +117,15 @@ public class AdminPasswordResetService {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hash(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없어요.", e);
+        }
     }
 }

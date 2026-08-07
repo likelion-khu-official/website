@@ -78,10 +78,13 @@ export function staffToMember(staff: Staff): Member {
 // 공개 API가 studentId를 노출하지 않아 두 테이블의 동일 인물은 이름으로만 매칭할 수 있다.
 // 멤버로 이미 있는 사람은 원본 Member(운영진 role·joinReason 포함)를 유지하고,
 // staff에만 있는 인물(예: 멤버 테이블에 없는 회장)만 변환해 뒤에 덧붙인다.
+// 노출 순서는 이름 가나다순(한국어 정렬) — 부원·운영진 구분 없이 한 그리드에서 찾기 쉽게 한다.
 export function mergeRoster(members: Member[], staff: Staff[]): Member[] {
   const memberNames = new Set(members.map((member) => member.name));
   const staffOnly = staff
     .filter((person) => !memberNames.has(person.name))
     .map(staffToMember);
-  return [...members, ...staffOnly];
+  return [...members, ...staffOnly].sort((left, right) =>
+    left.name.localeCompare(right.name, 'ko'),
+  );
 }

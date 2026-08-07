@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AdminInvitationRepository extends JpaRepository<AdminInvitation, Long> {
-    Optional<AdminInvitation> findByToken(String token);
+    Optional<AdminInvitation> findByTokenHash(String tokenHash);
     List<AdminInvitation> findAllByOrderByCreatedAtDesc();
     Optional<AdminInvitation> findByEmailAndStatus(String email, InvitationStatus status);
 }

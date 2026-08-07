@@ -58,6 +58,7 @@ import type {
   PopularTimeAnalyticsResponse,
   ContentImpactAnalyticsResponse,
 } from '@shared/types/analytics';
+import type { DeployRecord } from '@shared/types/deploy-history';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -214,6 +215,18 @@ export function getContentImpactAnalytics(query: AnalyticsPageViewQuery) {
     `/analytics/content-impact?${params.toString()}`,
     {},
     '콘텐츠 공개 전후 변화를 불러오지 못했어요.',
+    true
+  );
+}
+
+// ── 인프라 ──────────────────────────────────────────────────────
+
+export function getDeployHistory(env: 'stage' | 'prod', limit = 20) {
+  const params = new URLSearchParams({ env, limit: String(limit) });
+  return request<DeployRecord[]>(
+    `/infra/deploy-history?${params.toString()}`,
+    {},
+    '배포 이력을 불러오지 못했어요.',
     true
   );
 }

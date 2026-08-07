@@ -7,3 +7,23 @@ export function formatDate(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' });
 }
+
+/**
+ * 활동 피드용 상대 시간 — 최근이면 "오늘/어제/N일 전/N주 전", 4주 이상 지나면 절대 날짜.
+ * formatDate와 같은 방식으로 타임존 없는 문자열을 UTC로 파싱한다.
+ */
+export function formatRelativeTime(iso: string): string {
+  const hasZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(iso);
+  const then = new Date(hasZone ? iso : `${iso}Z`);
+  if (Number.isNaN(then.getTime())) return iso;
+
+  const diffMs = Date.now() - then.getTime();
+  const day = 24 * 60 * 60 * 1000;
+  if (diffMs < day) return '오늘';
+
+  const days = Math.floor(diffMs / day);
+  if (days === 1) return '어제';
+  if (days < 7) return `${days}일 전`;
+  if (days < 28) return `${Math.floor(days / 7)}주 전`;
+  return formatDate(iso);
+}

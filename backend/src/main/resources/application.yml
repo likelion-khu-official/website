@@ -75,7 +75,7 @@ jwt:
 # === 어드민 인증(#90) ===
 admin:
   lockout:
-    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:5}
+    max-attempts: ${ADMIN_LOCKOUT_MAX_ATTEMPTS:10}
     duration-minutes: ${ADMIN_LOCKOUT_DURATION_MINUTES:15}
   # 포맷: "email:name,email2:name2" — 실제 이메일은 여기(커밋되는 파일)에 절대 넣지 않고
   # 각 환경의 gitignore된 .env.stage/.env.prod에서만 주입(pre-commit gitleaks 훅 대상).
@@ -110,6 +110,19 @@ app:
     # (.env.prod)은 #152가 끝나 이 값을 true로 바꾸기 전까지 항상 막혀 있다. 스테이지
     # (.env.stage)만 true로 설정해 관리자 화면·안내 메일 발송을 미리 검증한다.
     application-form-ready: ${RECRUITMENT_APPLICATION_FORM_READY:false}
+
+  infra:
+    # CD(record-deploy-status job)가 배포마다 남기는 기록을 docker-compose.yml이 이 경로로
+    # 읽기 전용 마운트한다(#451 인프라 대시보드). 로컬 개발엔 이 디렉터리가 없어 빈 목록으로
+    # 처리됨(DeployHistoryService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
+    deploy-history-path: ${DEPLOY_HISTORY_PATH:/app/deploy-history}
+
+  discord:
+    # 새 블로그 글·프로젝트가 공개되면 디스코드 '동아리 홈페이지' 채널에 알림을 쏘는 웹훅 URL(#461).
+    # 기본값은 빈 문자열 — 값이 없으면 DiscordWebhookClient가 no-op이라 dev·stage·e2e는 아무것도 안 쏜다.
+    # 운영에서만 켜지도록 prod .env(gitignore)에만 DISCORD_WEBHOOK_URL을 넣는다. 이 URL은 시크릿이라
+    # (아는 사람이 봇 이름으로 아무거나 발송 가능) 커밋되는 파일엔 절대 값을 넣지 않는다 — 이 레포는 public.
+    webhook-url: ${DISCORD_WEBHOOK_URL:}
 
 # === OCI Object Storage (S3 호환 API) ===
 oci-storage:

@@ -924,6 +924,15 @@ textarea {
     #111212;
 }
 
+/* 멤버 대시보드 환영 히어로 — 푸터와 같은 방식으로 랜딩의 오렌지 글로우를 약하게 얹는다.
+   accent 남용 방지를 위해 낮은 불투명도로만 은은하게 깐다. */
+.member-hero-bg {
+  background:
+    radial-gradient(88% 140% at 100% 0%, rgba(255, 105, 38, 0.16), transparent 62%),
+    radial-gradient(70% 130% at 0% 100%, rgba(112, 32, 13, 0.2), transparent 70%),
+    rgba(255, 255, 255, 0.02);
+}
+
 /* Recruit 섹션 — 어두운 바탕 위 브랜드 단어와 CTA만 오렌지로 강조한다. */
 .recruit-bg {
   background: #131313;

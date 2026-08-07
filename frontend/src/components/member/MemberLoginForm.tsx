@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { login, changePassword, MemberApiError } from '@/lib/memberApi';
 import { validateAdminPassword } from '@/lib/adminValidation';
 import type { MemberAuthRole } from '@shared/types/member-auth';
+import { inputField, primaryButton } from './ui/styles';
 
 /** role별 로그인 후 이동 경로. BE가 MemberAuthRole에 값을 추가하면 여기 채워야 컴파일된다. */
 const ROLE_HOME: Record<MemberAuthRole, string> = {
-  MEMBER: '/member/projects',
+  MEMBER: '/member',
 };
 
 /** '/'로 시작하는 내부 경로만 허용 — '//evil.com'이나 '/\evil.com'처럼 '/'로 시작하지만
@@ -106,110 +107,116 @@ export default function MemberLoginForm() {
     }
   }
 
-  if (step === 'change-password') {
-    return (
-      <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
-        <h1 className="mb-1 text-2xl font-bold text-white">비밀번호 변경</h1>
-        <p className="mb-8 text-sm text-muted">첫 로그인이에요. 새 비밀번호를 설정해 주세요.</p>
+  return (
+    <div className="mx-auto flex min-h-[80svh] w-full max-w-sm flex-col justify-center">
+      <div className="mb-8 flex flex-col items-center text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-10 w-auto object-contain" />
+        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-white">
+          {step === 'change-password' ? '비밀번호 변경' : '멤버 로그인'}
+        </h1>
+        <p className="mt-2 text-sm text-white/45">
+          {step === 'change-password'
+            ? '첫 로그인이에요. 새 비밀번호를 설정해 주세요.'
+            : '멋쟁이사자처럼 경희대 멤버 공간'}
+        </p>
+      </div>
 
-        <form onSubmit={handleChangePasswordSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-white" htmlFor="new-password">
-              새 비밀번호
-            </label>
-            <input
+      <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
+        {step === 'change-password' ? (
+          <form onSubmit={handleChangePasswordSubmit} className="flex flex-col gap-4">
+            <Field
               id="new-password"
+              label="새 비밀번호"
               type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
+              onChange={setNewPassword}
               autoComplete="new-password"
-              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+              hint="8자 이상, 영문과 숫자를 포함해 주세요."
             />
-            <p className="mt-1 text-xs text-muted">8자 이상, 영문과 숫자를 포함해 주세요.</p>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-white" htmlFor="new-password-confirm">
-              새 비밀번호 확인
-            </label>
-            <input
+            <Field
               id="new-password-confirm"
+              label="새 비밀번호 확인"
               type="password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
+              onChange={setConfirmPassword}
               autoComplete="new-password"
-              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
             />
-          </div>
+            {error ? <p className="text-sm text-red-400">{error}</p> : null}
+            <button type="submit" disabled={submitting} className={`mt-2 ${primaryButton}`}>
+              {submitting ? '변경 중…' : '비밀번호 변경'}
+            </button>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
+              <Field
+                id="login-student-id"
+                label="학번"
+                type="text"
+                value={studentId}
+                onChange={setStudentId}
+                autoComplete="username"
+              />
+              <Field
+                id="login-password"
+                label="비밀번호"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+              />
+              {error ? <p className="text-sm text-red-400">{error}</p> : null}
+              <button type="submit" disabled={submitting} className={`mt-2 ${primaryButton}`}>
+                {submitting ? '로그인 중…' : '로그인'}
+              </button>
+            </form>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
-          >
-            {submitting ? '변경 중…' : '비밀번호 변경'}
-          </button>
-        </form>
+            <Link
+              href="/member/forgot-password"
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg text-center text-sm text-white/45 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              비밀번호를 잊으셨나요?
+            </Link>
+          </>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
+function Field({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  autoComplete,
+  hint,
+}: {
+  id: string;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  hint?: string;
+}) {
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col justify-center">
-      <h1 className="mb-8 text-2xl font-bold text-white">멤버 로그인</h1>
-
-      <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-white" htmlFor="login-student-id">
-            학번
-          </label>
-          <input
-            id="login-student-id"
-            type="text"
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            required
-            autoComplete="username"
-            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-white" htmlFor="login-password">
-            비밀번호
-          </label>
-          <input
-            id="login-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-400">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 min-h-11 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm text-white outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
-        >
-          {submitting ? '로그인 중…' : '로그인'}
-        </button>
-      </form>
-
-      <Link
-        href="/member/forgot-password"
-        className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg text-center text-sm text-muted outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
-      >
-        비밀번호를 잊으셨나요?
-      </Link>
+    <div>
+      <label className="mb-2 block text-sm font-medium text-white" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        autoComplete={autoComplete}
+        className={inputField}
+      />
+      {hint ? <p className="mt-1 text-xs text-white/40">{hint}</p> : null}
     </div>
   );
 }
