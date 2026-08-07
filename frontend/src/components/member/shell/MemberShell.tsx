@@ -6,7 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { MemberAccount } from '@shared/types/member-auth';
 import { getCurrentMember, MemberApiError } from '@/lib/memberApi';
 import { MemberSessionProvider } from '../hooks/memberSession';
-import MemberTopBar from './MemberTopBar';
+import MemberSidebar from './MemberSidebar';
+import { MemberBottomNav, MemberMobileHeader } from './MemberMobileNav';
 
 /**
  * 헤더·네비 없이 자체 레이아웃을 갖는 화면들.
@@ -66,11 +67,15 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
 
   return (
     <MemberSessionProvider member={member}>
-      <div className="flex min-h-[100svh] flex-col">
-        <MemberTopBar />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 sm:px-8 sm:py-14">
-          {children}
-        </main>
+      <div className="min-h-[100svh]">
+        <MemberSidebar />
+        <div className="lg:pl-60">
+          <MemberMobileHeader />
+          <main className="mx-auto w-full max-w-5xl px-5 pb-28 pt-8 sm:px-8 sm:pt-12 lg:pb-16 lg:pt-14">
+            {children}
+          </main>
+        </div>
+        <MemberBottomNav />
       </div>
     </MemberSessionProvider>
   );
