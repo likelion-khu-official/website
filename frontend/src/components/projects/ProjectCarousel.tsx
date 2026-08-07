@@ -79,7 +79,17 @@ export default function ProjectCarousel({ projects }: Props) {
     pointerStart.current = event.clientX;
     didSwipe.current = false;
     setInteracting(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // pointerdown 시점엔 캡처하지 않는다 — 캡처가 걸려 있으면 뒤따르는 click이
+    // 카드(anchor)가 아니라 캡처 대상인 stage로 디스패치돼 상세 이동이 막힌다.
+    // 실제 드래그가 시작된 뒤(handlePointerMove)에만 캡처한다.
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (pointerStart.current === null) return;
+    const distance = event.clientX - pointerStart.current;
+    if (Math.abs(distance) > 8 && !event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
@@ -140,6 +150,7 @@ export default function ProjectCarousel({ projects }: Props) {
       <div
         className="project-coverflow-stage"
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={() => {
           pointerStart.current = null;
