@@ -120,6 +120,10 @@ app:
     # 같은 방식으로 읽기 전용 마운트한다(#451 인프라 대시보드). 로컬 개발엔 이 디렉터리가
     # 없어 빈 목록으로 처리됨(SystemMetricsService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
     system-metrics-path: ${SYSTEM_METRICS_PATH:/app/system-metrics}
+    # snapshot-alarm-status.py가 OCI Monitoring의 알람 판정(FIRING/OK)을 호스트에서 대신
+    # 조회해 남기는 최신 상태를 같은 방식으로 읽기 전용 마운트한다. 로컬 개발엔 이 디렉터리가
+    # 없어 빈 값으로 처리됨(AlarmStatusService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
+    alarm-status-path: ${ALARM_STATUS_PATH:/app/alarm-status}
 
   discord:
     # 새 블로그 글·프로젝트가 공개되면 디스코드 '동아리 홈페이지' 채널에 알림을 쏘는 웹훅 URL(#461).
