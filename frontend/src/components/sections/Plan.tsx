@@ -25,7 +25,7 @@ const HIGHLIGHT =
 
 function MonthCell({ month }: { month: Month }) {
   return (
-    <div className="relative flex min-h-[104px] min-w-0 flex-col items-start gap-2 border-l border-accent/45 pl-4 text-left md:min-h-0 md:items-center md:gap-4 md:border-l-0 md:pl-0 md:text-center">
+    <div className="relative flex min-w-0 flex-col items-start gap-2 border-l border-accent/45 pb-10 pl-5 text-left md:pb-0 md:items-center md:gap-4 md:border-l-0 md:pl-0 md:text-center">
       <span
         aria-hidden
         className="absolute -left-[5px] top-0 h-[9px] w-[9px] rounded-full bg-accent md:hidden"
@@ -45,7 +45,7 @@ function MonthCell({ month }: { month: Month }) {
             {month.highlight && i === 0 && (
               <span
                 aria-hidden
-                className="absolute -left-1 top-1/2 h-[1.9em] w-[calc(100%+1rem)] -translate-y-1/2 rounded-[3px] md:left-[-6px] md:w-[320%]"
+                className="absolute left-[-6px] top-1/2 h-[1.9em] w-[130%] -translate-y-1/2 rounded-[3px] md:w-[320%]"
                 style={{ background: HIGHLIGHT, zIndex: 0 }}
               />
             )}
@@ -68,7 +68,7 @@ function Timeline({
 }) {
   const isTop = side === 'top';
   return (
-    <div className={`scroll-reveal timeline-group relative ${isTop ? 'timeline-group--top' : 'timeline-group--bottom'}`}>
+    <div className={`scroll-reveal timeline-group relative min-w-0 ${isTop ? 'timeline-group--top' : 'timeline-group--bottom'}`}>
       {/* 타임라인 라인 + 끝점 */}
       <div
         className="timeline-line absolute top-0 hidden h-[2px] origin-left bg-accent md:block"
@@ -80,7 +80,7 @@ function Timeline({
       />
       {/* 월 그리드 */}
       <div
-        className={`grid grid-cols-2 gap-x-5 gap-y-7 md:mt-9 md:w-[59%] md:grid-cols-6 md:gap-x-3 md:gap-y-0 ${
+        className={`grid grid-cols-1 gap-0 md:mt-9 md:w-[59%] md:grid-cols-6 md:gap-x-3 md:gap-y-0 ${
           isTop ? 'md:ml-[5%] md:mr-auto' : 'md:ml-auto md:mr-[5%]'
         }`}
       >
@@ -108,7 +108,7 @@ export default function Plan() {
         </h2>
       </div>
 
-      <div className="relative mt-4 flex w-full max-w-[1417px] flex-col gap-14 md:mt-8 md:gap-24">
+      <div className="relative mt-4 grid w-full max-w-[1417px] grid-cols-2 gap-5 md:mt-8 md:flex md:flex-col md:gap-24">
         <Timeline months={firstHalf} side="top" />
         <Timeline months={secondHalf} side="bottom" />
       </div>
