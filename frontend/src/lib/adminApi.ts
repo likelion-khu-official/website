@@ -59,6 +59,7 @@ import type {
   ContentImpactAnalyticsResponse,
 } from '@shared/types/analytics';
 import type { DeployRecord } from '@shared/types/deploy-history';
+import type { SystemMetricSample } from '@shared/types/system-metrics';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -227,6 +228,16 @@ export function getDeployHistory(env: 'stage' | 'prod', limit = 20) {
     `/infra/deploy-history?${params.toString()}`,
     {},
     '배포 이력을 불러오지 못했어요.',
+    true
+  );
+}
+
+export function getSystemMetrics(limit = 288) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<SystemMetricSample[]>(
+    `/infra/system-metrics?${params.toString()}`,
+    {},
+    '시스템 지표를 불러오지 못했어요.',
     true
   );
 }

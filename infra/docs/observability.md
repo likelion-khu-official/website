@@ -131,11 +131,23 @@ k_min = ceil( (P - W) / C ) + 1
 
 **실제 사례(2026-07-12)**: 배포 스크립트가 정상적으로 만들었다 지우는 롤백 마커 파일(`infra/.prev_backend_tag_stage`)이 gitignore 누락으로 드리프트로 잡혀, `C=5분, W=10분, P=5분`(이후 3분으로 낮췄다가) 조합에서 1분짜리 정상 상태가 오탐 FIRING을 일으킴. 근본 수정(gitignore 추가)과 별개로, `P=3분`(≤C=5분) 상태에서는 어떤 W를 골라도 구조적으로 단일 blip을 못 피한다는 걸 확인 → **P=8분(>C=5분)으로 조정**해 앞으로 순간적 상태 한 번으로는 안 뜨고, 최소 2번 연속 cron tick 동안 실제로 더러워야 파이어하도록 변경.
 
+## 어드민 대시보드 시스템 지표 — OCI Monitoring과 별개 경로 (2026-08-10, #451)
+
+어드민 화면에 CPU·메모리·디스크 시계열을 보여주는 요구가 나왔을 때, 처음엔 "이미 OCI Monitoring에 값이 있으니 백엔드가 그걸 조회하면 되지 않나"로 시작했다. 하지만 백엔드는 호스트가 아니라 Docker 컨테이너 안에서 도는데, 백엔드가 OCI Monitoring을 **읽으려면** 새 OCI Java SDK 의존성 + instance principal의 read 권한(현재 정책은 `use metrics`뿐이라 read까지 되는지 미확인) + IAM 정책 재확인이 필요했고, "그럼 컨테이너 안에서 `/proc`를 직접 읽으면?"이라는 대안도 검토했지만 정확한 호스트 값을 보려면 호스트의 `/proc`·`/sys`·`/`를 컨테이너에 마운트해야 해서 컨테이너 격리를 크게 깨는 쪽이었다(백엔드 컨테이너가 뚫리면 호스트 전체를 정찰할 수 있는 창구가 생김).
+
+그래서 배포 이력(#451, 위 절들과 동일 이슈)과 완전히 같은 패턴으로 갔다: **`infra/scripts/snapshot-system-metrics.py`가 호스트에서(크론으로, venv 불필요하지만 등록 편의상 같은 venv 재사용) CPU/메모리/디스크를 직접 읽어 로컬 JSON Lines(`infra/logs/system-metrics/snapshot.jsonl`)에 append하고, 백엔드는 그 파일을 읽기 전용 마운트로 조회만 한다.** 새 OCI SDK도, 새 IAM 정책도, 컨테이너 마운트 확장도 전혀 필요 없다.
+
+- **OCI Monitoring 쓰기(디스크 알람 등)는 안 건드렸다** — `push-disk-metric.py`는 그대로 유지. 이 스크립트는 그거와 별개로 "어드민 화면에 보여주기용"만 담당한다. 즉 디스크 사용률은 지금 **두 스크립트가 각자 독립적으로 계산해서 각자의 목적지(OCI Monitoring vs 로컬 파일)로 보낸다** — 알람이 보는 값과 어드민 화면이 보여주는 값이 완전히 같은 소스는 아니지만, 둘 다 같은 `shutil.disk_usage("/")`라 실질적으로는 같은 값이 나온다.
+- **CPU/메모리는 새로 계측한다** — 지금까지 CPU/메모리는 OCI Compute Agent 플러그인이 자동으로 재는 값만 있었고(어느 스크립트도 직접 안 잼), 이 스크립트가 처음으로 `/proc/stat`(idle 대비 busy 비율, 1초 샘플링)·`/proc/meminfo`(`MemAvailable` 기준)를 직접 읽는다. OCI 네이티브 값과 정확히 일치하진 않을 수 있지만(계측 방식이 다름), 같은 정의로 5분마다 일관되게 재는 시계열이라 추이를 보는 용도로는 충분하다고 판단.
+- **알람과는 무관** — 이 화면은 조회 전용이고(#451 스코프), 여기 값이 임계치를 넘어도 알림이 오지 않는다. 실제 알람은 여전히 위 "Alarm 목록"의 OCI Monitoring 알람이 담당한다. 화면 하단에 이 구분을 문구로 명시해뒀다.
+- **보관 기간**: 5분 간격 기준 30일치(8,640줄)만 유지 — 스크립트 자체가 append 후 넘치면 트림한다(`cleanup-old-logs.sh` 같은 별도 정리 스크립트 불필요).
+
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
 | `infra/scripts/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
+| `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률(%) → 로컬 JSON Lines(어드민 대시보드용, OCI Monitoring 안 거침). cron `*/5 * * * *`로 실행 |
 | `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
