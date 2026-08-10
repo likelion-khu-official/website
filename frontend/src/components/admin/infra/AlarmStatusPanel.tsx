@@ -9,6 +9,24 @@ import type { AlarmStatusItem, AlarmStatusSnapshot } from '@shared/types/alarm-s
 // 신호로 보는 게 맞다 - 이 화면이 "지금 알람이 진짜 돌고 있는지"까지 답해야 해서 필요.
 const STALE_AFTER_MS = 15 * 60 * 1000;
 
+// OCI 알람 표시 이름(infra/docs/observability.md "Alarm 목록")에 공통으로 들어가는 키워드로
+// 매칭한다 - prod/stage, "[예방적 경고]" 같은 접두어가 붙어도 무관하게 잡히게. 이 화면을
+// 처음 보는 사람이 "그래서 뭘 확인해야 하나"까지 한 번에 알 수 있게 하려고, DeployHistoryTimeline의
+// actionGuidance와 같은 목적으로 만들었다 - 알람 목록에 새 항목이 추가되면 여기도 같이 늘릴 것.
+const GUIDANCE_RULES: Array<{ keyword: string; guidance: string }> = [
+  { keyword: '디스크', guidance: '디스크 사용률이 80%를 5분 넘게 유지 중이에요. 오래된 로그·백업부터 정리하세요.' },
+  { keyword: '메모리', guidance: '메모리 사용률이 85%를 5분 넘게 유지 중이에요. 어느 컨테이너가 늘었는지 확인하세요.' },
+  { keyword: '백업', guidance: '마지막 백업 성공 신호로부터 26시간이 지났어요. backup-db.sh가 정상 동작했는지 확인하세요.' },
+  { keyword: 'git 드리프트', guidance: '서버 git 워킹트리가 origin과 8분 넘게 달라요. 직접 수정했거나 정리 안 된 파일이 남아있을 수 있어요.' },
+  { keyword: '이메일 실패', guidance: '최근 5분 안에 이메일 발송 실패가 임계치를 넘었어요. SMTP 자격증명·발송 한도를 확인하세요.' },
+  { keyword: 'ERROR 로그', guidance: '최근 5분 안에 백엔드 ERROR 로그가 찍혔어요. 로그를 확인하세요.' },
+];
+
+function guidanceFor(alarmName: string): string {
+  const rule = GUIDANCE_RULES.find((candidate) => alarmName.includes(candidate.keyword));
+  return rule?.guidance ?? 'RUNBOOK을 참고해 원인을 확인하세요.';
+}
+
 function formatKst(iso: string): string {
   const parts = new Intl.DateTimeFormat('ko-KR', {
     timeZone: 'Asia/Seoul',
@@ -22,21 +40,43 @@ function formatKst(iso: string): string {
   return `${get('month')}/${get('day')} ${get('hour')}:${get('minute')}`;
 }
 
-function AlarmRow({ alarm }: { alarm: AlarmStatusItem }) {
-  const firing = alarm.status === 'FIRING';
+// FIRING인 CRITICAL부터 눈에 띄어야 하니 위로, 나머지는 심각도만 구분. OK는 어차피 아래
+// "정상" 묶음으로 따로 빠지니 이 정렬 대상이 아니다(sortFiring에서만 씀).
+function severityRank(severity: AlarmStatusItem['severity']): number {
+  return severity === 'CRITICAL' ? 0 : 1;
+}
+
+function FiringCard({ alarm }: { alarm: AlarmStatusItem }) {
+  const critical = alarm.severity === 'CRITICAL';
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-white">{alarm.alarmName}</p>
-        <p className="mt-0.5 text-xs text-muted">{alarm.severity === 'CRITICAL' ? '심각' : '경고'}</p>
+    <li
+      className={`rounded-xl border p-4 ${
+        critical ? 'border-red-400/30 bg-red-400/[0.08]' : 'border-amber-300/30 bg-amber-300/[0.08]'
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+            critical ? 'border-red-400/30 bg-red-400/10 text-red-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-200'
+          }`}
+        >
+          FIRING
+        </span>
+        <span className={`text-[11px] font-semibold ${critical ? 'text-red-200' : 'text-amber-200'}`}>
+          {critical ? '심각' : '경고'}
+        </span>
+        <span className="text-sm font-medium text-white">{alarm.alarmName}</span>
       </div>
-      <span
-        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-          firing ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/15 text-emerald-300'
-        }`}
-      >
-        {firing ? 'FIRING' : 'OK'}
-      </span>
+      <p className={`mt-1.5 text-[13px] leading-5 ${critical ? 'text-red-100' : 'text-amber-100'}`}>{guidanceFor(alarm.alarmName)}</p>
+    </li>
+  );
+}
+
+function OkRow({ alarm }: { alarm: AlarmStatusItem }) {
+  return (
+    <li className="flex items-center justify-between gap-3 px-1 py-1.5">
+      <span className="truncate text-[13px] text-white/70">{alarm.alarmName}</span>
+      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">OK</span>
     </li>
   );
 }
@@ -69,7 +109,11 @@ export default function AlarmStatusPanel() {
     };
   }, [retryIndex]);
 
-  const firingCount = snapshot?.alarms.filter((alarm) => alarm.status === 'FIRING').length ?? 0;
+  const firing = (snapshot?.alarms ?? [])
+    .filter((alarm) => alarm.status === 'FIRING')
+    .slice()
+    .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  const ok = (snapshot?.alarms ?? []).filter((alarm) => alarm.status === 'OK');
 
   return (
     <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="alarm-status-title">
@@ -95,7 +139,7 @@ export default function AlarmStatusPanel() {
           <div className="grid grid-cols-2 gap-3 p-5 sm:p-6 sm:pb-0">
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs text-muted">지금 FIRING 중</p>
-              <p className={`mt-1 text-2xl font-semibold tabular-nums ${firingCount > 0 ? 'text-red-300' : 'text-white'}`}>{firingCount}개</p>
+              <p className={`mt-1 text-2xl font-semibold tabular-nums ${firing.length > 0 ? 'text-red-300' : 'text-white'}`}>{firing.length}개</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs text-muted">마지막 확인 (KST)</p>
@@ -103,11 +147,33 @@ export default function AlarmStatusPanel() {
               {stale && <p className="mt-1 text-xs text-red-300">15분 넘게 갱신이 안 됐어요 — 크론이 멈췄을 수 있어요.</p>}
             </div>
           </div>
-          <ul className="space-y-2 p-5 sm:p-6">
-            {snapshot.alarms.map((alarm) => (
-              <AlarmRow key={alarm.alarmName} alarm={alarm} />
-            ))}
-          </ul>
+
+          <div className="p-5 sm:p-6">
+            {firing.length > 0 ? (
+              <ul className="space-y-2">
+                {firing.map((alarm) => (
+                  <FiringCard key={alarm.alarmName} alarm={alarm} />
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3 text-sm text-emerald-200">
+                지금 FIRING 중인 알람이 없어요.
+              </p>
+            )}
+
+            {ok.length > 0 && (
+              <details className="mt-4 group">
+                <summary className="cursor-pointer text-xs font-medium text-muted outline-none [&::-webkit-details-marker]:hidden">
+                  정상 {ok.length}개 <span className="text-white/40 group-open:hidden">— 펼쳐서 보기</span>
+                </summary>
+                <ul className="mt-2 divide-y divide-white/5 rounded-xl border border-white/10 bg-black/10 px-3">
+                  {ok.map((alarm) => (
+                    <OkRow key={alarm.alarmName} alarm={alarm} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         </>
       )}
       <p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-muted">
