@@ -116,6 +116,10 @@ app:
     # 읽기 전용 마운트한다(#451 인프라 대시보드). 로컬 개발엔 이 디렉터리가 없어 빈 목록으로
     # 처리됨(DeployHistoryService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
     deploy-history-path: ${DEPLOY_HISTORY_PATH:/app/deploy-history}
+    # snapshot-system-metrics.py가 호스트에서 직접 읽어 남기는 CPU·메모리·디스크 시계열을
+    # 같은 방식으로 읽기 전용 마운트한다(#451 인프라 대시보드). 로컬 개발엔 이 디렉터리가
+    # 없어 빈 목록으로 처리됨(SystemMetricsService 참고) — 로컬용 기본값을 굳이 안 맞춰도 안전.
+    system-metrics-path: ${SYSTEM_METRICS_PATH:/app/system-metrics}
 
   discord:
     # 새 블로그 글·프로젝트가 공개되면 디스코드 '동아리 홈페이지' 채널에 알림을 쏘는 웹훅 URL(#461).

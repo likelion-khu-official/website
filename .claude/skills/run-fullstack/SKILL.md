@@ -94,6 +94,15 @@ npm run dev
 3. `backend/deploy-history-local/stage.jsonl`에 한 줄당 레코드 하나, 필드는 `DeployRecord`(`timestamp, env, sha, outcome, migrations[], expectedMigrationCount, actualMigrationCount`) 그대로. `outcome`은 `confirmed | rolled_back | rollback_failed | manual_intervention_needed | migration_check_blocked | build_failed | unknown` 중 하나 — 시나리오 확인하려면 여러 개 섞어 넣는다.
 4. 이 디렉터리는 `.gitignore`에 이미 등록돼 있음 (`backend/deploy-history-local/`).
 
+## 6-1. (선택) 어드민 시스템 지표(CPU·메모리·디스크) 차트를 데이터 있는 채로 보고 싶으면
+
+`SystemMetricsService`도 같은 이유로(`SYSTEM_METRICS_PATH` 기본값이 컨테이너 전용 마운트) 로컬엔 빈 배열만 준다. 배포 이력과 완전히 같은 방식:
+
+1. `backend/.env`에 `SYSTEM_METRICS_PATH=./system-metrics-local` 추가
+2. `mkdir -p backend/system-metrics-local`
+3. `backend/system-metrics-local/snapshot.jsonl`에 한 줄당 샘플 하나, 필드는 `SystemMetricSample`(`timestamp, cpuPercent, memoryPercent, diskPercent`) 그대로. 임계치(메모리 85%·디스크 80%, `frontend/src/lib/systemMetricsThresholds.ts`) 근처·초과 값을 섞어 넣어야 차트의 기준선·빨간 스탯 타일 표시를 확인할 수 있다.
+4. 이 디렉터리는 `.gitignore`에 이미 등록돼 있음 (`backend/system-metrics-local/`).
+
 ## 7. 확인
 
 ```
