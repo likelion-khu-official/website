@@ -143,12 +143,28 @@ k_min = ceil( (P - W) / C ) + 1
 - **보관 기간**: 5분 간격 기준 30일치(8,640줄)만 유지 — 스크립트 자체가 append 후 넘치면 트림한다(`cleanup-old-logs.sh` 같은 별도 정리 스크립트 불필요).
 - **크론 오프셋(2026-08-10)**: 다른 8개 push-*.py가 전부 `*/5 * * * *`(=`:00,:05,:10...`)라 이 스크립트도 처음엔 같이 등록했는데, 매 5분 경계마다 python 프로세스 9개가 동시에 뜨면서 이 인스턴스(`nproc=2`)에 순간 컨텐션이 생겼다. 이 스크립트는 하필 그 순간의 CPU 사용률을 1초 샘플링으로 재는 거라, 몰린 순간을 그대로 "cpuPercent=100%"로 찍어버림(실측: 4틱 연속 100.0인데 그 사이 `top`/`uptime`은 완전 유휴 — load average 0.03). 그래서 `2-59/5 * * * *`(`:02,:07,:12...`)로 2분 오프셋을 줘서 다른 8개와 안 겹치게 분리했다. 나머지 8개는 카운트/존재 체크라 타이밍이 로직에 안 얽혀 있어 그대로 둠.
 
+## 어드민 대시보드 알람 상태 — 시스템 지표와 반대로 OCI Monitoring을 거쳐야 함 (2026-08-10)
+
+위 시스템 지표(CPU/메모리/디스크)는 호스트에서 직접 관측 가능한 값이라 OCI Monitoring을 안 거쳤지만, **알람의 FIRING/OK 상태는 로컬에서 관측 불가능하다** — OCI Monitoring이 threshold·period·지속시간(위 "지속성 판정" 절)을 계산해 내리는 판정 그 자체라, 로컬에서 재현하려면 그 로직을 다시 짜야 한다(오탐/미탐 버그를 새로 만들 위험). 그래서 "OCI를 거칠까"는 선택지가 아니고, "OCI를 어디서 거칠까"만 남는다:
+
+- **백엔드 컨테이너가 직접 조회** — 새 OCI Java SDK 의존성 + 새 IAM read 정책 필요. 시스템 지표 설계 때 이미 검토했다가 보류된 것과 같은 이유로 피함.
+- **호스트 크론이 조회 → 로컬 파일 → 백엔드는 읽기만(선택)** — `snapshot-system-metrics.py`와 같은 마운트 패턴을 재사용. 백엔드엔 아무것도 안 얹고, 이미 신뢰하는 `~/oci-monitor-venv`(instance principal)만 확장.
+
+`infra/scripts/snapshot-alarm-status.py`가 `list_alarms_status`로 전체 알람의 현재 상태(FIRING/OK)를 받아 `infra/logs/alarm-status/snapshot.jsonl`에 5분마다 한 줄(전체 알람 스냅샷)씩 남기고, 백엔드는 최신 한 줄만 조회한다(시계열이 아니라 "지금" 상태만 의미 있음). cron은 다른 `push-*.py`들과 같은 `*/5 * * * *`로 뒀다 — API 호출 한 번이라 `snapshot-system-metrics.py`처럼 CPU 샘플링이 컨텐션에 취약한 문제가 없어 오프셋이 불필요하다.
+
+**미결 — 서버에 실제로 반영하기 전에 인프라 오너가 확인 필요:**
+- 위 IAM 정책(`likelion-monitoring-policy`)은 지금 `use metrics`만 허용한다. 알람 상태를 **읽으려면** `read alarms`(또는 실제 OCI 정책 문서 기준 정확한 verb/resource-type) 권한을 추가해야 한다 — 안 하면 스크립트가 인증 오류로 실패한다.
+- `list_alarms_status`가 기본 엔드포인트로 응답하는지 실측 필요. 안 되면 `push-disk-metric.py`처럼 조회용 엔드포인트를 명시해야 할 수 있다.
+- 첫 실행 후 `infra/logs/alarm-status/snapshot.jsonl`에 실제 알람 9개가 기대한 형태로 찍히는지 확인.
+- 크론 등록 + `docker-compose.yml`의 새 마운트(`./logs/alarm-status:/app/alarm-status:ro`) 반영.
+
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
 | `infra/scripts/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
 | `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률(%) → 로컬 JSON Lines(어드민 대시보드용, OCI Monitoring 안 거침). cron `2-59/5 * * * *`로 실행(다른 push-*.py들과 2분 오프셋, 위 "크론 오프셋" 참고) |
+| `infra/scripts/snapshot-alarm-status.py` | OCI Monitoring `list_alarms_status` 조회 결과(FIRING/OK) → 로컬 JSON Lines(어드민 대시보드용). cron `*/5 * * * *`로 실행 — IAM 정책에 `read alarms` 추가 필요(미결, 위 절 참고) |
 | `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
