@@ -43,6 +43,7 @@ function AlarmRow({ alarm }: { alarm: AlarmStatusItem }) {
 
 export default function AlarmStatusPanel() {
   const [snapshot, setSnapshot] = useState<AlarmStatusSnapshot | null | undefined>(undefined);
+  const [stale, setStale] = useState(false);
   const [error, setError] = useState('');
   const [retryIndex, setRetryIndex] = useState(0);
 
@@ -51,6 +52,11 @@ export default function AlarmStatusPanel() {
     getAlarmStatus()
       .then((response) => {
         if (!cancelled) {
+          // Date.now()는 렌더링 중이 아니라 이 콜백(응답이 온 시점) 한 번에서만 부른다 -
+          // 렌더 함수 안에서 직접 부르면 리렌더마다 값이 계속 바뀌어 impure해진다.
+          setStale(
+            response ? Date.now() - new Date(response.timestamp).getTime() > STALE_AFTER_MS : false
+          );
           setSnapshot(response ?? null);
           setError('');
         }
@@ -64,7 +70,6 @@ export default function AlarmStatusPanel() {
   }, [retryIndex]);
 
   const firingCount = snapshot?.alarms.filter((alarm) => alarm.status === 'FIRING').length ?? 0;
-  const stale = snapshot ? Date.now() - new Date(snapshot.timestamp).getTime() > STALE_AFTER_MS : false;
 
   return (
     <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]" aria-labelledby="alarm-status-title">
