@@ -57,14 +57,16 @@ OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   ※ STAGE_TAG / PROD_TAG 분리 — stage 배포 시 STAGE_TAG만 세팅, prod는 건드리지 않음
   ※ sqlite-web-*는 dbtunnel 계정의 SSH 포트포워딩으로만 접근(db-access.md 참고) — nginx 안 거침, 공인 인터넷 노출 없음
 
-크론(서버 실측, 2026-07-26 기준 — 2026-07-27 scripts/ 이동으로 경로만 갱신, 서버 crontab 반영은 별도 확인 필요):
-  0 18 * * *   scripts/backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
-  */5 * * * *  scripts/push-disk-metric.py       → 디스크 사용률 custom metric
-  */5 * * * *  scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
-  */5 * * * *  scripts/push-email-failure-metric.py prod/stage → email_log 최근 5분 실패건수 custom metric (#113, 두 줄 등록)
-  */5 * * * *  scripts/push-email-success-metric.py prod/stage → email_log 최근 5분 성공건수 custom metric (#113 후속, 알람 없음·대시보드 시계열 전용, 두 줄 등록)
-  */5 * * * *  scripts/snapshot-system-metrics.py → CPU·메모리·디스크 사용률을 호스트에서 직접 읽어 로컬 JSON Lines(logs/system-metrics/snapshot.jsonl)에 append (#451 인프라 대시보드, OCI Monitoring 안 거침 — 상세는 observability.md)
+크론(서버 실측, 2026-08-10 기준 — `crontab -l` 실측으로 갱신, 기존 push-error-log-metric.py 누락분 추가):
+  0 18 * * *     scripts/backup-db.sh              → prod·stage DB 스냅샷 업로드 + push-backup-metric.py 호출 (매일 1회)
+  */5 * * * *    scripts/push-disk-metric.py       → 디스크 사용률 custom metric
+  */5 * * * *    scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
+  */5 * * * *    scripts/push-email-failure-metric.py prod/stage → email_log 최근 5분 실패건수 custom metric (#113, 두 줄 등록)
+  */5 * * * *    scripts/push-email-success-metric.py prod/stage → email_log 최근 5분 성공건수 custom metric (#113 후속, 알람 없음·대시보드 시계열 전용, 두 줄 등록)
+  */5 * * * *    scripts/push-error-log-metric.py prod/stage → 애플리케이션 에러 로그 건수 custom metric (두 줄 등록)
+  2-59/5 * * * * scripts/snapshot-system-metrics.py → CPU·메모리·디스크 사용률을 호스트에서 직접 읽어 로컬 JSON Lines(logs/system-metrics/snapshot.jsonl)에 append (#451 인프라 대시보드, OCI Monitoring 안 거침 — 상세는 observability.md)
   ※ 전부 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/* (snapshot-system-metrics.py는 stdlib만 써서 이 venv가 필수는 아니지만, 등록 편의상 같은 venv 재사용)
+  ※ snapshot-system-metrics.py만 `2-59/5`로 2분 오프셋(2026-08-10) — 나머지 8개가 전부 `*/5`(=`0-59/5`)라 매 5분 경계(:00,:05...)에 python 프로세스 9개가 동시에 뜨는데, 이 스크립트는 그 순간의 CPU 사용률을 1초 샘플링으로 재기 때문에 몰린 순간 자체가 측정 오염(idle이 실제보다 낮게 잡혀 cpuPercent가 100%로 튐)을 일으켰다. 실측: `:00~:15` 4틱 연속 cpuPercent=100.0인데 그 사이 수동 확인한 `top`/`uptime`은 완전 유휴(load average 0.03) — 나머지 8개 스크립트가 이 인스턴스(`nproc=2`)에서 동시 기동하며 만든 순간 컨텐션으로 확인됨. 나머지 8개는 카운트/존재 체크라 타이밍이 로직에 안 얽혀 있어 안 건드림.
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest

@@ -141,13 +141,14 @@ k_min = ceil( (P - W) / C ) + 1
 - **CPU/메모리는 새로 계측한다** — 지금까지 CPU/메모리는 OCI Compute Agent 플러그인이 자동으로 재는 값만 있었고(어느 스크립트도 직접 안 잼), 이 스크립트가 처음으로 `/proc/stat`(idle 대비 busy 비율, 1초 샘플링)·`/proc/meminfo`(`MemAvailable` 기준)를 직접 읽는다. OCI 네이티브 값과 정확히 일치하진 않을 수 있지만(계측 방식이 다름), 같은 정의로 5분마다 일관되게 재는 시계열이라 추이를 보는 용도로는 충분하다고 판단.
 - **알람과는 무관** — 이 화면은 조회 전용이고(#451 스코프), 여기 값이 임계치를 넘어도 알림이 오지 않는다. 실제 알람은 여전히 위 "Alarm 목록"의 OCI Monitoring 알람이 담당한다. 화면 하단에 이 구분을 문구로 명시해뒀다.
 - **보관 기간**: 5분 간격 기준 30일치(8,640줄)만 유지 — 스크립트 자체가 append 후 넘치면 트림한다(`cleanup-old-logs.sh` 같은 별도 정리 스크립트 불필요).
+- **크론 오프셋(2026-08-10)**: 다른 8개 push-*.py가 전부 `*/5 * * * *`(=`:00,:05,:10...`)라 이 스크립트도 처음엔 같이 등록했는데, 매 5분 경계마다 python 프로세스 9개가 동시에 뜨면서 이 인스턴스(`nproc=2`)에 순간 컨텐션이 생겼다. 이 스크립트는 하필 그 순간의 CPU 사용률을 1초 샘플링으로 재는 거라, 몰린 순간을 그대로 "cpuPercent=100%"로 찍어버림(실측: 4틱 연속 100.0인데 그 사이 `top`/`uptime`은 완전 유휴 — load average 0.03). 그래서 `2-59/5 * * * *`(`:02,:07,:12...`)로 2분 오프셋을 줘서 다른 8개와 안 겹치게 분리했다. 나머지 8개는 카운트/존재 체크라 타이밍이 로직에 안 얽혀 있어 그대로 둠.
 
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
 | `infra/scripts/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
-| `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률(%) → 로컬 JSON Lines(어드민 대시보드용, OCI Monitoring 안 거침). cron `*/5 * * * *`로 실행 |
+| `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률(%) → 로컬 JSON Lines(어드민 대시보드용, OCI Monitoring 안 거침). cron `2-59/5 * * * *`로 실행(다른 push-*.py들과 2분 오프셋, 위 "크론 오프셋" 참고) |
 | `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |
