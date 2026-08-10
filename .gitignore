@@ -32,6 +32,7 @@ backend/data/
 
 # Backend — 로컬 풀스택 실행 시 어드민 배포 이력 차트용 샘플 데이터 (run-fullstack 스킬 참고)
 backend/deploy-history-local/
+backend/system-metrics-local/
 
 # Logs
 *.log

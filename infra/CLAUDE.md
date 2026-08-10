@@ -63,7 +63,8 @@ OCI 인스턴스 (168.138.202.82, arm64 Ampere A1)
   */5 * * * *  scripts/push-git-drift-metric.py  → git 워킹트리 드리프트 custom metric
   */5 * * * *  scripts/push-email-failure-metric.py prod/stage → email_log 최근 5분 실패건수 custom metric (#113, 두 줄 등록)
   */5 * * * *  scripts/push-email-success-metric.py prod/stage → email_log 최근 5분 성공건수 custom metric (#113 후속, 알람 없음·대시보드 시계열 전용, 두 줄 등록)
-  ※ 전부 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/*
+  */5 * * * *  scripts/snapshot-system-metrics.py → CPU·메모리·디스크 사용률을 호스트에서 직접 읽어 로컬 JSON Lines(logs/system-metrics/snapshot.jsonl)에 append (#451 인프라 대시보드, OCI Monitoring 안 거침 — 상세는 observability.md)
+  ※ 전부 ~/oci-monitor-venv(격리 venv, oci SDK만) 안의 python3로 실행, 절대경로는 /home/ubuntu/website/infra/scripts/* (snapshot-system-metrics.py는 stdlib만 써서 이 venv가 필수는 아니지만, 등록 편의상 같은 venv 재사용)
 
 GHCR (이미지 레지스트리)
   backend:stage-{sha} / backend:stage-latest
@@ -106,6 +107,8 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | `infra/.env.prod.example` | prod 환경변수 템플릿 |
 | `infra/data/` | SQLite DB 파일 — 서버에만 존재 (gitignore), `mkdir -p data/`로 생성 |
 | `infra/logs/{stage,prod}/` | 배포 태그별 애플리케이션 로그 파일 — 서버에만 존재 (gitignore), 재배포로 컨테이너가 교체돼도 유실 안 됨 |
+| `infra/logs/deploy-history/` | CD가 배포마다 남기는 이력(#451, `docker-compose.yml`이 stage/prod 컨테이너에 읽기 전용 마운트) — 서버에만 존재 (gitignore) |
+| `infra/logs/system-metrics/` | `snapshot-system-metrics.py`가 5분마다 남기는 CPU·메모리·디스크 시계열(#451, 같은 방식으로 읽기 전용 마운트) — 서버에만 존재 (gitignore) |
 | `infra/scripts/` | 실행되는 스크립트 전부(배포·백업·메트릭 push 등) — 2026-07-27 문서와 분리 |
 | `infra/docs/` | 이 CLAUDE.md·AGENTS.md·SECURITY.md를 뺀 나머지 인프라 문서 전부 — 2026-07-27 스크립트와 분리(Claude Code가 디렉터리별로 자동 로드하는 CLAUDE.md/AGENTS.md만 `infra/` 루트에 남음) |
 | [`infra/docs/logging.md`](./docs/logging.md) | 로그 파일 영속화·버전별 분리 구조 — 재배포해도 스택트레이스가 안 사라지게 한 경위 |
@@ -118,6 +121,7 @@ DNS 레코드가 실제로 어떤 요청 흐름을 담당하는지(계층별 설
 | [`infra/docs/dns.md`](./docs/dns.md) | DNS 레코드가 요청 흐름 계층별로(프론트/백엔드 라우팅/이메일/인증서) 왜 이렇게 세팅됐는지 |
 | `infra/docs/iam.md` (레포에 없음, gitignore) | OCI IAM 구조(사용자·그룹·정책 최소권한 매핑) — 공개 레포에 권한 지도를 안 남기려고 로컬 전용. 콘솔 `Identity & Security`에서 실시간 확인 가능, 인수인계 시 장찬욱이 직접 전달. 새 IAM 계정 만드는 절차 자체는 `infra/docs/handoff.md` "계정 인벤토리"에 있음 |
 | `infra/scripts/push-disk-metric.py` / `infra/scripts/push-backup-metric.py` / `infra/scripts/push-git-drift-metric.py` / `infra/scripts/push-email-failure-metric.py` / `infra/scripts/push-email-success-metric.py` | 서버가 instance principal로 custom metric을 직접 전송하는 스크립트 — 상세는 `docs/observability.md` |
+| `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률을 호스트에서 직접 읽어 로컬 JSON Lines에 남기는 스크립트(OCI Monitoring 안 거침, instance principal 불필요) — 어드민 대시보드가 이 파일을 읽어 보여줌. 상세는 `docs/observability.md` |
 | `.gitleaks.toml` / `.gitleaksignore` | 시크릿 스캔 규칙 · 확인 후 무시 처리한 기존 finding(fingerprint) 목록 |
 | `.githooks/pre-commit` | 로컬 커밋 시점에 gitleaks로 시크릿 선차단(CI는 푸시 후에야 걸러짐). 최초 1회 `git config core.hooksPath .githooks` 필요 — 각자 로컬 설정이라 레포에 커밋해도 자동 적용 안 됨 |
 
@@ -276,3 +280,4 @@ cd ~/website && git fetch origin && git reset --hard origin/dev
 - **prod `email_log`에 `failure_cause` 컬럼이 아직 없음** — #113 후속(#302)이 `dev`→`stage`에만 배포되고 `main`→`prod`는 아직이라, prod DB는 이 컬럼이 생기는 마이그레이션을 못 받았다. `push-email-failure-metric.py`는 컬럼이 없으면 자동으로 예전 쿼리(원인 구분 없이 카운트)로 폴백하도록 이미 고쳐둬서(#310) 알람 자체는 안 죽지만, `failure_cause` 기반의 원인 세분화는 `main` 머지 전까지 prod엔 아직 안 먹는다 — `main` 머지 시점에 자동 해소, 별도 조치 불필요.
 - **dbclient/ubuntu 감사로그(2026-08-06 추가) — 서버에서 인프라 오너가 직접 적용 필요.** `dbclient-sqlite-guard.sh`가 실행자 fingerprint를 얻으려면 `sshd_config`에 `ExposeAuthInfo yes` + reload, `infra/logs/audit/`를 `dbaccess` 그룹 쓰기 가능(`chmod 2770`)하게 만드는 두 작업이 먼저 필요하다(안 해도 SQL 실행 자체는 막히지 않고 실행자만 "unknown"으로 남음). `ubuntu-sqlite-audit.sh`는 설치가 선택 사항 — `.bashrc`에 한 줄 source 추가. 상세는 `infra/docs/db-access.md` "감사로그" 절.
 - **prod `DISCORD_WEBHOOK_URL` 적용(2026-08-08) — 실제 발송은 아직 실측 안 함.** `.env.prod`에 값 추가 + `backend-prod` `--force-recreate` 재기동까지 완료(헬스체크 200, ERROR 로그 없음 확인. 재기동 전 `.env.prod.bak.20260808003918`로 백업해둠). 다만 새 블로그 글/프로젝트를 실제로 공개했을 때 디스코드 '동아리 홈페이지' 채널에 알림이 오는지(#461)는 아직 확인 안 됐다 — 다음 공개 건에서 확인되면 이 줄 삭제.
+- **`infra/scripts/snapshot-system-metrics.py`(2026-08-10 추가, 어드민 시스템 지표 대시보드) — 이 PR이 `dev`에 머지된 뒤 서버에서 크론 등록 + 디렉터리 생성 필요, 순서 주의.** `cleanup-old-logs.sh`와 같은 이유로 미머지 상태로 먼저 안 올림. **`infra/logs/deploy-history/`에서 이미 겪은 것과 같은 함정이 여기도 그대로 있다** — `dev` 머지 시점에 CD가 `backend/**` 변경을 감지해 곧바로 `docker compose up -d`로 재배포하는데, 그때 `infra/logs/system-metrics/` 디렉터리가 아직 없으면 Docker가 root 소유로 자동 생성해버린다(2026-08-06 배포 이력 첫 배포 때 Permission denied로 실측, `cd.yml` 552-558줄 주석 참고). 그 뒤에 `mkdir -p`를 해도 이미 root 소유라 소용없다. 그러니 머지 후 순서: ① 먼저 서버에서 `ls -la ~/website/infra/logs/system-metrics` 등으로 소유자 확인 → root면 `sudo chown ubuntu:ubuntu ~/website/infra/logs/system-metrics`로 1회 정리(없으면 `mkdir -p`), ② `crontab -e`에 `*/5 * * * * ~/oci-monitor-venv/bin/python3 /home/ubuntu/website/infra/scripts/snapshot-system-metrics.py >> /home/ubuntu/system-metrics-snapshot.log 2>&1` 한 줄 추가(다른 push-*.py들처럼 python3로 직접 실행하므로 실행권한 불필요), ③ 첫 크론 실행 후 로그에 `PermissionError` 없는지 확인.

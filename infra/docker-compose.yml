@@ -42,6 +42,9 @@ services:
       # 읽기 전용, stage/prod 두 컨테이너 다 같은 디렉터리를 봐서 어드민 화면 하나에서
       # 두 환경 배포 이력을 같이 보여줄 수 있게 한다.
       - ./logs/deploy-history:/app/deploy-history:ro
+      # 시스템 지표(#451 인프라 대시보드) — scripts/snapshot-system-metrics.py가 호스트에서
+      # 직접 읽어 여기 쓴다. 인스턴스가 하나뿐이라 stage/prod 둘 다 같은 시계열을 본다.
+      - ./logs/system-metrics:/app/system-metrics:ro
     restart: unless-stopped
 
   backend-prod:
@@ -59,6 +62,7 @@ services:
       - ./data:/app/data
       - ./logs/prod:/app/logs
       - ./logs/deploy-history:/app/deploy-history:ro
+      - ./logs/system-metrics:/app/system-metrics:ro
     restart: unless-stopped
 
   # 개발자용 DB 조회 GUI — dbclient(SQL 조작)와 별개 경로.
