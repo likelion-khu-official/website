@@ -60,6 +60,7 @@ import type {
 } from '@shared/types/analytics';
 import type { DeployRecord } from '@shared/types/deploy-history';
 import type { SystemMetricSample } from '@shared/types/system-metrics';
+import type { AlarmStatusSnapshot } from '@shared/types/alarm-status';
 
 /**
  * 모든 호출은 /api/admin/* 상대경로. access_token/refresh_token은 HttpOnly 쿠키라
@@ -238,6 +239,16 @@ export function getSystemMetrics(limit = 288) {
     `/infra/system-metrics?${params.toString()}`,
     {},
     '시스템 지표를 불러오지 못했어요.',
+    true
+  );
+}
+
+// 스냅샷이 아직 없으면(204) undefined — request()가 204를 그대로 undefined로 넘겨준다.
+export function getAlarmStatus() {
+  return request<AlarmStatusSnapshot | undefined>(
+    '/infra/alarm-status',
+    {},
+    '알람 상태를 불러오지 못했어요.',
     true
   );
 }

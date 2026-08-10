@@ -10,7 +10,7 @@
 ## 아키텍처
 
 ```
-likelion-prod 인스턴스
+likelion-server 인스턴스 (2026-08-10 이전엔 "likelion-prod"였음 — 아래 "인스턴스 이름" 절 참고)
   ├── Compute Instance Monitoring 플러그인(Oracle Cloud Agent, 이미 RUNNING)
   │     → CPU/메모리 등 기본 메트릭을 oci_computeagent 네임스페이스로 자동 전송
   │     → 디스크 사용률(%)은 여기 없음(공식 문서로 확인 — I/O 처리량만 제공, 용량%는 미제공)
@@ -27,24 +27,32 @@ OCI Notifications (ONS)
   └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/docs/handoff.md` "계정 인벤토리" 참고)
 ```
 
+## 인스턴스 이름 — "likelion-prod"에서 "likelion-server"로 (2026-08-10)
+
+OCI Compute 인스턴스의 실제 표시 이름이 "likelion-prod"였다 — 이 인스턴스 하나가 stage·prod 백엔드 컨테이너를 **같이** 호스팅하는데(위 "브랜치 ↔ 환경 대응" 참고), 이름은 마치 prod 전용 서버인 것처럼 보였다. 그 결과 디스크·메모리·git 드리프트처럼 **인스턴스(호스트) 전체에 대한 알람**도 전부 "likelion-prod ..."로 이름 붙어서, DB 백업·이메일 실패·ERROR 로그처럼 **진짜 prod 환경만을 가리키는 알람**(stage 짝이 있는 것들)과 구분이 안 됐다 — 어드민 알람 상태 화면(`/admin/infra/alarms`)에서 이 혼동이 실제로 지적됨.
+
+그래서 인스턴스 표시 이름을 **"likelion-server"**로 바꾸고(OCI 콘솔·CLI 둘 다 반영, 재부팅 불필요 — 순수 표시용 라벨이라 실제 리소스 식별은 여전히 OCID 기준), 인스턴스 전체를 가리키는 알람 3개(디스크·메모리·git 드리프트)의 이름도 "likelion-server ..."로 바꿨다. `custom_likelion` 네임스페이스로 전송하는 모든 커스텀 메트릭의 `resourceDisplayName` 차원(`push-*.py` 6개 스크립트)도 같이 맞춤 — 어차피 이 값은 "어느 호스트가 보냈나"를 나타내는 라벨일 뿐, 알람 자체의 판정(`resourceId`로 매칭)엔 영향 없다.
+
+**남은 규칙**: `likelion-server` = 이 알람들을 실제로 실행·측정하는 물리 호스트 하나(stage·prod를 같이 서빙). `likelion-prod`/`likelion-stage` = 그 알람이 가리키는 **환경**(백업·이메일·ERROR 로그처럼 환경별로 값이 따로 갈리는 것들만). 새 알람을 추가할 때 이 구분을 따를 것.
+
 ## IAM — instance principal
 
-서버가 사람 자격증명 없이 자기 자신의 identity로 Monitoring API를 호출하게 하는 설정. `push-disk-metric.py`·`push-backup-metric.py` 둘 다 이걸 재사용 — 새 IAM 리소스 추가 없음.
+서버가 사람 자격증명 없이 자기 자신의 identity로 Monitoring API를 호출하게 하는 설정. `push-*.py` 스크립트들이 전부 이걸 재사용 — 새 IAM 리소스 추가 없음(단, 알람 상태 조회를 위한 `read alarms` verb는 2026-08-10 추가, 아래 표 참고).
 
 | 리소스 | 이름 | 내용 |
 |---|---|---|
-| Dynamic Group | `likelion-monitoring-dyngroup` | 매칭 규칙 `ALL {instance.id = '<likelion-prod OCID>'}` — 이 인스턴스 하나만 |
-| Policy | `likelion-monitoring-policy` | `Allow dynamic-group likelion-monitoring-dyngroup to use metrics in tenancy` + `Allow service monitoring to use ons-topics in tenancy`(Alarm이 ONS로 발행하는 데 필요) |
+| Dynamic Group | `likelion-monitoring-dyngroup` | 매칭 규칙 `ALL {instance.id = '<likelion-server OCID>'}` — 이 인스턴스 하나만 |
+| Policy | `likelion-monitoring-policy` | `Allow dynamic-group likelion-monitoring-dyngroup to use metrics in tenancy` + `Allow service monitoring to use ons-topics in tenancy`(Alarm이 ONS로 발행하는 데 필요) + `Allow dynamic-group likelion-monitoring-dyngroup to read alarms in tenancy`(2026-08-10, 알람 상태 조회용) |
 
 ## Alarm 목록
 
 | Alarm | 네임스페이스 | 쿼리 | 조건 | 심각도 |
 |---|---|---|---|---|
-| likelion-prod 디스크 공간 80% 초과 | `custom_likelion` | `DiskSpaceUtilization[5m]{resourceId="..."}.mean() > 80` | 5분 지속 시 | CRITICAL |
-| likelion-prod 메모리 85% 초과 | `oci_computeagent`(네이티브) | `MemoryUtilization[5m]{resourceId="..."}.mean() > 85` | 5분 지속 시 | CRITICAL |
+| likelion-server 디스크 공간 80% 초과 | `custom_likelion` | `DiskSpaceUtilization[5m]{resourceId="..."}.mean() > 80` | 5분 지속 시 | CRITICAL |
+| likelion-server 메모리 85% 초과 | `oci_computeagent`(네이티브) | `MemoryUtilization[5m]{resourceId="..."}.mean() > 85` | 5분 지속 시 | CRITICAL |
 | likelion-prod DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessProd[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
 | likelion-stage DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessStage[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
-| likelion-prod 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
+| likelion-server 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
 | likelion-prod 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountProd[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 | likelion-stage 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountStage[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 | likelion-prod 백엔드 ERROR 로그 발생 | `custom_likelion` | `ErrorLogCountProd[5m].max() > 0` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
@@ -131,6 +139,117 @@ k_min = ceil( (P - W) / C ) + 1
 
 **실제 사례(2026-07-12)**: 배포 스크립트가 정상적으로 만들었다 지우는 롤백 마커 파일(`infra/.prev_backend_tag_stage`)이 gitignore 누락으로 드리프트로 잡혀, `C=5분, W=10분, P=5분`(이후 3분으로 낮췄다가) 조합에서 1분짜리 정상 상태가 오탐 FIRING을 일으킴. 근본 수정(gitignore 추가)과 별개로, `P=3분`(≤C=5분) 상태에서는 어떤 W를 골라도 구조적으로 단일 blip을 못 피한다는 걸 확인 → **P=8분(>C=5분)으로 조정**해 앞으로 순간적 상태 한 번으로는 안 뜨고, 최소 2번 연속 cron tick 동안 실제로 더러워야 파이어하도록 변경.
 
+### 쉬운 설명 — 감시카메라 사진첩 비유 (팀 온보딩용, 한글 용어 + 다이어그램)
+
+위 C/W/R/P 표기가 처음 보면 헷갈리니, 같은 내용을 감시카메라 비유 + 한글 이름으로 다시 풀어둔다.
+
+| 알파벳 | 한글 이름 | 감시카메라 비유 |
+|---|---|---|
+| C | **촬영주기** | 카메라가 몇 분마다 사진을 한 장 찍는가 |
+| W | **관찰범위** | 판정관이 "최근 몇 분치 사진첩"을 펼쳐 보는가 (쿼리 `[Xm]`) |
+| R | **재확인주기** | 판정관이 몇 분마다 그 사진첩을 다시 펼쳐 보는가 (보통 1분) |
+| P | **벨조건시간** | "나쁨"이 몇 분 연속돼야 실제로 벨을 울리는가 (pending-duration) |
+
+핵심은 판정관이 "새 사진이 왔는지"를 기다리는 게 아니라는 점이다 — **재확인주기마다 그냥 사진첩을 다시 펼쳐볼 뿐**이고, 나쁜 사진 한 장은 찍힌 뒤로 관찰범위만큼의 시간 동안 계속 그 사진첩 안에 남아있다. 그래서 재확인주기마다 다시 열어봐도 같은 나쁜 사진을 계속 재사용해서 보게 된다 — 진짜로 여러 번 나쁜 일이 일어난 게 아니라, 한 번 일어난 일을 여러 번 들여다본 것뿐인데도 "연속 나쁨" 조건이 채워질 수 있다.
+
+**사진첩 예시 (촬영주기=5분, 관찰범위=5분, 벨조건시간=3분) — 벨조건시간이 관찰범위보다 작아서 사진 한 장만으로 울리는 경우:**
+
+```
+분:         0    1    2    3    4    5    6    7
+사진찍힘:   🔴                       🟢
+            (나쁨 한 장, 그 뒤로는 계속 정상)
+
+최근 5분 사진첩(관찰범위) 안에 나쁜 사진이 들어있나?
+  0분  [-5,0]  있음
+  1분  [-4,1]  있음
+  2분  [-3,2]  있음
+  3분  [-2,3]  있음   ← 벨조건시간(3분) 채워짐
+  4분  [-1,4]  있음
+  5분  [ 0,5]  있음 (0분 사진이 아직 딱 걸쳐있음)
+  6분  [ 1,6]  없음! (0분 사진이 드디어 관찰범위 밖으로 밀려남)
+
+판정상태:    나쁨 나쁨 나쁨 나쁨 나쁨 나쁨  OK
+연속나쁨시간: 0분  1분  2분  3분  4분  5분
+                              ↑                ↑
+                     🚨 3분에 FIRING     6분에 OK 복귀 (=관찰범위만큼 지난 뒤)
+```
+
+**같은 상황인데 벨조건시간만 8분으로(관찰범위보다 확실히 크게) 올리면 — 사진 한 장으로는 안 울림:**
+
+```
+분:         0    1    2    3    4    5    6    7    8
+사진찍힘:   🔴                       🟢
+나쁨?:      예   예   예   예   예   예   아니오 아니오 아니오
+연속나쁨시간: 0분  1분  2분  3분  4분  5분  (여기서 끊김 — 8분을 못 채움)
+                                        ↑
+                                  OK 유지, 벨 안 울림
+                          (진짜 두 번째 나쁜 사진이 와서
+                           나쁨이 5분을 넘어 계속 이어져야만 울림)
+```
+
+**세 번째 예시 (촬영주기=5분, 관찰범위=5분, 벨조건시간=8분) — 이번엔 진짜로 연속 두 번 나빠서 울리는 경우:**
+
+바로 위 예시에서 벨조건시간을 8분으로 올렸더니 사진 한 장(=1번 나쁨)만으론 안 울렸다. 그런데 만약 다음 사진(5분 뒤)도 또 나쁘게 나오면 — 즉 나쁨이 실제로 2번 연속이면 — 어떻게 될까:
+
+```
+분:         0    1    2    3    4    5    6    7    8    9   10   11
+사진찍힘:   🔴                       🔴                       🟢
+            (1번째 나쁨)              (2번째 나쁨, 연속)         (드디어 정상)
+
+최근 5분 사진첩(관찰범위) 안에 나쁜 사진이 들어있나?
+   0분 [-5, 0]  있음 (0분 사진)
+   1~4분         있음 (0분 사진 아직 안 밀려남)
+   5분 [ 0, 5]  있음 (0분·5분 사진 둘 다 걸쳐있음)
+   6~9분         있음 (5분 사진 아직 안 밀려남)
+  10분 [ 5,10]  있음 (5분 사진이 딱 걸쳐있음)
+  11분 [ 6,11]  없음! (5분 사진도 드디어 관찰범위 밖으로 밀려남)
+
+판정상태:    나쁨 나쁨 나쁨 나쁨 나쁨 나쁨 나쁨 나쁨 나쁨 나쁨 나쁨  OK
+연속나쁨시간: 0분  1분  2분  3분  4분  5분  6분  7분  8분  9분  10분
+                                             ↑                       ↑
+                                    🚨 8분에 FIRING            11분에 OK 복귀
+                                    (벨조건시간 8분 채워짐)    (=마지막 나쁜사진(5분)+관찰범위(5분) 뒤)
+```
+
+바로 앞 예시(사진 한 장, 벨조건시간 8분)와 똑같은 설정인데, 이번엔 **진짜 두 번째 나쁜 사진이 실제로 찍혔기 때문에** 나쁨이 5분을 넘어 10분까지 이어지고, 그 10분 안에 벨조건시간 8분이 들어있어 실제로 FIRING한다. 앞 예시는 "1번만 나쁨 → 안 울림", 이번 예시는 "2번 연속 나쁨 → 울림"이라 두 개를 나란히 보면 벨조건시간(P)이 실제로 무엇을 걸러내는지가 분명해진다 — **한 번의 우연은 걸러내고, 진짜로 재발한 것만 잡는다.**
+
+공식으로 확인하면: `k_min = ceil((P-W)/C)+1 = ceil((8-5)/5)+1 = ceil(0.6)+1 = 2` — 최소 2번 연속 나쁜 사진이 필요하다는 계산과 정확히 일치한다.
+
+**인과관계로 정리하면 — 뭐가 뭘 결정하는가:**
+
+```
+촬영주기  (사진 찍는 간격 — 크론 주기, 우리가 스크립트 만들 때 정함)
+   │
+   │  제약 ①: 관찰범위 ≥ 촬영주기 여야 함
+   │  (아니면 사진첩에 빈 구간이 생겨서 판정 자체가 끊김)
+   ▼
+관찰범위  (사진첩 크기 — 쿼리 [Xm], 우리가 정함)
+   │
+   │  촬영주기와 관찰범위가 같이 결정하는 것: 진짜로 몇 번 연속
+   │  나쁜 사진이 찍혔을 때, 판정관이 "나쁨"으로 관측하는 총 시간
+   │        = (연속나쁨횟수-1)×촬영주기 + 관찰범위
+   ▼
+관측된 나쁨 지속시간
+   │
+   │  이걸 벨조건시간과 비교해서 벨 여부 결정
+   ▼
+벨조건시간  (몇 분 연속 나빠야 우는가, 우리가 정함)
+   │
+   ├─ 벨조건시간 ≤ 관찰범위  →  사진 한 장으로도 조건 충족 → 🚨 오탐 위험 큼
+   └─ 벨조건시간 >  관찰범위  →  한 장으론 부족, 진짜 두 번째 나쁜 사진 필요 → 진짜 지속만 걸러 울림
+   │
+   ▼
+🚨 FIRING 시점 (= 관측 나쁨 지속시간이 벨조건시간을 넘는 순간)
+
+
+별도 갈래 — 벨조건시간·연속나쁨횟수와 무관하게 관찰범위 혼자 결정하는 것:
+관찰범위  ─────────────────────────►  OK 복귀 시점 (= 마지막 나쁜 사진 + 관찰범위)
+```
+
+**출처 구분 — 이 절의 어느 부분이 실측이고 어느 부분이 파생인가.** "관계①~④"와 첫 두 예시(단일 blip 관련)는 실제 사고(2026-07-12, 롤백 마커 오탐)의 실제 FIRING/OK 타임스탬프로 검증됐다. 반면 "연속 2회 나쁨" 예시는 k_min 공식을 그대로 적용해 그린 파생 예시로, 실제 OCI 콘솔에 재현해 확인한 건 아니다. 다만 이 모델의 기반 원리(재확인주기=1분 고정, pendingDuration=연속된 평가에서 계속 breaching, OK 복귀=가장 최근 평가 한 번만 깨끗하면 즉시)는 오라클 공식 문서([Monitoring Concepts](https://docs.oracle.com/en-us/iaas/Content/Monitoring/Concepts/monitoringoverview.htm))의 표현과 일치를 확인했다 — 특히 "Monitoring evaluates alarms once per minute"와 "The alarm updates its state to OK when the breaching condition has been clear for the most recent minute"는 원문 그대로.
+
+**재확인주기(R)는 왜 이 인과선에 안 들어가는가 — 이 프로젝트에서는 안 들어가지만, 일반적으로는 지연 요인이다.** 재확인주기가 촬영주기보다 느리면(예: 1분마다 사진을 올리는데 판정관이 2분마다만 확인하면), 사진은 이미 찍혀 있어도 판정관이 아직 열어보지 않은 만큼 최대 재확인주기 분(分)만큼 판정이 밀린다 — FIRING뿐 아니라 OK 복귀도 같이 밀린다. 지금 이 프로젝트의 재확인주기(보통 1분 고정)는 모든 커스텀 메트릭의 촬영주기(5분)보다 훨씬 빠르기 때문에 이 지연이 실질적으로 0이라 인과선에서 뺀 것뿐이다 — 재확인주기가 촬영주기보다 크거나 비슷해지는 조합을 새로 만들 땐 이 지연을 다시 고려해야 한다.
+
 ## 어드민 대시보드 시스템 지표 — OCI Monitoring과 별개 경로 (2026-08-10, #451)
 
 어드민 화면에 CPU·메모리·디스크 시계열을 보여주는 요구가 나왔을 때, 처음엔 "이미 OCI Monitoring에 값이 있으니 백엔드가 그걸 조회하면 되지 않나"로 시작했다. 하지만 백엔드는 호스트가 아니라 Docker 컨테이너 안에서 도는데, 백엔드가 OCI Monitoring을 **읽으려면** 새 OCI Java SDK 의존성 + instance principal의 read 권한(현재 정책은 `use metrics`뿐이라 read까지 되는지 미확인) + IAM 정책 재확인이 필요했고, "그럼 컨테이너 안에서 `/proc`를 직접 읽으면?"이라는 대안도 검토했지만 정확한 호스트 값을 보려면 호스트의 `/proc`·`/sys`·`/`를 컨테이너에 마운트해야 해서 컨테이너 격리를 크게 깨는 쪽이었다(백엔드 컨테이너가 뚫리면 호스트 전체를 정찰할 수 있는 창구가 생김).
@@ -143,12 +262,28 @@ k_min = ceil( (P - W) / C ) + 1
 - **보관 기간**: 5분 간격 기준 30일치(8,640줄)만 유지 — 스크립트 자체가 append 후 넘치면 트림한다(`cleanup-old-logs.sh` 같은 별도 정리 스크립트 불필요).
 - **크론 오프셋(2026-08-10)**: 다른 8개 push-*.py가 전부 `*/5 * * * *`(=`:00,:05,:10...`)라 이 스크립트도 처음엔 같이 등록했는데, 매 5분 경계마다 python 프로세스 9개가 동시에 뜨면서 이 인스턴스(`nproc=2`)에 순간 컨텐션이 생겼다. 이 스크립트는 하필 그 순간의 CPU 사용률을 1초 샘플링으로 재는 거라, 몰린 순간을 그대로 "cpuPercent=100%"로 찍어버림(실측: 4틱 연속 100.0인데 그 사이 `top`/`uptime`은 완전 유휴 — load average 0.03). 그래서 `2-59/5 * * * *`(`:02,:07,:12...`)로 2분 오프셋을 줘서 다른 8개와 안 겹치게 분리했다. 나머지 8개는 카운트/존재 체크라 타이밍이 로직에 안 얽혀 있어 그대로 둠.
 
+## 어드민 대시보드 알람 상태 — 시스템 지표와 반대로 OCI Monitoring을 거쳐야 함 (2026-08-10)
+
+위 시스템 지표(CPU/메모리/디스크)는 호스트에서 직접 관측 가능한 값이라 OCI Monitoring을 안 거쳤지만, **알람의 FIRING/OK 상태는 로컬에서 관측 불가능하다** — OCI Monitoring이 threshold·period·지속시간(위 "지속성 판정" 절)을 계산해 내리는 판정 그 자체라, 로컬에서 재현하려면 그 로직을 다시 짜야 한다(오탐/미탐 버그를 새로 만들 위험). 그래서 "OCI를 거칠까"는 선택지가 아니고, "OCI를 어디서 거칠까"만 남는다:
+
+- **백엔드 컨테이너가 직접 조회** — 새 OCI Java SDK 의존성 + 새 IAM read 정책 필요. 시스템 지표 설계 때 이미 검토했다가 보류된 것과 같은 이유로 피함.
+- **호스트 크론이 조회 → 로컬 파일 → 백엔드는 읽기만(선택)** — `snapshot-system-metrics.py`와 같은 마운트 패턴을 재사용. 백엔드엔 아무것도 안 얹고, 이미 신뢰하는 `~/oci-monitor-venv`(instance principal)만 확장.
+
+`infra/scripts/snapshot-alarm-status.py`가 `list_alarms_status`로 전체 알람의 현재 상태(FIRING/OK)를 받아 `infra/logs/alarm-status/snapshot.jsonl`에 5분마다 한 줄(전체 알람 스냅샷)씩 남기고, 백엔드는 최신 한 줄만 조회한다(시계열이 아니라 "지금" 상태만 의미 있음). cron은 다른 `push-*.py`들과 같은 `*/5 * * * *`로 뒀다 — API 호출 한 번이라 `snapshot-system-metrics.py`처럼 CPU 샘플링이 컨텐션에 취약한 문제가 없어 오프셋이 불필요하다.
+
+**미결 — 서버에 실제로 반영하기 전에 인프라 오너가 확인 필요:**
+- 위 IAM 정책(`likelion-monitoring-policy`)은 지금 `use metrics`만 허용한다. 알람 상태를 **읽으려면** `read alarms`(또는 실제 OCI 정책 문서 기준 정확한 verb/resource-type) 권한을 추가해야 한다 — 안 하면 스크립트가 인증 오류로 실패한다.
+- `list_alarms_status`가 기본 엔드포인트로 응답하는지 실측 필요. 안 되면 `push-disk-metric.py`처럼 조회용 엔드포인트를 명시해야 할 수 있다.
+- 첫 실행 후 `infra/logs/alarm-status/snapshot.jsonl`에 실제 알람 9개가 기대한 형태로 찍히는지 확인.
+- 크론 등록 + `docker-compose.yml`의 새 마운트(`./logs/alarm-status:/app/alarm-status:ro`) 반영.
+
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
 | `infra/scripts/push-disk-metric.py` | 디스크 사용률(%) → custom metric. cron `*/5 * * * *`로 실행 |
 | `infra/scripts/snapshot-system-metrics.py` | CPU·메모리·디스크 사용률(%) → 로컬 JSON Lines(어드민 대시보드용, OCI Monitoring 안 거침). cron `2-59/5 * * * *`로 실행(다른 push-*.py들과 2분 오프셋, 위 "크론 오프셋" 참고) |
+| `infra/scripts/snapshot-alarm-status.py` | OCI Monitoring `list_alarms_status` 조회 결과(FIRING/OK) → 로컬 JSON Lines(어드민 대시보드용). cron `*/5 * * * *`로 실행 — IAM 정책에 `read alarms` 추가 필요(미결, 위 절 참고) |
 | `infra/scripts/push-backup-metric.py` | 백업 성공 신호 → custom metric. `backup-db.sh`가 각 DB 백업 성공 직후 호출 |
 | `infra/scripts/backup-db.sh` | 기존 백업 스크립트 + 성공 시 `push-backup-metric.py` 호출 한 줄 추가됨 |
 | `infra/scripts/push-git-drift-metric.py` | 배포 서버 git 워킹트리 드리프트(`git status --porcelain` 라인 수) → custom metric. cron `*/5 * * * *`로 실행 |

@@ -18,6 +18,7 @@ coverage/
 
 # Infra — 서버 전용 파일 (gitignore:수동)
 infra/nginx.conf
+infra/nginx.conf.bak*
 infra/data/
 infra/logs/
 infra/.prev_backend_tag_*
