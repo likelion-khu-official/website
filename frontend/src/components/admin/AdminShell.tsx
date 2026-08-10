@@ -42,6 +42,7 @@ const NAV_GROUPS = [
     label: '인프라',
     items: [
       { href: '/admin/infra', label: '배포 이력' },
+      { href: '/admin/infra/metrics', label: '시스템 지표' },
       { href: '/admin/infra/alarms', label: '알람 상태' },
     ],
   },
@@ -65,8 +66,8 @@ function isCurrentPath(pathname: string, href: string) {
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
 
-  // href가 다른 네비 항목의 접두어일 수 있으므로(예: /admin/infra ⊂ /admin/infra/alarms),
-  // 가장 구체적으로 매칭되는 항목만 현재 위치로 표시한다.
+  // href가 다른 네비 항목의 접두어일 수 있으므로(예: /admin/infra ⊂ /admin/infra/metrics,
+  // /admin/infra/alarms), 가장 구체적으로 매칭되는 항목만 현재 위치로 표시한다.
   const longestMatch = ALL_NAV_HREFS.filter(
     (candidate) => pathname === candidate || pathname.startsWith(`${candidate}/`)
   ).sort((a, b) => b.length - a.length)[0];
