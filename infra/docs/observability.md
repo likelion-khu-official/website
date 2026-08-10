@@ -246,6 +246,8 @@ k_min = ceil( (P - W) / C ) + 1
 관찰범위  ─────────────────────────►  OK 복귀 시점 (= 마지막 나쁜 사진 + 관찰범위)
 ```
 
+**출처 구분 — 이 절의 어느 부분이 실측이고 어느 부분이 파생인가.** "관계①~④"와 첫 두 예시(단일 blip 관련)는 실제 사고(2026-07-12, 롤백 마커 오탐)의 실제 FIRING/OK 타임스탬프로 검증됐다. 반면 "연속 2회 나쁨" 예시는 k_min 공식을 그대로 적용해 그린 파생 예시로, 실제 OCI 콘솔에 재현해 확인한 건 아니다. 다만 이 모델의 기반 원리(재확인주기=1분 고정, pendingDuration=연속된 평가에서 계속 breaching, OK 복귀=가장 최근 평가 한 번만 깨끗하면 즉시)는 오라클 공식 문서([Monitoring Concepts](https://docs.oracle.com/en-us/iaas/Content/Monitoring/Concepts/monitoringoverview.htm))의 표현과 일치를 확인했다 — 특히 "Monitoring evaluates alarms once per minute"와 "The alarm updates its state to OK when the breaching condition has been clear for the most recent minute"는 원문 그대로.
+
 **재확인주기(R)는 왜 이 인과선에 안 들어가는가 — 이 프로젝트에서는 안 들어가지만, 일반적으로는 지연 요인이다.** 재확인주기가 촬영주기보다 느리면(예: 1분마다 사진을 올리는데 판정관이 2분마다만 확인하면), 사진은 이미 찍혀 있어도 판정관이 아직 열어보지 않은 만큼 최대 재확인주기 분(分)만큼 판정이 밀린다 — FIRING뿐 아니라 OK 복귀도 같이 밀린다. 지금 이 프로젝트의 재확인주기(보통 1분 고정)는 모든 커스텀 메트릭의 촬영주기(5분)보다 훨씬 빠르기 때문에 이 지연이 실질적으로 0이라 인과선에서 뺀 것뿐이다 — 재확인주기가 촬영주기보다 크거나 비슷해지는 조합을 새로 만들 땐 이 지연을 다시 고려해야 한다.
 
 ## 어드민 대시보드 시스템 지표 — OCI Monitoring과 별개 경로 (2026-08-10, #451)
