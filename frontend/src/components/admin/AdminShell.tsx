@@ -40,9 +40,14 @@ const NAV_GROUPS = [
   },
   {
     label: '인프라',
-    items: [{ href: '/admin/infra', label: '배포 이력' }],
+    items: [
+      { href: '/admin/infra', label: '배포 이력' },
+      { href: '/admin/infra/metrics', label: '시스템 지표' },
+    ],
   },
 ] as const;
+
+const ALL_NAV_HREFS = NAV_GROUPS.flatMap((group) => group.items.map((item) => item.href));
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -57,7 +62,15 @@ export function isPublicAdminPath(pathname: string) {
 
 function isCurrentPath(pathname: string, href: string) {
   if (href === '/admin') return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+
+  // href가 다른 네비 항목의 접두어일 수 있으므로(예: /admin/infra ⊂ /admin/infra/metrics),
+  // 가장 구체적으로 매칭되는 항목만 현재 위치로 표시한다.
+  const longestMatch = ALL_NAV_HREFS.filter(
+    (candidate) => pathname === candidate || pathname.startsWith(`${candidate}/`)
+  ).sort((a, b) => b.length - a.length)[0];
+  return href === longestMatch;
 }
 
 function AdminNavigation({
