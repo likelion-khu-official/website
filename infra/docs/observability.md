@@ -10,7 +10,7 @@
 ## 아키텍처
 
 ```
-likelion-prod 인스턴스
+likelion-server 인스턴스 (2026-08-10 이전엔 "likelion-prod"였음 — 아래 "인스턴스 이름" 절 참고)
   ├── Compute Instance Monitoring 플러그인(Oracle Cloud Agent, 이미 RUNNING)
   │     → CPU/메모리 등 기본 메트릭을 oci_computeagent 네임스페이스로 자동 전송
   │     → 디스크 사용률(%)은 여기 없음(공식 문서로 확인 — I/O 처리량만 제공, 용량%는 미제공)
@@ -27,24 +27,32 @@ OCI Notifications (ONS)
   └── Topic: likelion-ops-alerts → 이메일 구독(장찬욱·김우진 개인 메일 — 동아리 공용 메일 아님, 의도적. `infra/docs/handoff.md` "계정 인벤토리" 참고)
 ```
 
+## 인스턴스 이름 — "likelion-prod"에서 "likelion-server"로 (2026-08-10)
+
+OCI Compute 인스턴스의 실제 표시 이름이 "likelion-prod"였다 — 이 인스턴스 하나가 stage·prod 백엔드 컨테이너를 **같이** 호스팅하는데(위 "브랜치 ↔ 환경 대응" 참고), 이름은 마치 prod 전용 서버인 것처럼 보였다. 그 결과 디스크·메모리·git 드리프트처럼 **인스턴스(호스트) 전체에 대한 알람**도 전부 "likelion-prod ..."로 이름 붙어서, DB 백업·이메일 실패·ERROR 로그처럼 **진짜 prod 환경만을 가리키는 알람**(stage 짝이 있는 것들)과 구분이 안 됐다 — 어드민 알람 상태 화면(`/admin/infra/alarms`)에서 이 혼동이 실제로 지적됨.
+
+그래서 인스턴스 표시 이름을 **"likelion-server"**로 바꾸고(OCI 콘솔·CLI 둘 다 반영, 재부팅 불필요 — 순수 표시용 라벨이라 실제 리소스 식별은 여전히 OCID 기준), 인스턴스 전체를 가리키는 알람 3개(디스크·메모리·git 드리프트)의 이름도 "likelion-server ..."로 바꿨다. `custom_likelion` 네임스페이스로 전송하는 모든 커스텀 메트릭의 `resourceDisplayName` 차원(`push-*.py` 6개 스크립트)도 같이 맞춤 — 어차피 이 값은 "어느 호스트가 보냈나"를 나타내는 라벨일 뿐, 알람 자체의 판정(`resourceId`로 매칭)엔 영향 없다.
+
+**남은 규칙**: `likelion-server` = 이 알람들을 실제로 실행·측정하는 물리 호스트 하나(stage·prod를 같이 서빙). `likelion-prod`/`likelion-stage` = 그 알람이 가리키는 **환경**(백업·이메일·ERROR 로그처럼 환경별로 값이 따로 갈리는 것들만). 새 알람을 추가할 때 이 구분을 따를 것.
+
 ## IAM — instance principal
 
-서버가 사람 자격증명 없이 자기 자신의 identity로 Monitoring API를 호출하게 하는 설정. `push-disk-metric.py`·`push-backup-metric.py` 둘 다 이걸 재사용 — 새 IAM 리소스 추가 없음.
+서버가 사람 자격증명 없이 자기 자신의 identity로 Monitoring API를 호출하게 하는 설정. `push-*.py` 스크립트들이 전부 이걸 재사용 — 새 IAM 리소스 추가 없음(단, 알람 상태 조회를 위한 `read alarms` verb는 2026-08-10 추가, 아래 표 참고).
 
 | 리소스 | 이름 | 내용 |
 |---|---|---|
-| Dynamic Group | `likelion-monitoring-dyngroup` | 매칭 규칙 `ALL {instance.id = '<likelion-prod OCID>'}` — 이 인스턴스 하나만 |
-| Policy | `likelion-monitoring-policy` | `Allow dynamic-group likelion-monitoring-dyngroup to use metrics in tenancy` + `Allow service monitoring to use ons-topics in tenancy`(Alarm이 ONS로 발행하는 데 필요) |
+| Dynamic Group | `likelion-monitoring-dyngroup` | 매칭 규칙 `ALL {instance.id = '<likelion-server OCID>'}` — 이 인스턴스 하나만 |
+| Policy | `likelion-monitoring-policy` | `Allow dynamic-group likelion-monitoring-dyngroup to use metrics in tenancy` + `Allow service monitoring to use ons-topics in tenancy`(Alarm이 ONS로 발행하는 데 필요) + `Allow dynamic-group likelion-monitoring-dyngroup to read alarms in tenancy`(2026-08-10, 알람 상태 조회용) |
 
 ## Alarm 목록
 
 | Alarm | 네임스페이스 | 쿼리 | 조건 | 심각도 |
 |---|---|---|---|---|
-| likelion-prod 디스크 공간 80% 초과 | `custom_likelion` | `DiskSpaceUtilization[5m]{resourceId="..."}.mean() > 80` | 5분 지속 시 | CRITICAL |
-| likelion-prod 메모리 85% 초과 | `oci_computeagent`(네이티브) | `MemoryUtilization[5m]{resourceId="..."}.mean() > 85` | 5분 지속 시 | CRITICAL |
+| likelion-server 디스크 공간 80% 초과 | `custom_likelion` | `DiskSpaceUtilization[5m]{resourceId="..."}.mean() > 80` | 5분 지속 시 | CRITICAL |
+| likelion-server 메모리 85% 초과 | `oci_computeagent`(네이티브) | `MemoryUtilization[5m]{resourceId="..."}.mean() > 85` | 5분 지속 시 | CRITICAL |
 | likelion-prod DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessProd[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
 | likelion-stage DB 백업 26시간 이상 부재 | `custom_likelion` | `BackupSuccessStage[1h].absent(26h)` | 마지막 성공 신호로부터 26시간 경과 | CRITICAL |
-| likelion-prod 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
+| likelion-server 배포서버 git 드리프트 감지 | `custom_likelion` | `GitDriftFileCount[10m].max() > 0` | 8분 지속 시 (`pending-duration`) | CRITICAL |
 | likelion-prod 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountProd[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 | likelion-stage 모집 이메일 실패 임계치 초과 | `custom_likelion` | `EmailFailureCountStage[5m].max() > 2` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |
 | likelion-prod 백엔드 ERROR 로그 발생 | `custom_likelion` | `ErrorLogCountProd[5m].max() > 0` | 5분 지속 시 (`pending-duration`, = cron 주기 — 첫 breach에 바로 발동) | WARNING |

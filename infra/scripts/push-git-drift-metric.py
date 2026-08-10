@@ -70,7 +70,7 @@ def main():
         namespace=NAMESPACE,
         compartment_id=compartment_id,
         name=METRIC_NAME,
-        dimensions={"resourceId": instance_id, "resourceDisplayName": "likelion-prod"},
+        dimensions={"resourceId": instance_id, "resourceDisplayName": "likelion-server"},
         datapoints=[
             oci.monitoring.models.Datapoint(
                 timestamp=datetime.now(timezone.utc),

@@ -123,6 +123,16 @@ export default function AlarmStatusPanel() {
         <p className="mt-1 text-sm text-muted">
           OCI Monitoring이 판정한 지금 상태를 5분마다 가져와요. 실제 알림은 여전히 OCI가 이메일로 보내요 — 여긴 조회만이에요.
         </p>
+        <dl className="mt-3 grid gap-x-6 gap-y-1 text-xs text-muted sm:grid-cols-2">
+          <div className="flex gap-1.5">
+            <dt className="shrink-0 font-mono text-white/70">likelion-server</dt>
+            <dd>이 알람들을 실행·측정하는 물리 서버 하나 — stage·prod를 같이 호스팅해요.</dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt className="shrink-0 font-mono text-white/70">likelion-prod / -stage</dt>
+            <dd>알람이 가리키는 환경 — 백업·이메일·ERROR 로그처럼 환경별로 값이 갈리는 알람에만 붙어요.</dd>
+          </div>
+        </dl>
       </div>
 
       {error ? (
