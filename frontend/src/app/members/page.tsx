@@ -1,43 +1,11 @@
 import type { Metadata } from 'next';
 import type { Member } from '@shared/types/member';
-import type { PostSummary } from '@shared/types/feed';
 import BackLink from '@/components/BackLink';
 import MemberRoster from '@/components/members/MemberRoster';
 import { getMembers, getStaff } from '@/lib/rosterApi';
-import { getProjects, getProjectById } from '@/lib/projectApi';
-import { getPosts } from '@/lib/feedApi';
-import {
-  groupMemberActivities,
-  type ProjectWithDetail,
-} from '@/lib/memberActivity';
+import { loadActivitiesByMember } from '@/lib/memberActivityLoader';
 import { mergeRoster } from '@/lib/roster';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
-
-const POST_PAGE_SIZE = 100;
-
-// 프로젝트 목록엔 참여자가 없으므로 상세를 함께 불러와 멤버별 활동에 연결한다.
-// 20명 안팎인 현재 규모에서는 별도 활동 API를 추가하는 것보다 기존 공개 계약을 조합하는 편이 단순하다.
-async function getProjectsWithDetails(baseUrl: string): Promise<ProjectWithDetail[]> {
-  const summaries = await getProjects(baseUrl);
-  const details = await Promise.all(summaries.map((project) => getProjectById(project.id, baseUrl)));
-  return details.flatMap((detail, index) => (
-    detail ? [{ summary: summaries[index], detail }] : []
-  ));
-}
-
-// 기본 공개 목록은 10개 단위지만 멤버 활동에는 공개 글 전체가 필요하다.
-// 먼저 한 페이지를 받고 남은 페이지는 병렬로 읽어 월 2건 규모에서도 요청 수를 제한한다.
-async function getAllPublishedPosts(baseUrl: string): Promise<PostSummary[]> {
-  const first = await getPosts(0, baseUrl, POST_PAGE_SIZE);
-  if (first.totalPages <= 1) return first.content;
-
-  const rest = await Promise.all(
-    Array.from({ length: first.totalPages - 1 }, (_, index) => (
-      getPosts(index + 1, baseUrl, POST_PAGE_SIZE)
-    )),
-  );
-  return [first, ...rest].flatMap((page) => page.content);
-}
 
 export const metadata: Metadata = {
   title: '멤버 — 멋쟁이사자처럼 경희대',
@@ -58,15 +26,9 @@ export default async function MembersPage() {
     failed = true;
   }
 
-  // 두 활동 소스는 서로 독립적으로 읽는다. 한쪽이 실패해도 다른 쪽 활동과 멤버 그리드는 유지한다.
-  const [projectsResult, postsResult] = await Promise.allSettled([
-    getProjectsWithDetails(baseUrl),
-    getAllPublishedPosts(baseUrl),
-  ]);
-  const projectActivities = projectsResult.status === 'fulfilled' ? projectsResult.value : [];
-  const postActivities = postsResult.status === 'fulfilled' ? postsResult.value : [];
-  const activitiesIncomplete = projectsResult.status === 'rejected' || postsResult.status === 'rejected';
-  const activitiesByMember = groupMemberActivities(postActivities, projectActivities);
+  // 멤버별 활동(블로그 글 + 참여 프로젝트). 한쪽 소스가 실패해도 다른 쪽은 유지되고 incomplete로 알린다.
+  const { activitiesByMember, incomplete: activitiesIncomplete } =
+    await loadActivitiesByMember(baseUrl);
 
   return (
     <main className="mx-auto min-h-[calc(100svh-64px)] w-full max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">

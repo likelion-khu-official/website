@@ -2,15 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
-import { ROLE_LABELS, cardColor } from '@/lib/roster';
-
-const ROLE_ORDER: MemberRole[] = [
-  'PRESIDENT', 'VICE_PRESIDENT',
-  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
-  'PLANNING_HEAD', 'PLANNING_MEMBER',
-  'PR_HEAD', 'PR_MEMBER',
-  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
-];
+import { ROLE_LABELS, ROLE_ORDER, cardColor, isStaffMember } from '@/lib/roster';
 
 function TrackMark({ role }: { role: MemberRole }) {
   const props = {
@@ -81,7 +73,7 @@ export default function MemberCard({
 }: {
   member: Member;
   colorIndex: number;
-  onSelect: (member: Member) => void;
+  onSelect: (member: Member, originRect: DOMRect) => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const [lastPhotoUrl, setLastPhotoUrl] = useState(member.photoUrl);
@@ -107,18 +99,33 @@ export default function MemberCard({
   );
   const primaryRole = roles[0] ?? 'BACKEND';
   const [backgroundColor, color] = cardColor(colorIndex);
+  const staff = isStaffMember(member);
 
   return (
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={`${member.name}님 소개와 참여 프로젝트 보기`}
+      aria-label={`${member.name}님${staff ? ' (운영진)' : ''} 소개와 참여 프로젝트 보기`}
       data-track={primaryRole}
-      onClick={() => onSelect(member)}
-      className="group relative aspect-[156/189] h-auto w-full max-w-[156px] cursor-pointer justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none"
+      data-staff={staff || undefined}
+      onClick={(event) => onSelect(member, event.currentTarget.getBoundingClientRect())}
+      className={`group relative aspect-[156/189] h-auto w-full max-w-[156px] cursor-pointer justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none${
+        staff ? ' ring-2 ring-inset ring-current' : ''
+      }`}
       style={{ backgroundColor, color }}
     >
-      <span className="sr-only">{ROLE_LABELS[primaryRole]} 트랙</span>
+      <span className="sr-only">{ROLE_LABELS[primaryRole]} 트랙{staff ? ' · 운영진' : ''}</span>
+
+      {/* 운영진 표시 — TrackMark(오른쪽) 반대편 왼쪽 위. 카드 색을 반전한 칩이라 대비가 보장된다. */}
+      {staff && (
+        <span
+          aria-hidden
+          className="absolute left-[8%] top-[7%] rounded-full px-2 py-[3px] text-[10px] font-bold leading-none tracking-[-0.02em]"
+          style={{ backgroundColor: color, color: backgroundColor }}
+        >
+          운영진
+        </span>
+      )}
 
       {/* 세션 구분 표시 — 위치·표현 그대로 유지(#309 범위 밖: 변경 금지) */}
       <span className="absolute right-[9%] top-[7.4%]">

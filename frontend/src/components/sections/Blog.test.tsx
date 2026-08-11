@@ -21,6 +21,7 @@ function post(id: number): PostSummary {
     authorPart: ['FRONTEND'],
     authorEmoji: '🦁',
     authorPhotoUrl: null,
+    coauthors: [],
     status: 'PUBLISHED',
     publishedAt: '2026-08-01T00:00:00Z',
     createdAt: '2026-08-01T00:00:00Z',

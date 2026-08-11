@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { PostCreateRequest, PostReplaceRequest, PostStatus } from '@shared/types/feed';
+import type { Member } from '@shared/types/member';
 import {
   createPost,
+  getAllMembers,
   getCurrentMember,
   getMemberPost,
   MemberApiError,
@@ -13,6 +15,7 @@ import {
   uploadMemberImage,
 } from '@/lib/memberApi';
 import MarkdownContent, { markdownIncludesImage } from './MarkdownContent';
+import { useMentionAutocomplete } from './useMentionAutocomplete';
 
 type SessionState = 'checking' | 'ready' | 'error';
 
@@ -26,6 +29,12 @@ type Draft = {
   summary: string;
   content: string;
   thumbnailUrl: string | null;
+  coauthorMemberIds: number[];
+};
+
+type CoauthorOption = Pick<Member, 'id' | 'name' | 'emoji' | 'photoUrl'> & {
+  roles: string[];
+  cohort: number | null;
 };
 
 type Props = {
@@ -35,6 +44,23 @@ type Props = {
 const DRAFT_KEY = 'feed-write-draft';
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+const MEMBER_ROLE_LABELS: Record<string, string> = {
+  PRESIDENT: '회장',
+  VICE_PRESIDENT: '부회장',
+  BACKEND_LEAD: '백엔드 세션장',
+  FRONTEND_LEAD: '프론트엔드 세션장',
+  DESIGN_LEAD: '디자인 세션장',
+  AI_LEAD: 'AI 세션장',
+  PLANNING_HEAD: '기획부장',
+  PLANNING_MEMBER: '기획부원',
+  PR_HEAD: '홍보부장',
+  PR_MEMBER: '홍보부원',
+  BACKEND: '백엔드',
+  FRONTEND: '프론트엔드',
+  DESIGN: '디자인',
+  AI: 'AI',
+};
 
 const GENERIC_SESSION_ERROR: SessionError = {
   title: '화면을 준비하지 못했어요',
@@ -96,6 +122,8 @@ export default function WriteForm({ postId }: Props) {
   const [sessionState, setSessionState] = useState<SessionState>('checking');
   const [sessionError, setSessionError] = useState<SessionError>(GENERIC_SESSION_ERROR);
   const [authorName, setAuthorName] = useState('');
+  const [coauthorOptions, setCoauthorOptions] = useState<CoauthorOption[]>([]);
+  const [coauthorMemberIds, setCoauthorMemberIds] = useState<number[]>([]);
   const [postStatus, setPostStatus] = useState<PostStatus>('PUBLISHED');
 
   const [title, setTitle] = useState('');
@@ -111,14 +139,19 @@ export default function WriteForm({ postId }: Props) {
   const [submitError, setSubmitError] = useState('');
   const [bodyImageError, setBodyImageError] = useState('');
 
+  // 본문에서 @로 부원을 태그하는 자동완성. 고르면 [@이름](mention:id)를 커서 자리에 넣는다.
+  const mention = useMentionAutocomplete(bodyRef, setContent);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const [{ member }, post] = await Promise.all([
+        const [{ member }, post, publicMembers] = await Promise.all([
           getCurrentMember(),
           postId ? getMemberPost(postId) : Promise.resolve(undefined),
+          // 공동저자 선택은 선택 기능이라 공개 멤버 목록 조회 실패가 글쓰기 자체를 막지 않는다.
+          getAllMembers().catch(() => []),
         ]);
         if (cancelled) return;
         if (member.mustChangePassword) {
@@ -127,12 +160,33 @@ export default function WriteForm({ postId }: Props) {
         }
 
         setAuthorName(member.name);
+        const availableOptions: CoauthorOption[] = publicMembers
+          .filter((candidate) => candidate.id !== member.id)
+          .map((candidate) => ({ ...candidate, cohort: candidate.cohort }));
+        const existingIds = post?.coauthorMemberIds ?? [];
+        const preservedOptions: CoauthorOption[] = (post?.coauthors ?? []).flatMap(
+          (coauthor, index) => {
+            const id = existingIds[index] ?? coauthor.memberId;
+            if (id === null || availableOptions.some((candidate) => candidate.id === id)) return [];
+            return [{
+              id,
+              name: coauthor.name,
+              roles: coauthor.parts,
+              cohort: null,
+              emoji: coauthor.emoji ?? coauthor.name.slice(0, 1),
+              photoUrl: coauthor.photoUrl,
+            }];
+          },
+        );
+        const options = [...availableOptions, ...preservedOptions];
+        setCoauthorOptions(options);
         if (post) {
           setTitle(post.title);
           setSummary(post.summary ?? '');
           setContent(post.content);
           setThumbnailUrl(post.thumbnailUrl);
           setPostStatus(post.status);
+          setCoauthorMemberIds(existingIds);
         } else {
           try {
             const raw = localStorage.getItem(DRAFT_KEY);
@@ -142,6 +196,11 @@ export default function WriteForm({ postId }: Props) {
               setSummary(draft.summary ?? '');
               setContent(draft.content ?? '');
               setThumbnailUrl(draft.thumbnailUrl ?? null);
+              setCoauthorMemberIds(
+                (draft.coauthorMemberIds ?? []).filter((id) =>
+                  options.some((candidate) => candidate.id === id),
+                ),
+              );
             }
           } catch {
             // 손상된 임시저장은 무시하고 빈 폼으로 시작한다.
@@ -176,12 +235,12 @@ export default function WriteForm({ postId }: Props) {
   useEffect(() => {
     if (editing || sessionState !== 'ready') return;
     try {
-      const draft: Draft = { title, summary, content, thumbnailUrl };
+      const draft: Draft = { title, summary, content, thumbnailUrl, coauthorMemberIds };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {
       // 임시저장은 best-effort다.
     }
-  }, [content, editing, sessionState, summary, thumbnailUrl, title]);
+  }, [coauthorMemberIds, content, editing, sessionState, summary, thumbnailUrl, title]);
 
   function handleWriteError(error: unknown, fallback: string) {
     if (
@@ -326,6 +385,7 @@ export default function WriteForm({ postId }: Props) {
           summary: summary.trim() || null,
           content: content.trim(),
           thumbnailUrl,
+          coauthorMemberIds,
         };
         saved = await replacePost(postId, body);
       } else {
@@ -334,6 +394,7 @@ export default function WriteForm({ postId }: Props) {
           summary: summary.trim() || undefined,
           content: content.trim(),
           thumbnailUrl: thumbnailUrl ?? undefined,
+          coauthorMemberIds,
         };
         saved = await createPost(body);
         try {
@@ -421,14 +482,14 @@ export default function WriteForm({ postId }: Props) {
           }`}
         >
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-8 sm:px-10 lg:px-12 lg:pt-12">
-            <textarea
+            <input
+              type="text"
               value={title}
-              onChange={(event) => setTitle(event.target.value.replace(/\n/g, ''))}
+              onChange={(event) => setTitle(event.target.value)}
               maxLength={200}
-              rows={1}
               placeholder="제목을 입력하세요"
               aria-label="제목"
-              className="w-full resize-none break-keep bg-transparent text-3xl font-semibold leading-tight tracking-[-0.03em] text-white outline-none placeholder:text-white/25 sm:text-4xl"
+              className="w-full break-keep bg-transparent py-1 text-3xl font-semibold leading-[1.2] tracking-[-0.03em] text-white outline-none placeholder:text-white/25 sm:text-4xl"
             />
             <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
 
@@ -442,6 +503,13 @@ export default function WriteForm({ postId }: Props) {
               className="mt-5 w-full bg-transparent text-sm text-white/70 outline-none placeholder:text-white/30"
             />
 
+            <AuthorPicker
+              authorName={authorName}
+              coauthorOptions={coauthorOptions}
+              coauthorMemberIds={coauthorMemberIds}
+              onCoauthorMemberIdsChange={setCoauthorMemberIds}
+            />
+
             <EditorToolbar
               onHeading={() => prefixLine('## ')}
               onBold={() => wrapSelection('**', '**', '굵게')}
@@ -453,10 +521,19 @@ export default function WriteForm({ postId }: Props) {
               uploading={bodyUploading}
             />
 
+            <p className="mt-3 text-xs text-white/35">
+              본문에서 <span className="font-semibold text-accent">@</span>를 입력하면 부원을 태그할 수 있어요.
+            </p>
+
             <textarea
               ref={bodyRef}
               value={content}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                mention.handleInput(event.currentTarget);
+              }}
+              onKeyDown={mention.handleKeyDown}
+              onBlur={mention.close}
               onSelect={(event) => {
                 selectionRef.current = {
                   start: event.currentTarget.selectionStart,
@@ -474,10 +551,11 @@ export default function WriteForm({ postId }: Props) {
               onDragLeave={() => setDragging(false)}
               aria-label="본문"
               placeholder={'당신의 이야기를 적어보세요...\n\n이미지는 복사한 뒤 붙여넣거나(⌘/Ctrl+V) 끌어다 놓으면 커서 위치에 바로 들어와요.'}
-              className={`mt-4 min-h-[40vh] w-full flex-1 resize-none break-words bg-transparent text-[15px] leading-8 text-white/90 outline-none placeholder:text-white/25 ${
+              className={`mt-3 min-h-[40vh] w-full flex-1 resize-none break-words bg-transparent text-[15px] leading-8 text-white/90 outline-none placeholder:text-white/25 ${
                 dragging ? 'rounded-lg ring-2 ring-accent/60' : ''
               }`}
             />
+            {mention.dropdown}
 
             {bodyImageError ? (
               <p role="alert" className="py-2 text-sm text-red-400">
@@ -639,6 +717,122 @@ function EditorToolbar({
   );
 }
 
+function AuthorPicker({
+  authorName,
+  coauthorOptions,
+  coauthorMemberIds,
+  onCoauthorMemberIdsChange,
+}: {
+  authorName: string;
+  coauthorOptions: CoauthorOption[];
+  coauthorMemberIds: number[];
+  onCoauthorMemberIdsChange: (ids: number[]) => void;
+}) {
+  const [coauthorQuery, setCoauthorQuery] = useState('');
+  const selectedCoauthors = coauthorMemberIds.flatMap((id) => {
+    const author = coauthorOptions.find((candidate) => candidate.id === id);
+    return author ? [author] : [];
+  });
+  const normalizedQuery = coauthorQuery.trim().toLocaleLowerCase('ko-KR');
+  const matchingCoauthors = normalizedQuery
+    ? coauthorOptions.filter((candidate) =>
+        !coauthorMemberIds.includes(candidate.id) &&
+        [
+          candidate.name,
+          String(candidate.cohort ?? ''),
+          ...candidate.roles,
+          ...candidate.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
+        ]
+          .join(' ')
+          .toLocaleLowerCase('ko-KR')
+          .includes(normalizedQuery),
+      )
+    : [];
+
+  return (
+    <div className="mt-5 border-y border-white/10 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium text-white">저자</p>
+        <p className="text-[11px] text-white/35">공동저자는 수정·삭제 권한이 없어요.</p>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-2" aria-label="선택한 저자">
+        <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-accent/25 bg-accent/[0.08] py-1 pl-1 pr-3 text-xs text-white/85">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-sm">
+            {authorName.slice(0, 1)}
+          </span>
+          {authorName}
+          <span className="text-[10px] font-medium text-accent">주 작성자</span>
+        </span>
+
+        {selectedCoauthors.map((author) => (
+          <span
+            key={author.id}
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] py-1 pl-1 pr-2 text-xs text-white/80"
+          >
+            <AuthorOptionAvatar author={author} />
+            {author.name}
+            <button
+              type="button"
+              onClick={() => onCoauthorMemberIdsChange(
+                coauthorMemberIds.filter((id) => id !== author.id),
+              )}
+              aria-label={`${author.name} 공동저자에서 제거`}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-white/40 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <div className="relative mt-2">
+        <label className="sr-only" htmlFor="coauthor-search">공동저자 검색</label>
+        <input
+          id="coauthor-search"
+          type="search"
+          value={coauthorQuery}
+          onChange={(event) => setCoauthorQuery(event.target.value)}
+          placeholder="공동저자 추가… 이름·기수·파트로 검색"
+          autoComplete="off"
+          className="min-h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-xs text-white outline-none placeholder:text-white/30 focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+        />
+        {normalizedQuery ? (
+          <div className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-20 max-h-52 overflow-y-auto rounded-xl border border-white/10 bg-background p-1 shadow-2xl">
+            {matchingCoauthors.length > 0 ? matchingCoauthors.map((author) => (
+              <button
+                key={author.id}
+                type="button"
+                onClick={() => {
+                  onCoauthorMemberIdsChange([...coauthorMemberIds, author.id]);
+                  setCoauthorQuery('');
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none hover:bg-white/[0.07] focus-visible:bg-white/[0.07]"
+              >
+                <AuthorOptionAvatar author={author} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-white">{author.name}</span>
+                  <span className="block truncate text-[11px] text-white/40">
+                    {[
+                      author.cohort ? `${author.cohort}기` : null,
+                      ...author.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+                <span className="text-lg text-white/35" aria-hidden>＋</span>
+              </button>
+            )) : (
+              <p className="px-3 py-4 text-center text-xs text-white/40">찾는 멤버가 없어요.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PublishModal({
   editing,
   hiddenNotice,
@@ -686,7 +880,7 @@ function PublishModal({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-background p-6 shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-background p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-white">
@@ -789,5 +983,18 @@ function PublishModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function AuthorOptionAvatar({ author }: { author: CoauthorOption }) {
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-sm">
+      {author.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={author.photoUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        author.emoji
+      )}
+    </span>
   );
 }

@@ -54,6 +54,14 @@ describe('MemberDetailModal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('멤버 정보 요청 중에는 모달을 즉시 열고 스켈레톤을 보여준다', () => {
+    render(<MemberDetailModal member={member} loading activities={[]} onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: '김멋사님 정보 불러오는 중' })).toBeInTheDocument();
+    expect(screen.getByText('멤버 정보를 불러오고 있어요.')).toBeInTheDocument();
+  });
+
   it('선택한 멤버의 공개 정보를 다이얼로그로 보여준다', () => {
     render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
 
@@ -88,6 +96,21 @@ describe('MemberDetailModal', () => {
   it('공개 활동이 없으면 빈 상태를 보여준다', () => {
     render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
     expect(screen.getByText('아직 공개된 활동이 없어요.')).toBeInTheDocument();
+  });
+
+  it('모달이 열린 뒤 지연 로드된 활동을 반영한다', () => {
+    const { rerender } = render(
+      <MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />,
+    );
+
+    expect(screen.getByText('아직 공개된 활동이 없어요.')).toBeInTheDocument();
+
+    rerender(
+      <MemberDetailModal member={member} activities={activities} onClose={vi.fn()} />,
+    );
+
+    expect(screen.queryByText('아직 공개된 활동이 없어요.')).not.toBeInTheDocument();
+    expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
   });
 
   it('활동을 불러오지 못하면 빈 상태와 다른 안내를 보여준다', () => {
@@ -138,6 +161,17 @@ describe('MemberDetailModal', () => {
 
     expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
     expect(screen.getByText(/일부 활동을 불러오지 못했어요/)).toBeInTheDocument();
+  });
+
+  it('일반 멤버에는 운영진 배지를 보여주지 않는다', () => {
+    render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
+    expect(screen.queryByText('운영진')).not.toBeInTheDocument();
+  });
+
+  it('운영진 멤버에는 헤더에 운영진 배지를 보여준다', () => {
+    const staff: Member = { ...member, roles: ['PRESIDENT'] };
+    render(<MemberDetailModal member={staff} activities={[]} onClose={vi.fn()} />);
+    expect(screen.getByText('운영진')).toBeInTheDocument();
   });
 
   it('닫기 버튼을 누르면 onClose를 호출한다', async () => {

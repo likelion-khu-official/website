@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import type { Member } from '@shared/types/member';
 import type { ActivitiesByMember } from '@/lib/memberActivity';
 import { cardColor } from '@/lib/roster';
 import MemberCard from './MemberCard';
-import MemberDetailModal from './MemberDetailModal';
+import { useMemberModal } from './MemberModalProvider';
 
 type Props = {
   members: Member[];
@@ -20,30 +19,28 @@ export default function MemberRoster({
   activitiesByMember,
   activitiesIncomplete,
 }: Props) {
-  // 선택을 인덱스로 잡아 모달이 카드와 같은 색(cardColor)을 악센트로 쓸 수 있게 한다.
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex === null ? null : members[selectedIndex];
+  // 상세 모달은 전역 provider(MemberModalProvider)가 소유한다 — /members뿐 아니라
+  // 프로젝트·블로그 등 사람이 나오는 어디서든 같은 모달을 열기 위해서다.
+  const { openMember } = useMemberModal();
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-[38px] sm:gap-y-[38px] md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {members.map((member, index) => (
-          <MemberCard
-            key={member.id}
-            member={member}
-            colorIndex={index}
-            onSelect={() => setSelectedIndex(index)}
-          />
-        ))}
-      </div>
-
-      <MemberDetailModal
-        member={selected}
-        accent={selectedIndex === null ? undefined : cardColor(selectedIndex)}
-        activities={selected ? (activitiesByMember[selected.id] ?? []) : []}
-        activitiesIncomplete={activitiesIncomplete}
-        onClose={() => setSelectedIndex(null)}
-      />
-    </>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-[38px] sm:gap-y-[38px] md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {members.map((member, index) => (
+        <MemberCard
+          key={member.id}
+          member={member}
+          colorIndex={index}
+          onSelect={(selected, rect) =>
+            openMember(selected, {
+              // 카드 색·활동은 로스터가 이미 아니 넘겨서 지연 로드를 건너뛴다.
+              accent: cardColor(index),
+              originRect: rect,
+              activities: activitiesByMember[selected.id] ?? [],
+              activitiesIncomplete,
+            })
+          }
+        />
+      ))}
+    </div>
   );
 }

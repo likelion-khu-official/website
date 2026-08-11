@@ -14,6 +14,7 @@ const post: PostSummary = {
   authorPart: ['BACKEND'],
   authorEmoji: '🦁',
   authorPhotoUrl: null,
+  coauthors: [],
   status: 'PUBLISHED',
   publishedAt: '2026-08-01T09:00:00+09:00',
   createdAt: '2026-08-01T09:00:00+09:00',

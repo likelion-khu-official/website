@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostDetail } from '@shared/types/feed';
 import { getPostBySlug } from '@/lib/feedApi';
@@ -11,7 +11,16 @@ vi.mock('@/components/blog/MarkdownContent', () => ({
   default: () => <div>본문</div>,
   markdownIncludesImage: vi.fn().mockReturnValue(false),
 }));
-vi.mock('@/components/blog/PostAuthor', () => ({ default: () => <div>작성자</div> }));
+vi.mock('@/components/blog/PostAuthor', () => ({
+  default: ({ interactiveNames = false }: { interactiveNames?: boolean }) => (
+    <div data-testid="post-author" data-interactive-names={String(interactiveNames)}>작성자</div>
+  ),
+}));
+vi.mock('@/components/blog/AuthorModalTrigger', () => ({
+  default: ({ children }: { children: import('react').ReactNode }) => (
+    <div data-testid="author-block-trigger">{children}</div>
+  ),
+}));
 vi.mock('@/components/blog/PostThumbnail', () => ({ default: () => <div>썸네일</div> }));
 
 const post: PostDetail = {
@@ -25,6 +34,7 @@ const post: PostDetail = {
   authorPart: ['BACKEND'],
   authorEmoji: '🦁',
   authorPhotoUrl: null,
+  coauthors: [],
   status: 'PUBLISHED',
   publishedAt: '2026-08-01T00:00:00Z',
   createdAt: '2026-08-01T00:00:00Z',
@@ -45,5 +55,19 @@ describe('PostPage', () => {
     const article = container.querySelector('article');
 
     expect(article).toHaveClass('w-full', 'max-w-[848px]', 'px-5', 'sm:px-10');
+  });
+
+  it('공동저자 글은 전체 작성자 블록 대신 각 이름만 모달 트리거로 쓴다', async () => {
+    vi.mocked(getPostBySlug).mockResolvedValue({
+      ...post,
+      coauthors: [
+        { memberId: 2, name: '박일하', parts: ['FRONTEND'], emoji: '🦊', photoUrl: null },
+      ],
+    });
+
+    render(await PostPage({ params: Promise.resolve({ slug: post.slug }) }));
+
+    expect(screen.getByTestId('post-author')).toHaveAttribute('data-interactive-names', 'true');
+    expect(screen.queryByTestId('author-block-trigger')).not.toBeInTheDocument();
   });
 });
