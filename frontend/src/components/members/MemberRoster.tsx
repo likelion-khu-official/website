@@ -22,6 +22,8 @@ export default function MemberRoster({
 }: Props) {
   // 선택을 인덱스로 잡아 모달이 카드와 같은 색(cardColor)을 악센트로 쓸 수 있게 한다.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // 누른 카드의 화면상 위치·크기 — 모달이 그 자리에서 확장돼 열리도록 origin으로 쓴다(데스크탑).
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const selected = selectedIndex === null ? null : members[selectedIndex];
 
   return (
@@ -32,7 +34,10 @@ export default function MemberRoster({
             key={member.id}
             member={member}
             colorIndex={index}
-            onSelect={() => setSelectedIndex(index)}
+            onSelect={(_, rect) => {
+              setOriginRect(rect);
+              setSelectedIndex(index);
+            }}
           />
         ))}
       </div>
@@ -40,6 +45,7 @@ export default function MemberRoster({
       <MemberDetailModal
         member={selected}
         accent={selectedIndex === null ? undefined : cardColor(selectedIndex)}
+        originRect={originRect}
         activities={selected ? (activitiesByMember[selected.id] ?? []) : []}
         activitiesIncomplete={activitiesIncomplete}
         onClose={() => setSelectedIndex(null)}
