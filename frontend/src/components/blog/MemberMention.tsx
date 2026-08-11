@@ -48,20 +48,9 @@ export default function MemberMention({ memberId, fallback }: Props) {
         onClick={(event) =>
           openMember(member, { originRect: event.currentTarget.getBoundingClientRect() })
         }
-        className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/[0.12] px-1.5 py-0.5 align-baseline text-[0.95em] font-medium leading-none text-accent outline-none transition-colors hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent"
+        className="rounded-[4px] bg-accent/10 px-0.5 align-baseline font-medium text-accent outline-none transition-colors hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <span
-          aria-hidden
-          className="flex size-[1.25em] items-center justify-center overflow-hidden rounded-full bg-white/10 text-[0.7em] leading-none"
-        >
-          {member.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={member.photoUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            member.emoji ?? '🦁'
-          )}
-        </span>
-        {member.name}
+        @{member.name}
       </button>
 
       {/* 호버/포커스 미니카드 — 사진 + 이름 + 직책 + 운영진 여부 */}

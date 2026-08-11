@@ -14,8 +14,6 @@ import { getMembers } from '@/lib/rosterApi';
 import { ROLE_LABELS, ROLE_ORDER } from '@/lib/roster';
 import { getCaretCoordinates } from '@/lib/caretCoordinates';
 
-const MAX_ITEMS = 6;
-
 // 캐럿 바로 앞에서 진행 중인 @멘션 쿼리를 찾는다. 순수 함수라 단위 테스트로 규칙을 고정한다.
 // 규칙: @는 문자열 시작·공백·여는 괄호 뒤에 와야 하고, 뒤엔 공백·개행·마크다운 링크 문자가 없어야 한다.
 export function findMentionQuery(
@@ -60,12 +58,9 @@ export function useMentionAutocomplete(
 
   const close = useCallback(() => setOpen(false), []);
 
-  // 공개 명단에서 쿼리로 거른 후보(최대 MAX_ITEMS).
+  // 공개 명단에서 쿼리로 거른 후보 전체(드롭다운은 max-height로 스크롤한다).
   const q = query.trim().toLowerCase();
-  const items = (q ? members.filter((m) => m.name.toLowerCase().includes(q)) : members).slice(
-    0,
-    MAX_ITEMS,
-  );
+  const items = q ? members.filter((m) => m.name.toLowerCase().includes(q)) : members;
 
   // textarea 값·캐럿이 바뀔 때마다 호출 — 멘션 컨텍스트면 열고, 아니면 닫는다.
   const handleInput = useCallback(
