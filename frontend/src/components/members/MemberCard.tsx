@@ -2,15 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Member, MemberRole } from '@shared/types/member';
-import { ROLE_LABELS, cardColor, isStaffMember } from '@/lib/roster';
-
-const ROLE_ORDER: MemberRole[] = [
-  'PRESIDENT', 'VICE_PRESIDENT',
-  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
-  'PLANNING_HEAD', 'PLANNING_MEMBER',
-  'PR_HEAD', 'PR_MEMBER',
-  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
-];
+import { ROLE_LABELS, ROLE_ORDER, cardColor, isStaffMember } from '@/lib/roster';
 
 function TrackMark({ role }: { role: MemberRole }) {
   const props = {
