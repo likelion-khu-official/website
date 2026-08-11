@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { PostSummary } from '@shared/types/feed';
 import PostAuthor from './PostAuthor';
+
+const openMemberById = vi.fn();
+
+vi.mock('@/components/members/MemberModalProvider', () => ({
+  useMemberModal: () => ({ openMemberById }),
+}));
 
 const post: PostSummary = {
   id: 1,
@@ -28,7 +35,9 @@ describe('PostAuthor', () => {
   it('주 작성자와 공동저자를 하나의 바이라인으로 표시한다', () => {
     render(<PostAuthor post={post} />);
 
-    expect(screen.getByText('김우진 · 박일하 · 김현정 · 신선우')).toBeInTheDocument();
+    expect(screen.getByText('김우진').closest('p')).toHaveTextContent(
+      '김우진 · 박일하 · 김현정 · 신선우',
+    );
     expect(screen.getByText('+1')).toBeInTheDocument();
     expect(screen.queryByText('백엔드')).not.toBeInTheDocument();
   });
@@ -37,5 +46,18 @@ describe('PostAuthor', () => {
     render(<PostAuthor post={{ ...post, coauthors: [] }} />);
 
     expect(screen.getByText('백엔드')).toBeInTheDocument();
+  });
+
+  it('공동저자 글에서는 이미지는 그대로 두고 각 이름만 해당 멤버 모달을 연다', async () => {
+    const user = userEvent.setup();
+    render(<PostAuthor post={post} interactiveNames />);
+
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+    await user.click(screen.getByRole('button', { name: '박일하님 소개 보기' }));
+
+    expect(openMemberById).toHaveBeenCalledWith(2, expect.objectContaining({
+      originRect: expect.anything(),
+      fallbackName: '박일하',
+    }));
   });
 });

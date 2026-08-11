@@ -54,6 +54,14 @@ describe('MemberDetailModal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('멤버 정보 요청 중에는 모달을 즉시 열고 스켈레톤을 보여준다', () => {
+    render(<MemberDetailModal member={member} loading activities={[]} onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: '김멋사님 정보 불러오는 중' })).toBeInTheDocument();
+    expect(screen.getByText('멤버 정보를 불러오고 있어요.')).toBeInTheDocument();
+  });
+
   it('선택한 멤버의 공개 정보를 다이얼로그로 보여준다', () => {
     render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
 

@@ -9,13 +9,13 @@ type Props = {
   children: ReactNode;
 };
 
-// 블로그 작성자 블록(PostAuthor)을 감싸 눌러서 소개 모달을 열게 한다.
+// 단독 저자 글의 작성자 블록(PostAuthor)을 감싸 눌러서 소개 모달을 열게 한다.
 // PostAuthor는 div/p 같은 flow 콘텐츠라 <button> 안에 못 넣으므로 role="button" 패턴을 쓴다.
 // 작성자가 공개 명단에 없으면(비공개·오프보딩) provider가 조용히 무시한다.
 export default function AuthorModalTrigger({ memberId, name, children }: Props) {
   const { openMemberById } = useMemberModal();
 
-  const open = (rect: DOMRect) => openMemberById(memberId, { originRect: rect });
+  const open = (rect: DOMRect) => openMemberById(memberId, { originRect: rect, fallbackName: name });
 
   return (
     <div

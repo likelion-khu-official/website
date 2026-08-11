@@ -21,6 +21,7 @@ type Accent = readonly [string, string]; // [배경색, 글자색] — 멤버 �
 
 type Props = {
   member: Member | null;
+  loading?: boolean;
   // 선택한 멤버 카드의 색 쌍. 모달 전체 배경과 전경에 이어 써서 카드가 확장되는 느낌을 만든다.
   accent?: Accent;
   // 누른 카드의 화면상 위치·크기. 데스크탑에서 모달이 그 자리를 원점으로 확장돼 열리게 한다.
@@ -100,6 +101,7 @@ function cardOriginTransform(dialog: HTMLElement, rect: DOMRect): string {
 
 export default function MemberDetailModal({
   member,
+  loading = false,
   accent,
   originRect,
   activities,
@@ -112,6 +114,7 @@ export default function MemberDetailModal({
   const [closing, setClosing] = useState(false); // 닫힘 애니메이션 동안 마운트 유지
   // 닫히는 동안에도 내용을 그려야 하므로 마지막 선택 멤버·색·활동을 붙잡아 둔다.
   const [activeMember, setActiveMember] = useState<Member | null>(member);
+  const [activeLoading, setActiveLoading] = useState(loading);
   const [activeAccent, setActiveAccent] = useState<Accent>(accent ?? FALLBACK_ACCENT);
   const [activeActivities, setActiveActivities] = useState(activities);
   const [activeActivitiesIncomplete, setActiveActivitiesIncomplete] = useState(
@@ -139,9 +142,11 @@ export default function MemberDetailModal({
     setClosing(!open);
     if (open) {
       setActiveMember(member);
+      setActiveLoading(loading);
       setActiveAccent(accent ?? FALLBACK_ACCENT);
       setActiveActivities(activities);
       setActiveActivitiesIncomplete(activitiesIncomplete);
+      setActiveLoading(loading);
       setActiveOriginRect(originRect ?? null);
       setIndex(0);
     } else {
@@ -154,6 +159,8 @@ export default function MemberDetailModal({
   // 열린 동안에는 지연 로드로 갱신되는 최신 프롭을 바로 사용한다. active* 상태는
   // 닫힘 애니메이션에서 마지막 내용을 붙잡아 두기 위한 스냅샷일 뿐이다.
   const displayedActivities = open ? activities : activeActivities;
+  const displayedLoading = open ? loading : activeLoading;
+  const displayedMember = open ? member : activeMember;
   const displayedActivitiesIncomplete = open
     ? activitiesIncomplete
     : activeActivitiesIncomplete;
@@ -278,11 +285,11 @@ export default function MemberDetailModal({
     pointerStart.current = null;
   }
 
-  if (!rendered || !activeMember) return null;
+  if (!rendered || !displayedMember) return null;
 
   const [accentBg, accentFg] = activeAccent;
-  const roleLabels = activeMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
-  const staff = isStaffMember(activeMember);
+  const roleLabels = displayedMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
+  const staff = isStaffMember(displayedMember);
   const activeActivity = displayedActivities[index];
   const accentSurface = `color-mix(in srgb, ${accentFg} 12%, transparent)`;
   const accentBorder = `color-mix(in srgb, ${accentFg} 20%, transparent)`;
@@ -323,22 +330,51 @@ export default function MemberDetailModal({
           </svg>
         </button>
 
+        {displayedLoading ? (
+          <div
+            className="grid min-h-full gap-6 p-5 pb-7 pt-16 motion-reduce:animate-none sm:gap-8 sm:p-8 sm:pt-20 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.9fr)] lg:gap-10 lg:p-12 xl:grid-cols-[minmax(0,1.4fr)_420px] xl:gap-12 xl:px-16"
+            role="status"
+            aria-label={`${displayedMember.name}님 정보 불러오는 중`}
+          >
+            <h2 id={headingId} className="sr-only">{displayedMember.name}님 정보 불러오는 중</h2>
+            <section className="flex min-w-0 animate-pulse flex-col motion-reduce:animate-none lg:min-h-[540px] lg:py-2">
+              <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-7 lg:grid lg:grid-cols-[minmax(180px,240px)_minmax(0,1fr)] lg:gap-10">
+                <span className="h-28 w-28 shrink-0 rounded-full bg-current opacity-10 sm:h-36 sm:w-36 lg:h-auto lg:w-full lg:aspect-square" />
+                <div className="flex w-full flex-col items-center sm:items-start">
+                  <span className="h-9 w-28 rounded-full bg-current opacity-10" />
+                  <span className="mt-4 h-14 w-3/4 max-w-64 rounded-2xl bg-current opacity-10" />
+                  <span className="mt-4 h-5 w-32 rounded-full bg-current opacity-10" />
+                </div>
+              </div>
+              <div className="mt-6 min-h-36 animate-pulse rounded-[20px] bg-current opacity-[0.08] motion-reduce:animate-none sm:min-h-44 lg:mt-auto lg:min-h-[190px]" />
+            </section>
+            <section className="flex min-h-[420px] animate-pulse flex-col rounded-[14px] bg-[#eeeeea] p-5 motion-reduce:animate-none sm:p-6 lg:min-h-[540px]">
+              <div className="h-3 w-28 rounded-full bg-black/10" />
+              <div className="mt-3 h-8 w-20 rounded-lg bg-black/10" />
+              <div className="mt-8 aspect-[16/9] w-full rounded-md bg-black/10" />
+              <div className="mt-5 h-4 w-24 rounded-full bg-black/10" />
+              <div className="mt-4 h-8 w-4/5 rounded-lg bg-black/10" />
+              <div className="mt-3 h-4 w-full rounded-full bg-black/10" />
+              <span className="sr-only">멤버 정보를 불러오고 있어요.</span>
+            </section>
+          </div>
+        ) : (
         <div className="grid min-h-full gap-6 p-5 pb-7 pt-16 sm:gap-8 sm:p-8 sm:pt-20 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.9fr)] lg:gap-10 lg:p-12 xl:grid-cols-[minmax(0,1.4fr)_420px] xl:gap-12 xl:px-16">
           {/* 왼쪽 — 참고안처럼 큰 프로필과 소개를 멤버 카드 색 위에 배치한다. */}
           <section
-            aria-label={`${activeMember.name} 소개`}
+            aria-label={`${displayedMember.name} 소개`}
             className="flex min-w-0 flex-col lg:min-h-[540px] lg:py-2"
           >
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-7 lg:grid lg:grid-cols-[minmax(180px,240px)_minmax(0,1fr)] lg:gap-10">
               <span
                 className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white sm:h-36 sm:w-36 lg:h-auto lg:w-full lg:aspect-square"
               >
-                {activeMember.photoUrl ? (
+                {displayedMember.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={activeMember.photoUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={displayedMember.photoUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <span aria-hidden className="flex h-full w-full items-center justify-center text-5xl leading-none sm:text-7xl lg:text-8xl">
-                    {activeMember.emoji}
+                    {displayedMember.emoji}
                   </span>
                 )}
               </span>
@@ -366,10 +402,10 @@ export default function MemberDetailModal({
                   id={headingId}
                   className="mt-3 flex items-start justify-center gap-2 break-keep text-[clamp(38px,7vw,64px)] font-bold leading-none tracking-[-0.065em] sm:justify-start"
                 >
-                  {activeMember.name}
+                  {displayedMember.name}
                   <span className="mt-1 text-[0.45em]" aria-hidden>✦</span>
                 </h2>
-                <p className="mt-4 text-sm opacity-70 sm:text-base">멋쟁이사자처럼 {activeMember.cohort}기</p>
+                <p className="mt-4 text-sm opacity-70 sm:text-base">멋쟁이사자처럼 {displayedMember.cohort}기</p>
               </div>
             </div>
 
@@ -377,8 +413,8 @@ export default function MemberDetailModal({
               className="mt-6 flex min-h-36 items-center justify-center rounded-[20px] px-6 py-8 text-center sm:min-h-44 sm:px-10 lg:mt-auto lg:min-h-[190px]"
               style={{ backgroundColor: accentSurface }}
             >
-              <p className={`max-w-xl break-keep text-base leading-7 sm:text-xl sm:leading-9 ${activeMember.joinReason ? '' : 'opacity-55'}`}>
-                {activeMember.joinReason ?? '아직 소개가 등록되지 않았어요.'}
+              <p className={`max-w-xl break-keep text-base leading-7 sm:text-xl sm:leading-9 ${displayedMember.joinReason ? '' : 'opacity-55'}`}>
+                {displayedMember.joinReason ?? '아직 소개가 등록되지 않았어요.'}
               </p>
             </div>
           </section>
@@ -498,6 +534,7 @@ export default function MemberDetailModal({
             )}
           </section>
         </div>
+        )}
       </div>
     </div>,
     document.body,

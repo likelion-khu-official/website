@@ -26,6 +26,8 @@ type OpenOptions = {
   // 로스터처럼 활동을 이미 계산해 둔 경우 넘긴다. 없으면 provider가 클라이언트에서 지연 로드.
   activities?: MemberActivity[];
   activitiesIncomplete?: boolean;
+  // id 조회가 끝나기 전 스켈레톤 모달에 먼저 보여줄 이름.
+  fallbackName?: string;
 };
 
 type MemberModalContextValue = {
@@ -51,6 +53,7 @@ export function useMemberModal(): MemberModalContextValue {
 
 export default function MemberModalProvider({ children }: { children: ReactNode }) {
   const [member, setMember] = useState<Member | null>(null);
+  const [memberLoading, setMemberLoading] = useState(false);
   const [accent, setAccent] = useState<Accent | undefined>(undefined);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [activities, setActivities] = useState<MemberActivity[]>([]);
@@ -104,6 +107,7 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
     (next: Member, options?: OpenOptions) => {
       const requestId = ++requestIdRef.current;
       setMember(next);
+      setMemberLoading(false);
       setAccent(options?.accent ?? cardColor(Math.abs(next.id)));
       setOriginRect(options?.originRect ?? null);
 
@@ -122,18 +126,50 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
 
   const openMemberById = useCallback(
     (memberId: number, options?: OpenOptions) => {
+      const cached = directory?.get(memberId);
+      if (cached) {
+        openMember(cached, options);
+        return;
+      }
+
+      const requestId = ++requestIdRef.current;
+      // 디렉터리 요청보다 모달을 먼저 연다. 실제 멤버 정보는 같은 자리에 도착하는 대로 채운다.
+      setMember({
+        id: memberId,
+        name: options?.fallbackName ?? '멤버',
+        roles: [],
+        cohort: 0,
+        emoji: '🦁',
+        photoUrl: null,
+        joinReason: null,
+      });
+      setMemberLoading(true);
+      setAccent(options?.accent ?? cardColor(Math.abs(memberId)));
+      setOriginRect(options?.originRect ?? null);
+      setActivities([]);
+      setActivitiesIncomplete(false);
+      applyActivities(memberId, requestId);
+
       ensureDirectory().then((members) => {
+        if (requestIdRef.current !== requestId) return;
         const found = members.find((candidate) => candidate.id === memberId);
-        // 비공개·오프보딩·없는 멤버면 조용히 무시. 있으면 openMember가 최신성(requestId)까지 처리.
-        if (found) openMember(found, options);
+        // 비공개·오프보딩·없는 멤버면 스켈레톤을 닫고, 있으면 현재 모달을 실제 정보로 교체한다.
+        if (!found) {
+          setMember(null);
+          setMemberLoading(false);
+          return;
+        }
+        setMember(found);
+        setMemberLoading(false);
       });
     },
-    [ensureDirectory, openMember],
+    [applyActivities, directory, ensureDirectory, openMember],
   );
 
   const close = useCallback(() => {
     requestIdRef.current++;
     setMember(null);
+    setMemberLoading(false);
   }, []);
 
   const value = useMemo(
@@ -146,6 +182,7 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
       {children}
       <MemberDetailModal
         member={member}
+        loading={memberLoading}
         accent={accent}
         originRect={originRect}
         activities={activities}

@@ -1,5 +1,6 @@
 import type { PostSummary } from '@shared/types/feed';
 import { formatDate } from '@/lib/formatDate';
+import AuthorNameModalTrigger from './AuthorNameModalTrigger';
 
 const PART_LABELS: Record<string, string> = {
   PRESIDENT: '회장',
@@ -22,6 +23,7 @@ type Props = {
   post: Pick<
     PostSummary,
     | 'authorName'
+    | 'authorMemberId'
     | 'authorPart'
     | 'authorEmoji'
     | 'authorPhotoUrl'
@@ -30,6 +32,7 @@ type Props = {
     | 'createdAt'
   >;
   compact?: boolean;
+  interactiveNames?: boolean;
 };
 
 function roleLabel(parts: string[]) {
@@ -37,19 +40,21 @@ function roleLabel(parts: string[]) {
   return parts.map((p) => PART_LABELS[p] ?? p).join(' · ');
 }
 
-export default function PostAuthor({ post, compact = false }: Props) {
+export default function PostAuthor({ post, compact = false, interactiveNames = false }: Props) {
   const date = post.publishedAt ?? post.createdAt;
   // 여러 사람이 함께 쓴 글에서는 한 사람의 직책만 대표처럼 보이지 않게 이름만 노출한다.
   const role = (post.coauthors ?? []).length === 0 ? roleLabel(post.authorPart) : null;
   const authors = [
     {
       key: `primary-${post.authorName}`,
+      memberId: post.authorMemberId,
       name: post.authorName,
       emoji: post.authorEmoji,
       photoUrl: post.authorPhotoUrl,
     },
     ...(post.coauthors ?? []).map((author, index) => ({
       key: `coauthor-${author.memberId ?? `${author.name}-${index}`}`,
+      memberId: author.memberId,
       name: author.name,
       emoji: author.emoji,
       photoUrl: author.photoUrl,
@@ -91,7 +96,16 @@ export default function PostAuthor({ post, compact = false }: Props) {
             compact ? 'text-xs' : 'text-sm'
           }`}
         >
-          {authors.map((author) => author.name).join(' · ')}
+          {authors.map((author, index) => (
+            <span key={author.key}>
+              {index > 0 ? <span className="text-white/45" aria-hidden> · </span> : null}
+              {interactiveNames && author.memberId != null ? (
+                <AuthorNameModalTrigger memberId={author.memberId} name={author.name} />
+              ) : (
+                author.name
+              )}
+            </span>
+          ))}
         </p>
         <div
           className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-white/40 ${

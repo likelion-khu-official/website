@@ -57,7 +57,9 @@ export default async function PostPage({ params }: Props) {
         <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
           {post.title}
         </h1>
-        {post.authorMemberId != null ? (
+        {post.coauthors.length > 0 ? (
+          <PostAuthor post={post} interactiveNames />
+        ) : post.authorMemberId != null ? (
           <AuthorModalTrigger memberId={post.authorMemberId} name={post.authorName}>
             <PostAuthor post={post} />
           </AuthorModalTrigger>
