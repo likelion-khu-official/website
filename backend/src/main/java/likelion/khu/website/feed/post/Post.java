@@ -38,12 +38,24 @@ public class Post {
     @Column(columnDefinition = "TEXT")
     private String authorPartJson;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String coauthorsJson = "[]";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public List<String> getAuthorPart() {
         if (authorPartJson == null) return Collections.emptyList();
         try {
             return MAPPER.readValue(authorPartJson, new TypeReference<>() {});
+        } catch (JsonProcessingException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<PostCoauthorSnapshot> getCoauthors() {
+        if (coauthorsJson == null) return Collections.emptyList();
+        try {
+            return MAPPER.readValue(coauthorsJson, new TypeReference<>() {});
         } catch (JsonProcessingException e) {
             return Collections.emptyList();
         }
@@ -72,7 +84,7 @@ public class Post {
 
     public static Post create(String slug, String title, String summary, String content,
                               String authorName, List<String> authorParts, Long authorMemberId,
-                              String thumbnailUrl) {
+                              List<PostCoauthorSnapshot> coauthors, String thumbnailUrl) {
         Post p = new Post();
         p.slug = slug;
         p.title = title;
@@ -85,6 +97,7 @@ public class Post {
             p.authorPartJson = "[]";
         }
         p.authorMemberId = authorMemberId;
+        p.coauthorsJson = writeCoauthors(coauthors);
         p.thumbnailUrl = thumbnailUrl;
         LocalDateTime now = LocalDateTime.now();
         p.status = PostStatus.PUBLISHED;
@@ -94,12 +107,33 @@ public class Post {
         return p;
     }
 
-    public void replace(String title, String summary, String content, String thumbnailUrl) {
+    public static Post create(String slug, String title, String summary, String content,
+                              String authorName, List<String> authorParts, Long authorMemberId,
+                              String thumbnailUrl) {
+        return create(slug, title, summary, content, authorName, authorParts,
+                authorMemberId, List.of(), thumbnailUrl);
+    }
+
+    public void replace(String title, String summary, String content,
+                        List<PostCoauthorSnapshot> coauthors, String thumbnailUrl) {
         this.title = title;
         this.summary = summary;
         this.content = content;
+        this.coauthorsJson = writeCoauthors(coauthors);
         this.thumbnailUrl = thumbnailUrl;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void replace(String title, String summary, String content, String thumbnailUrl) {
+        replace(title, summary, content, getCoauthors(), thumbnailUrl);
+    }
+
+    private static String writeCoauthors(List<PostCoauthorSnapshot> coauthors) {
+        try {
+            return MAPPER.writeValueAsString(coauthors != null ? coauthors : Collections.emptyList());
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
     }
 
     public void transitionTo(PostStatus next) {

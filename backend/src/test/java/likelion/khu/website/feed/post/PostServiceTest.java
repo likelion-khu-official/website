@@ -38,6 +38,7 @@ class PostServiceTest {
 
     private Member member;
     private Member anotherMember;
+    private Member coauthor;
 
     @BeforeEach
     void setUp() {
@@ -48,6 +49,10 @@ class PostServiceTest {
         anotherMember = memberRepository.save(Member.create(
                 "선우", Set.of(MemberRole.BACKEND), 13, "🐯", null, null, "admin@khu.ac.kr",
                 "20240002", "01087654321", "hash"));
+        coauthor = memberRepository.save(Member.create(
+                "일하", Set.of(MemberRole.FRONTEND), 14, "🦊", null,
+                null, "소프트웨어융합학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
+                "20240003", "01011112222", "hash"));
     }
 
     private PostCreateRequest sampleRequest() {
@@ -70,6 +75,37 @@ class PostServiceTest {
         assertThat(res.getSlug()).isNotBlank();
         assertThat(postRepository.findById(res.getId()).orElseThrow().getAuthorMemberId())
                 .isEqualTo(member.getId());
+    }
+
+    @Test
+    void createPost_WithCoauthor_AddsPublicBylineWithoutChangingOwnership() {
+        PostCreateRequest request = sampleRequest();
+        request.setCoauthorMemberIds(java.util.List.of(coauthor.getId()));
+
+        PostDetailResponse result = postService.createPost(member.getId(), request);
+
+        assertThat(result.getCoauthors()).singleElement().satisfies(byline -> {
+            assertThat(byline.getMemberId()).isEqualTo(coauthor.getId());
+            assertThat(byline.getName()).isEqualTo("일하");
+            assertThat(byline.getParts()).containsExactly("FRONTEND");
+            assertThat(byline.getEmoji()).isEqualTo("🦊");
+        });
+        assertThat(result.getCoauthorMemberIds()).containsExactly(coauthor.getId());
+        assertThat(postRepository.findById(result.getId()).orElseThrow().getAuthorMemberId())
+                .isEqualTo(member.getId());
+        assertThatThrownBy(() -> postService.getMemberPost(result.getId(), coauthor.getId()))
+                .isInstanceOf(NotPostAuthorException.class);
+    }
+
+    @Test
+    void createPost_NonConsentingCoauthor_IsRejected() {
+        PostCreateRequest request = sampleRequest();
+        request.setCoauthorMemberIds(java.util.List.of(anotherMember.getId()));
+
+        assertThatThrownBy(() -> postService.createPost(member.getId(), request))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(400));
     }
 
     @Test
@@ -202,6 +238,7 @@ class PostServiceTest {
         replace.setSummary(null);
         replace.setContent("# Markdown 본문");
         replace.setThumbnailUrl(null);
+        replace.setCoauthorMemberIds(java.util.List.of(coauthor.getId()));
 
         PostDetailResponse result = postService.replacePost(created.getId(), member.getId(), replace);
 
@@ -212,6 +249,7 @@ class PostServiceTest {
         assertThat(result.getSummary()).isNull();
         assertThat(result.getContent()).isEqualTo("# Markdown 본문");
         assertThat(result.getThumbnailUrl()).isNull();
+        assertThat(result.getCoauthors()).extracting("name").containsExactly("일하");
     }
 
     @Test

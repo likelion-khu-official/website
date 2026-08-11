@@ -17,6 +17,15 @@ export interface SpringPage<T> {
 
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
 
+/** 공개 화면에 함께 표시되는 공동저자 바이라인. 글 소유권·편집 권한과는 무관하다. */
+export interface PostByline {
+  name: string;
+  memberId: number | null;
+  parts: string[];
+  emoji: string | null;
+  photoUrl: string | null;
+}
+
 // ── 글 (Post) ─────────────────────────────────────────────────────
 
 /** GET /api/posts — 공개 목록 카드용 */
@@ -33,6 +42,7 @@ export interface PostSummary {
   /** 공개 동의한 작성자의 프로필. 사진을 우선 사용하고 없으면 emoji를 쓴다. */
   authorEmoji: string | null;
   authorPhotoUrl: string | null;
+  coauthors: PostByline[];
   status: PostStatus;
   publishedAt: string | null; // ISO 8601
   createdAt: string;
@@ -44,6 +54,8 @@ export interface PostDetail extends PostSummary {
   content: string;
   updatedAt: string;
   commentCount: number;
+  /** 멤버 편집 응답에만 포함되는 공동저자 선택값. 공개 상세에서는 생략된다. */
+  coauthorMemberIds?: number[];
 }
 
 /** POST /api/posts — 글 작성 요청 (인증: 멤버 로그인 쿠키, 작성자는 세션에서 자동 결정) */
@@ -52,6 +64,8 @@ export interface PostCreateRequest {
   summary?: string;
   content: string;
   thumbnailUrl?: string;
+  /** 표시용 공동저자. 작성자 본인의 소유권은 바뀌지 않는다. */
+  coauthorMemberIds?: number[];
 }
 
 /** 로그인한 멤버가 보는 자기 글. 숨김 글도 포함되며 status로 구분한다. */
@@ -63,6 +77,7 @@ export interface PostReplaceRequest {
   summary: string | null;
   content: string;
   thumbnailUrl: string | null;
+  coauthorMemberIds?: number[];
 }
 
 export interface PostSuccessResponse {

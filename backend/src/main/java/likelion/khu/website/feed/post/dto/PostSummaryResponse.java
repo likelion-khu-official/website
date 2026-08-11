@@ -8,6 +8,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @AllArgsConstructor
@@ -22,12 +23,16 @@ public class PostSummaryResponse {
     private List<String> authorPart;
     private String authorEmoji;
     private String authorPhotoUrl;
+    private List<PostBylineResponse> coauthors;
     private PostStatus status;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
 
-    public static PostSummaryResponse from(Post post, Member author) {
+    public static PostSummaryResponse from(Post post, Member author, Map<Long, Member> membersById) {
         boolean showProfile = author != null && author.isPublicationConsent();
+        List<PostBylineResponse> coauthors = post.getCoauthors().stream()
+                .map(snapshot -> PostBylineResponse.from(snapshot, membersById.get(snapshot.memberId())))
+                .toList();
         return new PostSummaryResponse(
                 post.getId(), post.getSlug(), post.getTitle(),
                 post.getSummary(), post.getThumbnailUrl(),
@@ -35,6 +40,7 @@ public class PostSummaryResponse {
                 post.getAuthorPart(),
                 showProfile ? author.getEmoji() : null,
                 showProfile ? author.getPhotoUrl() : null,
+                coauthors,
                 post.getStatus(),
                 post.getPublishedAt(), post.getCreatedAt());
     }
