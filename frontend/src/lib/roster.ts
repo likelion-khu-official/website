@@ -38,6 +38,27 @@ export const ROLE_LABELS: Record<MemberRole, string> = {
   AI: 'AI',
 };
 
+// 운영진 역할 집합 — 회장·부회장·세션장·기획/홍보 부서. 나머지(BACKEND/FRONTEND/DESIGN/AI)는 일반 멤버.
+// 운영진 여부를 별도 boolean 플래그로 두지 않고 역할에서 파생하는 이유: role과 어긋날 수 있는
+// 두 번째 진실(drift)을 만들지 않기 위해서다. admin이 멤버관리에서 운영진 role을 켜고 끄는 것이
+// 곧 운영진 온오프다. 목록은 MemberRole enum(backend)의 운영진 그룹 정의와 일치한다.
+const STAFF_ROLES: ReadonlySet<MemberRole> = new Set<MemberRole>([
+  'PRESIDENT', 'VICE_PRESIDENT',
+  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
+  'PLANNING_HEAD', 'PLANNING_MEMBER',
+  'PR_HEAD', 'PR_MEMBER',
+]);
+
+// 역할 하나가 운영진 역할인지.
+export function isStaffRole(role: MemberRole): boolean {
+  return STAFF_ROLES.has(role);
+}
+
+// 멤버가 운영진인지 — 겸직(roles 복수)이라도 운영진 역할이 하나라도 있으면 운영진.
+export function isStaffMember(member: Pick<Member, 'roles'>): boolean {
+  return member.roles.some(isStaffRole);
+}
+
 const stripSpace = (value: string) => value.replace(/\s+/g, '');
 
 // 라벨 길이 내림차순: "백엔드 세션장"이 "백엔드"보다, "부회장"이 "회장"보다 먼저 매칭되게 한다.
