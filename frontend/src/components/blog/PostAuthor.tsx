@@ -42,8 +42,9 @@ function roleLabel(parts: string[]) {
 
 export default function PostAuthor({ post, compact = false, interactiveNames = false }: Props) {
   const date = post.publishedAt ?? post.createdAt;
+  const hasCoauthors = (post.coauthors ?? []).length > 0;
   // 여러 사람이 함께 쓴 글에서는 한 사람의 직책만 대표처럼 보이지 않게 이름만 노출한다.
-  const role = (post.coauthors ?? []).length === 0 ? roleLabel(post.authorPart) : null;
+  const role = hasCoauthors ? null : roleLabel(post.authorPart);
   const authors = [
     {
       key: `primary-${post.authorName}`,
@@ -92,7 +93,13 @@ export default function PostAuthor({ post, compact = false, interactiveNames = f
       </div>
       <div className="min-w-0">
         <p
-          className={`${compact ? 'truncate' : 'line-clamp-2'} font-semibold text-white ${
+          className={`${
+            hasCoauthors
+              ? 'whitespace-normal break-keep leading-relaxed'
+              : compact
+                ? 'truncate'
+                : 'line-clamp-2'
+          } font-semibold text-white ${
             compact ? 'text-xs' : 'text-sm'
           }`}
         >

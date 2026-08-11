@@ -33,11 +33,14 @@ const post: PostSummary = {
 
 describe('PostAuthor', () => {
   it('주 작성자와 공동저자를 하나의 바이라인으로 표시한다', () => {
-    render(<PostAuthor post={post} />);
+    render(<PostAuthor post={post} compact />);
 
-    expect(screen.getByText('김우진').closest('p')).toHaveTextContent(
+    const names = screen.getByText('김우진').closest('p');
+    expect(names).toHaveTextContent(
       '김우진 · 박일하 · 김현정 · 신선우',
     );
+    expect(names).not.toHaveClass('truncate', 'line-clamp-2');
+    expect(names).toHaveClass('whitespace-normal', 'break-keep');
     expect(screen.getByText('+1')).toBeInTheDocument();
     expect(screen.queryByText('백엔드')).not.toBeInTheDocument();
   });
