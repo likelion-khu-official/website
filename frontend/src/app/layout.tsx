@@ -38,6 +38,9 @@ export const metadata: Metadata = {
   authors: [{ name: "LIKELION KHU" }],
   creator: "LIKELION KHU",
   publisher: "LIKELION KHU",
+  verification: {
+    google: "LNb8vExEsWAZgi-anKmwebNPuUfrvToSq461zpcVroQ",
+  },
   openGraph: {
     type: "website",
     locale: "ko_KR",
