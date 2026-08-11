@@ -1,9 +1,33 @@
-import type { ComponentPropsWithoutRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownImage from './MarkdownImage';
+import MemberMention from './MemberMention';
+
+const MENTION_PREFIX = 'mention:';
+
+// react-markdown은 기본적으로 모르는 스킴(mention:)을 지워버리므로 그대로 통과시킨다.
+// 나머지 링크는 기본 sanitize를 유지한다(보안).
+function urlTransform(url: string): string {
+  return url.startsWith(MENTION_PREFIX) ? url : defaultUrlTransform(url);
+}
+
+// 링크 자식에서 표시 텍스트만 뽑는다(해석 실패 시 평문 fallback으로 쓴다).
+function nodeText(children: ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) return children.map(nodeText).join('');
+  return '';
+}
 
 function MarkdownLink({ href = '', children, ...props }: ComponentPropsWithoutRef<'a'>) {
+  // `[@이름](mention:id)`는 링크가 아니라 인물 멘션 칩으로 렌더한다.
+  if (href.startsWith(MENTION_PREFIX)) {
+    const memberId = Number(href.slice(MENTION_PREFIX.length));
+    if (Number.isInteger(memberId)) {
+      return <MemberMention memberId={memberId} fallback={nodeText(children)} />;
+    }
+  }
+
   const external = /^https?:\/\//.test(href);
 
   return (
@@ -30,6 +54,7 @@ export default function MarkdownContent({ content }: { content: string }) {
     <div className="min-w-0 break-words text-[15px] leading-7 text-white/85 sm:text-base sm:leading-8">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={urlTransform}
         components={{
           h1: ({ children }) => (
             <h2 className="mb-5 mt-12 break-keep text-3xl font-semibold tracking-[-0.04em] text-white first:mt-0">
