@@ -39,7 +39,8 @@ function roleLabel(parts: string[]) {
 
 export default function PostAuthor({ post, compact = false }: Props) {
   const date = post.publishedAt ?? post.createdAt;
-  const role = roleLabel(post.authorPart);
+  // 여러 사람이 함께 쓴 글에서는 한 사람의 직책만 대표처럼 보이지 않게 이름만 노출한다.
+  const role = (post.coauthors ?? []).length === 0 ? roleLabel(post.authorPart) : null;
   const authors = [
     {
       key: `primary-${post.authorName}`,
