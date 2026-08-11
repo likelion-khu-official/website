@@ -482,14 +482,14 @@ export default function WriteForm({ postId }: Props) {
           }`}
         >
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-8 sm:px-10 lg:px-12 lg:pt-12">
-            <textarea
+            <input
+              type="text"
               value={title}
-              onChange={(event) => setTitle(event.target.value.replace(/\n/g, ''))}
+              onChange={(event) => setTitle(event.target.value)}
               maxLength={200}
-              rows={1}
               placeholder="제목을 입력하세요"
               aria-label="제목"
-              className="w-full resize-none break-keep bg-transparent text-3xl font-semibold leading-tight tracking-[-0.03em] text-white outline-none placeholder:text-white/25 sm:text-4xl"
+              className="w-full break-keep bg-transparent py-1 text-3xl font-semibold leading-[1.2] tracking-[-0.03em] text-white outline-none placeholder:text-white/25 sm:text-4xl"
             />
             <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
 

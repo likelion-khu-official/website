@@ -66,6 +66,7 @@ describe('WriteForm 공동저자 선택', () => {
     render(<WriteForm />);
 
     const titleInput = await screen.findByRole('textbox', { name: '제목' });
+    expect(titleInput).toHaveAttribute('type', 'text');
     fireEvent.change(titleInput, {
       target: { value: '함께 쓴 글' },
     });
