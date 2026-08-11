@@ -19,11 +19,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,14 +54,16 @@ public class PostService {
                 .map(MemberRole::name)
                 .toList();
         String slug = generateSlug();
+        List<PostCoauthorSnapshot> coauthors = resolveCoauthors(
+                memberId, request.getCoauthorMemberIds(), List.of());
         Post post = Post.create(slug, request.getTitle(), request.getSummary(), request.getContent(),
-                authorName, authorParts, memberId, request.getThumbnailUrl());
+                authorName, authorParts, memberId, coauthors, request.getThumbnailUrl());
         postRepository.save(post);
         auditService.recordStateChange("블로그 글 작성: " + request.getTitle(), "POST", post.getId(), AuditOutcome.SUCCESS);
         // 멤버가 글을 쓰면 곧바로 PUBLISHED(Post.create)라, 작성 = 최초 공개. 디스코드 채널에 알린다.
         eventPublisher.publishEvent(
                 SiteContentPublishedEvent.blog(post.getTitle(), post.getSummary(), post.getSlug(), authorName));
-        return PostDetailResponse.from(post, member, 0);
+        return toDetail(post, member, 0, true);
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +77,7 @@ public class PostService {
         Post post = postRepository.findBySlugAndStatus(slug, PostStatus.PUBLISHED)
                 .orElseThrow(PostNotFoundException::new);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, findAuthor(post), commentCount);
+        return toDetail(post, findAuthor(post), commentCount, false);
     }
 
     @Transactional(readOnly = true)
@@ -84,17 +90,20 @@ public class PostService {
         Post post = findPostOrThrow(id);
         requireAuthor(post, memberId);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, findAuthor(post), commentCount);
+        return toDetail(post, findAuthor(post), commentCount, true);
     }
 
     @Transactional
     public PostDetailResponse replacePost(Long id, Long memberId, PostReplaceRequest request) {
         Post post = findPostOrThrow(id);
         requireAuthor(post, memberId);
-        post.replace(request.getTitle(), request.getSummary(), request.getContent(), request.getThumbnailUrl());
+        List<PostCoauthorSnapshot> coauthors = resolveCoauthors(
+                memberId, request.getCoauthorMemberIds(), post.getCoauthors());
+        post.replace(request.getTitle(), request.getSummary(), request.getContent(),
+                coauthors, request.getThumbnailUrl());
         auditService.recordStateChange("블로그 글 수정: " + request.getTitle(), "POST", id, AuditOutcome.SUCCESS);
         long commentCount = commentRepository.countByPostIdAndHiddenFalse(post.getId());
-        return PostDetailResponse.from(post, findAuthor(post), commentCount);
+        return toDetail(post, findAuthor(post), commentCount, true);
     }
 
     @Transactional
@@ -126,17 +135,71 @@ public class PostService {
             eventPublisher.publishEvent(
                     SiteContentPublishedEvent.blog(post.getTitle(), post.getSummary(), post.getSlug(), post.getAuthorName()));
         }
-        return PostSummaryResponse.from(post, findAuthor(post));
+        Map<Long, Member> members = findMembersForPosts(List.of(post));
+        return PostSummaryResponse.from(post, members.get(post.getAuthorMemberId()), members);
     }
 
     private Page<PostSummaryResponse> toSummaryPage(Page<Post> posts) {
-        Set<Long> authorIds = posts.stream()
-                .map(Post::getAuthorMemberId)
-                .filter(id -> id != null)
+        Map<Long, Member> members = findMembersForPosts(posts.getContent());
+        return posts.map(post -> PostSummaryResponse.from(
+                post, members.get(post.getAuthorMemberId()), members));
+    }
+
+    private PostDetailResponse toDetail(
+            Post post, Member author, long commentCount, boolean includeSelectionIds) {
+        Map<Long, Member> members = findMembersForPosts(List.of(post));
+        return PostDetailResponse.from(post, author, members, commentCount, includeSelectionIds);
+    }
+
+    private Map<Long, Member> findMembersForPosts(List<Post> posts) {
+        Set<Long> memberIds = posts.stream()
+                .flatMap(post -> {
+                    List<Long> ids = new ArrayList<>();
+                    if (post.getAuthorMemberId() != null) ids.add(post.getAuthorMemberId());
+                    post.getCoauthors().stream().map(PostCoauthorSnapshot::memberId).forEach(ids::add);
+                    return ids.stream();
+                })
                 .collect(Collectors.toSet());
-        Map<Long, Member> authors = new HashMap<>();
-        memberRepository.findAllById(authorIds).forEach(member -> authors.put(member.getId(), member));
-        return posts.map(post -> PostSummaryResponse.from(post, authors.get(post.getAuthorMemberId())));
+        Map<Long, Member> members = new HashMap<>();
+        memberRepository.findAllById(memberIds)
+                .forEach(member -> members.put(member.getId(), member));
+        return members;
+    }
+
+    private List<PostCoauthorSnapshot> resolveCoauthors(
+            Long ownerId, List<Long> requestedIds, List<PostCoauthorSnapshot> existing) {
+        if (requestedIds == null || requestedIds.isEmpty()) return List.of();
+
+        LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>();
+        for (Long id : requestedIds) {
+            if (id == null || id.equals(ownerId) || !uniqueIds.add(id)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "공동저자 선택을 확인해 주세요.");
+            }
+        }
+
+        Map<Long, PostCoauthorSnapshot> existingById = existing.stream()
+                .collect(Collectors.toMap(PostCoauthorSnapshot::memberId, snapshot -> snapshot));
+        Set<Long> newIds = uniqueIds.stream()
+                .filter(id -> !existingById.containsKey(id))
+                .collect(Collectors.toSet());
+        Map<Long, Member> newMembers = new HashMap<>();
+        memberRepository.findAllById(newIds)
+                .forEach(member -> newMembers.put(member.getId(), member));
+
+        return uniqueIds.stream().map(id -> {
+            PostCoauthorSnapshot preserved = existingById.get(id);
+            if (preserved != null) return preserved;
+
+            Member member = newMembers.get(id);
+            if (member == null || member.isOffboarded() || !member.isPublicationConsent()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택할 수 없는 공동저자가 포함돼 있어요.");
+            }
+            List<String> parts = member.getRoles().stream()
+                    .sorted(Comparator.comparing(MemberRole::name))
+                    .map(MemberRole::name)
+                    .toList();
+            return new PostCoauthorSnapshot(member.getId(), member.getName(), parts);
+        }).toList();
     }
 
     private Member findAuthor(Post post) {

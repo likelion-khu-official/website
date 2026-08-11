@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { PostCreateRequest, PostReplaceRequest, PostStatus } from '@shared/types/feed';
+import type { Member } from '@shared/types/member';
 import {
   createPost,
+  getAllMembers,
   getCurrentMember,
   getMemberPost,
   MemberApiError,
@@ -27,6 +29,12 @@ type Draft = {
   summary: string;
   content: string;
   thumbnailUrl: string | null;
+  coauthorMemberIds: number[];
+};
+
+type CoauthorOption = Pick<Member, 'id' | 'name' | 'emoji' | 'photoUrl'> & {
+  roles: string[];
+  cohort: number | null;
 };
 
 type Props = {
@@ -36,6 +44,23 @@ type Props = {
 const DRAFT_KEY = 'feed-write-draft';
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+const MEMBER_ROLE_LABELS: Record<string, string> = {
+  PRESIDENT: '회장',
+  VICE_PRESIDENT: '부회장',
+  BACKEND_LEAD: '백엔드 세션장',
+  FRONTEND_LEAD: '프론트엔드 세션장',
+  DESIGN_LEAD: '디자인 세션장',
+  AI_LEAD: 'AI 세션장',
+  PLANNING_HEAD: '기획부장',
+  PLANNING_MEMBER: '기획부원',
+  PR_HEAD: '홍보부장',
+  PR_MEMBER: '홍보부원',
+  BACKEND: '백엔드',
+  FRONTEND: '프론트엔드',
+  DESIGN: '디자인',
+  AI: 'AI',
+};
 
 const GENERIC_SESSION_ERROR: SessionError = {
   title: '화면을 준비하지 못했어요',
@@ -97,6 +122,8 @@ export default function WriteForm({ postId }: Props) {
   const [sessionState, setSessionState] = useState<SessionState>('checking');
   const [sessionError, setSessionError] = useState<SessionError>(GENERIC_SESSION_ERROR);
   const [authorName, setAuthorName] = useState('');
+  const [coauthorOptions, setCoauthorOptions] = useState<CoauthorOption[]>([]);
+  const [coauthorMemberIds, setCoauthorMemberIds] = useState<number[]>([]);
   const [postStatus, setPostStatus] = useState<PostStatus>('PUBLISHED');
 
   const [title, setTitle] = useState('');
@@ -120,9 +147,11 @@ export default function WriteForm({ postId }: Props) {
 
     (async () => {
       try {
-        const [{ member }, post] = await Promise.all([
+        const [{ member }, post, publicMembers] = await Promise.all([
           getCurrentMember(),
           postId ? getMemberPost(postId) : Promise.resolve(undefined),
+          // 공동저자 선택은 선택 기능이라 공개 멤버 목록 조회 실패가 글쓰기 자체를 막지 않는다.
+          getAllMembers().catch(() => []),
         ]);
         if (cancelled) return;
         if (member.mustChangePassword) {
@@ -131,12 +160,33 @@ export default function WriteForm({ postId }: Props) {
         }
 
         setAuthorName(member.name);
+        const availableOptions: CoauthorOption[] = publicMembers
+          .filter((candidate) => candidate.id !== member.id)
+          .map((candidate) => ({ ...candidate, cohort: candidate.cohort }));
+        const existingIds = post?.coauthorMemberIds ?? [];
+        const preservedOptions: CoauthorOption[] = (post?.coauthors ?? []).flatMap(
+          (coauthor, index) => {
+            const id = existingIds[index] ?? coauthor.memberId;
+            if (id === null || availableOptions.some((candidate) => candidate.id === id)) return [];
+            return [{
+              id,
+              name: coauthor.name,
+              roles: coauthor.parts,
+              cohort: null,
+              emoji: coauthor.emoji ?? coauthor.name.slice(0, 1),
+              photoUrl: coauthor.photoUrl,
+            }];
+          },
+        );
+        const options = [...availableOptions, ...preservedOptions];
+        setCoauthorOptions(options);
         if (post) {
           setTitle(post.title);
           setSummary(post.summary ?? '');
           setContent(post.content);
           setThumbnailUrl(post.thumbnailUrl);
           setPostStatus(post.status);
+          setCoauthorMemberIds(existingIds);
         } else {
           try {
             const raw = localStorage.getItem(DRAFT_KEY);
@@ -146,6 +196,11 @@ export default function WriteForm({ postId }: Props) {
               setSummary(draft.summary ?? '');
               setContent(draft.content ?? '');
               setThumbnailUrl(draft.thumbnailUrl ?? null);
+              setCoauthorMemberIds(
+                (draft.coauthorMemberIds ?? []).filter((id) =>
+                  options.some((candidate) => candidate.id === id),
+                ),
+              );
             }
           } catch {
             // 손상된 임시저장은 무시하고 빈 폼으로 시작한다.
@@ -180,12 +235,12 @@ export default function WriteForm({ postId }: Props) {
   useEffect(() => {
     if (editing || sessionState !== 'ready') return;
     try {
-      const draft: Draft = { title, summary, content, thumbnailUrl };
+      const draft: Draft = { title, summary, content, thumbnailUrl, coauthorMemberIds };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {
       // 임시저장은 best-effort다.
     }
-  }, [content, editing, sessionState, summary, thumbnailUrl, title]);
+  }, [coauthorMemberIds, content, editing, sessionState, summary, thumbnailUrl, title]);
 
   function handleWriteError(error: unknown, fallback: string) {
     if (
@@ -330,6 +385,7 @@ export default function WriteForm({ postId }: Props) {
           summary: summary.trim() || null,
           content: content.trim(),
           thumbnailUrl,
+          coauthorMemberIds,
         };
         saved = await replacePost(postId, body);
       } else {
@@ -338,6 +394,7 @@ export default function WriteForm({ postId }: Props) {
           summary: summary.trim() || undefined,
           content: content.trim(),
           thumbnailUrl: thumbnailUrl ?? undefined,
+          coauthorMemberIds,
         };
         saved = await createPost(body);
         try {
@@ -567,6 +624,10 @@ export default function WriteForm({ postId }: Props) {
           contentImages={contentImages}
           thumbnailUrl={thumbnailUrl}
           onThumbnailChange={setThumbnailUrl}
+          authorName={authorName}
+          coauthorOptions={coauthorOptions}
+          coauthorMemberIds={coauthorMemberIds}
+          onCoauthorMemberIdsChange={setCoauthorMemberIds}
           submitting={submitting}
           submitError={submitError}
           onCancel={() => setPublishOpen(false)}
@@ -661,6 +722,10 @@ function PublishModal({
   contentImages,
   thumbnailUrl,
   onThumbnailChange,
+  authorName,
+  coauthorOptions,
+  coauthorMemberIds,
+  onCoauthorMemberIdsChange,
   submitting,
   submitError,
   onCancel,
@@ -673,16 +738,40 @@ function PublishModal({
   contentImages: string[];
   thumbnailUrl: string | null;
   onThumbnailChange: (url: string | null) => void;
+  authorName: string;
+  coauthorOptions: CoauthorOption[];
+  coauthorMemberIds: number[];
+  onCoauthorMemberIdsChange: (ids: number[]) => void;
   submitting: boolean;
   submitError: string;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
+  const [coauthorQuery, setCoauthorQuery] = useState('');
   // 후보 = 본문 이미지들. 수정 중인 글의 기존 대표 이미지가 본문에 없더라도 현재 선택으로 보이게 앞에 붙인다.
   const thumbnailCandidates =
     thumbnailUrl && !contentImages.includes(thumbnailUrl)
       ? [thumbnailUrl, ...contentImages]
       : contentImages;
+  const selectedCoauthors = coauthorMemberIds.flatMap((id) => {
+    const author = coauthorOptions.find((candidate) => candidate.id === id);
+    return author ? [author] : [];
+  });
+  const normalizedQuery = coauthorQuery.trim().toLocaleLowerCase('ko-KR');
+  const matchingCoauthors = normalizedQuery
+    ? coauthorOptions.filter((candidate) =>
+        !coauthorMemberIds.includes(candidate.id) &&
+        [
+          candidate.name,
+          String(candidate.cohort ?? ''),
+          ...candidate.roles,
+          ...candidate.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
+        ]
+          .join(' ')
+          .toLocaleLowerCase('ko-KR')
+          .includes(normalizedQuery),
+      )
+    : [];
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onCancel();
@@ -700,12 +789,99 @@ function PublishModal({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-background p-6 shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-background p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-white">
           {editing ? '수정 내용을 저장할까요?' : '이대로 출간할까요?'}
         </h2>
+
+        <div className="mt-5">
+          <p className="text-sm font-medium text-white">작성자</p>
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm">
+              {authorName.slice(0, 1)}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-white">{authorName}</span>
+            <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-medium text-white/55">
+              주 작성자
+            </span>
+          </div>
+
+          <label className="mt-4 block text-sm font-medium text-white" htmlFor="coauthor-search">
+            공동저자 <span className="font-normal text-white/35">(선택)</span>
+          </label>
+          <p className="mt-1 text-xs leading-5 text-white/40">
+            공개 프로필이 있는 멤버를 검색해 추가해요. 글에는 함께 표시되지만 수정·삭제 권한은 생기지 않아요.
+          </p>
+
+          {selectedCoauthors.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2" aria-label="선택한 공동저자">
+              {selectedCoauthors.map((author) => (
+                <span
+                  key={author.id}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] py-1 pl-1 pr-2 text-xs text-white/80"
+                >
+                  <AuthorOptionAvatar author={author} />
+                  {author.name}
+                  <button
+                    type="button"
+                    onClick={() => onCoauthorMemberIdsChange(
+                      coauthorMemberIds.filter((id) => id !== author.id),
+                    )}
+                    aria-label={`${author.name} 공동저자에서 제거`}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-white/40 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="relative mt-2">
+            <input
+              id="coauthor-search"
+              type="search"
+              value={coauthorQuery}
+              onChange={(event) => setCoauthorQuery(event.target.value)}
+              placeholder="이름으로 검색"
+              autoComplete="off"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+            />
+            {normalizedQuery ? (
+              <div className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-20 max-h-52 overflow-y-auto rounded-xl border border-white/10 bg-background p-1 shadow-2xl">
+                {matchingCoauthors.length > 0 ? matchingCoauthors.map((author) => (
+                  <button
+                    key={author.id}
+                    type="button"
+                    onClick={() => {
+                      onCoauthorMemberIdsChange([...coauthorMemberIds, author.id]);
+                      setCoauthorQuery('');
+                    }}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none hover:bg-white/[0.07] focus-visible:bg-white/[0.07]"
+                  >
+                    <AuthorOptionAvatar author={author} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-white">{author.name}</span>
+                      <span className="block truncate text-[11px] text-white/40">
+                        {[
+                          author.cohort ? `${author.cohort}기` : null,
+                          ...author.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </span>
+                    <span className="text-lg text-white/35" aria-hidden>＋</span>
+                  </button>
+                )) : (
+                  <p className="px-3 py-4 text-center text-xs text-white/40">찾는 멤버가 없어요.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
 
         <div className="mt-5">
           <p className="mb-1 text-sm font-medium text-white">
@@ -803,5 +979,18 @@ function PublishModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function AuthorOptionAvatar({ author }: { author: CoauthorOption }) {
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-sm">
+      {author.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={author.photoUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        author.emoji
+      )}
+    </span>
   );
 }

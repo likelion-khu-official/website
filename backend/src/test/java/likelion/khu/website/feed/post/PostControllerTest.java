@@ -34,6 +34,7 @@ class PostControllerTest {
     // @WithMockAdminUser(id = 1L, role = "MEMBER")와 짝을 맞춘다
     private Member member;
     private Member anotherMember;
+    private Member coauthor;
 
     @BeforeEach
     void setUp() {
@@ -44,6 +45,10 @@ class PostControllerTest {
         anotherMember = memberRepository.save(Member.create(
                 "선우", Set.of(MemberRole.BACKEND), 13, "🐯", null, null, "admin@khu.ac.kr",
                 "20240002", "01087654321", "hash"));
+        coauthor = memberRepository.save(Member.create(
+                "일하", Set.of(MemberRole.FRONTEND), 14, "🦊", null,
+                null, "소프트웨어융합학과", true, LocalDateTime.now(), "admin@khu.ac.kr",
+                "20240003", "01011112222", "hash"));
     }
 
     private Long createPublishedPost() throws Exception {
@@ -67,6 +72,24 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.authorEmoji").value("🦁"))
                 .andExpect(jsonPath("$.authorPhotoUrl").value("https://example.com/sihyeon.png"))
                 .andExpect(jsonPath("$.slug").isNotEmpty());
+    }
+
+    @Test
+    @WithMockAdminUser(id = 1L, role = "MEMBER")
+    void createPost_WithCoauthor_ReturnsBylineAndKeepsSelectionForEditing() throws Exception {
+        mockMvc.perform(post("/api/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "함께 쓴 글",
+                                  "content": "본문",
+                                  "coauthorMemberIds": [%d]
+                                }
+                                """.formatted(coauthor.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.coauthors[0].name").value("일하"))
+                .andExpect(jsonPath("$.coauthors[0].parts[0]").value("FRONTEND"))
+                .andExpect(jsonPath("$.coauthorMemberIds[0]").value(coauthor.getId()));
     }
 
     @Test
@@ -207,6 +230,18 @@ class PostControllerTest {
         mockMvc.perform(get("/api/posts/{slug}", slug))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").value("본문"));
+    }
+
+    @Test
+    void getPost_PublicResponse_HidesInternalCoauthorSelectionIds() throws Exception {
+        PostCreateRequest request = sampleRequest();
+        request.setCoauthorMemberIds(java.util.List.of(coauthor.getId()));
+        PostDetailResponse created = postService.createPost(member.getId(), request);
+
+        mockMvc.perform(get("/api/posts/{slug}", created.getSlug()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coauthors[0].name").value("일하"))
+                .andExpect(jsonPath("$.coauthorMemberIds").doesNotExist());
     }
 
     @Test

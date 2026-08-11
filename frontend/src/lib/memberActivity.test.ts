@@ -14,6 +14,7 @@ const post: PostSummary = {
   authorPart: ['FRONTEND'],
   authorEmoji: '🦁',
   authorPhotoUrl: null,
+  coauthors: [],
   status: 'PUBLISHED',
   publishedAt: '2026-08-03T10:00:00+09:00',
   createdAt: '2026-08-02T10:00:00+09:00',
@@ -65,5 +66,25 @@ describe('groupMemberActivities', () => {
   it('안전한 작성자 ID가 없는 과거 글은 이름으로 추측해 연결하지 않는다', () => {
     const result = groupMemberActivities([{ ...post, authorMemberId: null }], []);
     expect(result).toEqual({});
+  });
+
+  it('공동저자로 표시된 글도 그 멤버의 프로필 활동에 넣는다', () => {
+    const coauthoredPost: PostSummary = {
+      ...post,
+      coauthors: [
+        {
+          memberId: 8,
+          name: '이사자',
+          parts: ['BACKEND'],
+          emoji: '🐯',
+          photoUrl: null,
+        },
+      ],
+    };
+
+    const result = groupMemberActivities([coauthoredPost], []);
+
+    expect(result[7].map((activity) => activity.id)).toEqual(['blog-10']);
+    expect(result[8].map((activity) => activity.id)).toEqual(['blog-10']);
   });
 });

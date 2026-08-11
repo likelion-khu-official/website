@@ -30,7 +30,8 @@ function append(
 
 /**
  * 공개 글과 프로젝트를 멤버 ID로 묶는다. 이름으로 연결하지 않는 이유는 동명이인과
- * 이름 변경에 안전하지 않기 때문이다. 과거 글처럼 authorMemberId가 없으면 건너뛴다.
+ * 이름 변경에 안전하지 않기 때문이다. 블로그는 소유자뿐 아니라 공개 바이라인에 오른
+ * 공동저자의 프로필 활동에도 같은 글을 넣되, ID가 공개되지 않은 작성자는 건너뛴다.
  */
 export function groupMemberActivities(
   posts: PostSummary[],
@@ -39,8 +40,7 @@ export function groupMemberActivities(
   const activities: ActivitiesByMember = {};
 
   for (const post of posts) {
-    if (post.authorMemberId === null) continue;
-    append(activities, post.authorMemberId, {
+    const activity: MemberActivity = {
       id: `blog-${post.id}`,
       kind: 'BLOG',
       title: post.title,
@@ -48,7 +48,14 @@ export function groupMemberActivities(
       imageUrl: post.thumbnailUrl,
       href: `/blog/${post.slug}`,
       occurredAt: post.publishedAt ?? post.createdAt,
-    });
+    };
+    const creditedMemberIds = new Set([
+      post.authorMemberId,
+      ...(post.coauthors ?? []).map((coauthor) => coauthor.memberId),
+    ]);
+    for (const memberId of creditedMemberIds) {
+      if (memberId !== null) append(activities, memberId, activity);
+    }
   }
 
   for (const { summary, detail } of projects) {
