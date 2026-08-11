@@ -37,10 +37,6 @@ export const metadata: Metadata = {
   authors: [{ name: "LIKELION KHU" }],
   creator: "LIKELION KHU",
   publisher: "LIKELION KHU",
-  icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon.svg",
-  },
   openGraph: {
     type: "website",
     locale: "ko_KR",
