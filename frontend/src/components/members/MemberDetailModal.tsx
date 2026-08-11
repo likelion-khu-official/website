@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import type { Member } from '@shared/types/member';
 import type { MemberActivity } from '@/lib/memberActivity';
 import { formatDate } from '@/lib/formatDate';
-import { ROLE_LABELS } from '@/lib/roster';
+import { ROLE_LABELS, isStaffMember } from '@/lib/roster';
 
 type Accent = readonly [string, string]; // [배경색, 글자색] — 멤버 카드 색 쌍
 
@@ -218,6 +218,7 @@ export default function MemberDetailModal({
 
   const [accentBg, accentFg] = activeAccent;
   const roleLabels = activeMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
+  const staff = isStaffMember(activeMember);
   const activeActivity = activeActivities[index];
   const accentSurface = `color-mix(in srgb, ${accentFg} 12%, transparent)`;
   const accentBorder = `color-mix(in srgb, ${accentFg} 20%, transparent)`;
@@ -279,11 +280,24 @@ export default function MemberDetailModal({
               </span>
 
               <div className="min-w-0 text-center sm:text-left">
-                <span
-                  className="inline-flex max-w-full rounded-full bg-[#ff7272] px-5 py-2 text-xs font-semibold text-[#111111] sm:px-6 sm:py-2.5 sm:text-sm"
-                >
-                  <span className="truncate">{roleLabels}</span>
-                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  {staff && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold sm:text-sm"
+                      style={{ backgroundColor: accentSurface, borderColor: accentBorder }}
+                    >
+                      <svg viewBox="0 0 18 18" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+                        <path d="M9 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L9 14.8 5.2 13l.7-4.3-3.1-3 4.3-.6z" />
+                      </svg>
+                      운영진
+                    </span>
+                  )}
+                  <span
+                    className="inline-flex max-w-full rounded-full bg-[#ff7272] px-5 py-2 text-xs font-semibold text-[#111111] sm:px-6 sm:py-2.5 sm:text-sm"
+                  >
+                    <span className="truncate">{roleLabels}</span>
+                  </span>
+                </div>
                 <h2
                   id={headingId}
                   className="mt-3 flex items-start justify-center gap-2 break-keep text-[clamp(38px,7vw,64px)] font-bold leading-none tracking-[-0.065em] sm:justify-start"

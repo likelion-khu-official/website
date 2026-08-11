@@ -140,6 +140,17 @@ describe('MemberDetailModal', () => {
     expect(screen.getByText(/일부 활동을 불러오지 못했어요/)).toBeInTheDocument();
   });
 
+  it('일반 멤버에는 운영진 배지를 보여주지 않는다', () => {
+    render(<MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />);
+    expect(screen.queryByText('운영진')).not.toBeInTheDocument();
+  });
+
+  it('운영진 멤버에는 헤더에 운영진 배지를 보여준다', () => {
+    const staff: Member = { ...member, roles: ['PRESIDENT'] };
+    render(<MemberDetailModal member={staff} activities={[]} onClose={vi.fn()} />);
+    expect(screen.getByText('운영진')).toBeInTheDocument();
+  });
+
   it('닫기 버튼을 누르면 onClose를 호출한다', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
