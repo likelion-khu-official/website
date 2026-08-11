@@ -59,6 +59,24 @@ export function isStaffMember(member: Pick<Member, 'roles'>): boolean {
   return member.roles.some(isStaffRole);
 }
 
+// 역할 서열(위 = 높음). 운영진이 앞, 그 안에서 회장→부회장→세션장→부서 순, 멤버가 뒤.
+// MemberCard의 대표 역할 선택과 로스터 정렬이 공유하는 단일 출처(중복 정의로 인한 drift 방지).
+export const ROLE_ORDER: MemberRole[] = [
+  'PRESIDENT', 'VICE_PRESIDENT',
+  'BACKEND_LEAD', 'FRONTEND_LEAD', 'DESIGN_LEAD', 'AI_LEAD',
+  'PLANNING_HEAD', 'PLANNING_MEMBER',
+  'PR_HEAD', 'PR_MEMBER',
+  'BACKEND', 'FRONTEND', 'DESIGN', 'AI',
+];
+
+// 멤버의 대표 역할 서열(가장 높은 역할의 ROLE_ORDER 인덱스). 낮을수록 위.
+function roleRank(member: Pick<Member, 'roles'>): number {
+  return member.roles.reduce((best, role) => {
+    const rank = ROLE_ORDER.indexOf(role);
+    return rank !== -1 && rank < best ? rank : best;
+  }, ROLE_ORDER.length);
+}
+
 const stripSpace = (value: string) => value.replace(/\s+/g, '');
 
 // 라벨 길이 내림차순: "백엔드 세션장"이 "백엔드"보다, "부회장"이 "회장"보다 먼저 매칭되게 한다.
@@ -99,13 +117,24 @@ export function staffToMember(staff: Staff): Member {
 // 공개 API가 studentId를 노출하지 않아 두 테이블의 동일 인물은 이름으로만 매칭할 수 있다.
 // 멤버로 이미 있는 사람은 원본 Member(운영진 role·joinReason 포함)를 유지하고,
 // staff에만 있는 인물(예: 멤버 테이블에 없는 회장)만 변환해 뒤에 덧붙인다.
-// 노출 순서는 이름 가나다순(한국어 정렬) — 부원·운영진 구분 없이 한 그리드에서 찾기 쉽게 한다.
+// 노출 순서: 운영진을 맨 위에(우선순위 높음), 그 안에서 서열(회장→부회장→세션장→부서) 순.
+// 일반 멤버는 그 뒤에 이름 가나다순(한국어)으로 둬 한 그리드에서 찾기 쉽게 한다.
 export function mergeRoster(members: Member[], staff: Staff[]): Member[] {
   const memberNames = new Set(members.map((member) => member.name));
   const staffOnly = staff
     .filter((person) => !memberNames.has(person.name))
     .map(staffToMember);
-  return [...members, ...staffOnly].sort((left, right) =>
-    left.name.localeCompare(right.name, 'ko'),
-  );
+  return [...members, ...staffOnly].sort((left, right) => {
+    const leftStaff = isStaffMember(left);
+    const rightStaff = isStaffMember(right);
+    // 1) 운영진이 일반 멤버보다 항상 앞.
+    if (leftStaff !== rightStaff) return leftStaff ? -1 : 1;
+    // 2) 운영진끼리는 서열(ROLE_ORDER)순.
+    if (leftStaff) {
+      const byRole = roleRank(left) - roleRank(right);
+      if (byRole !== 0) return byRole;
+    }
+    // 3) 같은 그룹·서열이면 이름 가나다순.
+    return left.name.localeCompare(right.name, 'ko');
+  });
 }
