@@ -41,6 +41,9 @@ export const metadata: Metadata = {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     shortcut: "/favicon.svg",
   },
+  verification: {
+    google: "LNb8vExEsWAZgi-anKmwebNPuUfrvToSq461zpcVroQ",
+  },
   openGraph: {
     type: "website",
     locale: "ko_KR",
