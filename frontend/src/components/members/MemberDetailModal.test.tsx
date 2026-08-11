@@ -90,6 +90,21 @@ describe('MemberDetailModal', () => {
     expect(screen.getByText('아직 공개된 활동이 없어요.')).toBeInTheDocument();
   });
 
+  it('모달이 열린 뒤 지연 로드된 활동을 반영한다', () => {
+    const { rerender } = render(
+      <MemberDetailModal member={member} activities={[]} onClose={vi.fn()} />,
+    );
+
+    expect(screen.getByText('아직 공개된 활동이 없어요.')).toBeInTheDocument();
+
+    rerender(
+      <MemberDetailModal member={member} activities={activities} onClose={vi.fn()} />,
+    );
+
+    expect(screen.queryByText('아직 공개된 활동이 없어요.')).not.toBeInTheDocument();
+    expect(screen.getByText('최근 블로그 글')).toBeInTheDocument();
+  });
+
   it('활동을 불러오지 못하면 빈 상태와 다른 안내를 보여준다', () => {
     render(
       <MemberDetailModal

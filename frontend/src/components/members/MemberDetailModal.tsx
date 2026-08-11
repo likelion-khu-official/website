@@ -144,8 +144,19 @@ export default function MemberDetailModal({
       setActiveActivitiesIncomplete(activitiesIncomplete);
       setActiveOriginRect(originRect ?? null);
       setIndex(0);
+    } else {
+      // 닫힘 애니메이션 동안에도 마지막으로 로드된 활동을 그대로 보여준다.
+      setActiveActivities(activities);
+      setActiveActivitiesIncomplete(activitiesIncomplete);
     }
   }
+
+  // 열린 동안에는 지연 로드로 갱신되는 최신 프롭을 바로 사용한다. active* 상태는
+  // 닫힘 애니메이션에서 마지막 내용을 붙잡아 두기 위한 스냅샷일 뿐이다.
+  const displayedActivities = open ? activities : activeActivities;
+  const displayedActivitiesIncomplete = open
+    ? activitiesIncomplete
+    : activeActivitiesIncomplete;
 
   // 진입: 마운트된 다음 프레임에 보이기 상태로.
   useEffect(() => {
@@ -226,16 +237,16 @@ export default function MemberDetailModal({
   const move = useCallback(
     (direction: -1 | 1) => {
       setIndex((current) => (
-        (current + direction + activeActivities.length) % activeActivities.length
+        (current + direction + displayedActivities.length) % displayedActivities.length
       ));
     },
-    [activeActivities.length],
+    [displayedActivities.length],
   );
 
   // Tab이 다이얼로그 밖으로 나가지 않게 가둔다(배경 포커스 차단). 좌우 화살표로 활동 이동.
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowLeft' && activeActivities.length > 1) move(-1);
-    if (event.key === 'ArrowRight' && activeActivities.length > 1) move(1);
+    if (event.key === 'ArrowLeft' && displayedActivities.length > 1) move(-1);
+    if (event.key === 'ArrowRight' && displayedActivities.length > 1) move(1);
     if (event.key !== 'Tab') return;
 
     const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
@@ -257,7 +268,7 @@ export default function MemberDetailModal({
     swiped.current = false;
   }
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    if (pointerStart.current !== null && activeActivities.length > 1) {
+    if (pointerStart.current !== null && displayedActivities.length > 1) {
       const distance = event.clientX - pointerStart.current;
       if (Math.abs(distance) > 48) {
         swiped.current = true;
@@ -272,7 +283,7 @@ export default function MemberDetailModal({
   const [accentBg, accentFg] = activeAccent;
   const roleLabels = activeMember.roles.map((role) => ROLE_LABELS[role]).join(' · ');
   const staff = isStaffMember(activeMember);
-  const activeActivity = activeActivities[index];
+  const activeActivity = displayedActivities[index];
   const accentSurface = `color-mix(in srgb, ${accentFg} 12%, transparent)`;
   const accentBorder = `color-mix(in srgb, ${accentFg} 20%, transparent)`;
 
@@ -385,12 +396,12 @@ export default function MemberDetailModal({
               <span className="text-xs text-black/45">블로그 · 프로젝트</span>
             </div>
 
-            {activeActivities.length === 0 ? (
+            {displayedActivities.length === 0 ? (
               <p
                 className="flex min-h-64 flex-1 items-center justify-center rounded-lg border border-dashed border-black/15 px-5 text-center text-sm text-black/50"
-                role={activeActivitiesIncomplete ? 'alert' : undefined}
+                role={displayedActivitiesIncomplete ? 'alert' : undefined}
               >
-                {activeActivitiesIncomplete
+                {displayedActivitiesIncomplete
                   ? '활동 정보를 불러오지 못했어요. 잠시 뒤 다시 시도해주세요.'
                   : '아직 공개된 활동이 없어요.'}
               </p>
@@ -449,7 +460,7 @@ export default function MemberDetailModal({
                     </Link>
                   </div>
                 </div>
-                {activeActivitiesIncomplete ? (
+                {displayedActivitiesIncomplete ? (
                   <p className="mt-3 text-xs text-black/45" role="status">
                     일부 활동을 불러오지 못했어요. 보이는 활동은 계속 둘러볼 수 있어요.
                   </p>
@@ -460,9 +471,9 @@ export default function MemberDetailModal({
                     aria-live="polite"
                     aria-atomic="true"
                   >
-                    {String(index + 1).padStart(2, '0')} / {String(activeActivities.length).padStart(2, '0')}
+                    {String(index + 1).padStart(2, '0')} / {String(displayedActivities.length).padStart(2, '0')}
                   </span>
-                  {activeActivities.length > 1 ? (
+                  {displayedActivities.length > 1 ? (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
