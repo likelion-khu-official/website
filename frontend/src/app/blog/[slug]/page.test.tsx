@@ -12,6 +12,9 @@ vi.mock('@/components/blog/MarkdownContent', () => ({
   markdownIncludesImage: vi.fn().mockReturnValue(false),
 }));
 vi.mock('@/components/blog/PostAuthor', () => ({ default: () => <div>작성자</div> }));
+vi.mock('@/components/blog/AuthorModalTrigger', () => ({
+  default: ({ children }: { children: import('react').ReactNode }) => <div>{children}</div>,
+}));
 vi.mock('@/components/blog/PostThumbnail', () => ({ default: () => <div>썸네일</div> }));
 
 const post: PostDetail = {

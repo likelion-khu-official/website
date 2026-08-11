@@ -3,6 +3,7 @@ import { Geist_Mono, Inter } from "next/font/google";
 import { gremlinTrial } from "@/fonts/gremlin";
 import Footer from "@/components/sections/Footer";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
+import MemberModalProvider from "@/components/members/MemberModalProvider";
 import "./globals.css";
 
 const isProduction = process.env.VERCEL_ENV === "production";
@@ -97,7 +98,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <PageViewTracker />
-        {children}
+        <MemberModalProvider>{children}</MemberModalProvider>
         <Footer />
       </body>
     </html>

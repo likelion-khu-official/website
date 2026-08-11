@@ -6,6 +6,7 @@ import BackLink from '@/components/BackLink';
 import CommentSection from '@/components/blog/CommentSection';
 import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
 import PostAuthor from '@/components/blog/PostAuthor';
+import AuthorModalTrigger from '@/components/blog/AuthorModalTrigger';
 import PostThumbnail from '@/components/blog/PostThumbnail';
 
 type Props = {
@@ -56,7 +57,13 @@ export default async function PostPage({ params }: Props) {
         <h1 className="text-balance break-keep text-3xl font-bold text-white sm:text-4xl">
           {post.title}
         </h1>
-        <PostAuthor post={post} />
+        {post.authorMemberId != null ? (
+          <AuthorModalTrigger memberId={post.authorMemberId} name={post.authorName}>
+            <PostAuthor post={post} />
+          </AuthorModalTrigger>
+        ) : (
+          <PostAuthor post={post} />
+        )}
       </header>
 
       {post.thumbnailUrl && !markdownIncludesImage(post.content, post.thumbnailUrl) ? (
