@@ -33,6 +33,10 @@ type MemberModalContextValue = {
   openMember: (member: Member, options?: OpenOptions) => void;
   // id만 있을 때(블로그 작성자 등) — 공개 명단에서 해석해 연다. 없으면 조용히 무시.
   openMemberById: (memberId: number, options?: OpenOptions) => void;
+  // 공개 명단을 지연 로드한다(멘션 칩이 마운트 시 호출).
+  ensureDirectory: () => void;
+  // id로 현재 공개 멤버를 찾는다. 로드 전·없는 멤버면 undefined.
+  resolveMember: (memberId: number) => Member | undefined;
 };
 
 const MemberModalContext = createContext<MemberModalContextValue | null>(null);
@@ -55,8 +59,31 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
   // 공개 명단·멤버별 활동을 한 번만 로드해 캐시한다(열 때마다 전체 재요청 방지).
   const membersRef = useRef<Promise<Member[]> | null>(null);
   const activitiesRef = useRef<Promise<{ activitiesByMember: ActivitiesByMember; incomplete: boolean }> | null>(null);
+  // 멘션 칩이 id→현재 멤버를 동기적으로 읽도록 명단을 상태로도 둔다(로드되면 소비자가 리렌더).
+  const [directory, setDirectory] = useState<ReadonlyMap<number, Member> | null>(null);
   // 늦게 도착한 비동기 결과가 이미 닫혔거나 다른 멤버로 바뀐 모달에 반영되지 않도록.
   const requestIdRef = useRef(0);
+
+  // 공개 명단을 지연 로드한다(멤버 모달 열기·멘션 해석이 공유하는 단일 로드).
+  const ensureDirectory = useCallback(() => {
+    if (!membersRef.current) {
+      membersRef.current = getMembers('')
+        .then((members) => {
+          setDirectory(new Map(members.map((each) => [each.id, each])));
+          return members;
+        })
+        .catch(() => {
+          membersRef.current = null; // 다음 호출에서 재시도 가능
+          return [] as Member[];
+        });
+    }
+    return membersRef.current;
+  }, []);
+
+  const resolveMember = useCallback(
+    (memberId: number) => directory?.get(memberId),
+    [directory],
+  );
 
   const applyActivities = useCallback((memberId: number, requestId: number) => {
     if (!activitiesRef.current) {
@@ -95,19 +122,13 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
 
   const openMemberById = useCallback(
     (memberId: number, options?: OpenOptions) => {
-      if (!membersRef.current) {
-        membersRef.current = getMembers('').catch(() => {
-          membersRef.current = null;
-          return [] as Member[];
-        });
-      }
-      membersRef.current.then((members) => {
+      ensureDirectory().then((members) => {
         const found = members.find((candidate) => candidate.id === memberId);
         // 비공개·오프보딩·없는 멤버면 조용히 무시. 있으면 openMember가 최신성(requestId)까지 처리.
         if (found) openMember(found, options);
       });
     },
-    [openMember],
+    [ensureDirectory, openMember],
   );
 
   const close = useCallback(() => {
@@ -115,7 +136,10 @@ export default function MemberModalProvider({ children }: { children: ReactNode 
     setMember(null);
   }, []);
 
-  const value = useMemo(() => ({ openMember, openMemberById }), [openMember, openMemberById]);
+  const value = useMemo(
+    () => ({ openMember, openMemberById, ensureDirectory, resolveMember }),
+    [openMember, openMemberById, ensureDirectory, resolveMember],
+  );
 
   return (
     <MemberModalContext.Provider value={value}>
