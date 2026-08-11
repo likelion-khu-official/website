@@ -13,6 +13,7 @@ import {
   uploadMemberImage,
 } from '@/lib/memberApi';
 import MarkdownContent, { markdownIncludesImage } from './MarkdownContent';
+import { useMentionAutocomplete } from './useMentionAutocomplete';
 
 type SessionState = 'checking' | 'ready' | 'error';
 
@@ -110,6 +111,9 @@ export default function WriteForm({ postId }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [bodyImageError, setBodyImageError] = useState('');
+
+  // 본문에서 @로 부원을 태그하는 자동완성. 고르면 [@이름](mention:id)를 커서 자리에 넣는다.
+  const mention = useMentionAutocomplete(bodyRef, setContent);
 
   useEffect(() => {
     let cancelled = false;
@@ -453,10 +457,19 @@ export default function WriteForm({ postId }: Props) {
               uploading={bodyUploading}
             />
 
+            <p className="mt-3 text-xs text-white/35">
+              본문에서 <span className="font-semibold text-accent">@</span>를 입력하면 부원을 태그할 수 있어요.
+            </p>
+
             <textarea
               ref={bodyRef}
               value={content}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                mention.handleInput(event.currentTarget);
+              }}
+              onKeyDown={mention.handleKeyDown}
+              onBlur={mention.close}
               onSelect={(event) => {
                 selectionRef.current = {
                   start: event.currentTarget.selectionStart,
@@ -474,10 +487,11 @@ export default function WriteForm({ postId }: Props) {
               onDragLeave={() => setDragging(false)}
               aria-label="본문"
               placeholder={'당신의 이야기를 적어보세요...\n\n이미지는 복사한 뒤 붙여넣거나(⌘/Ctrl+V) 끌어다 놓으면 커서 위치에 바로 들어와요.'}
-              className={`mt-4 min-h-[40vh] w-full flex-1 resize-none break-words bg-transparent text-[15px] leading-8 text-white/90 outline-none placeholder:text-white/25 ${
+              className={`mt-3 min-h-[40vh] w-full flex-1 resize-none break-words bg-transparent text-[15px] leading-8 text-white/90 outline-none placeholder:text-white/25 ${
                 dragging ? 'rounded-lg ring-2 ring-accent/60' : ''
               }`}
             />
+            {mention.dropdown}
 
             {bodyImageError ? (
               <p role="alert" className="py-2 text-sm text-red-400">
