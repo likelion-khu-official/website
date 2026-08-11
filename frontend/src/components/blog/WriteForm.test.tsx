@@ -61,24 +61,26 @@ describe('WriteForm 공동저자 선택', () => {
     pushMock.mockReset();
   });
 
-  it('출간 설정에서 멤버를 검색해 공동저자로 저장한다', async () => {
+  it('한 줄 소개 아래에서 나를 기본 저자로 보여주고 공동저자를 저장한다', async () => {
     const user = userEvent.setup();
     render(<WriteForm />);
 
-    fireEvent.change(await screen.findByRole('textbox', { name: '제목' }), {
+    const titleInput = await screen.findByRole('textbox', { name: '제목' });
+    fireEvent.change(titleInput, {
       target: { value: '함께 쓴 글' },
     });
     fireEvent.change(screen.getByLabelText('본문'), { target: { value: '본문' } });
+
+    const authors = screen.getByLabelText('선택한 저자');
+    expect(within(authors).getByText('김우진')).toBeInTheDocument();
+    expect(within(authors).getByText('주 작성자')).toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox', { name: '공동저자 검색' }), '박일하');
+    await user.click(screen.getByRole('button', { name: /박일하/ }));
+    expect(within(authors).getByText('박일하')).toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: '출간하기' }));
-
     const dialog = screen.getByRole('dialog', { name: '출간 설정' });
-    expect(within(dialog).getByText('김우진')).toBeInTheDocument();
-    expect(within(dialog).getByText(/수정·삭제 권한은 생기지 않아요/)).toBeInTheDocument();
-
-    await user.type(within(dialog).getByRole('searchbox', { name: /공동저자/ }), '박일하');
-    await user.click(within(dialog).getByRole('button', { name: /박일하/ }));
-    expect(within(dialog).getByLabelText('선택한 공동저자')).toHaveTextContent('박일하');
-
+    expect(within(dialog).queryByRole('searchbox')).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: '출간하기' }));
 
     await waitFor(() => expect(createPostMock).toHaveBeenCalledWith(expect.objectContaining({

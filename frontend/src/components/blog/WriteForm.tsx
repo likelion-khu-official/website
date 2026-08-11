@@ -503,6 +503,13 @@ export default function WriteForm({ postId }: Props) {
               className="mt-5 w-full bg-transparent text-sm text-white/70 outline-none placeholder:text-white/30"
             />
 
+            <AuthorPicker
+              authorName={authorName}
+              coauthorOptions={coauthorOptions}
+              coauthorMemberIds={coauthorMemberIds}
+              onCoauthorMemberIdsChange={setCoauthorMemberIds}
+            />
+
             <EditorToolbar
               onHeading={() => prefixLine('## ')}
               onBold={() => wrapSelection('**', '**', '굵게')}
@@ -624,10 +631,6 @@ export default function WriteForm({ postId }: Props) {
           contentImages={contentImages}
           thumbnailUrl={thumbnailUrl}
           onThumbnailChange={setThumbnailUrl}
-          authorName={authorName}
-          coauthorOptions={coauthorOptions}
-          coauthorMemberIds={coauthorMemberIds}
-          onCoauthorMemberIdsChange={setCoauthorMemberIds}
           submitting={submitting}
           submitError={submitError}
           onCancel={() => setPublishOpen(false)}
@@ -714,45 +717,18 @@ function EditorToolbar({
   );
 }
 
-function PublishModal({
-  editing,
-  hiddenNotice,
-  summary,
-  onSummaryChange,
-  contentImages,
-  thumbnailUrl,
-  onThumbnailChange,
+function AuthorPicker({
   authorName,
   coauthorOptions,
   coauthorMemberIds,
   onCoauthorMemberIdsChange,
-  submitting,
-  submitError,
-  onCancel,
-  onSubmit,
 }: {
-  editing: boolean;
-  hiddenNotice: boolean;
-  summary: string;
-  onSummaryChange: (value: string) => void;
-  contentImages: string[];
-  thumbnailUrl: string | null;
-  onThumbnailChange: (url: string | null) => void;
   authorName: string;
   coauthorOptions: CoauthorOption[];
   coauthorMemberIds: number[];
   onCoauthorMemberIdsChange: (ids: number[]) => void;
-  submitting: boolean;
-  submitError: string;
-  onCancel: () => void;
-  onSubmit: () => void;
 }) {
   const [coauthorQuery, setCoauthorQuery] = useState('');
-  // 후보 = 본문 이미지들. 수정 중인 글의 기존 대표 이미지가 본문에 없더라도 현재 선택으로 보이게 앞에 붙인다.
-  const thumbnailCandidates =
-    thumbnailUrl && !contentImages.includes(thumbnailUrl)
-      ? [thumbnailUrl, ...contentImages]
-      : contentImages;
   const selectedCoauthors = coauthorMemberIds.flatMap((id) => {
     const author = coauthorOptions.find((candidate) => candidate.id === id);
     return author ? [author] : [];
@@ -772,6 +748,121 @@ function PublishModal({
           .includes(normalizedQuery),
       )
     : [];
+
+  return (
+    <div className="mt-5 border-y border-white/10 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-medium text-white">저자</p>
+        <p className="text-[11px] text-white/35">공동저자는 수정·삭제 권한이 없어요.</p>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-2" aria-label="선택한 저자">
+        <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-accent/25 bg-accent/[0.08] py-1 pl-1 pr-3 text-xs text-white/85">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-sm">
+            {authorName.slice(0, 1)}
+          </span>
+          {authorName}
+          <span className="text-[10px] font-medium text-accent">주 작성자</span>
+        </span>
+
+        {selectedCoauthors.map((author) => (
+          <span
+            key={author.id}
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] py-1 pl-1 pr-2 text-xs text-white/80"
+          >
+            <AuthorOptionAvatar author={author} />
+            {author.name}
+            <button
+              type="button"
+              onClick={() => onCoauthorMemberIdsChange(
+                coauthorMemberIds.filter((id) => id !== author.id),
+              )}
+              aria-label={`${author.name} 공동저자에서 제거`}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-white/40 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <div className="relative mt-2">
+        <label className="sr-only" htmlFor="coauthor-search">공동저자 검색</label>
+        <input
+          id="coauthor-search"
+          type="search"
+          value={coauthorQuery}
+          onChange={(event) => setCoauthorQuery(event.target.value)}
+          placeholder="공동저자 추가… 이름·기수·파트로 검색"
+          autoComplete="off"
+          className="min-h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-xs text-white outline-none placeholder:text-white/30 focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
+        />
+        {normalizedQuery ? (
+          <div className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-20 max-h-52 overflow-y-auto rounded-xl border border-white/10 bg-background p-1 shadow-2xl">
+            {matchingCoauthors.length > 0 ? matchingCoauthors.map((author) => (
+              <button
+                key={author.id}
+                type="button"
+                onClick={() => {
+                  onCoauthorMemberIdsChange([...coauthorMemberIds, author.id]);
+                  setCoauthorQuery('');
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none hover:bg-white/[0.07] focus-visible:bg-white/[0.07]"
+              >
+                <AuthorOptionAvatar author={author} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-white">{author.name}</span>
+                  <span className="block truncate text-[11px] text-white/40">
+                    {[
+                      author.cohort ? `${author.cohort}기` : null,
+                      ...author.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+                <span className="text-lg text-white/35" aria-hidden>＋</span>
+              </button>
+            )) : (
+              <p className="px-3 py-4 text-center text-xs text-white/40">찾는 멤버가 없어요.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PublishModal({
+  editing,
+  hiddenNotice,
+  summary,
+  onSummaryChange,
+  contentImages,
+  thumbnailUrl,
+  onThumbnailChange,
+  submitting,
+  submitError,
+  onCancel,
+  onSubmit,
+}: {
+  editing: boolean;
+  hiddenNotice: boolean;
+  summary: string;
+  onSummaryChange: (value: string) => void;
+  contentImages: string[];
+  thumbnailUrl: string | null;
+  onThumbnailChange: (url: string | null) => void;
+  submitting: boolean;
+  submitError: string;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  // 후보 = 본문 이미지들. 수정 중인 글의 기존 대표 이미지가 본문에 없더라도 현재 선택으로 보이게 앞에 붙인다.
+  const thumbnailCandidates =
+    thumbnailUrl && !contentImages.includes(thumbnailUrl)
+      ? [thumbnailUrl, ...contentImages]
+      : contentImages;
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onCancel();
@@ -795,93 +886,6 @@ function PublishModal({
         <h2 className="text-lg font-semibold text-white">
           {editing ? '수정 내용을 저장할까요?' : '이대로 출간할까요?'}
         </h2>
-
-        <div className="mt-5">
-          <p className="text-sm font-medium text-white">작성자</p>
-          <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm">
-              {authorName.slice(0, 1)}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm text-white">{authorName}</span>
-            <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-medium text-white/55">
-              주 작성자
-            </span>
-          </div>
-
-          <label className="mt-4 block text-sm font-medium text-white" htmlFor="coauthor-search">
-            공동저자 <span className="font-normal text-white/35">(선택)</span>
-          </label>
-          <p className="mt-1 text-xs leading-5 text-white/40">
-            공개 프로필이 있는 멤버를 검색해 추가해요. 글에는 함께 표시되지만 수정·삭제 권한은 생기지 않아요.
-          </p>
-
-          {selectedCoauthors.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2" aria-label="선택한 공동저자">
-              {selectedCoauthors.map((author) => (
-                <span
-                  key={author.id}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] py-1 pl-1 pr-2 text-xs text-white/80"
-                >
-                  <AuthorOptionAvatar author={author} />
-                  {author.name}
-                  <button
-                    type="button"
-                    onClick={() => onCoauthorMemberIdsChange(
-                      coauthorMemberIds.filter((id) => id !== author.id),
-                    )}
-                    aria-label={`${author.name} 공동저자에서 제거`}
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-white/40 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="relative mt-2">
-            <input
-              id="coauthor-search"
-              type="search"
-              value={coauthorQuery}
-              onChange={(event) => setCoauthorQuery(event.target.value)}
-              placeholder="이름으로 검색"
-              autoComplete="off"
-              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30 focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
-            {normalizedQuery ? (
-              <div className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-20 max-h-52 overflow-y-auto rounded-xl border border-white/10 bg-background p-1 shadow-2xl">
-                {matchingCoauthors.length > 0 ? matchingCoauthors.map((author) => (
-                  <button
-                    key={author.id}
-                    type="button"
-                    onClick={() => {
-                      onCoauthorMemberIdsChange([...coauthorMemberIds, author.id]);
-                      setCoauthorQuery('');
-                    }}
-                    className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none hover:bg-white/[0.07] focus-visible:bg-white/[0.07]"
-                  >
-                    <AuthorOptionAvatar author={author} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-white">{author.name}</span>
-                      <span className="block truncate text-[11px] text-white/40">
-                        {[
-                          author.cohort ? `${author.cohort}기` : null,
-                          ...author.roles.map((role) => MEMBER_ROLE_LABELS[role] ?? role),
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </span>
-                    <span className="text-lg text-white/35" aria-hidden>＋</span>
-                  </button>
-                )) : (
-                  <p className="px-3 py-4 text-center text-xs text-white/40">찾는 멤버가 없어요.</p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
 
         <div className="mt-5">
           <p className="mb-1 text-sm font-medium text-white">

@@ -30,5 +30,12 @@ describe('PostAuthor', () => {
 
     expect(screen.getByText('김우진 · 박일하 · 김현정 · 신선우')).toBeInTheDocument();
     expect(screen.getByText('+1')).toBeInTheDocument();
+    expect(screen.queryByText('백엔드')).not.toBeInTheDocument();
+  });
+
+  it('단독 저자 글에는 기존처럼 직책을 표시한다', () => {
+    render(<PostAuthor post={{ ...post, coauthors: [] }} />);
+
+    expect(screen.getByText('백엔드')).toBeInTheDocument();
   });
 });
