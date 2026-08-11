@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -22,6 +23,8 @@ type Props = {
   member: Member | null;
   // 선택한 멤버 카드의 색 쌍. 모달 전체 배경과 전경에 이어 써서 카드가 확장되는 느낌을 만든다.
   accent?: Accent;
+  // 누른 카드의 화면상 위치·크기. 데스크탑에서 모달이 그 자리를 원점으로 확장돼 열리게 한다.
+  originRect?: DOMRect | null;
   activities: MemberActivity[];
   // 블로그·프로젝트 중 일부를 못 불러오면 완전한 빈 상태와 구분해 안내한다.
   activitiesIncomplete?: boolean;
@@ -82,9 +85,23 @@ function ActivityVisual({ activity }: { activity: MemberActivity }) {
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])';
 
+// 다이얼로그를 누른 카드 자리(rect)에 겹치게 만드는 transform을 구한다(FLIP의 "시작" 상태).
+// 최종 위치를 정확히 재려고 인라인 transform을 잠시 지웠다가 복원한 뒤 측정한다.
+function cardOriginTransform(dialog: HTMLElement, rect: DOMRect): string {
+  const previous = dialog.style.transform;
+  dialog.style.transform = '';
+  const target = dialog.getBoundingClientRect();
+  dialog.style.transform = previous;
+  const scale = Math.max(rect.width / target.width, 0.08);
+  const translateX = rect.left + rect.width / 2 - (target.left + target.width / 2);
+  const translateY = rect.top + rect.height / 2 - (target.top + target.height / 2);
+  return `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+}
+
 export default function MemberDetailModal({
   member,
   accent,
+  originRect,
   activities,
   activitiesIncomplete = false,
   onClose,
@@ -101,8 +118,12 @@ export default function MemberDetailModal({
     activitiesIncomplete,
   );
   const [index, setIndex] = useState(0);
+  // 열 때의 카드 위치를 붙잡아 둔다(닫힐 때 같은 자리로 되돌리기 위해).
+  const [activeOriginRect, setActiveOriginRect] = useState<DOMRect | null>(originRect ?? null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
+  // 열 때 계산한 "카드 자리" transform. 닫힘 애니메이션이 같은 origin을 재사용한다.
+  const flipRef = useRef<string | null>(null);
   const lastTriggerRef = useRef<Element | null>(null);
   const pointerStart = useRef<number | null>(null);
   const swiped = useRef(false);
@@ -121,6 +142,7 @@ export default function MemberDetailModal({
       setActiveAccent(accent ?? FALLBACK_ACCENT);
       setActiveActivities(activities);
       setActiveActivitiesIncomplete(activitiesIncomplete);
+      setActiveOriginRect(originRect ?? null);
       setIndex(0);
     }
   }
@@ -132,6 +154,37 @@ export default function MemberDetailModal({
     const raf = requestAnimationFrame(() => setShown(true));
     return () => cancelAnimationFrame(raf);
   }, [open]);
+
+  // 데스크탑 진입: 누른 카드 자리에서 최종 위치로 확장(FLIP). 페인트 전에 시작 상태를
+  // 확정해야 첫 프레임이 카드 자리에 놓이므로 useLayoutEffect를 쓴다. 모바일 바텀시트와
+  // reduced-motion은 className 전환에 맡기고 여기선 관여하지 않는다.
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open || !dialog) return;
+    const desktop = window.matchMedia('(min-width: 640px)').matches;
+    if (!activeOriginRect || reducedMotion || !desktop) {
+      flipRef.current = null;
+      return;
+    }
+    const flip = cardOriginTransform(dialog, activeOriginRect);
+    flipRef.current = flip;
+    dialog.style.transition = 'none';
+    dialog.style.transform = flip;
+    void dialog.offsetWidth; // 리플로우 강제 — 시작 프레임을 확정한다.
+    const raf = requestAnimationFrame(() => {
+      dialog.style.transition = '';
+      dialog.style.transform = '';
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, reducedMotion, activeOriginRect]);
+
+  // 데스크탑 닫힘: 열 때 계산한 같은 카드 자리로 되돌리며 사라진다(연결감 유지).
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (open || !closing || !dialog || !flipRef.current) return;
+    dialog.style.transition = '';
+    dialog.style.transform = flipRef.current;
+  }, [open, closing]);
 
   // 닫힘 애니메이션이 끝나면 언마운트한다.
   useEffect(() => {
@@ -243,7 +296,7 @@ export default function MemberDetailModal({
         aria-labelledby={headingId}
         onKeyDown={handleKeyDown}
         className={`relative max-h-[94svh] w-full overflow-y-auto overscroll-contain rounded-t-[36px] border shadow-[0_-24px_90px_rgba(0,0,0,0.5)] transition-all duration-200 ease-[var(--motion-ease-out)] will-change-transform motion-reduce:transition-none sm:max-w-[1180px] sm:rounded-[56px] sm:shadow-[0_30px_120px_rgba(0,0,0,0.65)] lg:min-h-[640px] ${
-          shown ? 'translate-y-0 opacity-100 sm:scale-100' : 'translate-y-6 opacity-0 sm:translate-y-0 sm:scale-95'
+          shown ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0 sm:translate-y-0'
         }`}
         style={{ backgroundColor: accentBg, color: accentFg, borderColor: accentBorder }}
       >

@@ -81,7 +81,7 @@ export default function MemberCard({
 }: {
   member: Member;
   colorIndex: number;
-  onSelect: (member: Member) => void;
+  onSelect: (member: Member, originRect: DOMRect) => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const [lastPhotoUrl, setLastPhotoUrl] = useState(member.photoUrl);
@@ -116,7 +116,7 @@ export default function MemberCard({
       aria-label={`${member.name}님${staff ? ' (운영진)' : ''} 소개와 참여 프로젝트 보기`}
       data-track={primaryRole}
       data-staff={staff || undefined}
-      onClick={() => onSelect(member)}
+      onClick={(event) => onSelect(member, event.currentTarget.getBoundingClientRect())}
       className={`group relative aspect-[156/189] h-auto w-full max-w-[156px] cursor-pointer justify-self-center overflow-hidden rounded-[clamp(18px,5.5vw,22px)] text-left outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transition-none${
         staff ? ' ring-2 ring-inset ring-current' : ''
       }`}

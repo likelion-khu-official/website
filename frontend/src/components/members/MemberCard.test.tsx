@@ -28,7 +28,7 @@ describe('MemberCard', () => {
 
     await user.click(screen.getByRole('button', { name: /홍길동님 소개와 참여 프로젝트 보기/ }));
 
-    expect(onSelect).toHaveBeenCalledWith(member);
+    expect(onSelect).toHaveBeenCalledWith(member, expect.anything());
   });
 
   it('키보드(Enter)로도 선택할 수 있다', async () => {
@@ -39,6 +39,6 @@ describe('MemberCard', () => {
     await user.tab();
     await user.keyboard('{Enter}');
 
-    expect(onSelect).toHaveBeenCalledWith(member);
+    expect(onSelect).toHaveBeenCalledWith(member, expect.anything());
   });
 });
