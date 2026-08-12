@@ -182,4 +182,13 @@ describe('MemberDetailModal', () => {
     await user.click(screen.getByRole('button', { name: '닫기' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('활동 링크로 상세로 이동하면 모달을 닫는다', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<MemberDetailModal member={member} activities={activities} onClose={onClose} />);
+
+    await user.click(screen.getByRole('link', { name: '최근 블로그 글 자세히 보기' }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });
