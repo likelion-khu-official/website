@@ -461,7 +461,12 @@ export default function MemberDetailModal({
                         if (swiped.current) {
                           event.preventDefault();
                           swiped.current = false;
+                          return;
                         }
+                        // 상세로 이동할 땐 모달을 함께 닫는다. 열림 상태는 부모가 쥐고 있어
+                        // 네비게이션만으로는 안 닫히므로(목적지 로딩 동안 /members가 남아 모달이 떠 있는다),
+                        // 클릭 시점에 직접 닫아 이동한 화면 위에 모달이 남지 않게 한다.
+                        onClose();
                       }}
                       className="group block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4 focus-visible:ring-offset-[#eeeeea]"
                     >
