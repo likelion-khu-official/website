@@ -18,6 +18,22 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// 검색엔진용 사이트 단위 구조화 데이터 — 모든 페이지에 공통으로 노출한다.
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "멋쟁이사자처럼 경희대학교",
+  url: "https://likelion-khu.com",
+  logo: "https://likelion-khu.com/favicon.svg",
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "멋쟁이사자처럼 경희대학교",
+  url: "https://likelion-khu.com",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://likelion-khu.com"),
   title: {
@@ -97,6 +113,14 @@ export default function RootLayout({
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
       <body className="min-h-full flex flex-col">
