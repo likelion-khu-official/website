@@ -9,6 +9,25 @@ export const metadata: Metadata = {
   description: '멋쟁이사자처럼 경희대 멤버들이 직접 기획하고 개발한 프로젝트를 만나보세요.',
 };
 
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: '멋쟁이사자처럼 경희대학교',
+      item: 'https://likelion-khu.com',
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: '프로젝트',
+      item: 'https://likelion-khu.com/projects',
+    },
+  ],
+};
+
 export default async function ProjectsPage() {
   let projects = null;
   let failed = false;
@@ -21,6 +40,10 @@ export default async function ProjectsPage() {
 
   return (
     <main className="mx-auto min-h-[calc(100svh-88px)] w-full max-w-6xl px-4 pb-24 pt-4 sm:px-8 sm:pt-6 lg:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="mb-5 sm:mb-7">
         <BackLink href="/#project" />
       </div>

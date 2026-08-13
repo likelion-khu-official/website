@@ -30,12 +30,35 @@ const faqJsonLd = {
   ),
 };
 
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: '멋쟁이사자처럼 경희대학교',
+      item: 'https://likelion-khu.com',
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: '자주 묻는 질문',
+      item: 'https://likelion-khu.com/faq',
+    },
+  ],
+};
+
 export default function FaqPage() {
   return (
     <div className="min-h-screen min-h-[100svh] w-full overflow-x-hidden bg-background text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <SiteHeader />
 

@@ -12,6 +12,25 @@ export const metadata: Metadata = {
   description: '멋쟁이사자처럼 경희대 14기 멤버들을 소개합니다.',
 };
 
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: '멋쟁이사자처럼 경희대학교',
+      item: 'https://likelion-khu.com',
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: '멤버',
+      item: 'https://likelion-khu.com/members',
+    },
+  ],
+};
+
 export default async function MembersPage() {
   const baseUrl = await getBaseUrl();
   let members: Member[] = [];
@@ -32,6 +51,10 @@ export default async function MembersPage() {
 
   return (
     <main className="mx-auto min-h-[calc(100svh-64px)] w-full max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="mb-5 sm:mb-7">
         <BackLink href="/#members" />
       </div>
