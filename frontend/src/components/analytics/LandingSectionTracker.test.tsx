@@ -52,12 +52,12 @@ describe('LandingSectionTracker', () => {
     expect(observe).toHaveBeenCalledTimes(4);
 
     intersectionCallback([
-      { target: project, isIntersecting: true } as IntersectionObserverEntry,
-      { target: members, isIntersecting: true } as IntersectionObserverEntry,
-      { target: blog, isIntersecting: false } as IntersectionObserverEntry,
+      { target: project, isIntersecting: true } as unknown as IntersectionObserverEntry,
+      { target: members, isIntersecting: true } as unknown as IntersectionObserverEntry,
+      { target: blog, isIntersecting: false } as unknown as IntersectionObserverEntry,
     ], {} as IntersectionObserver);
     intersectionCallback([
-      { target: project, isIntersecting: true } as IntersectionObserverEntry,
+      { target: project, isIntersecting: true } as unknown as IntersectionObserverEntry,
     ], {} as IntersectionObserver);
 
     expect(trackSectionReach).toHaveBeenCalledTimes(2);
