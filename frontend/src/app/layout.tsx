@@ -23,7 +23,9 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "멋쟁이사자처럼 경희대학교",
+
   alternateName: ["LIKELION KHU", "likelion-khu.com"],
+
   url: "https://likelion-khu.com",
   logo: "https://likelion-khu.com/favicon.svg",
 };
@@ -32,6 +34,7 @@ const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "멋쟁이사자처럼 경희대학교",
+
   alternateName: ["LIKELION KHU", "likelion-khu.com"],
   url: "https://likelion-khu.com",
 };

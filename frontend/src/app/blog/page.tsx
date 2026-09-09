@@ -10,6 +10,25 @@ export const metadata: Metadata = {
   description: '프로젝트와 스터디에서 배운 기술과 경험을 나누는 블로그입니다.',
 };
 
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: '멋쟁이사자처럼 경희대학교',
+      item: 'https://likelion-khu.com',
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: '블로그',
+      item: 'https://likelion-khu.com/blog',
+    },
+  ],
+};
+
 export default async function BlogPage({
   searchParams,
 }: {
@@ -27,6 +46,10 @@ export default async function BlogPage({
 
   return (
     <main className="mx-auto min-h-[calc(100svh-88px)] w-full min-w-0 max-w-6xl px-5 pb-24 pt-4 sm:px-8 sm:pb-28 sm:pt-6 lg:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <div className="mb-5 sm:mb-7">
         <BackLink href="/#blog" />
       </div>
