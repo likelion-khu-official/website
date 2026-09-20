@@ -4,6 +4,7 @@ import { gremlinTrial } from "@/fonts/gremlin";
 import Footer from "@/components/sections/Footer";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 import MemberModalProvider from "@/components/members/MemberModalProvider";
+import { SITE_NAME } from "@/lib/siteName";
 import "./globals.css";
 
 const isProduction = process.env.VERCEL_ENV === "production";
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     url: "/",
-    siteName: "LIKELION KHU",
+    siteName: SITE_NAME,
     title: "LIKELION KHU | 멋쟁이사자처럼 경희대학교",
     description:
       "코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 멋쟁이사자처럼 경희대학교의 프로젝트와 활동을 만나보세요.",

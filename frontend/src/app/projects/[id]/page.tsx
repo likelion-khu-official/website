@@ -9,6 +9,7 @@ import TrackedAnalyticsLink from '@/components/analytics/TrackedAnalyticsLink';
 import { getProjectById, getProjects } from '@/lib/projectApi';
 import { getMembers } from '@/lib/rosterApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import { SITE_NAME } from '@/lib/siteName';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -80,6 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${project.title} — 멋쟁이사자처럼 경희대`,
     description: project.summary,
     openGraph: {
+      siteName: SITE_NAME,
       title: project.title,
       description: project.summary,
       type: 'website',
