@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPostBySlug } from '@/lib/feedApi';
 import { getBaseUrl } from '@/lib/serverBaseUrl';
+import { SITE_NAME } from '@/lib/siteName';
 import BackLink from '@/components/BackLink';
 import CommentSection from '@/components/blog/CommentSection';
 import MarkdownContent, { markdownIncludesImage } from '@/components/blog/MarkdownContent';
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${post.title} — 멋쟁이사자처럼 경희대`,
     description,
     openGraph: {
+      siteName: SITE_NAME,
       title: post.title,
       description,
       type: 'article',
