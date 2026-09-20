@@ -3,14 +3,16 @@ import SiteHeader from '@/components/SiteHeader';
 import BackLink from '@/components/BackLink';
 import FaqItem from '@/components/FaqItem';
 import { faqGroups } from '@/lib/faq';
+import { SITE_NAME } from '@/lib/siteName';
 
 export const metadata: Metadata = {
-  title: '자주 묻는 질문 (FAQ) | LIKELION KHU',
+  title: '자주 묻는 질문 (FAQ)',
   description:
     '멋쟁이사자처럼 경희대 지원 자격, 모집·선발, 활동 방식, 프로젝트까지 자주 묻는 질문을 주제별로 모았습니다.',
   alternates: { canonical: '/faq' },
   openGraph: {
-    title: '자주 묻는 질문 (FAQ) | LIKELION KHU',
+    siteName: SITE_NAME,
+    title: `자주 묻는 질문 (FAQ) | ${SITE_NAME}`,
     description:
       '멋쟁이사자처럼 경희대 지원 자격, 모집·선발, 활동 방식, 프로젝트까지 자주 묻는 질문을 주제별로 모았습니다.',
     url: '/faq',
