@@ -23,21 +23,18 @@ const inter = Inter({
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "멋쟁이사자처럼 경희대학교",
-
-  alternateName: ["LIKELION KHU", "likelion-khu.com"],
-
-  url: "https://likelion-khu.com",
+  name: SITE_NAME,
+  alternateName: ["LIKELION KHU"],
+  url: "https://likelion-khu.com/",
   logo: "https://likelion-khu.com/favicon.svg",
 };
 
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "멋쟁이사자처럼 경희대학교",
-
-  alternateName: ["LIKELION KHU", "likelion-khu.com"],
-  url: "https://likelion-khu.com",
+  name: SITE_NAME,
+  alternateName: ["LIKELION KHU"],
+  url: "https://likelion-khu.com/",
 };
 
 export const metadata: Metadata = {
@@ -48,7 +45,7 @@ export const metadata: Metadata = {
   },
   description:
     "멋쟁이사자처럼 경희대학교 공식 웹사이트. 코딩을 배우고 함께 성장하며, 아이디어를 실제 서비스로 만드는 프로젝트와 활동을 소개합니다.",
-  applicationName: "LIKELION KHU",
+  applicationName: SITE_NAME,
   keywords: [
     "멋쟁이사자처럼",
     "멋쟁이사자처럼 경희대",
@@ -57,9 +54,9 @@ export const metadata: Metadata = {
     "개발 동아리",
     "대학생 IT 동아리",
   ],
-  authors: [{ name: "LIKELION KHU" }],
-  creator: "LIKELION KHU",
-  publisher: "LIKELION KHU",
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
   verification: {
     google: "LNb8vExEsWAZgi-anKmwebNPuUfrvToSq461zpcVroQ",
   },
